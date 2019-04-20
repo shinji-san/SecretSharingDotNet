@@ -1,0 +1,6 @@
+# Ignore build results
+**/[Bb]in
+**/[Oo]bj
+
+# Ignore Visual Studio Code
+**/.vscode
