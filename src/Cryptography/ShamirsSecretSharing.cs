@@ -49,11 +49,16 @@ namespace SecretSharingDotNet.Cryptography
         /// Saves the known security levels (Mersenne prime exponents)
         /// </summary>
         private readonly List<int> securityLevels = new List<int> (new int[] { 5, 7, 13, 17, 19, 31, 61, 89, 107, 127, 521, 607, 1279, 2203, 2281, 3217 });
+        
+        /// <summary>
+        /// Saves the security level
+        /// </summary>
+        private int securityLevel;
 
         /// <summary>
-        /// Saves security level
+        /// Saves the calculated mersennePrime
         /// </summary>
-        private Calculator<TNumber> securityLevel;
+        private Calculator<TNumber> mersennePrime;
 
         /// <summary>
         /// Saves the extended greatest common divisor algorithm
@@ -84,10 +89,15 @@ namespace SecretSharingDotNet.Cryptography
         }
 
         /// <summary>
-        /// Sets the security level
+        /// Gets or sets the security level
         /// </summary>
         public int SecurityLevel
         {
+            get
+            {
+                return this.securityLevel;
+            }
+
             set
             {
                 if (value < 5)
@@ -110,7 +120,8 @@ namespace SecretSharingDotNet.Cryptography
 
                 try
                 {
-                    this.securityLevel = Calculator<TNumber>.Two.Pow (value) - Calculator<TNumber>.One;
+                    this.mersennePrime = Calculator<TNumber>.Two.Pow (value) - Calculator<TNumber>.One;
+                    this.securityLevel = value;
                 }
                 catch (NotSupportedException e)
                 {
@@ -189,13 +200,13 @@ namespace SecretSharingDotNet.Cryptography
         private List<Calculator<TNumber>> CreatePolynomial (Calculator<TNumber> numberOfMinimumShares)
         {
             var polynomial = new List<Calculator<TNumber>> (); /// pre-init
-            var randomNumber = new byte[this.securityLevel.ByteCount];
+            var randomNumber = new byte[this.mersennePrime.ByteCount];
             using (RNGCryptoServiceProvider rngCsp = new RNGCryptoServiceProvider ())
             {
                 for (var i = Calculator<TNumber>.Zero; i < numberOfMinimumShares; i++)
                 {
                     rngCsp.GetBytes (randomNumber);
-                    polynomial.Add (Calculator<TNumber>.Create (randomNumber).Abs () % this.securityLevel);
+                    polynomial.Add (Calculator<TNumber>.Create (randomNumber).Abs () % this.mersennePrime);
                 }
             }
 
@@ -213,7 +224,7 @@ namespace SecretSharingDotNet.Cryptography
             var points = new List<FinitePoint<TNumber>> (); /// pre-init
             for (var i = Calculator<TNumber>.One; i < (numberOfShares + Calculator<TNumber>.One); i++)
             {
-                points.Add (new FinitePoint<TNumber> (i, polynomial, this.securityLevel));
+                points.Add (new FinitePoint<TNumber> (i, polynomial, this.mersennePrime));
             }
 
             return points;
@@ -330,7 +341,7 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentOutOfRangeException (nameof (shares));
             }
 
-            return this.LagrangeInterpolate (new List<FinitePoint<TNumber>> (shares), this.securityLevel);
+            return this.LagrangeInterpolate (new List<FinitePoint<TNumber>> (shares), this.mersennePrime);
         }
     }
 }
