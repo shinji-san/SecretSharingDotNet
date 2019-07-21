@@ -4,3 +4,6 @@
 
 # Ignore Visual Studio Code
 **/.vscode
+
+# Ignore Visual Studio
+**/.vs
