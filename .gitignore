@@ -11,3 +11,8 @@
 # NuGet Packages
 # The packages folder can be ignored. Use package restore
 **/packages/*
+
+# Ignore user-specific files
+*.suo
+*.user
+
