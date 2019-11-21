@@ -31,12 +31,13 @@
 
 namespace SecretSharingDotNet.Cryptography
 {
+    using Math;
     using System;
     using System.Collections.Generic;
+    using System.Collections.ObjectModel;
     using System.Globalization;
     using System.Linq;
-
-    using Math;
+    using System.Text;
 
     /// <summary>
     /// Represents the support point of the polynomial
@@ -129,9 +130,8 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public int CompareTo (FinitePoint<TNumber> other)
-        {
-            return System.Math.Sign ((this.X * this.X + this.Y * this.Y).Sqrt - (other.X * other.X + other.Y * other.Y).Sqrt);
+        public int CompareTo (FinitePoint<TNumber> other) {
+            return ((this.X * this.X + this.Y * this.Y).Sqrt - (other.X * other.X + other.Y * other.Y).Sqrt).Sign;
         }
 
         /// <summary>
