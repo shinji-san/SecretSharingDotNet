@@ -97,6 +97,7 @@ namespace SecretSharingDotNet.Test
             var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
             var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
             var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+            Assert.Equal(number, (BigInteger)recoveredSecret1);
             Assert.Equal(secret, recoveredSecret1);
             Assert.Equal(secret, recoveredSecret2);
             Assert.Equal(17, split.SecurityLevel);
