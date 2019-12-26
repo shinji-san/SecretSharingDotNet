@@ -181,7 +181,7 @@ namespace SecretSharingDotNet.Cryptography
         /// Returns the string representation of the <see cref="FinitePoint{TNumber}"/> structure.
         /// </summary>
         /// <returns></returns>
-        public override string ToString () => string.Format (CultureInfo.InvariantCulture, "x={0}; y={1}", this.x, this.y);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}-{1}", ToHexString(this.x.ByteRepresentation), ToHexString(this.y.ByteRepresentation));
 
         /// <summary>
         /// Evaluates polynomial (coefficient tuple) at x, used to generate a shamir pool.
@@ -215,6 +215,26 @@ namespace SecretSharingDotNet.Cryptography
 
             string[] s = share.Split(new char[] { '-' });
             return new FinitePoint<TNumber>(Calculator<TNumber>.Create(ToByteArray(s[0])), Calculator<TNumber>.Create(ToByteArray(s[1])));
+        }
+
+        /// <summary>
+        /// Converts a byte collection to hexadecimal string.
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <returns>human readable / printable string</returns>
+        /// <remarks>
+        /// Based on discussion on <see href="https://stackoverflow.com/questions/623104/byte-to-hex-string/5919521#5919521">stackoverflow</see>
+        /// </remarks>
+        private static string ToHexString(ReadOnlyCollection<byte> bytes)
+        {
+            StringBuilder hexRepresentation = new StringBuilder(bytes.Count * 2);
+            foreach (byte b in bytes)
+            {
+                const string HexAlphabet = "0123456789ABCDEF";
+                hexRepresentation.Append(new char[] { HexAlphabet[(int)(b >> 4)], HexAlphabet[(int)(b & 0xF)] });
+            }
+
+            return hexRepresentation.ToString();
         }
 
         /// <summary>
