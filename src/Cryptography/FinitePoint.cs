@@ -58,13 +58,13 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// Initializes a new instance of the <see cref="FinitePoint{TNumber}"/> struct.
         /// </summary>
-        /// <param name="x"></param>
-        /// <param name="polynomial"></param>
-        /// <param name="prime"></param>
-        public FinitePoint (Calculator<TNumber> x, ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> prime)
+        /// <param name="x">X coordinate as known as share index</param>
+        /// <param name="polynomial">Polynomial</param>
+        /// <param name="prime">The prime number given by the security level.</param>
+        public FinitePoint(Calculator<TNumber> x, ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> prime)
         {
-            this.x = x ?? throw new ArgumentNullException (nameof (x));
-            this.y = Evaluate (polynomial??throw new ArgumentNullException (nameof (polynomial)), this.x, prime??throw new ArgumentNullException (nameof (prime)));
+            this.x = x ?? throw new ArgumentNullException(nameof(x));
+            this.y = Evaluate(polynomial ?? throw new ArgumentNullException(nameof(polynomial)), this.x, prime ?? throw new ArgumentNullException(nameof(prime)));
         }
 
         /// <summary>
@@ -83,7 +83,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator == (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.Equals (right);
+        public static bool operator ==(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.Equals(right);
 
         /// <summary>
         /// 
@@ -91,7 +91,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator != (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => !left.Equals (right);
+        public static bool operator !=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => !left.Equals(right);
 
         /// <summary>
         /// 
@@ -99,7 +99,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator > (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo (right) == 1;
+        public static bool operator >(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) == 1;
 
         /// <summary>
         /// 
@@ -107,7 +107,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator < (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo (right) == -1;
+        public static bool operator <(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) == -1;
 
         /// <summary>
         /// 
@@ -115,7 +115,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator >= (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo (right) >= 0;
+        public static bool operator >=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) >= 0;
 
         /// <summary>
         /// 
@@ -123,14 +123,15 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator <= (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo (right) <= 0;
+        public static bool operator <=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) <= 0;
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public int CompareTo (FinitePoint<TNumber> other) {
+        public int CompareTo(FinitePoint<TNumber> other)
+        {
             return ((this.X * this.X + this.Y * this.Y).Sqrt - (other.X * other.X + other.Y * other.Y).Sqrt).Sign;
         }
 
@@ -139,9 +140,9 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public bool Equals (FinitePoint<TNumber> other)
+        public bool Equals(FinitePoint<TNumber> other)
         {
-            return this.X.Equals (other.X) && this.Y.Equals (other.Y);
+            return this.X.Equals(other.X) && this.Y.Equals(other.Y);
         }
 
         /// <summary>
@@ -149,21 +150,21 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public override bool Equals (object obj)
+        public override bool Equals(object obj)
         {
             if (obj == null)
             {
                 return false;
             }
 
-            return this.Equals ((FinitePoint<TNumber>) obj);
+            return this.Equals((FinitePoint<TNumber>)obj);
         }
 
         /// <summary>
         /// Returns the hash code for the current <see cref="FinitePoint{TNumber}"/> structure.
         /// </summary>
         /// <returns>A 32-bit signed integer hash code.</returns>
-        public override int GetHashCode () => this.X.GetHashCode () ^ this.y.GetHashCode ();
+        public override int GetHashCode() => this.X.GetHashCode() ^ this.y.GetHashCode();
 
         /// <summary>
         /// Returns the string representation of the <see cref="FinitePoint{TNumber}"/> structure.
@@ -178,10 +179,10 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="x"></param>
         /// <param name="prime">Mersenne prime greater or equal 5</param>
         /// <returns></returns>
-        private static Calculator<TNumber> Evaluate (ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> x, Calculator<TNumber> prime)
+        private static Calculator<TNumber> Evaluate(ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> x, Calculator<TNumber> prime)
         {
             Calculator<TNumber> accum = Calculator<TNumber>.Zero;
-            foreach (Calculator<TNumber> coeff in polynomial.Reverse<Calculator<TNumber>> ())
+            foreach (Calculator<TNumber> coeff in polynomial.Reverse<Calculator<TNumber>>())
             {
                 accum = (accum * x + coeff) % prime;
             }
