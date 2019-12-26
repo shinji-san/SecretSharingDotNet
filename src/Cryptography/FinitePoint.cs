@@ -68,6 +68,17 @@ namespace SecretSharingDotNet.Cryptography
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="FinitePoint{TNumber}"/> struct.
+        /// </summary>
+        /// <param name="x">X coordinate</param>
+        /// <param name="y">Y coordinate</param>
+        private FinitePoint(Calculator<TNumber> x, Calculator<TNumber> y)
+        {
+            this.x = x;
+            this.y = y;
+        }
+
+        /// <summary>
         /// Gets the X coordinate
         /// </summary>
         public Calculator<TNumber> X => this.x;
