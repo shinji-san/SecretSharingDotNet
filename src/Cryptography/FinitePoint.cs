@@ -202,6 +202,22 @@ namespace SecretSharingDotNet.Cryptography
         }
 
         /// <summary>
+        /// Parses the string representation of the <see cref="FinitePoint{TNumber}"/> struct.
+        /// </summary>
+        /// <param name="share">string representation of the <see cref="FinitePoint{TNumber}"/> struct</param>
+        /// <returns>A <see cref="FinitePoint{TNumber}"/> structure representing the deserialization of <paramref name="share"/> string</returns>
+        public static FinitePoint<TNumber> Parse(string share)
+        {
+            if (string.IsNullOrWhiteSpace(share))
+            {
+                throw new ArgumentNullException(nameof(share));
+            }
+
+            string[] s = share.Split(new char[] { '-' });
+            return new FinitePoint<TNumber>(Calculator<TNumber>.Create(ToByteArray(s[0])), Calculator<TNumber>.Create(ToByteArray(s[1])));
+        }
+
+        /// <summary>
         /// Converts a hexadecimal string to a byte array.
         /// </summary>
         /// <param name="hextString">hexadecimal string</param>
