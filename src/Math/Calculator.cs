@@ -49,11 +49,6 @@ namespace SecretSharingDotNet.Math
         /// Gets a number that indicates the sign (negative, positive, or zero) of the current <see cref="Calculator"/> object.
         /// </summary>
         public abstract int Sign { get; }
-
-        /// <summary>
-        /// Returns the square root of the current <see cref="Calculator"/>.
-        /// </summary>
-        public abstract double Sqrt { get; }
     }
 
     /// <summary>
@@ -146,6 +141,11 @@ namespace SecretSharingDotNet.Math
         /// <param name="expo">The exponent.</param>
         /// <returns></returns>
         public abstract Calculator<TNumber> Pow (int expo);
+
+        /// <summary>
+        /// Returns the square root of the current <see cref="Calculator{TNumber}"/>.
+        /// </summary>
+        public abstract Calculator<TNumber> Sqrt { get; }
 
         /// <summary>
         /// 

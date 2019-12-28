@@ -144,7 +144,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns></returns>
         public int CompareTo (Secret<TNumber> other)
         {
-            return System.Math.Sign ((this.secretNumber * this.secretNumber).Sqrt - (other.secretNumber * other.secretNumber).Sqrt);
+            return ((this.secretNumber * this.secretNumber).Sqrt - (other.secretNumber * other.secretNumber).Sqrt).Sign;
         }
 
         /// <summary>
