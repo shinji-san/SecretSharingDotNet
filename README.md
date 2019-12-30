@@ -1,6 +1,9 @@
 # SecretSharingDotNet
 An C# implementation of Shamir's Secret Sharing.
 
+# Build and Test Status
+[![Build status](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22)
+
 # Usage
 ## Basics
 Use the function `MakeShares` to generate the secret shares based on a random or pre-defined secret.
