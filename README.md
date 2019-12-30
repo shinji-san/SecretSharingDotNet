@@ -8,70 +8,134 @@ An C# implementation of Shamir's Secret Sharing.
 
 # Usage
 ## Basics
-Use the function `MakeShares` to generate the secret shares based on a random or pre-defined secret.
-Afterwards use the function `Reconstruction` to re-constructing the original secret
+Use the function `MakeShares` to generate the shares based on a random or pre-defined secret.
+Afterwards use the function `Reconstruction` to re-constructing the original secret.
+
+The length of shares based on the security level. It's possible to pre-define a security level by `ctor` or the `SecurityLevel` property. The pre-defined security level will be overriden if secret size is greater than the Mersenne prime which is calculated by means of security level. It is not necessary to define a security level for re-construction.
 
 ## Random Secret
-Here is an example:
+Create a random secret in conjunction with the generation of shares. The length of the generated shares and the secret based on the security level. Here is an example with a pre-defined security level of 127:
 ```csharp
-//// Create Shamir's Secret Sharing instance with BigInteger and
-//// security level 127 (Mersenne prime exponent)
-var sss = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 127);
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 
-//// Minimum number of shared secrets for reconstruction: 3
-//// Maximum number of shared secrets: 7
-var x = sss.MakeShares (3, 7);
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math;
 
-//// Item1 represents the random secret
-var secret = x.Item1;
+namespace Example1
+{
+  public class Program
+  {
+    public static void Main(string[] args)
+    {
+      var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
 
-//// Item 2 contains the shared secrets
-var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
-var recoveredSecret1 = sss.Reconstruction(subSet1.ToArray());
-var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
-var recoveredSecret2 = sss.Reconstruction(subSet2.ToArray());
+      //// Create Shamir's Secret Sharing instance with BigInteger
+      //// and security level 127 (Mersenne prime exponent)
+      var split = new ShamirsSecretSharing<BigInteger>(gcd, 127);
+
+      //// Minimum number of shared secrets for reconstruction: 3
+      //// Maximum number of shared secrets: 7
+      var x = split.MakeShares (3, 7);
+
+      //// Item1 represents the random secret
+      var secret = x.Item1;
+
+      //// Item 2 contains the shared secrets
+      var combine = new ShamirsSecretSharing<BigInteger>(gcd);
+      var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
+      var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
+      var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
+      var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+    }
+  }
+}
 ```
 ## Pre-defined Secret: Text
-Here is an example:
+Use a text as secret which can be divided into shares. The length of the generated shares based on the security level.
+Here is an example with auto-detected security level:
 ```csharp
-//// Create Shamir's Secret Sharing instance with BigInteger and
-//// security level 127 (Mersenne prime exponent)
-var sss = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 127);
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 
-string password = "Hello World!!";
-//// Minimum number of shared secrets for reconstruction: 3
-//// Maximum number of shared secrets: 7
-//// Attention: The password length changes the security level set by the ctor
-var x = sss.MakeShares (3, 7, password);
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math;
 
-//// Item1 represents the password (original secret)
-var secret = x.Item1;
+namespace Example2
+{
+  public class Program
+  {
+    public static void Main(string[] args)
+    {
+      var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
 
-//// Item 2 contains the shared secrets
-var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
-var recoveredSecret1 = sss.Reconstruction(subSet1.ToArray());
-var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
-var recoveredSecret2 = sss.Reconstruction(subSet2.ToArray());
+      //// Create Shamir's Secret Sharing instance with BigInteger
+      var split = new ShamirsSecretSharing<BigInteger>(gcd);
+
+      string password = "Hello World!!";
+      //// Minimum number of shared secrets for reconstruction: 3
+      //// Maximum number of shared secrets: 7
+      //// Attention: The password length changes the security level set by the ctor
+      var x = split.MakeShares (3, 7, password);
+
+      //// Item1 represents the password (original secret)
+      var secret = x.Item1;
+
+      //// Item 2 contains the shared secrets
+      var combine = new ShamirsSecretSharing<BigInteger>(gcd);
+      var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
+      var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
+      var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
+      var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+    }
+  }
+}
 ```
 
 ## Pre-defined Secret: Number
-Here is an example:
+Use an integer number as secret which can be divided into shares. The length of the generated shares based on the security level.
+Here is an example with a pre-defined security level of 521:
 ```csharp
-//// Create Shamir's Secret Sharing instance with BigInteger and
-//// security level 127 (Mersenne prime exponent)
-var sss = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 127);
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 
-BigInteger number = 20000;
-//// Minimum number of shared secrets for reconstruction: 3
-//// Maximum number of shared secrets: 7
-var x = sss.MakeShares (3, 7, number);
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math;
 
-//// Item1 represents the number (original secret)
-var secret = x.Item1;
+namespace Example3
+{
+  public class Program
+  {
+    public static void Main(string[] args)
+    {
+      var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
 
-//// Item 2 contains the shared secrets
-var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
-var recoveredSecret1 = sss.Reconstruction(subSet1.ToArray());
-var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
-var recoveredSecret2 = sss.Reconstruction(subSet2.ToArray());
+      //// Create Shamir's Secret Sharing instance with BigInteger
+      //// and security level 521 (Mersenne prime exponent)
+      var split = new ShamirsSecretSharing<BigInteger>(gcd, 521);
+
+      BigInteger number = 20000;
+      //// Minimum number of shared secrets for reconstruction: 3
+      //// Maximum number of shared secrets: 7
+      //// Attention: The number size changes the security level set by the ctor
+      var x = split.MakeShares (3, 7, number);
+
+      //// Item1 represents the number (original secret)
+      var secret = x.Item1;
+
+      //// Item 2 contains the shared secrets
+      var combine = new ShamirsSecretSharing<BigInteger>(gcd);
+      var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
+      var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
+      var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
+      var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+    }
+  }
+}
 ```
