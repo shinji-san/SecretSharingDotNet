@@ -184,8 +184,8 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentOutOfRangeException("The pool secret would be irrecoverable.");
             }
 
-            var polynomial = CreatePolynomial(min);
             this.SecurityLevel = secret.ToString().Length * sizeof(char) * 8;
+            var polynomial = CreatePolynomial(min);
             polynomial[0] = secret;
             var points = CreateSharedSecrets(shrs, polynomial);
 
