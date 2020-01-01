@@ -58,13 +58,24 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// Initializes a new instance of the <see cref="FinitePoint{TNumber}"/> struct.
         /// </summary>
-        /// <param name="x"></param>
-        /// <param name="polynomial"></param>
-        /// <param name="prime"></param>
-        public FinitePoint (Calculator<TNumber> x, ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> prime)
+        /// <param name="x">X coordinate as known as share index</param>
+        /// <param name="polynomial">Polynomial</param>
+        /// <param name="prime">The prime number given by the security level.</param>
+        public FinitePoint(Calculator<TNumber> x, ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> prime)
         {
-            this.x = x ?? throw new ArgumentNullException (nameof (x));
-            this.y = Evaluate (polynomial??throw new ArgumentNullException (nameof (polynomial)), this.x, prime??throw new ArgumentNullException (nameof (prime)));
+            this.x = x ?? throw new ArgumentNullException(nameof(x));
+            this.y = Evaluate(polynomial ?? throw new ArgumentNullException(nameof(polynomial)), this.x, prime ?? throw new ArgumentNullException(nameof(prime)));
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FinitePoint{TNumber}"/> struct.
+        /// </summary>
+        /// <param name="x">X coordinate</param>
+        /// <param name="y">Y coordinate</param>
+        private FinitePoint(Calculator<TNumber> x, Calculator<TNumber> y)
+        {
+            this.x = x;
+            this.y = y;
         }
 
         /// <summary>
@@ -83,7 +94,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator == (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.Equals (right);
+        public static bool operator ==(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.Equals(right);
 
         /// <summary>
         /// 
@@ -91,7 +102,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator != (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => !left.Equals (right);
+        public static bool operator !=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => !left.Equals(right);
 
         /// <summary>
         /// 
@@ -99,7 +110,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator > (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo (right) == 1;
+        public static bool operator >(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) == 1;
 
         /// <summary>
         /// 
@@ -107,7 +118,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator < (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo (right) == -1;
+        public static bool operator <(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) == -1;
 
         /// <summary>
         /// 
@@ -115,7 +126,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator >= (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo (right) >= 0;
+        public static bool operator >=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) >= 0;
 
         /// <summary>
         /// 
@@ -123,14 +134,15 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <returns></returns>
-        public static bool operator <= (FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo (right) <= 0;
+        public static bool operator <=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) <= 0;
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public int CompareTo (FinitePoint<TNumber> other) {
+        public int CompareTo(FinitePoint<TNumber> other)
+        {
             return ((this.X * this.X + this.Y * this.Y).Sqrt - (other.X * other.X + other.Y * other.Y).Sqrt).Sign;
         }
 
@@ -139,9 +151,9 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public bool Equals (FinitePoint<TNumber> other)
+        public bool Equals(FinitePoint<TNumber> other)
         {
-            return this.X.Equals (other.X) && this.Y.Equals (other.Y);
+            return this.X.Equals(other.X) && this.Y.Equals(other.Y);
         }
 
         /// <summary>
@@ -149,27 +161,27 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public override bool Equals (object obj)
+        public override bool Equals(object obj)
         {
             if (obj == null)
             {
                 return false;
             }
 
-            return this.Equals ((FinitePoint<TNumber>) obj);
+            return this.Equals((FinitePoint<TNumber>)obj);
         }
 
         /// <summary>
         /// Returns the hash code for the current <see cref="FinitePoint{TNumber}"/> structure.
         /// </summary>
         /// <returns>A 32-bit signed integer hash code.</returns>
-        public override int GetHashCode () => this.X.GetHashCode () ^ this.y.GetHashCode ();
+        public override int GetHashCode() => this.X.GetHashCode() ^ this.y.GetHashCode();
 
         /// <summary>
         /// Returns the string representation of the <see cref="FinitePoint{TNumber}"/> structure.
         /// </summary>
         /// <returns></returns>
-        public override string ToString () => string.Format (CultureInfo.InvariantCulture, "x={0}; y={1}", this.x, this.y);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}-{1}", ToHexString(this.x.ByteRepresentation), ToHexString(this.y.ByteRepresentation));
 
         /// <summary>
         /// Evaluates polynomial (coefficient tuple) at x, used to generate a shamir pool.
@@ -178,15 +190,94 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="x"></param>
         /// <param name="prime">Mersenne prime greater or equal 5</param>
         /// <returns></returns>
-        private static Calculator<TNumber> Evaluate (ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> x, Calculator<TNumber> prime)
+        private static Calculator<TNumber> Evaluate(ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> x, Calculator<TNumber> prime)
         {
             Calculator<TNumber> accum = Calculator<TNumber>.Zero;
-            foreach (Calculator<TNumber> coeff in polynomial.Reverse<Calculator<TNumber>> ())
+            foreach (Calculator<TNumber> coeff in polynomial.Reverse<Calculator<TNumber>>())
             {
                 accum = (accum * x + coeff) % prime;
             }
 
             return accum;
+        }
+
+        /// <summary>
+        /// Parses the string representation of the <see cref="FinitePoint{TNumber}"/> struct.
+        /// </summary>
+        /// <param name="share">string representation of the <see cref="FinitePoint{TNumber}"/> struct</param>
+        /// <returns>A <see cref="FinitePoint{TNumber}"/> structure representing the deserialization of <paramref name="share"/> string</returns>
+        public static FinitePoint<TNumber> Parse(string share)
+        {
+            if (string.IsNullOrWhiteSpace(share))
+            {
+                throw new ArgumentNullException(nameof(share));
+            }
+
+            string[] s = share.Split(new char[] { '-' });
+            return new FinitePoint<TNumber>(Calculator<TNumber>.Create(ToByteArray(s[0])), Calculator<TNumber>.Create(ToByteArray(s[1])));
+        }
+
+        /// <summary>
+        /// Converts a byte collection to hexadecimal string.
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <returns>human readable / printable string</returns>
+        /// <remarks>
+        /// Based on discussion on <see href="https://stackoverflow.com/questions/623104/byte-to-hex-string/5919521#5919521">stackoverflow</see>
+        /// </remarks>
+        private static string ToHexString(ReadOnlyCollection<byte> bytes)
+        {
+            StringBuilder hexRepresentation = new StringBuilder(bytes.Count * 2);
+            foreach (byte b in bytes)
+            {
+                const string HexAlphabet = "0123456789ABCDEF";
+                hexRepresentation.Append(new char[] { HexAlphabet[(int)(b >> 4)], HexAlphabet[(int)(b & 0xF)] });
+            }
+
+            return hexRepresentation.ToString();
+        }
+
+        /// <summary>
+        /// Converts a hexadecimal string to a byte array.
+        /// </summary>
+        /// <param name="hextString">hexadecimal string</param>
+        /// <returns></returns>
+        private static byte[] ToByteArray(string hextString)
+        {
+            byte[] bytes = new byte[hextString.Length / 2];
+            var hexValues = Array.AsReadOnly(new[] {
+                0x00,
+                0x01,
+                0x02,
+                0x03,
+                0x04,
+                0x05,
+                0x06,
+                0x07,
+                0x08,
+                0x09,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x0A,
+                0x0B,
+                0x0C,
+                0x0D,
+                0x0E,
+                0x0F
+            });
+
+            for (int x = 0, i = 0; i < hextString.Length; i += 2, x += 1)
+            {
+                const char ZeroDigit = '0';
+                bytes[x] = (byte)((hexValues[char.ToUpper(hextString[i + 0]) - ZeroDigit] << 4) | hexValues[char.ToUpper(hextString[i + 1]) - ZeroDigit]);
+            }
+
+            return bytes;
         }
     }
 }
