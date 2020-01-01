@@ -69,6 +69,20 @@ namespace SecretSharingDotNet.Cryptography
         /// Initializes a new instance of the <see cref="ShamirsSecretSharing"/> class.
         /// </summary>
         /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
+        public ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd)
+        {
+            if (extendedGcd == null)
+            {
+                throw new ArgumentNullException(nameof(extendedGcd));
+            }
+
+            this.extendedGcd = extendedGcd;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ShamirsSecretSharing"/> class.
+        /// </summary>
+        /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
         /// <param name="securityLevel">Security level (in number of bits). Minimum is 5.</param>
         public ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd, int securityLevel)
         {
