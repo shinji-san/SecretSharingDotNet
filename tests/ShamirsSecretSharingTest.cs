@@ -46,6 +46,11 @@ namespace SecretSharingDotNet.Test
         public const string TestPassword = "Hello World!!";
 
         /// <summary>
+        /// A test number as secret.
+        /// </summary>
+        public readonly BigInteger TestNumber = 20000;
+
+        /// <summary>
         /// Checks the following condition: denominator * DivMod(numerator, denominator, prime) % prime == numerator
         /// ToDo: Find another technical solution for this test. Code redundancy.
         /// </summary>
