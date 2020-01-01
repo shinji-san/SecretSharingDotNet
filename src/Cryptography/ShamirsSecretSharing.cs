@@ -151,6 +151,11 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentOutOfRangeException("The pool secret would be irrecoverable.");
             }
 
+            if (this.mersennePrime == null)
+            {
+                throw new InvalidOperationException("Security Level is not initialized!");
+            }
+
             var polynomial = CreatePolynomial(min);
             var points = CreateSharedSecrets(shrs, polynomial);
 
@@ -184,7 +189,12 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentOutOfRangeException("The pool secret would be irrecoverable.");
             }
 
-            this.SecurityLevel = secret.ToString().Length * sizeof(char) * 8;
+            int securityLevel = secret.ToString().Length * sizeof(char) * 8;
+            if (this.SecurityLevel < securityLevel)
+            {
+                this.SecurityLevel = securityLevel;
+            }
+
             var polynomial = CreatePolynomial(min);
             polynomial[0] = secret;
             var points = CreateSharedSecrets(shrs, polynomial);
