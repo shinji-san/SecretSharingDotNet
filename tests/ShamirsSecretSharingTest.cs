@@ -41,6 +41,11 @@ namespace SecretSharingDotNet.Test
     public class ShamirsSecretSharingTest
     {
         /// <summary>
+        /// A test password as secret.
+        /// </summary>
+        public const string TestPassword = "Hello World!!";
+
+        /// <summary>
         /// Checks the following condition: denominator * DivMod(numerator, denominator, prime) % prime == numerator
         /// ToDo: Find another technical solution for this test. Code redundancy.
         /// </summary>
