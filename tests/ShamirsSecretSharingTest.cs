@@ -277,5 +277,16 @@ namespace SecretSharingDotNet.Test
             var subSet1 = x.Item2.Where (p => p.X == Calculator<BigInteger>.One).ToList ();
             Assert.Throws<ArgumentOutOfRangeException>(() => sss.Reconstruction(subSet1.ToArray()));
         }
+
+        /// <summary>
+        /// Tests whether or not the <see cref="InvalidOperationException"/> is thrown if the security level
+        /// is not initialized.
+        /// </summary>
+        [Fact]
+        public void TestUninitializedSecurityLevel()
+        {
+            var sss = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+            Assert.Throws<InvalidOperationException>(() => sss.MakeShares(2, 7));
+        }
     }
 }
