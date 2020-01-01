@@ -71,43 +71,84 @@ namespace SecretSharingDotNet.Test
         }
 
         /// <summary>
-        /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="string"/> as secret
+        /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="string"/> as secret.
+        /// (Minimum security level is auto detected)
         /// </summary>
         [Fact]
-        public void TestPassword()
+        public void TestPasswordWithSecurityLevelAutoDetected()
         {
-            string password = "Hello World!!";
-            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger> (), 127);
-            split.SecurityLevel = 256;
-            var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger> (), 32);
-            var x = split.MakeShares (3, 7, password);
+            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+            var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+            var x = split.MakeShares(3, 7, TestPassword);
             var secret = x.Item1;
-            var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
+            var subSet1 = x.Item2.Where(p => p.X.IsEven).ToList();
             var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
-            var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
+            var subSet2 = x.Item2.Where(p => !p.X.IsEven).ToList();
             var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
-            Assert.Equal(password, recoveredSecret1);
+            Assert.Equal(TestPassword, recoveredSecret1);
             Assert.Equal(secret, recoveredSecret1);
             Assert.Equal(secret, recoveredSecret2);
             Assert.Equal(521, split.SecurityLevel);
         }
 
         /// <summary>
-        /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="BigInteger"/> as secret
+        /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="string"/> as secret.
+        /// (Secrutiy level is pre-defined)
         /// </summary>
         [Fact]
-        public void TestNumber()
+        public void TestPasswordWithSecurityLevel1279()
         {
-            BigInteger number = 20000;
-            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger> (), 127);
-            var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger> (), 32);
-            var x = split.MakeShares (3, 7, number);
+            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), 1279);
+            var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+            var x = split.MakeShares(3, 7, TestPassword);
             var secret = x.Item1;
-            var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
+            var subSet1 = x.Item2.Where(p => p.X.IsEven).ToList();
             var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
-            var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
+            var subSet2 = x.Item2.Where(p => !p.X.IsEven).ToList();
             var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
-            Assert.Equal(number, (BigInteger)recoveredSecret1);
+            Assert.Equal(TestPassword, recoveredSecret1);
+            Assert.Equal(secret, recoveredSecret1);
+            Assert.Equal(secret, recoveredSecret2);
+            Assert.Equal(1279, split.SecurityLevel);
+        }
+
+        /// <summary>
+        /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="BigInteger"/> as secret.
+        /// (Minimum security level is auto detected)
+        /// </summary>
+        [Fact]
+        public void TestNumberWithSecurityLevelAutoDetected()
+        {
+            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+            var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+            var x = split.MakeShares(3, 7, TestNumber);
+            var secret = x.Item1;
+            var subSet1 = x.Item2.Where(p => p.X.IsEven).ToList();
+            var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
+            var subSet2 = x.Item2.Where(p => !p.X.IsEven).ToList();
+            var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+            Assert.Equal(TestNumber, (BigInteger)recoveredSecret1);
+            Assert.Equal(secret, recoveredSecret1);
+            Assert.Equal(secret, recoveredSecret2);
+            Assert.Equal(17, split.SecurityLevel);
+        }
+
+        /// <summary>
+        /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="BigInteger"/> as secret.
+        /// (Secrutiy level is pre-defined)
+        /// </summary>
+        [Fact]
+        public void TestNumberWithSecurityLevell1279()
+        {
+            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+            var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+            var x = split.MakeShares(3, 7, TestNumber);
+            var secret = x.Item1;
+            var subSet1 = x.Item2.Where(p => p.X.IsEven).ToList();
+            var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
+            var subSet2 = x.Item2.Where(p => !p.X.IsEven).ToList();
+            var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+            Assert.Equal(TestNumber, (BigInteger)recoveredSecret1);
             Assert.Equal(secret, recoveredSecret1);
             Assert.Equal(secret, recoveredSecret2);
             Assert.Equal(17, split.SecurityLevel);
