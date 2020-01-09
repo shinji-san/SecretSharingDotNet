@@ -12,8 +12,8 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 2.2.108
+        dotnet-version: 2.1.802
     - name: Build with dotnet
-      run: dotnet build --configuration Release SecretSharingDotNetCore2.2.sln
+      run: dotnet build --configuration Release SecretSharingDotNetCore2.1.sln
     - name: Test with donet
-      run: dotnet test -v d --configuration Release SecretSharingDotNetCore2.2.sln
+      run: dotnet test -v d --configuration Release SecretSharingDotNetCore2.1.sln
