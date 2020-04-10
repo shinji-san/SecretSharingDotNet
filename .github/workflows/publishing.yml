@@ -1,0 +1,49 @@
+name: SecretSharingDotNet NuGet
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Setup .NET Core 2.1
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 2.1.802
+
+    - name: Setup .NET Core 3.1
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.201
+
+    - name: .NET Core SxS
+      run: |
+        rsync -a ${DOTNET_ROOT/3.1.201/2.1.802}/* $DOTNET_ROOT/
+
+    - name: Decrypt large secret
+      run: ./.github/secrets/decrypt_publisher_snk.sh
+      env:
+        PUBLISHER_SNK: ${{ secrets.PUBLISHER_SNK }}
+        PUBLISHER_PUB_KEY: ${{ secrets.PUBLISHER_PUB_KEY }}
+
+    - name: Restore
+      run: dotnet restore SecretSharingDotNet.sln
+
+    - name: Build
+      run: dotnet build --configuration Release SecretSharingDotNet.sln
+
+    - name: Test
+      run: dotnet test --configuration Release SecretSharingDotNet.sln
+
+    - name: Create Package
+      run: dotnet pack --configuration Release SecretSharingDotNet.sln
+
+    - name: Publish Package
+      run: dotnet nuget push src/bin/Release/SecretSharingDotNet.1.0.0.nupkg  -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json
