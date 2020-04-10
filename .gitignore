@@ -1,0 +1,18 @@
+# Ignore build results
+**/[Bb]in
+**/[Oo]bj
+
+# Ignore Visual Studio Code
+**/.vscode
+
+# Ignore Visual Studio
+**/.vs
+
+# NuGet Packages
+# The packages folder can be ignored. Use package restore
+**/packages/*
+
+# Ignore user-specific files
+*.suo
+*.user
+

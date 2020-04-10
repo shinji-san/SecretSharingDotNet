@@ -1,0 +1,28 @@
+name: SecretSharingDotNet .NET FX
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+    
+    steps:
+      - name: checkout
+        uses: actions/checkout@v1
+
+      - name: Setup Nuget.exe
+        uses: warrenbuckley/Setup-Nuget@v1
+
+      - name: Nuget Restore
+        run: nuget restore $Env:GITHUB_WORKSPACE\SecretSharingDotNetFx4.5.2.sln
+
+      - name: Build with mbsuild
+        run: |
+           cd "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\"
+           .\MSBuild.exe /p:Configuration=Release $Env:GITHUB_WORKSPACE\SecretSharingDotNetFx4.5.2.sln
+
+      - name: Test with xUnit.net console runner
+        run: |
+           cd "$Env:GITHUB_WORKSPACE\packages\xunit.runner.console.2.4.0\tools\net452"
+           .\xunit.console $Env:GITHUB_WORKSPACE\tests\bin\Release\SecretSharingDotNetTest.dll
