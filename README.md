@@ -12,17 +12,18 @@ An C# implementation of Shamir's Secret Sharing.
 ## Supported Target Frameworks
 | Build And Test Status        | NuGet Version   | Git Tag   | Target Frameworks  |
 | ---------------------------- | --------------- | --------- | ------------------ |
-| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.1.1-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.1.1) | .NET Core 2.1      |
-| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.1.1-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.1.1) | .NET Standard 2.0   |
-| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.1.1-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.1.1) | .NET Framework 4.5.2 |
+| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0) | .NET Core 2.1      |
+| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0) | .NET Core 3.1      |
+| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0) | .NET Standard 2.0   |
+| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0) | .NET Framework 4.5.2 |
 ## Install SecretSharingDotNet package
 
 1. Open a console and switch to the directory containing your project file.
 
-2. Use the following command to install version 0.1.1 of the SecretSharingDotNet package:
+2. Use the following command to install version 0.2.0 of the SecretSharingDotNet package:
 
     ```dotnetcli
-    dotnet add package SecretSharingDotNet -v 0.1.1 -f <FRAMEWORK>
+    dotnet add package SecretSharingDotNet -v 0.2.0 -f <FRAMEWORK>
     ```
 
 3. After the command completes, look at the project file to make sure the package was installed.
@@ -31,7 +32,7 @@ An C# implementation of Shamir's Secret Sharing.
 
     ```xml
     <ItemGroup>
-      <PackageReference Include="SecretSharingDotNet" Version="0.1.1" />
+      <PackageReference Include="SecretSharingDotNet" Version="0.2.0" />
     </ItemGroup>
     ```
 ## Remove SecretSharingDotNet package
