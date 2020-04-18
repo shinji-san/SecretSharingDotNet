@@ -6,6 +6,8 @@ on:
     - '*'
     tags-ignore:
     - '*'
+    paths-ignore:
+    - '**.md'
 
 jobs:
   build:
