@@ -2,20 +2,80 @@
 An C# implementation of Shamir's Secret Sharing.
 
 # Build & Test Status Of Default Branch
-| Status               | .NET Version  | Solution    |
-| -------------------- | ------------- | ----------- |
-| [![Build status](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22)| 2.1 (LTS) | `SecretSharingDotNetCore2.1.sln` |
-| [![Build status](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22)| 3.1 (LTS) | `SecretSharingDotNetCore3.1.sln` |
-| [![Build status](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20FX/badge.svg)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+FX%22)  | 4.5.2 | `SecretSharingDotNetFx4.5.2.sln` |
+<table>
+  <thead>
+    <tr>
+        <th>Status</th>
+        <th>Solution</th>
+        <th>Project Format</th>
+        <th>.NET Version</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td rowspan=4><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
+          <td rowspan=4><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=4>Core</td>
+          <td>Core 2.1 (LTS)</td>
+      </tr>
+      <tr>
+          <td>Core 3.1 (LTS)</td>
+      </tr>
+      <tr>
+          <td>Standard 2.0</td>
+      </tr>
+      <tr>
+          <td>FX 4.5.2</td>
+      </tr>
+      <tr>
+          <td rowspan=2><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg" alt="Build status"></a></td>
+          <td><code>SecretSharingDotNetCore2.1.sln</code></td>
+          <td rowspan=2>Core</td>
+          <td>Core 2.1 (LTS)</td>
+      </tr>
+      <tr>
+          <td rowspan=1><code>SecretSharingDotNetCore3.1.sln</code></td>
+          <td>Core 3.1 (LTS)</td>
+      </tr>
+      <tr>
+          <td><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+FX%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20FX/badge.svg" alt="Build status"></a></td>
+          <td><code>SecretSharingDotNetFx4.5.2.sln</code></td>
+          <td>FX</td>
+          <td>FX 4.5.2</td>
+      </tr>            
+  </tbody>
+</table>
 
 # NuGet
 ## Supported Target Frameworks
-| Build And Test Status        | NuGet Version   | Git Tag   | Target Frameworks  |
-| ---------------------------- | --------------- | --------- | ------------------ |
-| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0) | .NET Core 2.1      |
-| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0) | .NET Core 3.1      |
-| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0) | .NET Standard 2.0   |
-| [![SecretSharingDotNet NuGet](https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=master)](https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22)| [![NuGet version](https://badge.fury.io/nu/SecretSharingDotNet.svg)](https://badge.fury.io/nu/SecretSharingDotNet) | [![Tag](https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137)](https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0) | .NET Framework 4.5.2 |
+<table>
+  <thead>
+    <tr>
+        <th>Build And Test Status</th>
+        <th>NuGet Version</th>
+        <th>Git Tag</th>
+        <th>Target Frameworks</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td rowspan=4><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.2.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=4><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.2.0"/></a></td>
+          <td rowspan=4><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td>Core 2.1 (LTS)</td>
+      </tr>
+      <tr>
+          <td>Core 3.1 (LTS)</td>
+      </tr>
+      <tr>
+          <td>Standard 2.0</td>
+      </tr>
+      <tr>
+          <td>FX 4.5.2</td>
+      </tr>       
+  </tbody>
+</table>
+
 ## Install SecretSharingDotNet package
 
 1. Open a console and switch to the directory containing your project file.
