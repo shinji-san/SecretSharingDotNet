@@ -1,0 +1,42 @@
+name: SecretSharingDotNet (All supported TFM)
+
+on:
+  push:
+    branches:
+    - '*'
+    tags-ignore:
+    - '*'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Setup .NET Core 2.1
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 2.1.802
+
+    - name: Setup .NET Core 3.1
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.201
+
+    - name: .NET Core SxS
+      run: |
+        rsync -a ${DOTNET_ROOT/3.1.201/2.1.802}/* $DOTNET_ROOT/
+
+    - name: Restore
+      run: dotnet restore SecretSharingDotNet.sln
+
+    - name: Build
+      run: dotnet build --configuration Release SecretSharingDotNet.sln
+
+    - name: Test
+      run: dotnet test --configuration Release SecretSharingDotNet.sln
+
+    - name: Create Package
+      run: dotnet pack --configuration Release SecretSharingDotNet.sln
