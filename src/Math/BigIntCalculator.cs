@@ -13,7 +13,7 @@ namespace SecretSharingDotNet.Math
     using System.Numerics;
 
     /// <summary>
-    /// <see cref="Calculator"> implementation of <see cref="System.Numerics.BigInteger"/>
+    /// <see cref="Calculator"/> implementation of <see cref="System.Numerics.BigInteger"/>
     /// </summary>
     public sealed class BigIntCalculator : Calculator<BigInteger>
     {
@@ -30,93 +30,102 @@ namespace SecretSharingDotNet.Math
         public BigIntCalculator(byte[] data) : base(new BigInteger(data)) { }
 
         /// <summary>
-        /// 
+        /// This method represents the Greater Than operator.
         /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">right-hand operand</param>
+        /// <returns>This method returns <c>true</c> if this instance is greater than the <paramref name="b"/> instance, <c>false</c> otherwise.</returns>
         public override bool GreaterThan(BigInteger b) => this.Value > b;
 
         /// <summary>
-        /// 
+        /// This method represents the Lower Than operator.
         /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">right-hand operand</param>
+        /// <returns>This method returns <c>true</c> if this instance is less than the <paramref name="b"/> instance, <c>false</c> otherwise.</returns>
         public override bool LowerThan(BigInteger b) => this.Value < b;
 
         /// <summary>
-        /// 
+        /// This method represents the Greater Than Or Equal To operator.
         /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">right-hand operand</param>
+        /// <returns>This method returns <c>true</c> if this instance is greater than or equal to the <paramref name="b"/> instance, <c>false</c> otherwise.</returns>
         public override bool EqualOrGreaterThan(BigInteger b) => this.Value >= b;
 
         /// <summary>
-        /// 
+        /// This method represents the Lower Than Or Equal To operator.
         /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">right-hand operand</param>
+        /// <returns>This method returns <c>true</c> if this instance is less than or equal to the <paramref name="b"/> instance, <c>false</c> otherwise.</returns>
         public override bool EqualOrLowerThan(BigInteger b) => this.Value <= b;
 
         /// <summary>
-        /// Adds the current <see cref="BigIntCalculator"/> instance with the <paramref name="right"/> 
+        /// Adds the current <see cref="BigIntCalculator"/> instance with the <paramref name="right"/>
         /// <see cref="BigIntCalculator"/> instance.
         /// </summary>
         /// <param name="right">Right value to add (right summand).</param>
-        /// <returns>The sum of the current <see cref="BigIntCalculator"/> instance and the <paramref name="right"/> 
+        /// <returns>The sum of the current <see cref="BigIntCalculator"/> instance and the <paramref name="right"/>
         /// <see cref="BigIntCalculator"/> instance.</returns>
         public override Calculator<BigInteger> Add(BigInteger right) => this.Value + right;
 
         /// <summary>
-        /// 
+        /// Subtracts the current <see cref="BigIntCalculator"/> instance with the <paramref name="b"/>
+        /// <see cref="BigIntCalculator"/> instance.
         /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">Right value to subtract (subtrahend).</param>
+        /// <returns>The difference of the current <see cref="BigIntCalculator"/> instance and the <paramref name="b"/>
+        /// <see cref="BigIntCalculator"/> instance.</returns>
         public override Calculator<BigInteger> Subtract(BigInteger b) => this.Value - b;
 
         /// <summary>
-        /// 
+        /// Multiplies the current <see cref="BigIntCalculator"/> instance with the <paramref name="b"/>
+        /// <see cref="BigIntCalculator"/> instance.
         /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">multiplicand</param>
+        /// <returns>The product of the current <see cref="BigIntCalculator"/> instance and the <paramref name="b"/>
+        /// <see cref="BigIntCalculator"/> instance.</returns>
         public override Calculator<BigInteger> Multiply(BigInteger b) => this.Value * b;
 
         /// <summary>
-        /// 
+        /// Divides the current <see cref="BigIntCalculator"/> instance with the <paramref name="b"/>
+        /// <see cref="BigIntCalculator"/> instance.
         /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">divisor</param>
+        /// <returns>The quotient of the current <see cref="BigIntCalculator"/> instance and the <paramref name="b"/>
+        /// <see cref="BigIntCalculator"/> instance.</returns>
         public override Calculator<BigInteger> Division(BigInteger b) => this.Value / b;
 
         /// <summary>
-        /// 
+        /// The modulo operation
         /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">divisor</param>
+        /// <returns>The remainder as <see cref="BigIntCalculator"/> instance.</returns>
         public override Calculator<BigInteger> Modulo(BigInteger b) => this.Value % b;
 
         /// <summary>
-        /// 
+        /// The unary increment method increments this instance by 1.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>This <see cref="BigIntCalculator"/> instance plus <see cref="Calculator{BigInteger}.One"/></returns>
         public override Calculator<BigInteger> Increase() => ++this.Clone().Value;
 
         /// <summary>
-        /// 
+        /// The unary decrement method decrements this instance by 1.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>This <see cref="BigIntCalculator"/> instance minus <see cref="Calculator{BigInteger}.One"/></returns>
         public override Calculator<BigInteger> Decrease() => --this.Clone().Value;
 
         /// <summary>
-        /// Returns the absolute value of the current <see cref="BigIntCalculator"> object.
+        /// Returns the absolute value of the current <see cref="BigIntCalculator"/> object.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The absolute value of this instance.</returns>
+        /// <remarks>This instance is greater than or equal to zero, the return value will be this instance.
+        /// This instance is lower than zero, the return value will be this instance multiply with minus one.
+        /// </remarks>
         public override Calculator<BigInteger> Abs() => BigInteger.Abs(this.Value);
 
         /// <summary>
-        /// Raises this <see cref="BigIntCalculator"> value to the power of a specified value.
+        /// Raises this <see cref="BigIntCalculator"/> value to the power of a specified value.
         /// </summary>
-        /// <param name="expo">The exponent to raise this <see cref="BigIntCalculator"> value by.</param>
-        /// <returns></returns>
+        /// <param name="expo">The exponent to raise this <see cref="BigIntCalculator"/> value by.</param>
+        /// <returns>The result of raising instance to the <paramref name="expo"/> power.</returns>
         public override Calculator<BigInteger> Pow(int expo) => BigInteger.Pow(this.Value, expo);
 
         /// <summary>
@@ -130,27 +139,27 @@ namespace SecretSharingDotNet.Math
         public override ReadOnlyCollection<byte> ByteRepresentation => new ReadOnlyCollection<byte>(this.Value.ToByteArray());
 
         /// <summary>
-        /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"> object is zero (0).
+        /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"/> object is zero (0).
         /// </summary>
         public override bool IsZero => this.Value.IsZero;
 
         /// <summary>
-        /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"> object is one (1).
+        /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"/> object is one (1).
         /// </summary>
         public override bool IsOne => this.Value.IsOne;
 
         /// <summary>
-        /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"> object is an even number.
+        /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"/> object is an even number.
         /// </summary>
         public override bool IsEven => this.Value % 2 == 0;
 
         /// <summary>
-        /// Gets a number that indicates the sign (negative, positive, or zero) of the current <see cref="BigIntCalculator"> object.
+        /// Gets a number that indicates the sign (negative, positive, or zero) of the current <see cref="BigIntCalculator"/> object.
         /// </summary>
         public override int Sign => this.Value.Sign;
 
         /// <summary>
-        /// Returns the square root of the current <see cref="BigIntCalculator"> object.
+        /// Returns the square root of the current <see cref="BigIntCalculator"/> object.
         /// </summary>
         public override Calculator<BigInteger> Sqrt 
         {
