@@ -1,9 +1,11 @@
-name: SecretSharingDotNet NuGet
+name: SecretSharingDotNet (All supported TFM)
 
 on:
   push:
-    tags:
-    - 'v*'
+    branches:
+    - '*'
+    tags-ignore:
+    - '*'
     paths-ignore:
     - '**.md'
 
@@ -29,12 +31,6 @@ jobs:
       run: |
         rsync -a ${DOTNET_ROOT/3.1.201/2.1.802}/* $DOTNET_ROOT/
 
-    - name: Decrypt large secret
-      run: ./.github/secrets/decrypt_publisher_snk.sh
-      env:
-        PUBLISHER_SNK: ${{ secrets.PUBLISHER_SNK }}
-        PUBLISHER_PUB_KEY: ${{ secrets.PUBLISHER_PUB_KEY }}
-
     - name: Restore
       run: dotnet restore SecretSharingDotNet.sln
 
@@ -46,6 +42,3 @@ jobs:
 
     - name: Create Package
       run: dotnet pack --configuration Release SecretSharingDotNet.sln
-
-    - name: Publish Package
-      run: dotnet nuget push src/bin/Release/SecretSharingDotNet.0.3.0.nupkg  -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json
