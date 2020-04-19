@@ -40,9 +40,9 @@ namespace SecretSharingDotNet.Cryptography
     using Math;
 
     /// <summary>
-    /// 
+    /// This class represents the secret including members to parse or convert it.
     /// </summary>
-    /// <typeparam name="TNumber"></typeparam>
+    /// <typeparam name="TNumber">Numeric data type (An integer data type)</typeparam>
     public class Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparable<Secret<TNumber>>
     {
         /// <summary>
@@ -53,7 +53,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class.
         /// </summary>
-        /// <param name="secretNumber"></param>
+        /// <param name="secretNumber">A secret integer number represented by an <see cref="Calculator{TNumber}"/> instance.</param>
         internal Secret (Calculator<TNumber> secretNumber)
         {
             if (secretNumber == null)
@@ -65,12 +65,12 @@ namespace SecretSharingDotNet.Cryptography
         }
 
         /// <summary>
-        /// Casts the <see cref="TNumber"/> instance to an <see cref="Secret{TNumber}"/> instance
+        /// Casts the <typeparamref name="TNumber"/> instance to an <see cref="Secret{TNumber}"/> instance
         /// </summary>
         public static implicit operator Secret<TNumber> (TNumber i) => new Secret<TNumber> (i);
 
         /// <summary>
-        /// Casts the <see cref="Secret{TNumber}"/> instance to an <see cref="TNumber"/> instance
+        /// Casts the <see cref="Secret{TNumber}"/> instance to an <typeparamref name="TNumber"/> instance
         /// </summary>
         public static implicit operator TNumber (Secret<TNumber> s) => s.secretNumber.Value;
 
@@ -140,8 +140,8 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="other"></param>
-        /// <returns></returns>
+        /// <param name="other">An <see cref="Secret{TNumber}"/> instance to compare with this instance.</param>
+        /// <returns>A value that indicates the relative order of the <see cref="Secret{TNumber}"/> instances being compared.</returns>
         public int CompareTo (Secret<TNumber> other)
         {
             return ((this.secretNumber * this.secretNumber).Sqrt - (other.secretNumber * other.secretNumber).Sqrt).Sign;
@@ -151,7 +151,7 @@ namespace SecretSharingDotNet.Cryptography
         /// Determines whether this instance and an<paramref name="other"/> specified <see cref="Secret{TNumber}"/> instance are equal.
         /// </summary>
         /// <param name="other">The <see cref="Secret{TNumber}"/> instance to compare</param>
-        /// <returns>c>true</c> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <c>false</c>.
+        /// <returns><c>true</c> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <c>false</c>.
         /// If <paramref name="other"/>  is <c>null</c>, the method returns <c>false</c>.</returns>
         public bool Equals (Secret<TNumber> other)
         {
@@ -189,7 +189,7 @@ namespace SecretSharingDotNet.Cryptography
         /// Converts the value of <see cref="Secret{TNumber}"/> structure to its equivalent <see cref="string"/> representation
         /// that is unicode encoded.
         /// </summary>
-        /// <returns></returns>
+        /// <returns><see cref="string"/> representation of <see cref="Secret{TNumber}"/></returns>
         public override string ToString ()
         {
             int padCount = this.secretNumber.ByteCount % sizeof (char);
@@ -218,10 +218,10 @@ namespace SecretSharingDotNet.Cryptography
         }
 
         /// <summary>
-        /// 
+        /// Parses a base-64 encoded secret and returns an <see cref="Secret{TNumber}"/> instance.
         /// </summary>
-        /// <param name="encoded"></param>
-        /// <returns></returns>
+        /// <param name="encoded">Secret encoded as base-64</param>
+        /// <returns>An <see cref="Secret{TNumber}"/> instance.</returns>
         public static Secret<TNumber> ParseBase64 (string encoded)
         {
             if (string.IsNullOrWhiteSpace (encoded))
