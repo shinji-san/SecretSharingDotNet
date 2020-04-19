@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dotnet: [ '2.1.802', '3.1.100' ]
-    name: Dotnet ${{ matrix.dotnet }} LTS
+        dotnet: [ '2.1.802', '3.1.100', '5.0.100']
+    name: Dotnet ${{ matrix.dotnet }}
 
     steps:
     - uses: actions/checkout@v1
@@ -36,3 +36,9 @@ jobs:
     - name: Test with donet SDK v3.1
       if: matrix.dotnet == '3.1.100'
       run: dotnet test -v d --configuration Release SecretSharingDotNetCore3.1.sln
+    - name: Build with dotnet SDK v5.0
+      if: matrix.dotnet == '5.0.100'
+      run: dotnet build --configuration Release SecretSharingDotNet5.sln
+    - name: Test with dotnet SDK v5.0
+      if: matrix.dotnet == '5.0.100'
+      run: dotnet test --configuration Release SecretSharingDotNet5.sln
