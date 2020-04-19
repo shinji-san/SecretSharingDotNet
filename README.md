@@ -13,9 +13,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=7><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
-          <td rowspan=7><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=7>Core</td>
+          <td rowspan=8><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
+          <td rowspan=8><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=8>Core</td>
           <td>Core 2.1 (LTS)</td>
       </tr>
       <tr>
@@ -35,6 +35,9 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>FX 4.6.2</td>
+      </tr>
+      <tr>
+          <td>FX 4.7</td>
       </tr>
       <tr>
           <td rowspan=2><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg" alt="Build status"></a></td>
@@ -83,15 +86,19 @@ An C# implementation of Shamir's Secret Sharing.
           <td>FX 4.5.2</td>
       </tr>
       <tr>
-          <td rowspan=3><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.3.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=3>expected:<br/>v0.3.0</td>
-          <td rowspan=3>expected:<br/>v0.3.0</td>
+          <td rowspan=4><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.3.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=4>expected:<br/>v0.3.0</td>
+          <td rowspan=4>expected:<br/>v0.3.0</td>
           <td>FX 4.6</td>
       </tr>
       <tr>
           <td>FX 4.6.1</td>
       </tr>
+      <tr>
           <td>FX 4.6.2</td>
+      </tr>
+      <tr>
+          <td>FX 4.7</td>
       </tr>
   </tbody>
 </table>
