@@ -83,9 +83,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=4><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.2.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=4><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.2.0"/></a></td>
-          <td rowspan=4><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.2.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.2.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=12><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.3.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=12><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.3.0"/></a></td>
+          <td rowspan=12><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.3.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.3.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Core 2.1 (LTS)</td>
       </tr>
       <tr>
@@ -95,12 +95,12 @@ An C# implementation of Shamir's Secret Sharing.
           <td>Standard 2.0</td>
       </tr>
       <tr>
+          <td>Standard 2.1</td>
+      </tr>
+      <tr>
           <td>FX 4.5.2</td>
       </tr>
       <tr>
-          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.3.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=8>expected:<br/>v0.3.0</td>
-          <td rowspan=8>expected:<br/>v0.3.0</td>
           <td>FX 4.6</td>
       </tr>
       <tr>
@@ -120,9 +120,6 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>FX 4.8</td>
-      </tr>
-      <tr>
-          <td>Standard 2.1</td>
       </tr>
   </tbody>
 </table>
