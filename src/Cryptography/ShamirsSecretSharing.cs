@@ -139,7 +139,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns></returns>
         /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
         /// <exception cref="T:System.InvalidOperationException">Security Level is not initialized!</exception>
-        public Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares)
+        public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares)
         {
             Calculator<TNumber> min = numberOfMinimumShares;
             Calculator<TNumber> max = numberOfShares;
@@ -161,7 +161,7 @@ namespace SecretSharingDotNet.Cryptography
             var polynomial = CreatePolynomial(min);
             var points = CreateSharedSecrets(max, polynomial);
 
-            return new Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(polynomial[0], points);
+            return new Shares<TNumber>(polynomial[0], points);
         }
 
         /// <summary>
@@ -174,7 +174,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <remarks>This method modifies the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length</remarks>
         /// <exception cref="T:System.ArgumentNullException"><paramref name="secret"/> is <see langword="null"/></exception>
         /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
-        public Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret)
+        public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret)
         {
             if (secret is null)
             {
@@ -203,7 +203,7 @@ namespace SecretSharingDotNet.Cryptography
             polynomial[0] = secret;
             var points = CreateSharedSecrets(max, polynomial);
 
-            return new Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(polynomial[0], points);
+            return new Shares<TNumber>(polynomial[0], points);
         }
 
         /// <summary>
@@ -330,6 +330,53 @@ namespace SecretSharingDotNet.Cryptography
 
             var a = this.DivMod(numerator, denominator, prime) + prime;
             return (a % prime + prime) % prime; //// mathematical modulo
+        }
+
+        /// <summary>
+        /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
+        /// </summary>
+        /// <param name="shares">Shares represented by <see cref="string"/> and separated by newline.</param>
+        /// <returns>Re-constructed secret</returns>
+        public Secret<TNumber> Reconstruction(string shares)
+        {
+            if (string.IsNullOrWhiteSpace(shares))
+            {
+                throw new ArgumentNullException(nameof(shares));
+            }
+
+            Shares<TNumber> castShares = shares;
+            return this.Reconstruction(castShares);
+        }
+
+        /// <summary>
+        /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
+        /// </summary>
+        /// <param name="shares">Shares represented by <see cref="string"/> array.</param>
+        /// <returns>Re-constructed secret</returns>
+        public Secret<TNumber> Reconstruction(string[] shares)
+        {
+            if (shares == null)
+            {
+                throw new ArgumentNullException(nameof(shares));
+            }
+
+            if (shares.Length < 2)
+            {
+                throw new ArgumentOutOfRangeException(nameof(shares));
+            }
+
+            Shares<TNumber> castShares = shares;
+            return this.Reconstruction(castShares);
+        }
+
+        /// <summary>
+        /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
+        /// </summary>
+        /// <param name="shares">For details <see cref="Shares{TNumber}"/></param>
+        /// <returns>Re-constructed secret</returns>
+        public Secret<TNumber> Reconstruction(Shares<TNumber> shares)
+        {
+            return this.Reconstruction((FinitePoint<TNumber>[])shares);
         }
 
         /// <summary>
