@@ -13,9 +13,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=12><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
-          <td rowspan=12><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=12>Core</td>
+          <td rowspan=13><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
+          <td rowspan=13><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=13>Core</td>
           <td>Core 2.1 (LTS)</td>
       </tr>
       <tr>
@@ -52,14 +52,21 @@ An C# implementation of Shamir's Secret Sharing.
           <td>FX 4.8</td>
       </tr>
       <tr>
-          <td rowspan=2><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg" alt="Build status"></a></td>
+          <td>.NET 5</td>
+      </tr>
+      <tr>
+          <td rowspan=3><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg" alt="Build status"></a></td>
           <td><code>SecretSharingDotNetCore2.1.sln</code></td>
-          <td rowspan=2>Core</td>
+          <td rowspan=3>Core</td>
           <td>Core 2.1 (LTS)</td>
       </tr>
       <tr>
           <td rowspan=1><code>SecretSharingDotNetCore3.1.sln</code></td>
           <td>Core 3.1 (LTS)</td>
+      </tr>
+      <tr>
+          <td rowspan=1><code>SecretSharingDotNetCore3.1.sln</code></td>
+          <td>.NET 5</td>
       </tr>
       <tr>
           <td><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+FX%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20FX/badge.svg" alt="Build status"></a></td>
