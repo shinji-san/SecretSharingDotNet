@@ -25,9 +25,14 @@ jobs:
       with:
         dotnet-version: 3.1.201
 
+    - name: Setup .NET 5
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.100
+
     - name: .NET Core SxS
       run: |
-        rsync -a ${DOTNET_ROOT/3.1.201/2.1.802}/* $DOTNET_ROOT/
+        rsync -a ${DOTNET_ROOT/5.0.100/3.1.201/2.1.802}/* $DOTNET_ROOT/
 
     - name: Decrypt large secret
       run: ./.github/secrets/decrypt_publisher_snk.sh
@@ -48,4 +53,4 @@ jobs:
       run: dotnet pack --configuration Release SecretSharingDotNet.sln
 
     - name: Publish Package
-      run: dotnet nuget push src/bin/Release/SecretSharingDotNet.0.3.0.nupkg  -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json
+      run: dotnet nuget push src/bin/Release/SecretSharingDotNet.0.4.2.nupkg  -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json
