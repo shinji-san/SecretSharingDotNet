@@ -288,5 +288,23 @@ namespace SecretSharingDotNet.Test
             var sss = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
             Assert.Throws<InvalidOperationException>(() => sss.MakeShares(2, 7));
         }
+
+        /// <summary>
+        /// Tests whether or not bug #40 occurs [Maximum exceeded! (Parameter 'value') Actual value was 10912." #40].
+        /// </summary>
+        [Fact]
+        public void MaximumExceeded()
+        {
+            string longSecret = "-----BEGIN EC PRIVATE KEY-----MIIBUQIBAQQgxq7AWG9L6uleuTB9q5FGqnHjXF+kD4y9154SLYYKMDqggeMwgeACAQEwLAYHKoZIzj0BAQIhAP////////////////////////////////////7///wvMEQEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwRBBHm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeYSDradyajxGVdpPv8DhEIqP0XtEimhVQZnEfQj/sQ1LgCIQD////////////////////+uq7c5q9IoDu/0l6M0DZBQQIBAaFEA0IABE0XO6I8lZYzXqRQnHP/knSwLex7q77g4J2AN0cVyrADicGlUr6QjVIlIu9NXCHxD2i++ToWjO1zLVdxgNJbUUc=-----END EC PRIVATE KEY-----";
+            var split = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 1024);
+            var combine = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 5);
+            var x = split.MakeShares (3, 7, longSecret);
+            var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
+            var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
+            var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
+            var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+            Assert.Equal(longSecret, recoveredSecret1);
+            Assert.Equal(longSecret, recoveredSecret2);
+        }
     }
 }

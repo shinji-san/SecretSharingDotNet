@@ -48,7 +48,12 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// Saves the known security levels (Mersenne prime exponents)
         /// </summary>
-        private readonly List<int> securityLevels = new List<int>(new int[] { 5, 7, 13, 17, 19, 31, 61, 89, 107, 127, 521, 607, 1279, 2203, 2281, 3217 });
+        private readonly List<int> securityLevels = new List<int>(new int[]
+        {
+            5, 7, 13, 17, 19, 31, 61, 89, 107, 127, 521, 607, 1279, 2203, 2281, 3217, 4253, 4423, 9689, 9941, 11213,
+            19937, 21701, 23209, 44497, 86243, 110503, 132049, 216091, 756839, 859433, 1257787, 1398269, 2976221,
+            3021377, 6972593, 13466917, 20996011, 24036583, 25964951, 30402457, 32582657, 37156667, 42643801, 43112609
+        });
 
         /// <summary>
         /// Saves the security level
@@ -66,7 +71,7 @@ namespace SecretSharingDotNet.Cryptography
         private readonly IExtendedGcdAlgorithm<TNumber> extendedGcd;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ShamirsSecretSharing"/> class.
+        /// Initializes a new instance of the <see cref="ShamirsSecretSharing{TNumber}"/> class.
         /// </summary>
         /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
         public ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd)
@@ -80,7 +85,7 @@ namespace SecretSharingDotNet.Cryptography
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ShamirsSecretSharing"/> class.
+        /// Initializes a new instance of the <see cref="ShamirsSecretSharing{TNumber}"/> class.
         /// </summary>
         /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
         /// <param name="securityLevel">Security level (in number of bits). Minimum is 5.</param>
@@ -223,7 +228,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns></returns>
         private List<Calculator<TNumber>> CreatePolynomial(Calculator<TNumber> numberOfMinimumShares)
         {
-            var polynomial = new List<Calculator<TNumber>>(); /// pre-init
+            var polynomial = new List<Calculator<TNumber>>(); //// pre-init
             var randomNumber = new byte[this.mersennePrime.ByteCount];
             using (RNGCryptoServiceProvider rngCsp = new RNGCryptoServiceProvider())
             {
@@ -245,7 +250,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns>A list of finite points representing the shared secrets</returns>
         private List<FinitePoint<TNumber>> CreateSharedSecrets(Calculator<TNumber> numberOfShares, List<Calculator<TNumber>> polynomial)
         {
-            var points = new List<FinitePoint<TNumber>>(); /// pre-init
+            var points = new List<FinitePoint<TNumber>>(); //// pre-init
             for (var i = Calculator<TNumber>.One; i < (numberOfShares + Calculator<TNumber>.One); i++)
             {
                 points.Add(new FinitePoint<TNumber>(i, polynomial, this.mersennePrime));
@@ -345,7 +350,7 @@ namespace SecretSharingDotNet.Cryptography
             });
 
             var a = this.DivMod(numerator, denominator, prime) + prime;
-            return ((a % prime) + prime) % prime; /// mathematical modulo
+            return ((a % prime) + prime) % prime; //// mathematical modulo
         }
 
         /// <summary>

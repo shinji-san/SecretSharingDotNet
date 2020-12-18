@@ -13,9 +13,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=12><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
-          <td rowspan=12><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=12>Core</td>
+          <td rowspan=13><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
+          <td rowspan=13><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=13>Core</td>
           <td>Core 2.1 (LTS)</td>
       </tr>
       <tr>
@@ -52,14 +52,21 @@ An C# implementation of Shamir's Secret Sharing.
           <td>FX 4.8</td>
       </tr>
       <tr>
-          <td rowspan=2><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg" alt="Build status"></a></td>
+          <td>.NET 5</td>
+      </tr>
+      <tr>
+          <td rowspan=3><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg" alt="Build status"></a></td>
           <td><code>SecretSharingDotNetCore2.1.sln</code></td>
-          <td rowspan=2>Core</td>
+          <td rowspan=3>Core</td>
           <td>Core 2.1 (LTS)</td>
       </tr>
       <tr>
           <td rowspan=1><code>SecretSharingDotNetCore3.1.sln</code></td>
           <td>Core 3.1 (LTS)</td>
+      </tr>
+      <tr>
+          <td rowspan=1><code>SecretSharingDotNetCore3.1.sln</code></td>
+          <td>.NET 5</td>
       </tr>
       <tr>
           <td><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+FX%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20FX/badge.svg" alt="Build status"></a></td>
@@ -83,13 +90,16 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=12><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.3.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=12><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.3.0"/></a></td>
-          <td rowspan=12><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.3.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.3.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=13><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.4.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=13><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.4.0"/></a></td>
+          <td rowspan=13><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.4.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.4.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Core 2.1 (LTS)</td>
       </tr>
       <tr>
           <td>Core 3.1 (LTS)</td>
+      </tr>
+      <tr>
+          <td>.NET 5.0</td>
       </tr>
       <tr>
           <td>Standard 2.0</td>
@@ -128,10 +138,10 @@ An C# implementation of Shamir's Secret Sharing.
 
 1. Open a console and switch to the directory containing your project file.
 
-2. Use the following command to install version 0.2.0 of the SecretSharingDotNet package:
+2. Use the following command to install version 0.4.0 of the SecretSharingDotNet package:
 
     ```dotnetcli
-    dotnet add package SecretSharingDotNet -v 0.2.0 -f <FRAMEWORK>
+    dotnet add package SecretSharingDotNet -v 0.4.0 -f <FRAMEWORK>
     ```
 
 3. After the command completes, look at the project file to make sure the package was installed.
@@ -140,7 +150,7 @@ An C# implementation of Shamir's Secret Sharing.
 
     ```xml
     <ItemGroup>
-      <PackageReference Include="SecretSharingDotNet" Version="0.2.0" />
+      <PackageReference Include="SecretSharingDotNet" Version="0.4.0" />
     </ItemGroup>
     ```
 ## Remove SecretSharingDotNet package
