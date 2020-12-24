@@ -8,18 +8,24 @@
 
 namespace SecretSharingDotNet.Math
 {
+    using System;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Linq;
     using System.Reflection;
-    using System;
 
     /// <summary>
     /// This class represents the calculator strategy pattern to decouple Shamir's Secret Sharing
-    /// implementation from the concret numeric data type like <see cref="System.Numerics.BigInteger"/>.
+    /// implementation from the concrete numeric data type like <see cref="System.Numerics.BigInteger"/>.
     /// </summary>
     public abstract class Calculator
     {
+        /// <summary>
+        /// Saves a dictionary of number data types derived from the <see cref="Calculator{TNumber}"/> class.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2104:DoNotDeclareReadOnlyMutableReferenceTypes")]
+        protected static readonly ReadOnlyDictionary<Type, Type> ChildTypes = new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
+
         /// <summary>
         /// Gets the number of elements of the byte representation of the <see cref="Calculator"/> object.
         /// </summary>
@@ -49,30 +55,43 @@ namespace SecretSharingDotNet.Math
         /// Gets a number that indicates the sign (negative, positive, or zero) of the current <see cref="Calculator"/> object.
         /// </summary>
         public abstract int Sign { get; }
+
+        /// <summary>
+        /// Creates a new instance derived from the <see cref="Calculator"/> class.
+        /// </summary>
+        /// <param name="data">byte array representation of the <paramref name="numberType"/></param>
+        /// <param name="numberType">Type of number</param>
+        /// <returns></returns>
+        public static Calculator Create(byte[] data, Type numberType)
+        {
+            return Activator.CreateInstance(ChildTypes[numberType], data) as Calculator;
+        }
+
+        /// <summary>
+        /// Returns a dictionary of number data types derived from the <see cref="Calculator"/> class.
+        /// </summary>
+        /// <returns></returns>
+        /// <remarks>The key represents the integer data type of the derived calculator. The value represents the type of derived calculator.</remarks>
+        private static Dictionary<Type, Type> GetDerivedNumberTypes()
+        {
+            Assembly asm = Assembly.GetAssembly(typeof(Calculator));
+            var listOfClasses = asm.GetTypes().Where(x => x.IsSubclassOf(typeof(Calculator)) && !x.IsGenericType);
+            return listOfClasses.ToDictionary(x => x.BaseType?.GetGenericArguments()[0]);
+        }
     }
 
     /// <summary>
     /// This class represents the calculator strategy pattern to decouple Shamir's Secret Sharing
-    /// implementation from the concret numeric data type like BigInteger.
+    /// implementation from the concrete numeric data type like BigInteger.
     /// </summary>
     /// <typeparam name="TNumber">Numeric data type</typeparam>
     public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TNumber>>
     {
         /// <summary>
-        /// Saves the numeric value
-        /// </summary>
-        private TNumber value;
-
-        /// <summary>
-        /// Saves a dictionary of number data types derived from the <see cref="Calculator{TNumber}"/> class.
-        /// </summary>
-        private static readonly Dictionary<Type, Type> ChildTypes = GetDerivedNumberTypes ();
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="Calculator{TNumber}"/> class.
         /// </summary>
         /// <param name="val">Numeric value</param>
-        protected Calculator (TNumber val) => this.value = val;
+        protected Calculator(TNumber val) => this.Value = val;
 
         /// <summary>
         /// Adds the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
@@ -81,7 +100,7 @@ namespace SecretSharingDotNet.Math
         /// <param name="right">Right value to add (right summand).</param>
         /// <returns>The sum of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
         /// <see cref="Calculator{TNumber}"/> instance.</returns>
-        public abstract Calculator<TNumber> Add (TNumber right);
+        public abstract Calculator<TNumber> Add(TNumber right);
 
         /// <summary>
         /// Subtracts the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
@@ -90,7 +109,7 @@ namespace SecretSharingDotNet.Math
         /// <param name="right">Right value to subtract (subtrahend).</param>
         /// <returns>The difference of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
         /// <see cref="Calculator{TNumber}"/> instance.</returns>
-        public abstract Calculator<TNumber> Subtract (TNumber right);
+        public abstract Calculator<TNumber> Subtract(TNumber right);
 
         /// <summary>
         /// Multiplies the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
@@ -99,7 +118,7 @@ namespace SecretSharingDotNet.Math
         /// <param name="right">multiplicand</param>
         /// <returns>The product of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
         /// <see cref="Calculator{TNumber}"/> instance.</returns>
-        public abstract Calculator<TNumber> Multiply (TNumber right);
+        public abstract Calculator<TNumber> Multiply(TNumber right);
 
         /// <summary>
         /// Divides the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
@@ -108,39 +127,39 @@ namespace SecretSharingDotNet.Math
         /// <param name="right">divisor</param>
         /// <returns>The quotient of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
         /// <see cref="Calculator{TNumber}"/> instance.</returns>
-        public abstract Calculator<TNumber> Division (TNumber right);
+        public abstract Calculator<TNumber> Divide(TNumber right);
 
         /// <summary>
         /// The modulo operation
         /// </summary>
         /// <param name="right">divisor</param>
         /// <returns>The remainder</returns>
-        public abstract Calculator<TNumber> Modulo (TNumber right);
+        public abstract Calculator<TNumber> Modulo(TNumber right);
 
         /// <summary>
         /// The unary increment method increments this instance by 1.
         /// </summary>
         /// <returns>This <see cref="Calculator{TNumber}"/> instance plus <see cref="Calculator{TNumber}.One"/></returns>
-        public abstract Calculator<TNumber> Increase ();
+        public abstract Calculator<TNumber> Increment();
 
         /// <summary>
         /// The unary decrement method decrements this instance by 1.
         /// </summary>
         /// <returns>This <see cref="Calculator{TNumber}"/> instance minus <see cref="Calculator{TNumber}.One"/></returns>
-        public abstract Calculator<TNumber> Decrease ();
+        public abstract Calculator<TNumber> Decrement();
 
         /// <summary>
         /// Returns the absolute value of the current <see cref="Calculator{TNumber}"/> object.
         /// </summary>
         /// <returns>The absolute value of this instance.</returns>
-        public abstract Calculator<TNumber> Abs ();
+        public abstract Calculator<TNumber> Abs();
 
         /// <summary>
         /// Power (mathematical)
         /// </summary>
         /// <param name="expo">The exponent.</param>
         /// <returns>The result of raising instance to the <paramref name="expo"/> power.</returns>
-        public abstract Calculator<TNumber> Pow (int expo);
+        public abstract Calculator<TNumber> Pow(int expo);
 
         /// <summary>
         /// Returns the square root of the current <see cref="Calculator{TNumber}"/>.
@@ -151,130 +170,130 @@ namespace SecretSharingDotNet.Math
         /// This method represents the Greater Than operator.
         /// </summary>
         /// <param name="right">right-hand operand</param>
-        /// <returns>This method returns <c>true</c> if this instance is greater than the <paramref name="right"/> instance, <c>false</c> otherwise.</returns>
-        public abstract bool GreaterThan (TNumber right);
+        /// <returns>This method returns <see langword="true"/> if this instance is greater than the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
+        public abstract bool GreaterThan(TNumber right);
 
         /// <summary>
         /// This method represents the Greater Than Or Equal To operator.
         /// </summary>
         /// <param name="right">right-hand operand</param>
-        /// <returns>This method returns <c>true</c> if this instance is greater than or equal to the <paramref name="right"/> instance, <c>false</c> otherwise.</returns>
-        public abstract bool EqualOrGreaterThan (TNumber right);
+        /// <returns>This method returns <see langword="true"/> if this instance is greater than or equal to the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
+        public abstract bool EqualOrGreaterThan(TNumber right);
 
         /// <summary>
         /// This method represents the Lower Than operator.
         /// </summary>
         /// <param name="right">right-hand operand</param>
-        /// <returns>This method returns <c>true</c> if this instance is less than the <paramref name="right"/> instance, <c>false</c> otherwise.</returns>
-        public abstract bool LowerThan (TNumber right);
+        /// <returns>This method returns <see langword="true"/> if this instance is less than the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
+        public abstract bool LowerThan(TNumber right);
 
         /// <summary>
         /// This method represents the Lower Than Or Equal To operator.
         /// </summary>
         /// <param name="right">right-hand operand</param>
-        /// <returns>This method returns <c>true</c> if this instance is less than or equal to the <paramref name="right"/> instance, <c>false</c> otherwise.</returns>
-        public abstract bool EqualOrLowerThan (TNumber right);
+        /// <returns>This method returns <see langword="true"/> if this instance is less than or equal to the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
+        public abstract bool EqualOrLowerThan(TNumber right);
 
         /// <summary>
         /// Greater than operator
         /// </summary>
-        /// <param name="a">The 1st operand</param>
-        /// <param name="b">The 2nd operand</param>
-        /// <returns>Returns <c>true</c> if its 1st operand is greater than its 2nd operand, otherwise <c>false</c>.</returns>
-        public static bool operator > (Calculator<TNumber> a, Calculator<TNumber> b) => a.GreaterThan (b.Value);
+        /// <param name="left">The 1st operand</param>
+        /// <param name="right">The 2nd operand</param>
+        /// <returns>Returns <see langword="true"/> if its 1st operand is greater than its 2nd operand, otherwise <see langword="false"/>.</returns>
+        public static bool operator >(Calculator<TNumber> left, Calculator<TNumber> right) => !(left is null) && !(right is null) && left.GreaterThan(right.Value);
 
         /// <summary>
         /// Less than operator
         /// </summary>
-        /// <param name="a">The 1st operand</param>
-        /// <param name="b">The 2nd operand</param>
-        /// <returns>Returns <c>true</c> if its 1st operand is less than its 2nd operand, otherwise <c>false</c>.</returns>
-        public static bool operator < (Calculator<TNumber> a, Calculator<TNumber> b) => a.LowerThan (b.Value);
+        /// <param name="left">The 1st operand</param>
+        /// <param name="right">The 2nd operand</param>
+        /// <returns>Returns <see langword="true"/> if its 1st operand is less than its 2nd operand, otherwise <see langword="false"/>.</returns>
+        public static bool operator <(Calculator<TNumber> left, Calculator<TNumber> right) => !(left is null) && !(right is null) && left.LowerThan(right.Value);
 
         /// <summary>
         /// Greater than or equal operator
         /// </summary>
-        /// <param name="a">The 1st operand</param>
-        /// <param name="b">The 2nd operand</param>
-        /// <returns>Returns <c>true</c> if its 1st operand is greater than or equal to its 2nd operand, otherwise <c>false</c>.</returns>
-        public static bool operator >= (Calculator<TNumber> a, Calculator<TNumber> b) => a.EqualOrGreaterThan (b.Value);
+        /// <param name="left">The 1st operand</param>
+        /// <param name="right">The 2nd operand</param>
+        /// <returns>Returns <see langword="true"/> if its 1st operand is greater than or equal to its 2nd operand, otherwise <see langword="false"/>.</returns>
+        public static bool operator >=(Calculator<TNumber> left, Calculator<TNumber> right) => !(left is null) && !(right is null) && left.EqualOrGreaterThan(right.Value);
 
         /// <summary>
         /// Less than or equal operator
         /// </summary>
-        /// <param name="a">The 1st operand</param>
-        /// <param name="b">The 2nd operand</param>
-        /// <returns>Returns <c>true</c> if its 1st operand is less than or equal to its 2nd operand, otherwise <c>false</c>.</returns>
-        public static bool operator <= (Calculator<TNumber> a, Calculator<TNumber> b) => a.EqualOrLowerThan (b.Value);
+        /// <param name="left">The 1st operand</param>
+        /// <param name="right">The 2nd operand</param>
+        /// <returns>Returns <see langword="true"/> if its 1st operand is less than or equal to its 2nd operand, otherwise <see langword="false"/>.</returns>
+        public static bool operator <=(Calculator<TNumber> left, Calculator<TNumber> right) => !(left is null) && !(right is null) && left.EqualOrLowerThan(right.Value);
 
         /// <summary>
         /// Addition operation
         /// </summary>
-        /// <param name="a">The 1st summand</param>
-        /// <param name="b">The 2nd summand</param>
+        /// <param name="left">The 1st summand</param>
+        /// <param name="right">The 2nd summand</param>
         /// <returns>The sum</returns>
-        public static Calculator<TNumber> operator + (Calculator<TNumber> a, Calculator<TNumber> b) => a.Add (b.Value);
+        public static Calculator<TNumber> operator +(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Add(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
         /// <summary>
         /// Subtraction operation
         /// </summary>
-        /// <param name="a">The minuend</param>
-        /// <param name="b">The subtrahend</param>
+        /// <param name="left">The minuend</param>
+        /// <param name="right">The subtrahend</param>
         /// <returns>The difference</returns>
-        public static Calculator<TNumber> operator - (Calculator<TNumber> a, Calculator<TNumber> b) => a.Subtract (b.Value);
+        public static Calculator<TNumber> operator -(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Subtract(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
         /// <summary>
         /// Multiplication operation
         /// </summary>
-        /// <param name="a">multiplier</param>
-        /// <param name="b">multiplicand</param>
+        /// <param name="left">multiplier</param>
+        /// <param name="right">multiplicand</param>
         /// <returns>The product</returns>
-        public static Calculator<TNumber> operator * (Calculator<TNumber> a, Calculator<TNumber> b) => a.Multiply (b.Value);
+        public static Calculator<TNumber> operator *(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Multiply(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
         /// <summary>
-        /// Division operation
+        /// Divide operation
         /// </summary>
-        /// <param name="a">dividend</param>
-        /// <param name="b">divisor</param>
+        /// <param name="left">dividend</param>
+        /// <param name="right">divisor</param>
         /// <returns>The quotient</returns>
-        public static Calculator<TNumber> operator / (Calculator<TNumber> a, Calculator<TNumber> b) => a.Division (b.Value);
+        public static Calculator<TNumber> operator /(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Divide(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
         /// <summary>
         /// Modulo operation
         /// </summary>
-        /// <param name="a">dividend</param>
-        /// <param name="b">divisor</param>
+        /// <param name="left">dividend</param>
+        /// <param name="right">divisor</param>
         /// <returns>The remainder</returns>
-        public static Calculator<TNumber> operator % (Calculator<TNumber> a, Calculator<TNumber> b) => a.Modulo (b.Value);
+        public static Calculator<TNumber> operator %(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Modulo(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
         /// <summary>
         /// Increment operator
         /// </summary>
-        /// <param name="a">The operand</param>
-        /// <returns>The unary increment operator increments the operand <paramref name="a"/> by 1</returns>
-        public static Calculator<TNumber> operator ++ (Calculator<TNumber> a) => a.Increase ();
+        /// <param name="number">The operand</param>
+        /// <returns>The unary increment operator increments the operand <paramref name="number"/> by 1</returns>
+        public static Calculator<TNumber> operator ++(Calculator<TNumber> number) => number?.Increment();
 
         /// <summary>
         /// Decrement operator
         /// </summary>
-        /// <param name="a">The operand</param>
-        /// <returns>The unary decrement operator decrements the operand <paramref name="a"/> by 1.</returns>
-        public static Calculator<TNumber> operator -- (Calculator<TNumber> a) => a.Decrease ();
+        /// <param name="number">The operand</param>
+        /// <returns>The unary decrement operator decrements the operand <paramref name="number"/> by 1.</returns>
+        public static Calculator<TNumber> operator --(Calculator<TNumber> number) => number?.Decrement();
 
         /// <summary>
         /// Equality operator
         /// </summary>
         /// <param name="left">The left operand</param>
         /// <param name="right">The right operand</param>
-        /// <returns>Returns <c>true</c> if its operands are equal, otherwise <c>false</c>.</returns>
-        public static bool operator == (Calculator<TNumber> left, Calculator<TNumber> right)
+        /// <returns>Returns <see langword="true"/> if its operands are equal, otherwise <see langword="false"/>.</returns>
+        public static bool operator ==(Calculator<TNumber> left, Calculator<TNumber> right)
         {
-            if (((object) left) == null || ((object) right) == null)
+            if ((object)left == null || (object)right == null)
             {
-                return object.Equals (left, right);
+                return Equals(left, right);
             }
 
-            return left.Equals (right);
+            return left.Equals(right);
         }
 
         /// <summary>
@@ -282,74 +301,57 @@ namespace SecretSharingDotNet.Math
         /// </summary>
         /// <param name="left">The left operand</param>
         /// <param name="right">The right operand</param>
-        /// <returns>Returns <c>true</c> if its operands are not equal, otherwise <c>false</c>.</returns>
-        public static bool operator != (Calculator<TNumber> left, Calculator<TNumber> right)
+        /// <returns>Returns <see langword="true"/> if its operands are not equal, otherwise <see langword="false"/>.</returns>
+        public static bool operator !=(Calculator<TNumber> left, Calculator<TNumber> right)
         {
-            if (((object) left) == null || ((object) right) == null)
+            if ((object)left == null || (object)right == null)
             {
-                return !object.Equals (left, right);
+                return !Equals(left, right);
             }
 
-            return !left.Equals (right);
+            return !left.Equals(right);
         }
 
         /// <summary>
         /// Casts the <see cref="Calculator{TNumber}"/> instance to an <typeparamref name="TNumber"/> instance.
         /// </summary>
-        /// <param name="a">A data type from basic class <see cref="Calculator{TNumber}"/>.</param>
-        public static implicit operator TNumber (Calculator<TNumber> a) => a.Value;
+        /// <param name="calculatorInstance">A data type from basic class <see cref="Calculator{TNumber}"/>.</param>
+        public static implicit operator TNumber(Calculator<TNumber> calculatorInstance) => !(calculatorInstance is null) ? calculatorInstance.Value : default;
 
         /// <summary>
         /// Casts the <typeparamref name="TNumber"/> instance to an <see cref="Calculator{TNumber}"/> instance.
         /// </summary>
-        /// <param name="a">Numeric data type (An integer data type).</param>
-        public static implicit operator Calculator<TNumber> (TNumber a)
+        /// <param name="number">Numeric data type (An integer data type).</param>
+        public static implicit operator Calculator<TNumber>(TNumber number)
         {
             try
             {
-                return Activator.CreateInstance (ChildTypes[typeof (TNumber)], a) as Calculator<TNumber>;
+                return Activator.CreateInstance(ChildTypes[typeof(TNumber)], number) as Calculator<TNumber>;
             }
             catch (KeyNotFoundException)
             {
-                throw new NotSupportedException ($"Generic Data Type '{typeof(TNumber).Name}' not supported!");
+                throw new NotSupportedException($"Generic Data Type '{typeof(TNumber).Name}' not supported!");
             }
-        }
-
-        /// <summary>
-        /// Returns a dictionary of number data types derived from the <see cref="Calculator{TNumber}"/> class.
-        /// </summary>
-        /// <returns></returns>
-        /// <remarks>The key represents the integer data type of the derived calculator. The value represents the type of derived caluculator.</remarks>
-        private static Dictionary<Type, Type> GetDerivedNumberTypes ()
-        {
-            Assembly asm = Assembly.GetAssembly (typeof (Calculator));
-            var listOfClasses = asm.GetTypes ().Where (x => x.IsSubclassOf (typeof (Calculator)) && !x.IsGenericType);
-            return listOfClasses.ToDictionary (x => x.BaseType.GetGenericArguments () [0]);
         }
 
         /// <summary>
         /// Determines whether this instance and an<paramref name="other"/> specified <see cref="Calculator{TNumber}"/> instance are equal.
         /// </summary>
         /// <param name="other">The <see cref="Calculator{TNumber}"/> instance to compare</param>
-        /// <returns><c>true</c> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <c>false</c>.
-        /// If <paramref name="other"/> is <c>null</c>, the method returns <c>false</c>.</returns>
-        public bool Equals (Calculator<TNumber> other)
+        /// <returns><see langword="true"/> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <see langword="false"/>.
+        /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
+        public bool Equals(Calculator<TNumber> other)
         {
-            if (other == null)
-            {
-                return false;
-            }
-
-            return this.Value.Equals (other.Value);
+            return other != null && this.Value.Equals(other.Value);
         }
 
         /// <summary>
         /// Returns a value that indicates whether the current instance and a specified object have the same value.
         /// </summary>
         /// <param name="obj">The object to compare.</param>
-        /// <returns><c>true</c> if the <paramref name="obj"/> argument is a <see cref="Calculator{TNumber}"/> object,
-        /// and its value is equal to the value of the current <see cref="Calculator{TNumber}"/> instance; otherwise, <c>false</c>.</returns>
-        public override bool Equals (object obj)
+        /// <returns><see langword="true"/> if the <paramref name="obj"/> argument is a <see cref="Calculator{TNumber}"/> object,
+        /// and its value is equal to the value of the current <see cref="Calculator{TNumber}"/> instance; otherwise, <see langword="false"/>.</returns>
+        public override bool Equals(object obj)
         {
             if (obj == null)
             {
@@ -357,60 +359,46 @@ namespace SecretSharingDotNet.Math
             }
 
             var calculator = obj as Calculator<TNumber>;
-            return calculator == null ? false : this.Equals (calculator);
+            return calculator != null && this.Equals(calculator);
         }
 
         /// <summary>
         /// Returns the hash code for the current <see cref="Calculator{TNumber}"/> object.
         /// </summary>
         /// <returns>A 32-bit signed integer hash code.</returns>
-        public override int GetHashCode () => this.Value.GetHashCode ();
+        public override int GetHashCode() => this.Value.GetHashCode();
 
         /// <summary>
         /// Gets or sets the numeric value
         /// </summary>
-        public TNumber Value
-        {
-            get { return this.value; }
-            set { this.value = value; }
-        }
+        public TNumber Value { get; set; }
 
         /// <summary>
         /// Gets a value that represents the number zero (0).
         /// </summary>
-        public static Calculator<TNumber> Zero => default (TNumber);
+        public static Calculator<TNumber> Zero => default(TNumber);
 
         /// <summary>
         /// Gets a value that represents the number one (1).
         /// </summary>
-        public static Calculator<TNumber> One => Zero.Increase ();
+        public static Calculator<TNumber> One => Zero.Increment();
 
         /// <summary>
         /// Gets a value that represents the number two (2).
         /// </summary>
         /// <returns></returns>
-        public static Calculator<TNumber> Two => One.Increase ();
+        public static Calculator<TNumber> Two => One.Increment();
 
         /// <summary>
         /// A shallow copy of the current <see cref="Calculator{TNumber}"/> instance.
         /// </summary>
         /// <returns></returns>
-        public Calculator<TNumber> Clone () => this.MemberwiseClone () as Calculator<TNumber>;
-
-        /// <summary>
-        /// Creates a new instance of the <see cref="Calculator{TNumber}"/> class.
-        /// </summary>
-        /// <param name="data">byte array representation of the <typeparamref name="TNumber"/></param>
-        /// <returns></returns>
-        public static Calculator<TNumber> Create (byte[] data)
-        {
-            return Activator.CreateInstance (ChildTypes[typeof (TNumber)], data) as Calculator<TNumber>;
-        }
+        public Calculator<TNumber> Clone() => this.MemberwiseClone() as Calculator<TNumber>;
 
         /// <summary>
         /// Converts the numeric value of the current <see cref="Calculator{TNumber}"/> object to its equivalent string representation.
         /// </summary>
         /// <returns>The string representation of the current <see cref="Calculator{TNumber}"/> value.</returns>
-        public override string ToString () => this.Value.ToString ();
+        public override string ToString() => this.Value.ToString();
     }
 }
