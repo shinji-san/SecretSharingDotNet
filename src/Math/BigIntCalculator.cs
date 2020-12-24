@@ -32,30 +32,30 @@ namespace SecretSharingDotNet.Math
         /// <summary>
         /// This method represents the Greater Than operator.
         /// </summary>
-        /// <param name="b">right-hand operand</param>
-        /// <returns>This method returns <c>true</c> if this instance is greater than the <paramref name="b"/> instance, <c>false</c> otherwise.</returns>
-        public override bool GreaterThan(BigInteger b) => this.Value > b;
+        /// <param name="right">right-hand operand</param>
+        /// <returns>This method returns <see langword="true"/> if this instance is greater than the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
+        public override bool GreaterThan(BigInteger right) => this.Value > right;
 
         /// <summary>
         /// This method represents the Lower Than operator.
         /// </summary>
-        /// <param name="b">right-hand operand</param>
-        /// <returns>This method returns <c>true</c> if this instance is less than the <paramref name="b"/> instance, <c>false</c> otherwise.</returns>
-        public override bool LowerThan(BigInteger b) => this.Value < b;
+        /// <param name="right">right-hand operand</param>
+        /// <returns>This method returns <see langword="true"/> if this instance is less than the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
+        public override bool LowerThan(BigInteger right) => this.Value < right;
 
         /// <summary>
         /// This method represents the Greater Than Or Equal To operator.
         /// </summary>
-        /// <param name="b">right-hand operand</param>
-        /// <returns>This method returns <c>true</c> if this instance is greater than or equal to the <paramref name="b"/> instance, <c>false</c> otherwise.</returns>
-        public override bool EqualOrGreaterThan(BigInteger b) => this.Value >= b;
+        /// <param name="right">right-hand operand</param>
+        /// <returns>This method returns <see langword="true"/> if this instance is greater than or equal to the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
+        public override bool EqualOrGreaterThan(BigInteger right) => this.Value >= right;
 
         /// <summary>
         /// This method represents the Lower Than Or Equal To operator.
         /// </summary>
-        /// <param name="b">right-hand operand</param>
-        /// <returns>This method returns <c>true</c> if this instance is less than or equal to the <paramref name="b"/> instance, <c>false</c> otherwise.</returns>
-        public override bool EqualOrLowerThan(BigInteger b) => this.Value <= b;
+        /// <param name="right">right-hand operand</param>
+        /// <returns>This method returns <see langword="true"/> if this instance is less than or equal to the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
+        public override bool EqualOrLowerThan(BigInteger right) => this.Value <= right;
 
         /// <summary>
         /// Adds the current <see cref="BigIntCalculator"/> instance with the <paramref name="right"/>
@@ -67,50 +67,50 @@ namespace SecretSharingDotNet.Math
         public override Calculator<BigInteger> Add(BigInteger right) => this.Value + right;
 
         /// <summary>
-        /// Subtracts the current <see cref="BigIntCalculator"/> instance with the <paramref name="b"/>
+        /// Subtracts the current <see cref="BigIntCalculator"/> instance with the <paramref name="right"/>
         /// <see cref="BigIntCalculator"/> instance.
         /// </summary>
-        /// <param name="b">Right value to subtract (subtrahend).</param>
-        /// <returns>The difference of the current <see cref="BigIntCalculator"/> instance and the <paramref name="b"/>
+        /// <param name="right">Right value to subtract (subtrahend).</param>
+        /// <returns>The difference of the current <see cref="BigIntCalculator"/> instance and the <paramref name="right"/>
         /// <see cref="BigIntCalculator"/> instance.</returns>
-        public override Calculator<BigInteger> Subtract(BigInteger b) => this.Value - b;
+        public override Calculator<BigInteger> Subtract(BigInteger right) => this.Value - right;
 
         /// <summary>
-        /// Multiplies the current <see cref="BigIntCalculator"/> instance with the <paramref name="b"/>
+        /// Multiplies the current <see cref="BigIntCalculator"/> instance with the <paramref name="right"/>
         /// <see cref="BigIntCalculator"/> instance.
         /// </summary>
-        /// <param name="b">multiplicand</param>
-        /// <returns>The product of the current <see cref="BigIntCalculator"/> instance and the <paramref name="b"/>
+        /// <param name="right">multiplicand</param>
+        /// <returns>The product of the current <see cref="BigIntCalculator"/> instance and the <paramref name="right"/>
         /// <see cref="BigIntCalculator"/> instance.</returns>
-        public override Calculator<BigInteger> Multiply(BigInteger b) => this.Value * b;
+        public override Calculator<BigInteger> Multiply(BigInteger right) => this.Value * right;
 
         /// <summary>
-        /// Divides the current <see cref="BigIntCalculator"/> instance with the <paramref name="b"/>
+        /// Divides the current <see cref="BigIntCalculator"/> instance with the <paramref name="right"/>
         /// <see cref="BigIntCalculator"/> instance.
         /// </summary>
-        /// <param name="b">divisor</param>
-        /// <returns>The quotient of the current <see cref="BigIntCalculator"/> instance and the <paramref name="b"/>
+        /// <param name="right">divisor</param>
+        /// <returns>The quotient of the current <see cref="BigIntCalculator"/> instance and the <paramref name="right"/>
         /// <see cref="BigIntCalculator"/> instance.</returns>
-        public override Calculator<BigInteger> Division(BigInteger b) => this.Value / b;
+        public override Calculator<BigInteger> Divide(BigInteger right) => this.Value / right;
 
         /// <summary>
         /// The modulo operation
         /// </summary>
-        /// <param name="b">divisor</param>
+        /// <param name="right">divisor</param>
         /// <returns>The remainder as <see cref="BigIntCalculator"/> instance.</returns>
-        public override Calculator<BigInteger> Modulo(BigInteger b) => this.Value % b;
+        public override Calculator<BigInteger> Modulo(BigInteger right) => this.Value % right;
 
         /// <summary>
         /// The unary increment method increments this instance by 1.
         /// </summary>
         /// <returns>This <see cref="BigIntCalculator"/> instance plus <see cref="Calculator{BigInteger}.One"/></returns>
-        public override Calculator<BigInteger> Increase() => ++this.Clone().Value;
+        public override Calculator<BigInteger> Increment() => ++this.Clone().Value;
 
         /// <summary>
         /// The unary decrement method decrements this instance by 1.
         /// </summary>
         /// <returns>This <see cref="BigIntCalculator"/> instance minus <see cref="Calculator{BigInteger}.One"/></returns>
-        public override Calculator<BigInteger> Decrease() => --this.Clone().Value;
+        public override Calculator<BigInteger> Decrement() => --this.Clone().Value;
 
         /// <summary>
         /// Returns the absolute value of the current <see cref="BigIntCalculator"/> object.
@@ -161,6 +161,7 @@ namespace SecretSharingDotNet.Math
         /// <summary>
         /// Returns the square root of the current <see cref="BigIntCalculator"/> object.
         /// </summary>
+        /// <exception cref="T:System.ArithmeticException" accessor="get">NaN (value is lower than zero)</exception>
         public override Calculator<BigInteger> Sqrt 
         {
             get 
@@ -177,10 +178,10 @@ namespace SecretSharingDotNet.Math
 
                 int bitLength = Convert.ToInt32(Math.Ceiling(BigInteger.Log(this.Value, 2)));
                 BigInteger root = BigInteger.One << (bitLength >> 1);
-                bool isSqrt(BigInteger n, BigInteger r) => n >= r * r && n < (r + 1) * (r + 1);
-                while (!isSqrt(this.Value, root))
+                bool IsSqrt(BigInteger n, BigInteger r) => n >= r * r && n < (r + 1) * (r + 1);
+                while (!IsSqrt(this.Value, root))
                 {
-                    root = (root + (this.Value / root)) >> 1;
+                    root = (root + this.Value / root) >> 1;
                 }
 
                 return root;
