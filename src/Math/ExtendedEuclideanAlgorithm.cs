@@ -24,37 +24,37 @@ namespace SecretSharingDotNet.Math
         /// https://en.wikipedia.org/wiki/Modular_multiplicative_inverse#Computation 
         /// https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Example
         /// </remarks>
-        public ExtendedGcdResult<TNumber> Compute (Calculator<TNumber> a, Calculator<TNumber> b)
+        public ExtendedGcdResult<TNumber> Compute(Calculator<TNumber> a, Calculator<TNumber> b)
         {
             var x = Calculator<TNumber>.Zero;
-            var last_x = Calculator<TNumber>.One;
+            var lastX = Calculator<TNumber>.One;
             var y = Calculator<TNumber>.One;
-            var last_y = Calculator<TNumber>.Zero;
+            var lastY = Calculator<TNumber>.Zero;
             var r = b;
-            var last_r = a;
+            var lastR = a;
             while (r != Calculator<TNumber>.Zero)
             {
                 checked
                 {
-                    var quotient = last_r / r;
+                    var quotient = lastR / r;
 
                     var tmpR = r;
-                    r = last_r - quotient * r;
-                    last_r = tmpR;
+                    r = lastR - quotient * r;
+                    lastR = tmpR;
 
                     var tmpX = x;
-                    x = last_x - quotient * x;
-                    last_x = tmpX;
+                    x = lastX - quotient * x;
+                    lastX = tmpX;
 
                     var tmpY = y;
-                    y = last_y - quotient * y;
-                    last_y = tmpY;
+                    y = lastY - quotient * y;
+                    lastY = tmpY;
                 }
             }
 
-            var coeff = new Calculator<TNumber>[] { last_x, last_y };
-            var quot = new Calculator<TNumber>[] { x, y };
-            return new ExtendedGcdResult<TNumber>(last_r, coeff, quot);
+            var coefficient = new[] { lastX, lastY };
+            var quot = new[] { x, y };
+            return new ExtendedGcdResult<TNumber>(lastR, coefficient, quot);
         }
     }
 }
