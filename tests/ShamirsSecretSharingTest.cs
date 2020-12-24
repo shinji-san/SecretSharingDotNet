@@ -48,32 +48,34 @@ namespace SecretSharingDotNet.Test
         /// <summary>
         /// A test number as secret.
         /// </summary>
-        public readonly BigInteger TestNumber = 20000;
+        private readonly BigInteger testNumber = 20000;
 
         /// <summary>
         /// Checks the following condition: denominator * DivMod(numerator, denominator, prime) % prime == numerator
         /// ToDo: Find another technical solution for this test. Code redundancy.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void TestDivMod()
         {
-            Func<Calculator<BigInteger>, Calculator<BigInteger> , Calculator<BigInteger>, Calculator<BigInteger>> divMod = (denominator, numerator, prime) =>
+            Calculator<BigInteger> DivMod(Calculator<BigInteger> denominator, Calculator<BigInteger> numerator, Calculator<BigInteger> prime)
             {
-                var gcd = new ExtendedEuclideanAlgorithm<BigInteger> ();
-                var result = gcd.Compute (denominator, prime);
+                var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+                var result = gcd.Compute(denominator, prime);
                 return numerator * result.BezoutCoefficients[0] * result.GreatestCommonDivisor;
-            };
+            }
 
             Calculator<BigInteger> d = (BigInteger)3000;
             Calculator<BigInteger> n = (BigInteger)3000;
             Calculator<BigInteger> p = Calculator<BigInteger>.Two.Pow (127) - Calculator<BigInteger>.One;
-            Assert.Equal(n, d * divMod(d, n, p) % p);
+            Assert.Equal(n, d * DivMod(d, n, p) % p);
         }
 
         /// <summary>
         /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="string"/> as secret.
         /// (Minimum security level is auto detected)
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void TestPasswordWithSecurityLevelAutoDetected()
         {
@@ -93,8 +95,9 @@ namespace SecretSharingDotNet.Test
 
         /// <summary>
         /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="string"/> as secret.
-        /// (Secrutiy level is pre-defined)
+        /// (Security level is pre-defined)
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void TestPasswordWithSecurityLevel1279()
         {
@@ -121,13 +124,13 @@ namespace SecretSharingDotNet.Test
         {
             var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
             var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-            var x = split.MakeShares(3, 7, TestNumber);
+            var x = split.MakeShares(3, 7, testNumber);
             var secret = x.Item1;
             var subSet1 = x.Item2.Where(p => p.X.IsEven).ToList();
             var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
             var subSet2 = x.Item2.Where(p => !p.X.IsEven).ToList();
             var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
-            Assert.Equal(TestNumber, (BigInteger)recoveredSecret1);
+            Assert.Equal(testNumber, (BigInteger)recoveredSecret1);
             Assert.Equal(secret, recoveredSecret1);
             Assert.Equal(secret, recoveredSecret2);
             Assert.Equal(17, split.SecurityLevel);
@@ -135,20 +138,20 @@ namespace SecretSharingDotNet.Test
 
         /// <summary>
         /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="BigInteger"/> as secret.
-        /// (Secrutiy level is pre-defined)
+        /// (Security level is pre-defined)
         /// </summary>
         [Fact]
-        public void TestNumberWithSecurityLevell1279()
+        public void TestNumberWithSecurityLevel17()
         {
             var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
             var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-            var x = split.MakeShares(3, 7, TestNumber);
+            var x = split.MakeShares(3, 7, testNumber);
             var secret = x.Item1;
             var subSet1 = x.Item2.Where(p => p.X.IsEven).ToList();
             var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
             var subSet2 = x.Item2.Where(p => !p.X.IsEven).ToList();
             var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
-            Assert.Equal(TestNumber, (BigInteger)recoveredSecret1);
+            Assert.Equal(testNumber, (BigInteger)recoveredSecret1);
             Assert.Equal(secret, recoveredSecret1);
             Assert.Equal(secret, recoveredSecret2);
             Assert.Equal(17, split.SecurityLevel);
@@ -157,8 +160,9 @@ namespace SecretSharingDotNet.Test
         /// <summary>
         /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with random <see cref="BigInteger"/> value as secret and security level 127
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
-        public void TestRandomSecretWithSecruityLevel127()
+        public void TestRandomSecretWithSecurityLevel127()
         {
             var split = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 127);
             var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger> (), 32);
@@ -176,8 +180,9 @@ namespace SecretSharingDotNet.Test
         /// <summary>
         /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with random <see cref="BigInteger"/> value as secret and security level 5
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
-        public void TestRandomSecretWithSecruityLevel5 ()
+        public void TestRandomSecretWithSecurityLevel5 ()
         {
             var split = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 5);
             var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger> (), 32);
@@ -197,8 +202,9 @@ namespace SecretSharingDotNet.Test
         /// which is not a Mersenne prime exponent. Next Mersenne prime exponent is 521. The ctor of <see cref="ShamirsSecretSharing{TNumber}"/>
         /// must find 521 as the next Mersenne prime exponent of 130
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
-        public void TestRandomSecretWithSecruityLevel130 ()
+        public void TestRandomSecretWithSecurityLevel130 ()
         {
             var split = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 130);
             var combine = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 5);
@@ -218,6 +224,7 @@ namespace SecretSharingDotNet.Test
         /// which is not a Mersenne prime exponent. Next Mersenne prime exponent is 521. The ctor of <see cref="ShamirsSecretSharing{TNumber}"/>
         /// must find 521 as the next Mersenne prime exponent of 500
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void TestRandomSecretWithSecruityLevel500 ()
         {
@@ -233,14 +240,15 @@ namespace SecretSharingDotNet.Test
             Assert.Equal(secret, recoveredSecret2);
             Assert.Equal(521, split.SecurityLevel);
         }
-        
+
         /// <summary>
         /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with random <see cref="BigInteger"/> value as secret and security level 1024
         /// which is not a Mersenne prime exponent. Next Mersenne prime exponent is 1279. The ctor of <see cref="ShamirsSecretSharing{TNumber}"/>
         /// must find 1279 as the next Mersenne prime exponent of 1024
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
-        public void TestRandomSecretWithSecruityLevel1279 ()
+        public void TestRandomSecretWithSecurityLevel1279 ()
         {
             var split = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 1024);
             var combine = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 5);
@@ -258,6 +266,7 @@ namespace SecretSharingDotNet.Test
         /// <summary>
         /// Tests
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void TestMinimumSharedSecretsMake ()
         {
@@ -268,12 +277,12 @@ namespace SecretSharingDotNet.Test
         /// <summary>
         /// Tests
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void TestMinimumSharedSecretsReconstruction ()
         {
             var sss = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 5);
             var x = sss.MakeShares (2, 7);
-            var secret = x.Item1;
             var subSet1 = x.Item2.Where (p => p.X == Calculator<BigInteger>.One).ToList ();
             Assert.Throws<ArgumentOutOfRangeException>(() => sss.Reconstruction(subSet1.ToArray()));
         }
@@ -282,6 +291,7 @@ namespace SecretSharingDotNet.Test
         /// Tests whether or not the <see cref="InvalidOperationException"/> is thrown if the security level
         /// is not initialized.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void TestUninitializedSecurityLevel()
         {
@@ -292,10 +302,11 @@ namespace SecretSharingDotNet.Test
         /// <summary>
         /// Tests whether or not bug #40 occurs [Maximum exceeded! (Parameter 'value') Actual value was 10912." #40].
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void MaximumExceeded()
         {
-            string longSecret = "-----BEGIN EC PRIVATE KEY-----MIIBUQIBAQQgxq7AWG9L6uleuTB9q5FGqnHjXF+kD4y9154SLYYKMDqggeMwgeACAQEwLAYHKoZIzj0BAQIhAP////////////////////////////////////7///wvMEQEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwRBBHm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeYSDradyajxGVdpPv8DhEIqP0XtEimhVQZnEfQj/sQ1LgCIQD////////////////////+uq7c5q9IoDu/0l6M0DZBQQIBAaFEA0IABE0XO6I8lZYzXqRQnHP/knSwLex7q77g4J2AN0cVyrADicGlUr6QjVIlIu9NXCHxD2i++ToWjO1zLVdxgNJbUUc=-----END EC PRIVATE KEY-----";
+            const string longSecret = "-----BEGIN EC PRIVATE KEY-----MIIBUQIBAQQgxq7AWG9L6uleuTB9q5FGqnHjXF+kD4y9154SLYYKMDqggeMwgeACAQEwLAYHKoZIzj0BAQIhAP////////////////////////////////////7///wvMEQEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwRBBHm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeYSDradyajxGVdpPv8DhEIqP0XtEimhVQZnEfQj/sQ1LgCIQD////////////////////+uq7c5q9IoDu/0l6M0DZBQQIBAaFEA0IABE0XO6I8lZYzXqRQnHP/knSwLex7q77g4J2AN0cVyrADicGlUr6QjVIlIu9NXCHxD2i++ToWjO1zLVdxgNJbUUc=-----END EC PRIVATE KEY-----";
             var split = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 1024);
             var combine = new ShamirsSecretSharing<BigInteger> (new ExtendedEuclideanAlgorithm<BigInteger> (), 5);
             var x = split.MakeShares (3, 7, longSecret);
