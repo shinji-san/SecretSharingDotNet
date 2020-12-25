@@ -99,7 +99,7 @@ An C# implementation of Shamir's Secret Sharing.
           <td>Core 3.1 (LTS)</td>
       </tr>
       <tr>
-          <td>.NET 5.0</td>
+          <td>.NET 5</td>
       </tr>
       <tr>
           <td>Standard 2.0</td>
@@ -136,7 +136,7 @@ An C# implementation of Shamir's Secret Sharing.
 
 ## Install SecretSharingDotNet package
 
-1. Open a console and switch to the directory containing your project file.
+1. Open a console and switch to the directory, containing your project file.
 
 2. Use the following command to install version 0.4.2 of the SecretSharingDotNet package:
 
@@ -144,7 +144,7 @@ An C# implementation of Shamir's Secret Sharing.
     dotnet add package SecretSharingDotNet -v 0.4.2 -f <FRAMEWORK>
     ```
 
-3. After the command completes, look at the project file to make sure the package was installed.
+3. After the completition of the command, look at the project file to make sure that the package is successfuly installed.
 
    You can open the `.csproj` file to see the added package reference:
 
@@ -155,7 +155,7 @@ An C# implementation of Shamir's Secret Sharing.
     ```
 ## Remove SecretSharingDotNet package
 
-1. Open a console and switch to the directory containing your project file.
+1. Open a console and switch to the directory, containing your project file.
 
 2. Use the following command to remove the SecretSharingDotNet package:
 
@@ -163,19 +163,19 @@ An C# implementation of Shamir's Secret Sharing.
     dotnet remove package SecretSharingDotNet
     ```
 
-3. After the command completes, look at the project file to make sure the package was removed.
+3. After the completition of the command, look at the project file to make sure that the package is successfuly removed.
 
    You can open the `.csproj` file to check the deleted package reference.
 
 # Usage
 ## Basics
-Use the function `MakeShares` to generate the shares based on a random or pre-defined secret.
-Afterwards use the function `Reconstruction` to re-constructing the original secret.
+Use the function `MakeShares` to generate the shares, based on a random or pre-defined secret.
+Afterwards, use the function `Reconstruction` to re-construct the original secret.
 
-The length of shares based on the security level. It's possible to pre-define a security level by `ctor` or the `SecurityLevel` property. The pre-defined security level will be overriden if secret size is greater than the Mersenne prime which is calculated by means of security level. It is not necessary to define a security level for re-construction.
+The length of the shares is based on the security level. It's possible to pre-define a security level by `ctor` or the `SecurityLevel` property. The pre-defined security level will be overriden, if the secret size is greater than the Mersenne prime, which is calculated by means of the security level. It is not necessary to define a security level for a re-construction.
 
-## Random Secret
-Create a random secret in conjunction with the generation of shares. The length of the generated shares and the secret based on the security level. Here is an example with a pre-defined security level of 127:
+## Random secret
+Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127:
 ```csharp
 using System;
 using System.Collections.Generic;
@@ -214,8 +214,8 @@ namespace Example1
   }
 }
 ```
-## Pre-defined Secret: Text
-Use a text as secret which can be divided into shares. The length of the generated shares based on the security level.
+## Pre-defined secret: text
+Use a text as secret, which can be divided into shares. The length of the generated shares is based on the security level.
 Here is an example with auto-detected security level:
 ```csharp
 using System;
@@ -257,8 +257,8 @@ namespace Example2
 }
 ```
 
-## Pre-defined Secret: Number
-Use an integer number as secret which can be divided into shares. The length of the generated shares based on the security level.
+## Pre-defined secret: number
+Use an integer number as secret, which can be divided into shares. The length of the generated shares is based on the security level.
 Here is an example with a pre-defined security level of 521:
 ```csharp
 using System;
