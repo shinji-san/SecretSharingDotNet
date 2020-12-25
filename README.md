@@ -65,7 +65,7 @@ An C# implementation of Shamir's Secret Sharing.
           <td>Core 3.1 (LTS)</td>
       </tr>
       <tr>
-          <td rowspan=1><code>SecretSharingDotNetCore3.1.sln</code></td>
+          <td rowspan=1><code>SecretSharingDotNet5.sln</code></td>
           <td>.NET 5</td>
       </tr>
       <tr>
@@ -73,7 +73,7 @@ An C# implementation of Shamir's Secret Sharing.
           <td><code>SecretSharingDotNetFx4.5.2.sln</code></td>
           <td>FX</td>
           <td>FX 4.5.2</td>
-      </tr>            
+      </tr>
   </tbody>
 </table>
 
