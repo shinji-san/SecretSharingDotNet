@@ -16,3 +16,5 @@
 *.suo
 *.user
 
+# Ignore directory meta info as created by KDE
+.directory
