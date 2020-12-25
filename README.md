@@ -300,3 +300,64 @@ namespace Example3
   }
 }
 ```
+# CLI building instructions
+For the following instructions, please make sure that you are connected to the internet. If necessary, NuGet will try to restore the [xUnit](https://xunit.net/) packages.
+## Using dotnet to build for .NET 5, .NET Core and .NET FX 4.x
+Use one of the following solutions with `dotnet` to build [SecretSharingDotNet](#secretsharingdotnet):
+* `SecretSharingDotNet.sln` (all, [see table](#build--test-status-of-default-branch))
+* `SecretSharingDotNet5.sln` (.NET 5 only)
+* `SecretSharingDotNetCore3.1.sln` (.NET Core 3.1 only)
+* `SecretSharingDotNetCore2.1.sln` (.NET Core 2.1 only)
+
+The syntax is:
+```dotnetcli
+dotnet {build|test} -c {Debug|Release} SecretSharingDotNet{|5|Core3.1|Core2.1}.sln
+```
+
+The instructions below are examples, which operate on the `SecretSharingDotNet5.sln`.
+### Build Debug configuration
+
+```dotnetcli
+dotnet build -c Debug SecretSharingDotNet5.sln
+```
+
+### Build Release configuration
+
+```dotnetcli
+dotnet build -c Release SecretSharingDotNet5.sln
+```
+
+### Test Debug configuration
+
+```dotnetcli
+dotnet test -c Debug SecretSharingDotNet5.sln
+```
+
+### Test Release configuration
+
+```dotnetcli
+dotnet test -c Release SecretSharingDotNet5.sln
+```
+
+## Using MSBuild to build for .NET FX 4.5.2
+Use one of the following solutions with `msbuild` to build [SecretSharingDotNet](#secretsharingdotnet):
+* `SecretSharingDotNetFx4.5.2.sln`
+
+Currently unit testing with MSBuild isn't possible.
+
+The syntax is:
+```dotnetcli
+msbuild /p:RestorePackagesConfig=true;Configuration={Debug|Release} /t:restore;build SecretSharingDotNetFx4.5.2.sln
+```
+
+### Build Debug configuration
+
+```dotnetcli
+msbuild /p:RestorePackagesConfig=true;Configuration=Debug /t:restore;build SecretSharingDotNetFx4.5.2.sln
+```
+
+### Build Release configuration
+
+```dotnetcli
+msbuild /p:RestorePackagesConfig=true;Configuration=Release /t:restore;build SecretSharingDotNetFx4.5.2.sln
+```
