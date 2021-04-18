@@ -31,35 +31,35 @@
 
 namespace SecretSharingDotNet.Test
 {
-    using System.Numerics;
-
-    using Xunit;
     using Math;
+    using System.Globalization;
+    using System.Numerics;
+    using Xunit;
 
     public class ExtendedEuclideanAlgorithmTest
     {
-        private ExtendedEuclideanAlgorithm<BigInteger> gcd = new ExtendedEuclideanAlgorithm<BigInteger> ();
+        private readonly ExtendedEuclideanAlgorithm<BigInteger> gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
 
         [Fact]
         public void TestSimpleGcd()
         {
             Calculator<BigInteger> expected = (BigInteger)3;
-            var gcdResult = this.gcd.Compute (BigInteger.Parse("6"), BigInteger.Parse("9"));
-            Assert.Equal (expected, gcdResult.GreatestCommonDivisor);
+            var gcdResult = this.gcd.Compute(BigInteger.Parse("6", CultureInfo.InvariantCulture), BigInteger.Parse("9", CultureInfo.InvariantCulture));
+            Assert.Equal(expected, gcdResult.GreatestCommonDivisor);
         }
 
         [Fact]
         public void TestPositiveBoth()
         {
-            var result = this.gcd.Compute(BigInteger.Parse("2"), BigInteger.Parse("170141183460469231731687303715884105727"));
-            Assert.Equal(BigInteger.Parse("-85070591730234615865843651857942052863"), result.BezoutCoefficients[0].Value);
+            var result = this.gcd.Compute(BigInteger.Parse("2", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
+            Assert.Equal(BigInteger.Parse("-85070591730234615865843651857942052863", CultureInfo.InvariantCulture), result.BezoutCoefficients[0].Value);
             Assert.Equal(BigInteger.One, result.BezoutCoefficients[1].Value);
         }
-        
+
         [Fact]
         public void Test1NegativeParameterA()
         {
-            var result = this.gcd.Compute(BigInteger.Parse("-1"), BigInteger.Parse("170141183460469231731687303715884105727"));
+            var result = this.gcd.Compute(BigInteger.Parse("-1", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
             Assert.Equal(BigInteger.One, result.BezoutCoefficients[0].Value);
             Assert.Equal(BigInteger.Zero, result.BezoutCoefficients[1].Value);
         }
@@ -67,25 +67,25 @@ namespace SecretSharingDotNet.Test
         [Fact]
         public void Test2NegativeParameterA()
         {
-            var result = this.gcd.Compute(BigInteger.Parse("-4"), BigInteger.Parse("170141183460469231731687303715884105727"));
-            Assert.Equal(BigInteger.Parse("42535295865117307932921825928971026432"), result.BezoutCoefficients[0].Value);
+            var result = this.gcd.Compute(BigInteger.Parse("-4", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
+            Assert.Equal(BigInteger.Parse("42535295865117307932921825928971026432", CultureInfo.InvariantCulture), result.BezoutCoefficients[0].Value);
             Assert.Equal(BigInteger.One, result.BezoutCoefficients[1].Value);
         }
-        
+
         [Fact]
         public void Test1NegativeParameterB()
         {
-            var result = this.gcd.Compute(BigInteger.Parse("170141183460469231731687303715884105727"), BigInteger.Parse("-1"));
+            var result = this.gcd.Compute(BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture), BigInteger.Parse("-1", CultureInfo.InvariantCulture));
             Assert.Equal(BigInteger.Zero, result.BezoutCoefficients[0].Value);
             Assert.Equal(BigInteger.One, result.BezoutCoefficients[1].Value);
         }
-        
+
         [Fact]
         public void Test2NegativeParameterB()
         {
-            var result = this.gcd.Compute(BigInteger.Parse("170141183460469231731687303715884105727"), BigInteger.Parse("-4"));
+            var result = this.gcd.Compute(BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture), BigInteger.Parse("-4", CultureInfo.InvariantCulture));
             Assert.Equal(BigInteger.One, result.BezoutCoefficients[0].Value);
-            Assert.Equal(BigInteger.Parse("42535295865117307932921825928971026432"), result.BezoutCoefficients[1].Value);
+            Assert.Equal(BigInteger.Parse("42535295865117307932921825928971026432", CultureInfo.InvariantCulture), result.BezoutCoefficients[1].Value);
         }
     }
 }

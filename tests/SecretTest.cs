@@ -31,57 +31,177 @@
 
 namespace SecretSharingDotNet.Test
 {
-    using System;
-    using System.Linq;
     using System.Numerics;
-    using System.Reflection;
-    using System.Xml.Linq;
     using Cryptography;
     using Math;
     using Xunit;
 
     public class SecretTest
     {
-        private Secret<BigInteger> one = new Secret<BigInteger> (Calculator<BigInteger>.One);
+        private readonly Secret<BigInteger> one = new Secret<BigInteger>(Calculator<BigInteger>.One);
+        private readonly Secret<BigInteger> two = new Secret<BigInteger>(Calculator<BigInteger>.Two);
 
         [Fact]
-        public void TestSecretEqual ()
+        public void TestSecretEqual()
         {
-            var s2 = new Secret<BigInteger> (Calculator<BigInteger>.One);
-            Assert.Equal (this.one, s2);
+            var s2 = new Secret<BigInteger>(Calculator<BigInteger>.One);
+            Secret<BigInteger> leftNull = null;
+            Secret<BigInteger> rightNull = null;
+
+            Assert.NotEqual(this.one, this.two);
+            Assert.False(this.one == this.two);
+
+            Assert.Equal(this.one, s2);
+            Assert.True(this.one == s2);
+
+            Assert.Equal(leftNull, rightNull);
+            Assert.True(leftNull == rightNull);
+
+            Assert.NotEqual(leftNull, s2);
+            Assert.False(leftNull == s2);
+
+            Assert.NotEqual(s2, rightNull);
+            Assert.False(s2 == rightNull);
         }
 
         [Fact]
-        public void TestSecretNotEqual ()
+        public void TestSecretNotEqual()
         {
-            var s2 = new Secret<BigInteger> (Calculator<BigInteger>.Two);
-            Assert.NotEqual (this.one, s2);
+            var s2 = new Secret<BigInteger>(Calculator<BigInteger>.Two);
+            Secret<BigInteger> leftNull = null;
+            Secret<BigInteger> rightNull = null;
+
+            Assert.NotEqual(this.one, s2);
+            Assert.True(this.one != s2);
+
+            Assert.False(leftNull != rightNull);
+
+            Assert.NotEqual(this.one, rightNull);
+            Assert.True(this.one != rightNull);
+
+            Assert.NotEqual(leftNull, this.one);
+            Assert.True(leftNull != this.one);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <remarks>For details see https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-value-types#sectionToggle4</remarks>
         [Fact]
-        public void TestSecretToString ()
+        public void TestSecretLowerOrEqualThan()
         {
-            string secretText = "P&ssw0rd!";
+            Secret<BigInteger> leftEqual = this.one;
+            Secret<BigInteger> rightEqual = this.one;
+            Secret<BigInteger> leftLower = this.one;
+            Secret<BigInteger> rightGreater = this.two;
+            Secret<BigInteger> leftNull = null;
+            Secret<BigInteger> rightNull = null;
+
+            Assert.True(leftEqual <= rightEqual);
+            Assert.True(rightEqual <= leftEqual);
+            Assert.True(leftLower <= rightGreater);
+            Assert.False(rightGreater <= leftLower);
+            Assert.False(leftNull <= rightNull);
+            Assert.False(leftNull <= rightEqual);
+            Assert.False(leftEqual <= rightNull);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <remarks>For details see https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-value-types#sectionToggle4</remarks>
+        [Fact]
+        public void TestSecretLowerThan()
+        {
+            Secret<BigInteger> leftEqual = this.one;
+            Secret<BigInteger> rightEqual = this.one;
+            Secret<BigInteger> leftLower = this.one;
+            Secret<BigInteger> rightGreater = this.two;
+            Secret<BigInteger> leftNull = null;
+            Secret<BigInteger> rightNull = null;
+
+            Assert.False(leftEqual < rightEqual);
+            Assert.False(rightEqual < leftEqual);
+            Assert.True(leftLower < rightGreater);
+            Assert.False(rightGreater < leftLower);
+            Assert.False(leftNull < rightNull);
+            Assert.False(leftNull < rightEqual);
+            Assert.False(leftEqual < rightNull);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <remarks>For details see https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-value-types#sectionToggle4</remarks>
+        [Fact]
+        public void TestSecretGreaterOrEqualThan()
+        {
+            Secret<BigInteger> leftEqual = this.one;
+            Secret<BigInteger> rightEqual = this.one;
+            Secret<BigInteger> leftGreater = this.two;
+            Secret<BigInteger> rightLower = this.one;
+            Secret<BigInteger> leftNull = null;
+            Secret<BigInteger> rightNull = null;
+
+            Assert.True(leftEqual >= rightEqual);
+            Assert.True(rightEqual >= leftEqual);
+            Assert.True(leftGreater >= rightLower);
+            Assert.False(rightLower >= leftGreater);
+            Assert.False(leftNull >= rightNull);
+            Assert.False(leftNull >= rightEqual);
+            Assert.False(leftEqual >= rightNull);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <remarks>For details see https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-value-types#sectionToggle4</remarks>
+        [Fact]
+        public void TestSecretGreaterThan()
+        {
+            Secret<BigInteger> leftEqual = this.one;
+            Secret<BigInteger> rightEqual = this.one;
+            Secret<BigInteger> leftGreater = this.two;
+            Secret<BigInteger> rightLower = this.one;
+            Secret<BigInteger> leftNull = null;
+            Secret<BigInteger> rightNull = null;
+
+            Assert.False(leftEqual > rightEqual);
+            Assert.False(rightEqual > leftEqual);
+            Assert.True(leftGreater > rightLower);
+            Assert.False(rightLower > leftGreater);
+            Assert.False(leftNull > rightNull);
+            Assert.False(leftNull > rightEqual);
+            Assert.False(leftEqual > rightNull);
+        }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+        [Fact]
+        public void TestSecretToString()
+        {
+            const string secretText = "P&ssw0rd!";
             Secret<BigInteger> secret = secretText;
-            Assert.Equal (secretText, secret.ToString());
+            Assert.Equal(secretText, secret.ToString());
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void TestSecretNumber()
         {
             BigInteger number = 2007671;
             Secret<BigInteger> secret = number;
-            Assert.Equal (number, (BigInteger)secret);
+            Assert.Equal(number, (BigInteger)secret);
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
         public void TestSecretBase64()
         {
             BigInteger number = 333331;
             Secret<BigInteger> secret1 = number;
             string base64 = secret1.ToBase64();
-            Secret<BigInteger> secret2 = Secret<BigInteger>.ParseBase64(base64);
-            Assert.Equal (base64, secret2.ToBase64());
+            Secret<BigInteger> secret2 = new Secret<BigInteger>(base64);
+            Assert.Equal(base64, secret2.ToBase64());
         }
     }
 }

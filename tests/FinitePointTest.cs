@@ -40,15 +40,16 @@ namespace SecretSharingDotNet.Test
     public class FinitePointTest
     {
         /// <summary>
-        /// Check <see cref="FinitePoint{TNumber}"/> to <see cref="System.String"/> convertion conversion and vice vera.
+        /// Check <see cref="FinitePoint{TNumber}"/> to <see cref="string"/> conversion and vice vera.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         [Fact]
-        public void FinitePointSting()
+        public void FinitePointToString()
         {
             var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), 500);
             FinitePoint<BigInteger> fp = split.MakeShares(3, 7).Item2.First();
             string s1 = fp.ToString();
-            string s2 = FinitePoint<BigInteger>.Parse(s1).ToString();
+            string s2 = new FinitePoint<BigInteger>(s1).ToString();
             Assert.Equal(s1, s2);
         }
     }
