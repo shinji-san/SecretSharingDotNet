@@ -50,8 +50,11 @@ jobs:
     - name: Test
       run: dotnet test --configuration Release SecretSharingDotNet.sln
 
-    - name: Create Package
+    - name: Remove obsolete NuGet packages
+      run: rm -f src/bin/Release/SecretSharingDotNet*.nupk
+
+    - name: Create package
       run: dotnet pack --configuration Release SecretSharingDotNet.sln
 
-    - name: Publish Package
-      run: dotnet nuget push src/bin/Release/SecretSharingDotNet.0.4.2.nupkg  -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json
+    - name: Publish package
+      run: dotnet nuget push $(find src/bin/Release -type f  -name 'SecretSharingDotNet*.nupkg' -print 2> /dev/null) -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json
