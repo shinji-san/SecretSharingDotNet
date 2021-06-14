@@ -13,6 +13,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
     strategy:
       matrix:
         dotnet: [ '2.1.816', '3.1.410', '5.0.301']
