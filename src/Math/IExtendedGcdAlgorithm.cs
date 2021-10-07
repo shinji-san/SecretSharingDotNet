@@ -21,6 +21,8 @@ namespace SecretSharingDotNet.Math
         /// <param name="a">An integer</param>
         /// <param name="b">An integer</param>
         /// <returns>For details: <see cref="ExtendedGcdResult{TNumber}"/></returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "b")]
         ExtendedGcdResult<TNumber> Compute(Calculator<TNumber> a, Calculator<TNumber> b);
     }
 }

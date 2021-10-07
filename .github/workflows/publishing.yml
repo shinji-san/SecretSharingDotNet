@@ -11,28 +11,29 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
     - uses: actions/checkout@v1
 
     - name: Setup .NET Core 2.1
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 2.1.802
+        dotnet-version: 2.1.816
 
     - name: Setup .NET Core 3.1
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 3.1.201
+        dotnet-version: 3.1.410
 
     - name: Setup .NET 5
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 5.0.100
+        dotnet-version: 5.0.301
 
     - name: .NET Core SxS
       run: |
-        rsync -a ${DOTNET_ROOT/5.0.100/3.1.201/2.1.802}/* $DOTNET_ROOT/
+        rsync -a ${DOTNET_ROOT/5.0.301/3.1.410/2.1.816}/* $DOTNET_ROOT/
 
     - name: Decrypt large secret
       run: ./.github/secrets/decrypt_publisher_snk.sh
@@ -49,8 +50,11 @@ jobs:
     - name: Test
       run: dotnet test --configuration Release SecretSharingDotNet.sln
 
-    - name: Create Package
+    - name: Remove obsolete NuGet packages
+      run: rm -f src/bin/Release/SecretSharingDotNet*.nupk
+
+    - name: Create package
       run: dotnet pack --configuration Release SecretSharingDotNet.sln
 
-    - name: Publish Package
-      run: dotnet nuget push src/bin/Release/SecretSharingDotNet.0.4.2.nupkg  -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json
+    - name: Publish package
+      run: dotnet nuget push $(find src/bin/Release -type f  -name 'SecretSharingDotNet*.nupkg' -print 2> /dev/null) -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json

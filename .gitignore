@@ -16,3 +16,11 @@
 *.suo
 *.user
 
+# Ignore directory meta info as created by KDE
+.directory
+
+# Ignore JetBrains Rider / IntelliJ IDEA meta info
+.idea
+
+# Ignore swap files
+*.swp
