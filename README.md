@@ -199,16 +199,16 @@ namespace Example1
 
       //// Minimum number of shared secrets for reconstruction: 3
       //// Maximum number of shared secrets: 7
-      var x = split.MakeShares (3, 7);
+      var shares = split.MakeShares(3, 7);
 
-      //// Item1 represents the random secret
-      var secret = x.Item1;
+      //// The property 'shares.OriginalSecret' represents the random secret
+      var secret = shares.OriginalSecret;
 
-      //// Item 2 contains the shared secrets
+      //// The 'shares' instance contains the shared secrets
       var combine = new ShamirsSecretSharing<BigInteger>(gcd);
-      var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
+      var subSet1 = shares.Where(p => p.X.IsEven).ToList();
       var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
-      var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
+      var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
       var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
     }
   }
@@ -241,16 +241,16 @@ namespace Example2
       //// Minimum number of shared secrets for reconstruction: 3
       //// Maximum number of shared secrets: 7
       //// Attention: The password length changes the security level set by the ctor
-      var x = split.MakeShares (3, 7, password);
+      var shares = split.MakeShares(3, 7, password);
 
-      //// Item1 represents the password (original secret)
-      var secret = x.Item1;
+      //// The property 'shares.OriginalSecret' represents the original password
+      var secret = shares.OriginalSecret;
 
-      //// Item 2 contains the shared secrets
+      //// The 'shares' instance contains the shared secrets
       var combine = new ShamirsSecretSharing<BigInteger>(gcd);
-      var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
+      var subSet1 = shares.Where(p => p.X.IsEven).ToList();
       var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
-      var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
+      var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
       var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
     }
   }
@@ -285,16 +285,16 @@ namespace Example3
       //// Minimum number of shared secrets for reconstruction: 3
       //// Maximum number of shared secrets: 7
       //// Attention: The number size changes the security level set by the ctor
-      var x = split.MakeShares (3, 7, number);
+      var shares = split.MakeShares (3, 7, number);
 
-      //// Item1 represents the number (original secret)
-      var secret = x.Item1;
+      //// The property 'shares.OriginalSecret' represents the number (original secret)
+      var secret = shares.OriginalSecret;
 
-      //// Item 2 contains the shared secrets
+      ////  The 'shares' instance contains the shared secrets
       var combine = new ShamirsSecretSharing<BigInteger>(gcd);
-      var subSet1 = x.Item2.Where (p => p.X.IsEven).ToList ();
+      var subSet1 = shares.Where(p => p.X.IsEven).ToList();
       var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
-      var subSet2 = x.Item2.Where (p => !p.X.IsEven).ToList ();
+      var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
       var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
     }
   }
