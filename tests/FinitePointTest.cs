@@ -47,7 +47,7 @@ namespace SecretSharingDotNet.Test
         public void FinitePointToString()
         {
             var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), 500);
-            FinitePoint<BigInteger> fp = split.MakeShares(3, 7).Item2.First();
+            FinitePoint<BigInteger> fp = split.MakeShares(3, 7).First();
             string s1 = fp.ToString();
             string s2 = new FinitePoint<BigInteger>(s1).ToString();
             Assert.Equal(s1, s2);
