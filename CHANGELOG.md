@@ -28,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - Removed .NET Core 2.1 (LTS) support
-- Removed .NET FX 4.5.2 support
 
 ## [0.5.0] - 2021-10-07
 ### Added
