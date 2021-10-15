@@ -13,9 +13,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=13><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
-          <td rowspan=13><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=13>Core</td>
+          <td rowspan=12><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
+          <td rowspan=12><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=12>Core</td>
           <td>Core 3.1 (LTS)</td>
       </tr>
       <tr>
@@ -23,9 +23,6 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>Standard 2.1</td>
-      </tr>
-      <tr>
-          <td>FX 4.5.2</td>
       </tr>
       <tr>
           <td>FX 4.6</td>
@@ -70,9 +67,9 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+FX%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20FX/badge.svg" alt="Build status"></a></td>
-          <td><code>SecretSharingDotNetFx4.5.2.sln</code></td>
+          <td><code>SecretSharingDotNetFx4.6.2.sln</code></td>
           <td>FX</td>
-          <td>FX 4.5.2</td>
+          <td>FX 4.6.2</td>
       </tr>
   </tbody>
 </table>
@@ -90,9 +87,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=13><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.6.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=13><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.6.0"/></a></td>
-          <td rowspan=13><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.6.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.6.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=12><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.6.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=12><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.6.0"/></a></td>
+          <td rowspan=12><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.6.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.6.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Core 3.1 (LTS)</td>
       </tr>
       <tr>
@@ -106,9 +103,6 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>Standard 2.1</td>
-      </tr>
-      <tr>
-          <td>FX 4.5.2</td>
       </tr>
       <tr>
           <td>FX 4.6</td>
@@ -339,25 +333,25 @@ dotnet test -c Debug SecretSharingDotNet5.sln
 dotnet test -c Release SecretSharingDotNet5.sln
 ```
 
-## Using MSBuild to build for .NET FX 4.5.2
+## Using MSBuild to build for .NET FX 4.6.2
 Use one of the following solutions with `msbuild` to build [SecretSharingDotNet](#secretsharingdotnet):
-* `SecretSharingDotNetFx4.5.2.sln`
+* `SecretSharingDotNetFx4.6.2.sln`
 
 Currently unit testing with MSBuild isn't possible.
 
 The syntax is:
 ```dotnetcli
-msbuild /p:RestorePackagesConfig=true;Configuration={Debug|Release} /t:restore;build SecretSharingDotNetFx4.5.2.sln
+msbuild /p:RestorePackagesConfig=true;Configuration={Debug|Release} /t:restore;build SecretSharingDotNetFx4.6.2.sln
 ```
 
 ### Build Debug configuration
 
 ```dotnetcli
-msbuild /p:RestorePackagesConfig=true;Configuration=Debug /t:restore;build SecretSharingDotNetFx4.5.2.sln
+msbuild /p:RestorePackagesConfig=true;Configuration=Debug /t:restore;build SecretSharingDotNetFx4.6.2.sln
 ```
 
 ### Build Release configuration
 
 ```dotnetcli
-msbuild /p:RestorePackagesConfig=true;Configuration=Release /t:restore;build SecretSharingDotNetFx4.5.2.sln
+msbuild /p:RestorePackagesConfig=true;Configuration=Release /t:restore;build SecretSharingDotNetFx4.6.2.sln
 ```
