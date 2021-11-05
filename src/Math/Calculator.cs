@@ -85,7 +85,7 @@ namespace SecretSharingDotNet.Math
     /// implementation from the concrete numeric data type like BigInteger.
     /// </summary>
     /// <typeparam name="TNumber">Numeric data type</typeparam>
-    public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TNumber>>
+    public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TNumber>>, IComparable, IComparable<Calculator<TNumber>>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Calculator{TNumber}"/> class.
@@ -369,6 +369,25 @@ namespace SecretSharingDotNet.Math
         public override int GetHashCode() => this.Value.GetHashCode();
 
         /// <summary>
+        /// Compares this instance to a specified object and returns an integer that
+        /// indicates whether the value of this instance is less than, equal to, or greater than the value of the specified object.
+        /// </summary>
+        /// <param name="obj">The object to compare</param>
+        /// <returns>A signed integer that indicates the relationship of the current instance to the <paramref name="obj"/> parameter</returns>
+        public virtual int CompareTo(object obj)
+        {
+            switch (obj)
+            {
+                case null:
+                    return 1;
+                case TNumber number:
+                    return this.CompareTo(number);
+                default:
+                    throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
         /// Gets or sets the numeric value
         /// </summary>
         public TNumber Value { get; set; }
@@ -394,6 +413,13 @@ namespace SecretSharingDotNet.Math
         /// </summary>
         /// <returns></returns>
         public Calculator<TNumber> Clone() => this.MemberwiseClone() as Calculator<TNumber>;
+
+        /// <summary>
+        /// Compares this instance to a second <see cref="Calculator{TNumber}"/> and returns an integer that indicates whether the value of this instance is less than, equal to, or greater than the value of the specified object.
+        /// </summary>
+        /// <param name="other">The object to compare.</param>
+        /// <returns>A signed integer that indicates the relationship of the current instance to the <paramref name="other"/> parameter</returns>
+        public abstract int CompareTo(Calculator<TNumber> other);
 
         /// <summary>
         /// Converts the numeric value of the current <see cref="Calculator{TNumber}"/> object to its equivalent string representation.
