@@ -398,9 +398,10 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentOutOfRangeException(nameof(shares));
             }
 
-            this.SecurityLevel = shares.Max().Y.ByteCount * 8;
-            int index = this.securityLevels.IndexOf(this.SecurityLevel);
-            while ((shares.Max().Y % this.mersennePrime + this.mersennePrime) % this.mersennePrime == shares.Max().Y && index > 0 && this.SecurityLevel > 5)
+            var maximumY = shares.Select(point => point.Y).Max();
+            this.SecurityLevel = maximumY.ByteCount * 8;
+            var index = this.securityLevels.IndexOf(this.SecurityLevel);
+            while ((maximumY % this.mersennePrime + this.mersennePrime) % this.mersennePrime == maximumY && index > 0 && this.SecurityLevel > 5)
             {
                 this.SecurityLevel = this.securityLevels[--index];
             }
