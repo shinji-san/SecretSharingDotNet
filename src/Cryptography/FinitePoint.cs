@@ -165,7 +165,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns></returns>
         public int CompareTo(FinitePoint<TNumber> other)
         {
-            return ((this.X * this.X + this.Y * this.Y).Sqrt - (other.X * other.X + other.Y * other.Y).Sqrt).Sign;
+            return ((this.X.Pow(2) + this.Y.Pow(2)).Sqrt - (other.X.Pow(2) + other.Y.Pow(2)).Sqrt).Sign;
         }
 
         /// <summary>
