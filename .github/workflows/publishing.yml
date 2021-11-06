@@ -16,11 +16,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: Setup .NET Core 2.1
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 2.1.816
-
     - name: Setup .NET Core 3.1
       uses: actions/setup-dotnet@v1
       with:
@@ -33,7 +28,7 @@ jobs:
 
     - name: .NET Core SxS
       run: |
-        rsync -a ${DOTNET_ROOT/5.0.301/3.1.410/2.1.816}/* $DOTNET_ROOT/
+        rsync -a ${DOTNET_ROOT/5.0.301/3.1.410}/* $DOTNET_ROOT/
 
     - name: Decrypt large secret
       run: ./.github/secrets/decrypt_publisher_snk.sh
