@@ -12,6 +12,7 @@ namespace SecretSharingDotNet.Math
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Linq;
+    using System.Linq.Expressions;
     using System.Reflection;
 
     /// <summary>
@@ -30,6 +31,11 @@ namespace SecretSharingDotNet.Math
         /// Gets the number of elements of the byte representation of the <see cref="Calculator"/> object.
         /// </summary>
         public abstract int ByteCount { get; }
+
+        /// <summary>
+        /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
+        /// </summary>
+        protected static readonly ReadOnlyDictionary<Type, Func<byte[], Calculator>> ChildBaseCtors = new ReadOnlyDictionary<Type, Func<byte[], Calculator>>(GetDerivedCtors<byte[], Calculator>());
 
         /// <summary>
         /// Gets the byte representation of the <see cref="Calculator"/> object.
@@ -62,9 +68,26 @@ namespace SecretSharingDotNet.Math
         /// <param name="data">byte array representation of the <paramref name="numberType"/></param>
         /// <param name="numberType">Type of number</param>
         /// <returns></returns>
-        public static Calculator Create(byte[] data, Type numberType)
+        public static Calculator Create(byte[] data, Type numberType) => ChildBaseCtors[numberType](data);
+
+        /// <summary>
+        /// Returns a dictionary of constructors of number data types derived from the <see cref="Calculator"/> class.
+        /// </summary>
+        /// <returns></returns>
+        protected static Dictionary<Type, Func<TParameter, TCalculator>> GetDerivedCtors<TParameter, TCalculator>() where TCalculator : Calculator
         {
-            return Activator.CreateInstance(ChildTypes[numberType], data) as Calculator;
+            var res = new Dictionary<Type, Func<TParameter, TCalculator>>(ChildTypes.Count);
+            var paramType = typeof(TParameter);
+            var parameterExpression = Expression.Parameter(paramType);
+            foreach (var childType in ChildTypes)
+            {
+                var ctorInfo = childType.Value.GetConstructor(new[] { paramType });
+                var ctor = Expression.Lambda<Func<TParameter, TCalculator>>(Expression.New(ctorInfo, parameterExpression), parameterExpression)
+                    .Compile();
+                res.Add(childType.Key, ctor);
+            }
+
+            return res;
         }
 
         /// <summary>
@@ -74,7 +97,7 @@ namespace SecretSharingDotNet.Math
         /// <remarks>The key represents the integer data type of the derived calculator. The value represents the type of derived calculator.</remarks>
         private static Dictionary<Type, Type> GetDerivedNumberTypes()
         {
-            Assembly asm = Assembly.GetAssembly(typeof(Calculator));
+            var asm = Assembly.GetAssembly(typeof(Calculator));
             var listOfClasses = asm.GetTypes().Where(x => x.IsSubclassOf(typeof(Calculator)) && !x.IsGenericType);
             return listOfClasses.ToDictionary(x => x.BaseType?.GetGenericArguments()[0]);
         }
@@ -87,6 +110,11 @@ namespace SecretSharingDotNet.Math
     /// <typeparam name="TNumber">Numeric data type</typeparam>
     public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TNumber>>, IComparable, IComparable<Calculator<TNumber>>
     {
+        /// <summary>
+        /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
+        /// </summary>
+        protected static readonly ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>> ChildCtors = new ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>>(GetDerivedCtors<TNumber, Calculator<TNumber>>());
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Calculator{TNumber}"/> class.
         /// </summary>
@@ -326,7 +354,7 @@ namespace SecretSharingDotNet.Math
         {
             try
             {
-                return Activator.CreateInstance(ChildTypes[typeof(TNumber)], number) as Calculator<TNumber>;
+                return ChildCtors[typeof(TNumber)](number);
             }
             catch (KeyNotFoundException)
             {
