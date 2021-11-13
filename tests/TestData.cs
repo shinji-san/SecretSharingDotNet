@@ -113,5 +113,20 @@ namespace SecretSharingDotNet
             "06-6B946F401839E3578D8842F8673607564422A9F838B202DFA6571A50160BAAC39B7ABB9B55893759403FE17E735436FD615A0311364DD0725EA2DFD9358B1CAAE001",
             "07-FEC9430509166E5BF75F195E6B0A01DD7C1AD65089E35270D1318CA34ADB3F7E149C71F3D52303D514190C8D53AE3F61735F52B2FBB6E16F8C8881ADF25FE70DB001"
         };
+
+        /// <summary>
+        /// Gets a list of byte array sizes for several tests
+        /// </summary>
+        public static IEnumerable<object[]> ByteArraySize =>
+            new List<object[]>
+            {
+                new object[] { 1},
+                new object[] { 27},
+                new object[] { 32},
+                new object[] { 53},
+                new object[] { 64},
+                new object[] { 77},
+                new object[] { 128}
+            };
     }
 }
