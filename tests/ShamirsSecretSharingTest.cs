@@ -298,5 +298,34 @@ namespace SecretSharingDotNet.Test
             var secret = combine.Reconstruction(sharesChunk.ToString());
             Assert.Equal(TestData.DefaultTestPassword, secret);
         }
+
+        /// <summary>
+        /// Tests whether or not bug #60 occurs [Reconstruction fails at random].
+        /// </summary>
+        [Theory]
+        [MemberData(nameof(TestData.ByteArraySize), MemberType = typeof(TestData))]
+        public void ReconstructionFailsAtRnd(int byteArraySize)
+        {
+            int ok = 0;
+            const int total = 1000;
+            var sss = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+            var rng = new Random();
+            for (int i = 0; i < total; i++)
+            {
+                var message = new byte[byteArraySize];
+                rng.NextBytes(message);
+                const int n = 5;
+                var s = Convert.ToBase64String(message);
+                var secret = new Secret<BigInteger>(s);
+                var shares = sss.MakeShares((n + 1) / 2, n, secret);
+                var reconstructed =
+                    Convert.FromBase64String(sss.Reconstruction(shares.Take((n + 1) / 2).ToArray())
+                        .ToBase64());
+                if (message.SequenceEqual(reconstructed))
+                    ok++;
+            }
+
+            Assert.Equal(1.0, (double)ok / total);
+        }
     }
 }
