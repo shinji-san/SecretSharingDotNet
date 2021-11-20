@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add .NET 6 support
 
+### Changed
+- Use RandomNumberGenerator class instead RNGCryptoServiceProvider class to create the polynomial. For details see [dotnet runtime issue 40169](https://github.com/dotnet/runtime/issues/40169)
+
 ### Fixed
 - Fixed bug #60 "Reconstruction fails at random" which occurs when the secret is created from a base64 string
 
