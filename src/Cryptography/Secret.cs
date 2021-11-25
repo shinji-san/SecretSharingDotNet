@@ -212,7 +212,8 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns>The <see cref="string"/> representation in base 64</returns>
         public string ToBase64()
         {
-            return Convert.ToBase64String(this.secretNumber.ByteRepresentation.ToArray(), 0, this.secretNumber.ByteCount);
+            var bytes = this.secretNumber.ByteRepresentation.ToArray();
+            return Convert.ToBase64String(bytes, 1, bytes.Length - 2);
         }
 
         /// <summary>
@@ -228,7 +229,10 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentNullException(nameof(encoded));
             }
 
-            return Calculator.Create(Convert.FromBase64String(encoded), typeof(TNumber)) as Calculator<TNumber>;
+            var bytes = Convert.FromBase64String(encoded).ToList();
+            bytes.Insert(0, 0x00);
+            bytes.Add(0x78);
+            return Calculator.Create(bytes.ToArray(), typeof(TNumber)) as Calculator<TNumber>;
         }
     }
 }

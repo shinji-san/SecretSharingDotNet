@@ -215,11 +215,11 @@ namespace SecretSharingDotNet.Cryptography
         {
             var polynomial = new List<Calculator<TNumber>>(); //// pre-init
             var randomNumber = new byte[this.mersennePrime.ByteCount];
-            using (RNGCryptoServiceProvider rngCsp = new RNGCryptoServiceProvider())
+            using (var rng = RandomNumberGenerator.Create())
             {
                 for (var i = Calculator<TNumber>.Zero; i < numberOfMinimumShares; i++)
                 {
-                    rngCsp.GetBytes(randomNumber);
+                    rng.GetBytes(randomNumber);
                     polynomial.Add((Calculator.Create(randomNumber, typeof(TNumber)) as Calculator<TNumber>)?.Abs() % this.mersennePrime);
                 }
             }

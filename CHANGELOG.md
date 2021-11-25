@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2021-11-25
+### Added
+- Add .NET 6 support
+
+### Changed
+- Use RandomNumberGenerator class instead RNGCryptoServiceProvider class to create the polynomial. For details see dotnet runtime issue [40169](https://github.com/dotnet/runtime/issues/40169)
+
+### Fixed
+- Fixed bug [#60](https://github.com/shinji-san/SecretSharingDotNet/issues/60) "Reconstruction fails at random" which occurs when the secret is created from a base64 string
+
+### Removed
+- Removed .NET Core 2.1 (LTS) support
+
 ## [0.5.0] - 2021-10-07
 ### Added
 - Introduced a new return type for the split method 'MakeShares'
