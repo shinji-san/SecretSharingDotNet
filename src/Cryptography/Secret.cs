@@ -56,7 +56,17 @@ namespace SecretSharingDotNet.Cryptography
         /// <exception cref="T:System.ArgumentNullException"><paramref name="secretNumber"/> is <see langword="null"/></exception>
         internal Secret(Calculator<TNumber> secretNumber)
         {
-            this.secretNumber = secretNumber ?? throw new ArgumentNullException(nameof(secretNumber));
+            if (secretNumber == null)
+            {
+                throw new ArgumentNullException(nameof(secretNumber));
+            }
+
+            if (secretNumber.Sign < 0)
+            {
+                throw new ArgumentException($"The secret is represented by a negative {typeof(TNumber).Name}. Please choose secret which is represented by a positive {typeof(TNumber).Name}", nameof(secretNumber));
+            }
+
+            this.secretNumber = secretNumber;
         }
 
         /// <summary>
@@ -213,7 +223,7 @@ namespace SecretSharingDotNet.Cryptography
         public string ToBase64()
         {
             var bytes = this.secretNumber.ByteRepresentation.ToArray();
-            return Convert.ToBase64String(bytes, 1, bytes.Length - 2);
+            return Convert.ToBase64String(bytes, 0, bytes.Length);
         }
 
         /// <summary>
@@ -229,10 +239,17 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentNullException(nameof(encoded));
             }
 
-            var bytes = Convert.FromBase64String(encoded).ToList();
-            bytes.Insert(0, 0x00);
-            bytes.Add(0x78);
-            return Calculator.Create(bytes.ToArray(), typeof(TNumber)) as Calculator<TNumber>;
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(encoded);
+            }
+            catch (FormatException e)
+            {
+                throw new ArgumentException("", nameof(encoded), e);
+            }
+
+            return Calculator.Create(bytes, typeof(TNumber)) as Calculator<TNumber>;
         }
     }
 }
