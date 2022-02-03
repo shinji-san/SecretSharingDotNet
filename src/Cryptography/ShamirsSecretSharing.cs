@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------------
 // <copyright file="ShamirsSecretSharing.cs" company="Private">
-// Copyright (c) 2019 All Rights Reserved
+// Copyright (c) 2022 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
 // <date>04/20/2019 10:52:28 PM</date>
@@ -8,7 +8,7 @@
 
 #region License
 // ----------------------------------------------------------------------------
-// Copyright 2019 Sebastian Walther
+// Copyright 2022 Sebastian Walther
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -83,7 +83,7 @@ namespace SecretSharingDotNet.Cryptography
         /// Initializes a new instance of the <see cref="ShamirsSecretSharing{TNumber}"/> class.
         /// </summary>
         /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
-        /// <param name="securityLevel">Security level (in number of bits). Minimum is 5.</param>
+        /// <param name="securityLevel">Security level (in number of bits). Minimum is 5 for legacy mode and 13 for normal mode.</param>
         /// <exception cref="T:System.ArgumentOutOfRangeException">The security level is lower than 5 or greater than 43112609.</exception>
         public ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd, int securityLevel)
         {
@@ -111,6 +111,11 @@ namespace SecretSharingDotNet.Cryptography
                 if (value < 5)
                 {
                     throw new ArgumentOutOfRangeException(nameof(value), value, "Minimum exceeded!");
+                }
+
+                if (!Secret.LegacyMode.Value && value < 13)
+                {
+                    value = 13;
                 }
 
                 int index = this.securityLevels.BinarySearch(value);
@@ -158,10 +163,11 @@ namespace SecretSharingDotNet.Cryptography
                 throw new InvalidOperationException("Security Level is not initialized!");
             }
 
+            var secret = Secret.CreateRandom(this.mersennePrime);
             var polynomial = CreatePolynomial(min);
+            polynomial[0] = secret.ToCoefficient;
             var points = CreateSharedSecrets(max, polynomial);
-
-            return new Shares<TNumber>(polynomial[0], points);
+            return new Shares<TNumber>(secret, points);
         }
 
         /// <summary>
@@ -193,17 +199,17 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentOutOfRangeException(nameof(numberOfShares), "The pool secret would be irrecoverable.");
             }
 
-            int newSecurityLevel = secret.ToString().Length * sizeof(char) * 8;
+            int newSecurityLevel = secret.SecretByteSize * 8;
             if (this.SecurityLevel < newSecurityLevel)
             {
                 this.SecurityLevel = newSecurityLevel;
             }
 
             var polynomial = CreatePolynomial(min);
-            polynomial[0] = secret;
+            polynomial[0] = secret.ToCoefficient;
             var points = CreateSharedSecrets(max, polynomial);
 
-            return new Shares<TNumber>(polynomial[0], points);
+            return new Shares<TNumber>(secret, points);
         }
 
         /// <summary>
@@ -213,11 +219,11 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns></returns>
         private List<Calculator<TNumber>> CreatePolynomial(Calculator<TNumber> numberOfMinimumShares)
         {
-            var polynomial = new List<Calculator<TNumber>>(); //// pre-init
+            var polynomial = new List<Calculator<TNumber>>() { Calculator<TNumber>.Zero };
             var randomNumber = new byte[this.mersennePrime.ByteCount];
             using (var rng = RandomNumberGenerator.Create())
             {
-                for (var i = Calculator<TNumber>.Zero; i < numberOfMinimumShares; i++)
+                for (var i = Calculator<TNumber>.One; i < numberOfMinimumShares; i++)
                 {
                     rng.GetBytes(randomNumber);
                     polynomial.Add((Calculator.Create(randomNumber, typeof(TNumber)) as Calculator<TNumber>)?.Abs() % this.mersennePrime);
@@ -282,7 +288,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="prime">A prime number must be defined to avoid computation with real numbers. In fact it is finite field arithmetic.
         /// The prime number must be the same as used for the construction of shares.</param>
         /// <returns>The re-constructed secret.</returns>
-        private Calculator<TNumber> LagrangeInterpolate(List<FinitePoint<TNumber>> finitePoints, Calculator<TNumber> prime)
+        private Secret<TNumber> LagrangeInterpolate(List<FinitePoint<TNumber>> finitePoints, Calculator<TNumber> prime)
         {
             if (finitePoints.Distinct().Count() != finitePoints.Count)
             {
@@ -329,7 +335,8 @@ namespace SecretSharingDotNet.Cryptography
             });
 
             var a = this.DivMod(numerator, denominator, prime) + prime;
-            return (a % prime + prime) % prime; //// mathematical modulo
+            a = (a % prime + prime) % prime; //// mathematical modulo
+            return Secret.FromCoefficient(a);
         }
 
         /// <summary>
