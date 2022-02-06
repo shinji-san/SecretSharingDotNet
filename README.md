@@ -156,6 +156,73 @@ Afterwards, use the function `Reconstruction` to re-construct the original secre
 
 The length of the shares is based on the security level. It's possible to pre-define a security level by `ctor` or the `SecurityLevel` property. The pre-defined security level will be overriden, if the secret size is greater than the Mersenne prime, which is calculated by means of the security level. It is not necessary to define a security level for a re-construction.
 
+## Attention: Breaking change - Normal and legacy mode in v0.7.0
+
+Library version 0.7.0 introduces a normal mode and a legacy mode for secrets. The normal mode is the new and default mode. The legacy mode is for backward compatibility.
+
+*Why was the normal mode introduced?*
+
+The normal mode supports positive secret values and also negative secret values like negative integer numbers or byte arrays with most significant byte greater than 0x7F. The legacy mode generates shares that can't be used to reconstruct negative secret values. So the original secret and the reconstructed secret aren't identical for negative secret values (e.g. `BigInetger secret = -2000`). The legacy mode only returns correct results for positive secret values.
+
+*Mode overview*
+
+* **Normal mode** (`Secret.LegacyMode.Value = false`):
+  * Shares generated with v0.7.0 or later *cannot* be used with v0.6.0 or earlier to reconstruct the secret.
+  * Shares generated with v0.6.0 or earlier *cannot* be used with v0.7.0 or later to reconstruct the secret.
+  * This mode supports security level 13 as minimum.
+* **Legacy mode:** (`Secret.LegacyMode.Value = true`):
+  * Shares generated with v0.7.0 or later *can* be used with v0.6.0 or earlier to reconstruct the secret.
+  * Shares generated with v0.6.0 or earlier *can* be used with v0.7.0 or later to reconstruct the secret.
+  * This mode supports security level 5 as minimum.
+
+A mixed mode is not possible. It is recommended to reconstruct the secret with the old procedure and to split again with the new procedure.
+
+The legacy mode is thread-safe, but not task-safe.
+
+For further details see the example below:
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math;
+
+namespace LegacyModeExample
+{
+  public class Program
+  {
+    public static void Main(string[] args)
+    {
+      //// Legacy mode on / normal mode off
+      Secret.LegacyMode.Value = true
+      try
+      {
+        var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+
+        var split = new ShamirsSecretSharing<BigInteger>(gcd);
+
+        string password = "Hello World!!";
+        
+        var shares = split.MakeShares(3, 7, password);
+
+        var combine = new ShamirsSecretSharing<BigInteger>(gcd);
+        var subSet = shares.Where(p => p.X.IsEven).ToList();
+        var recoveredSecret = combine.Reconstruction(subSet.ToArray());
+
+      }
+      finally
+      {
+        //// Legacy mode off / normal mode on
+        Secret.LegacyMode.Value = false
+      }
+    }
+  }
+}
+```
+
 ## Random secret
 Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127:
 ```csharp
