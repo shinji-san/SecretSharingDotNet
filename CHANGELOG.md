@@ -4,18 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - 2022-02-09
 ### Added
-- Added implicit casts for byte arrays in Secret class.
+- Added implicit casts for byte arrays in *Secret* class.
 - Added legacy mode. See README.md, section "Usage" for more details.
 
 ### Changed
-- Changed behavior of Secret class for negative secret values. See README.md, section "Usage" and bug report [#60](https://github.com/shinji-san/SecretSharingDotNet/issues/60) for more details.
+- Changed behavior of *Secret* class for negative secret values. See README.md, section "Usage" and bug report [#60](https://github.com/shinji-san/SecretSharingDotNet/issues/60) for more details.
 - Changed calculation of maximum security level in Reconstruction method.
 
 ### Fixed
 - Fixed reopened bug [#60](https://github.com/shinji-san/SecretSharingDotNet/issues/60) "Reconstruction fails at random".
-- Fixed assembly output path `in SecretSharingDotNetFx4.6.2.csproj`
+- Fixed assembly output path in `SecretSharingDotNetFx4.6.2.csproj`
 
 ### Removed
 - Removed .NET FX 4.5.2 support, because it retires on April 26, 2022. See [.NET FX Lifecycle Policy](https://docs.microsoft.com/en-us/lifecycle/products/microsoft-net-framework).
