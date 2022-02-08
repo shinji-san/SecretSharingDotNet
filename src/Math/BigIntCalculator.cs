@@ -58,6 +58,17 @@ namespace SecretSharingDotNet.Math
         public override bool EqualOrLowerThan(BigInteger right) => this.Value <= right;
 
         /// <summary>
+        /// Compares this instance to a second <see cref="Calculator{BigInteger}"/> and returns an integer that
+        /// indicates whether the value of this instance is less than, equal to, or greater than the value of the specified object.
+        /// </summary>
+        /// <param name="other">The object to compare</param>
+        /// <returns>A signed integer value that indicates the relationship of this instance to <paramref name="other"/>parameter</returns>
+        public override int CompareTo(Calculator<BigInteger> other)
+        {
+            return this.Value.CompareTo(other?.Value ?? throw new ArgumentNullException(nameof(other)));
+        }
+
+        /// <summary>
         /// Adds the current <see cref="BigIntCalculator"/> instance with the <paramref name="right"/>
         /// <see cref="BigIntCalculator"/> instance.
         /// </summary>

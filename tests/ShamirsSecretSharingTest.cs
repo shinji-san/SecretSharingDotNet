@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------------
 // <copyright file="ShamirsSecretSharingTest.cs" company="Private">
-// Copyright (c) 2019 All Rights Reserved
+// Copyright (c) 2022 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
 // <date>04/20/2019 10:52:28 PM</date>
@@ -8,7 +8,7 @@
 
 #region License
 // ----------------------------------------------------------------------------
-// Copyright 2019 Sebastian Walther
+// Copyright 2022 Sebastian Walther
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,8 @@ namespace SecretSharingDotNet.Test
         [Fact]
         public void TestDivMod()
         {
-            Calculator<BigInteger> DivMod(Calculator<BigInteger> denominator, Calculator<BigInteger> numerator, Calculator<BigInteger> prime)
+            Calculator<BigInteger> DivMod(Calculator<BigInteger> denominator, Calculator<BigInteger> numerator,
+                Calculator<BigInteger> prime)
             {
                 var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
                 var result = gcd.Compute(denominator, prime);
@@ -144,7 +145,8 @@ namespace SecretSharingDotNet.Test
         [MemberData(nameof(TestData.TestPasswordData), MemberType = typeof(TestData))]
         public void TestWithPassword(int splitSecurityLevel, int expectedSecurityLevel, string password)
         {
-            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), splitSecurityLevel);
+            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(),
+                splitSecurityLevel);
             var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
             var shares = split.MakeShares(3, 7, password);
             Assert.True(shares.OriginalSecretExists);
@@ -171,7 +173,8 @@ namespace SecretSharingDotNet.Test
         [MemberData(nameof(TestData.TestNumberData), MemberType = typeof(TestData))]
         public void TestWithNumber(int splitSecurityLevel, int expectedSecurityLevel, BigInteger number)
         {
-            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), splitSecurityLevel);
+            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(),
+                splitSecurityLevel);
             var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
             var shares = split.MakeShares(3, 7, number);
             Assert.True(shares.OriginalSecretExists);
@@ -198,8 +201,11 @@ namespace SecretSharingDotNet.Test
         [MemberData(nameof(TestData.TestRandomSecretData), MemberType = typeof(TestData))]
         public void TestWithRandomSecret(int splitSecurityLevel, int combineSecurityLevel, int expectedSecurityLevel)
         {
-            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), splitSecurityLevel);
-            var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), combineSecurityLevel);
+            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(),
+                splitSecurityLevel);
+            var combine =
+                new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(),
+                    combineSecurityLevel);
             var shares = split.MakeShares(3, 7);
             Assert.True(shares.OriginalSecretExists);
             Assert.NotNull(shares.OriginalSecret);
@@ -232,10 +238,24 @@ namespace SecretSharingDotNet.Test
         [Fact]
         public void TestMinimumSharedSecretsReconstruction()
         {
-            var sss = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), 5);
+            var sss = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), 13);
             var shares = sss.MakeShares(2, 7);
-            var subSet1 = shares.Where(p => p.X == Calculator<BigInteger>.One).ToList();
-            Assert.Throws<ArgumentOutOfRangeException>(() => sss.Reconstruction(subSet1.ToArray()));
+            var subSet = shares.Where(p => p.X == Calculator<BigInteger>.One).ToList();
+            Assert.Throws<ArgumentOutOfRangeException>(() => sss.Reconstruction(subSet.ToArray()));
+        }
+
+        /// <summary>
+        /// Tests
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+        [Fact]
+        public void TestShareThreshold()
+        {
+            var sss = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), 51);
+            var shares = sss.MakeShares(3, 7);
+            var subSet = shares.Take(2).ToList();
+            var secret = sss.Reconstruction(subSet.ToArray());
+            Assert.NotEqual(shares.OriginalSecret, secret);
         }
 
         /// <summary>
@@ -257,7 +277,8 @@ namespace SecretSharingDotNet.Test
         [Fact]
         public void MaximumExceeded()
         {
-            const string longSecret = "-----BEGIN EC PRIVATE KEY-----MIIBUQIBAQQgxq7AWG9L6uleuTB9q5FGqnHjXF+kD4y9154SLYYKMDqggeMwgeACAQEwLAYHKoZIzj0BAQIhAP////////////////////////////////////7///wvMEQEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwRBBHm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeYSDradyajxGVdpPv8DhEIqP0XtEimhVQZnEfQj/sQ1LgCIQD////////////////////+uq7c5q9IoDu/0l6M0DZBQQIBAaFEA0IABE0XO6I8lZYzXqRQnHP/knSwLex7q77g4J2AN0cVyrADicGlUr6QjVIlIu9NXCHxD2i++ToWjO1zLVdxgNJbUUc=-----END EC PRIVATE KEY-----";
+            const string longSecret =
+                "-----BEGIN EC PRIVATE KEY-----MIIBUQIBAQQgxq7AWG9L6uleuTB9q5FGqnHjXF+kD4y9154SLYYKMDqggeMwgeACAQEwLAYHKoZIzj0BAQIhAP////////////////////////////////////7///wvMEQEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwRBBHm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeYSDradyajxGVdpPv8DhEIqP0XtEimhVQZnEfQj/sQ1LgCIQD////////////////////+uq7c5q9IoDu/0l6M0DZBQQIBAaFEA0IABE0XO6I8lZYzXqRQnHP/knSwLex7q77g4J2AN0cVyrADicGlUr6QjVIlIu9NXCHxD2i++ToWjO1zLVdxgNJbUUc=-----END EC PRIVATE KEY-----";
             var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), 1024);
             var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), 5);
             var shares = split.MakeShares(3, 7, longSecret);
@@ -279,6 +300,26 @@ namespace SecretSharingDotNet.Test
             var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
             var secret = combine.Reconstruction(TestData.GetPredefinedShares());
             Assert.Equal(TestData.DefaultTestPassword, secret);
+        }
+
+        /// <summary>
+        /// Tests the secret reconstruction from array of shares represented by strings (legacy mode to compatible to v0.6.0 or older)
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+        [Fact]
+        public void TestReconstructFromStringArrayLegacy()
+        {
+            Secret.LegacyMode.Value = true;
+            try
+            {
+                var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+                var secret = combine.Reconstruction(TestData.GetPredefinedSharesLegacy());
+                Assert.Equal(TestData.DefaultTestPassword, secret);
+            }
+            finally
+            {
+                Secret.LegacyMode.Value = false;
+            }
         }
 
         /// <summary>
@@ -326,6 +367,24 @@ namespace SecretSharingDotNet.Test
             }
 
             Assert.Equal(1.0, (double)ok / total);
+        }
+
+        /// <summary>
+        /// Tests whether or not bug #60 occurs [Reconstruction fails at random].
+        /// </summary>
+        [Theory]
+        [MemberData(nameof(TestData.ByteArraySize), MemberType = typeof(TestData))]
+        public void ReconstructionFailsAtRndLegacy(int byteArraySize)
+        {
+            Secret.LegacyMode.Value = true;
+            try
+            {
+                ReconstructionFailsAtRnd(byteArraySize);
+            }
+            finally
+            {
+                Secret.LegacyMode.Value = false;
+            }
         }
     }
 }
