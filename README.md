@@ -13,9 +13,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=13><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
-          <td rowspan=13><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=13>Core</td>
+          <td rowspan=10><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
+          <td rowspan=10><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=10>Core</td>
           <td>Core 3.1 (LTS)</td>
       </tr>
       <tr>
@@ -23,15 +23,6 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>Standard 2.1</td>
-      </tr>
-      <tr>
-          <td>FX 4.5.2</td>
-      </tr>
-      <tr>
-          <td>FX 4.6</td>
-      </tr>
-      <tr>
-          <td>FX 4.6.1</td>
       </tr>
       <tr>
           <td>FX 4.6.2</td>
@@ -70,9 +61,9 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+FX%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20FX/badge.svg" alt="Build status"></a></td>
-          <td><code>SecretSharingDotNetFx4.5.2.sln</code></td>
+          <td><code>SecretSharingDotNetFx4.6.2.sln</code></td>
           <td>FX</td>
-          <td>FX 4.5.2</td>
+          <td>FX 4.6.2</td>
       </tr>
   </tbody>
 </table>
@@ -90,9 +81,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=13><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.6.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=13><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.6.0"/></a></td>
-          <td rowspan=13><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.6.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.6.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=10><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.7.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=10><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.7.0"/></a></td>
+          <td rowspan=10><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.7.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.7.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Core 3.1 (LTS)</td>
       </tr>
       <tr>
@@ -106,15 +97,6 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>Standard 2.1</td>
-      </tr>
-      <tr>
-          <td>FX 4.5.2</td>
-      </tr>
-      <tr>
-          <td>FX 4.6</td>
-      </tr>
-      <tr>
-          <td>FX 4.6.1</td>
       </tr>
       <tr>
           <td>FX 4.6.2</td>
@@ -138,10 +120,10 @@ An C# implementation of Shamir's Secret Sharing.
 
 1. Open a console and switch to the directory, containing your project file.
 
-2. Use the following command to install version 0.6.0 of the SecretSharingDotNet package:
+2. Use the following command to install version 0.7.0 of the SecretSharingDotNet package:
 
     ```dotnetcli
-    dotnet add package SecretSharingDotNet -v 0.6.0 -f <FRAMEWORK>
+    dotnet add package SecretSharingDotNet -v 0.7.0 -f <FRAMEWORK>
     ```
 
 3. After the completition of the command, look at the project file to make sure that the package is successfuly installed.
@@ -150,7 +132,7 @@ An C# implementation of Shamir's Secret Sharing.
 
     ```xml
     <ItemGroup>
-      <PackageReference Include="SecretSharingDotNet" Version="0.6.0" />
+      <PackageReference Include="SecretSharingDotNet" Version="0.7.0" />
     </ItemGroup>
     ```
 ## Remove SecretSharingDotNet package
@@ -173,6 +155,73 @@ Use the function `MakeShares` to generate the shares, based on a random or pre-d
 Afterwards, use the function `Reconstruction` to re-construct the original secret.
 
 The length of the shares is based on the security level. It's possible to pre-define a security level by `ctor` or the `SecurityLevel` property. The pre-defined security level will be overriden, if the secret size is greater than the Mersenne prime, which is calculated by means of the security level. It is not necessary to define a security level for a re-construction.
+
+## Attention: Breaking change - Normal and legacy mode in v0.7.0
+
+Library version 0.7.0 introduces a normal mode and a legacy mode for secrets. The normal mode is the new and default mode. The legacy mode is for backward compatibility.
+
+*Why was the normal mode introduced?*
+
+The normal mode supports positive secret values and also negative secret values like negative integer numbers or byte arrays with most significant byte greater than 0x7F. The legacy mode generates shares that can't be used to reconstruct negative secret values. So the original secret and the reconstructed secret aren't identical for negative secret values (e.g. `BigInetger secret = -2000`). The legacy mode only returns correct results for positive secret values.
+
+*Mode overview*
+
+* **Normal mode** (`Secret.LegacyMode.Value = false`):
+  * Shares generated with v0.7.0 or later *cannot* be used with v0.6.0 or earlier to reconstruct the secret.
+  * Shares generated with v0.6.0 or earlier *cannot* be used with v0.7.0 or later to reconstruct the secret.
+  * This mode supports security level 13 as minimum.
+* **Legacy mode:** (`Secret.LegacyMode.Value = true`):
+  * Shares generated with v0.7.0 or later *can* be used with v0.6.0 or earlier to reconstruct the secret.
+  * Shares generated with v0.6.0 or earlier *can* be used with v0.7.0 or later to reconstruct the secret.
+  * This mode supports security level 5 as minimum.
+
+A mixed mode is not possible. It is recommended to reconstruct the secret with the old procedure and to split again with the new procedure.
+
+The legacy mode is thread-safe, but not task-safe.
+
+For further details see the example below:
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math;
+
+namespace LegacyModeExample
+{
+  public class Program
+  {
+    public static void Main(string[] args)
+    {
+      //// Legacy mode on / normal mode off
+      Secret.LegacyMode.Value = true
+      try
+      {
+        var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+
+        var split = new ShamirsSecretSharing<BigInteger>(gcd);
+
+        string password = "Hello World!!";
+        
+        var shares = split.MakeShares(3, 7, password);
+
+        var combine = new ShamirsSecretSharing<BigInteger>(gcd);
+        var subSet = shares.Where(p => p.X.IsEven).ToList();
+        var recoveredSecret = combine.Reconstruction(subSet.ToArray());
+
+      }
+      finally
+      {
+        //// Legacy mode off / normal mode on
+        Secret.LegacyMode.Value = false
+      }
+    }
+  }
+}
+```
 
 ## Random secret
 Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127:
@@ -339,25 +388,25 @@ dotnet test -c Debug SecretSharingDotNet5.sln
 dotnet test -c Release SecretSharingDotNet5.sln
 ```
 
-## Using MSBuild to build for .NET FX 4.5.2
+## Using MSBuild to build for .NET FX 4.6.2
 Use one of the following solutions with `msbuild` to build [SecretSharingDotNet](#secretsharingdotnet):
-* `SecretSharingDotNetFx4.5.2.sln`
+* `SecretSharingDotNetFx4.6.2.sln`
 
 Currently unit testing with MSBuild isn't possible.
 
 The syntax is:
 ```dotnetcli
-msbuild /p:RestorePackagesConfig=true;Configuration={Debug|Release} /t:restore;build SecretSharingDotNetFx4.5.2.sln
+msbuild /p:RestorePackagesConfig=true;Configuration={Debug|Release} /t:restore;build SecretSharingDotNetFx4.6.2.sln
 ```
 
 ### Build Debug configuration
 
 ```dotnetcli
-msbuild /p:RestorePackagesConfig=true;Configuration=Debug /t:restore;build SecretSharingDotNetFx4.5.2.sln
+msbuild /p:RestorePackagesConfig=true;Configuration=Debug /t:restore;build SecretSharingDotNetFx4.6.2.sln
 ```
 
 ### Build Release configuration
 
 ```dotnetcli
-msbuild /p:RestorePackagesConfig=true;Configuration=Release /t:restore;build SecretSharingDotNetFx4.5.2.sln
+msbuild /p:RestorePackagesConfig=true;Configuration=Release /t:restore;build SecretSharingDotNetFx4.6.2.sln
 ```

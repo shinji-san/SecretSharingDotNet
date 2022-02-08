@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------------
 // <copyright file="SecretTest.cs" company="Private">
-// Copyright (c) 2019 All Rights Reserved
+// Copyright (c) 2022 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
 // <date>04/20/2019 10:52:28 PM</date>
@@ -8,7 +8,7 @@
 
 #region License
 // ----------------------------------------------------------------------------
-// Copyright 2019 Sebastian Walther
+// Copyright 2022 Sebastian Walther
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,9 +31,10 @@
 
 namespace SecretSharingDotNet.Test
 {
-    using System.Numerics;
     using Cryptography;
     using Math;
+    using System.Linq;
+    using System.Numerics;
     using Xunit;
 
     public class SecretTest
@@ -185,21 +186,35 @@ namespace SecretSharingDotNet.Test
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        [Fact]
-        public void TestSecretNumber()
+        [Theory]
+        [MemberData(nameof(TestData.MixedSecrets), MemberType = typeof(TestData))]
+        public void TestSecretSourceConversion(object secretSource)
         {
-            BigInteger number = 2007671;
-            Secret<BigInteger> secret = number;
-            Assert.Equal(number, (BigInteger)secret);
-        }
+            Secret<BigInteger> secret1 = null;
+            switch (secretSource)
+            {
+                case string password:
+                    secret1 = password;
+                    Assert.Equal(password, secret1);
+                    break;
+                case BigInteger bigNumber:
+                    secret1 = bigNumber;
+                    Assert.Equal(bigNumber, (BigInteger)secret1);
+                    break;
+                case int number:
+                    secret1 = (BigInteger)number;
+                    Assert.Equal(number, (BigInteger)secret1);
+                    break;
+                case byte[] bytes1:
+                    secret1 = new Secret<BigInteger>(bytes1);
+                    byte[] bytes2 = secret1;
+                    Assert.True(bytes1.SequenceEqual(bytes2));
+                    break;
+                case null:
+                    return;
+            }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        [Fact]
-        public void TestSecretBase64()
-        {
-            BigInteger number = 333331;
-            Secret<BigInteger> secret1 = number;
-            string base64 = secret1.ToBase64();
+            string base64 = secret1?.ToBase64();
             Secret<BigInteger> secret2 = new Secret<BigInteger>(base64);
             Assert.Equal(base64, secret2.ToBase64());
         }
