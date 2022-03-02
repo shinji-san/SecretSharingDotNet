@@ -253,12 +253,33 @@ namespace Example1
       //// The property 'shares.OriginalSecret' represents the random secret
       var secret = shares.OriginalSecret;
 
+      //// Secret as big integer number
+      Console.WriteLine((BigInteger)secret);
+
+      //// Secret as base64 string
+      Console.WriteLine(secret.ToBase64());
+
       //// The 'shares' instance contains the shared secrets
       var combine = new ShamirsSecretSharing<BigInteger>(gcd);
       var subSet1 = shares.Where(p => p.X.IsEven).ToList();
       var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
       var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
       var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+
+      //// String representation of all shares
+      Console.WriteLine(shares);
+
+      //// 1st recovered secret as big integer number
+      Console.WriteLine((BigInteger)recoveredSecret1);
+
+      //// 2nd recovered secret as big integer number
+      Console.WriteLine((BigInteger)recoveredSecret2);
+
+      //// 1st recovered secret as base64 string
+      Console.WriteLine(recoveredSecret1.ToBase64());
+
+      //// 2nd recovered secret as base64 string
+      Console.WriteLine(recoveredSecret2.ToBase64());
     }
   }
 }
@@ -301,6 +322,15 @@ namespace Example2
       var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
       var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
       var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+
+      //// String representation of all shares
+      Console.WriteLine(shares);
+
+      //// 1st recovered secret as string (not base64!)
+      Console.WriteLine(recoveredSecret1);
+
+      //// 2nd recovered secret as string (not base64!)
+      Console.WriteLine(recoveredSecret2);
     }
   }
 }
@@ -345,10 +375,115 @@ namespace Example3
       var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
       var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
       var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+
+      //// String representation of all shares
+      Console.WriteLine(shares);
+
+      //// 1st recovered secret as big integer number
+      Console.WriteLine((BigInteger)recoveredSecret1);
+
+      //// 2nd recovered secret as big integer number
+      Console.WriteLine((BigInteger)recoveredSecret2);
     }
   }
 }
 ```
+## Pre-defined secret: byte array
+Use a byte array as secret, which can be divided into shares. The length of the generated shares is based on the security level.
+Here is an example with auto-detected security level:
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math;
+
+namespace Example4
+{
+  public class Program
+  {
+    public static void Main(string[] args)
+    {
+      var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+
+      //// Create Shamir's Secret Sharing instance with BigInteger
+      var split = new ShamirsSecretSharing<BigInteger>(gcd);
+
+      byte[] bytes = { 0x1D, 0x2E, 0x3F };
+      //// Minimum number of shared secrets for reconstruction: 4
+      //// Maximum number of shared secrets: 10
+      //// Attention: The password length changes the security level set by the ctor
+      var shares = split.MakeShares(4, 10, bytes);
+
+      //// The 'shares' instance contains the shared secrets
+      var combine = new ShamirsSecretSharing<BigInteger>(gcd);
+      var subSet = shares.Where(p => p.X.IsEven).ToList();
+      var recoveredSecret = combine.Reconstruction(subSet.ToArray()).ToByteArray();
+
+      //// String representation of all shares
+      Console.WriteLine(shares);
+
+      //// The secret bytes.
+      Console.WriteLine($"{recoveredSecret[0]:X2}, {recoveredSecret[1]:X2}, {recoveredSecret[2]:X2}");
+    }
+  }
+}
+```
+
+## Shares
+The following example shows three ways to use shares to reconstruct a secret:
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math;
+
+namespace Example5
+{
+  public class Program
+  {
+    public static void Main(string[] args)
+    {
+      var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+
+      //// One way to use shares
+      string shares1 = "02-665C74ED38FDFF095B2FC9319A272A75" + Environment.NewLine +
+                       "05-CDECB88126DBC04D753E0C2D83D7B55D" + Environment.NewLine +
+                       "07-54A83E34AB0310A7F5D80F2A68FD4F33";
+
+      //// A 2nd way to use shares
+      string[] shares2 = {"02-665C74ED38FDFF095B2FC9319A272A75",
+                          "07-54A83E34AB0310A7F5D80F2A68FD4F33",
+                          "05-CDECB88126DBC04D753E0C2D83D7B55D"};
+
+      //// Another way to use shares
+      var fp1 = new FinitePoint<BigInteger>("05-CDECB88126DBC04D753E0C2D83D7B55D");
+      var fp2 = new FinitePoint<BigInteger>("07-54A83E34AB0310A7F5D80F2A68FD4F33");
+      var fp3 = new FinitePoint<BigInteger>("02-665C74ED38FDFF095B2FC9319A272A75");
+
+      var combine = new ShamirsSecretSharing<BigInteger>(gcd);
+ 
+      var recoveredSecret1 = combine.Reconstruction(shares1);
+      //// Output should be 52199147989510990914370102003412153
+      Console.WriteLine((BigInteger)recoveredSecret1);
+
+      var recoveredSecret2 = combine.Reconstruction(shares2);
+      //// Output should be 52199147989510990914370102003412153
+      Console.WriteLine((BigInteger)recoveredSecret2);
+
+      //// Output should be 52199147989510990914370102003412153
+      var recoveredSecret3 = combine.Reconstruction(fp1, fp2, fp3);
+      Console.WriteLine((BigInteger)recoveredSecret3);
+    }
+  }
+}
+```
+
 # CLI building instructions
 For the following instructions, please make sure that you are connected to the internet. If necessary, NuGet will try to restore the [xUnit](https://xunit.net/) packages.
 ## Using dotnet to build for .NET6, .NET 5, .NET Core and .NET FX 4.x
