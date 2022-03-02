@@ -56,9 +56,9 @@ namespace SecretSharingDotNet.Cryptography
         });
 
         /// <summary>
-        /// Saves the security level
+        /// Saves the fixed security level
         /// </summary>
-        private int securityLevel;
+        private int fixedSecurityLevel;
 
         /// <summary>
         /// Saves the calculated mersenne prime
@@ -104,7 +104,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <exception cref="T:System.ArgumentOutOfRangeException" accessor="set">Value is lower than 5 or greater than 43112609.</exception>
         public int SecurityLevel
         {
-            get => this.securityLevel;
+            get => this.fixedSecurityLevel;
 
             set
             {
@@ -132,7 +132,7 @@ namespace SecretSharingDotNet.Cryptography
                 }
 
                 this.mersennePrime = Calculator<TNumber>.Two.Pow(value) - Calculator<TNumber>.One;
-                this.securityLevel = value;
+                this.fixedSecurityLevel = value;
             }
         }
 
