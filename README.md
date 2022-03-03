@@ -243,12 +243,12 @@ namespace Example1
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
 
       //// Create Shamir's Secret Sharing instance with BigInteger
-      //// and security level 127 (Mersenne prime exponent)
-      var split = new ShamirsSecretSharing<BigInteger>(gcd, 127);
+      var split = new ShamirsSecretSharing<BigInteger>(gcd);
 
       //// Minimum number of shared secrets for reconstruction: 3
       //// Maximum number of shared secrets: 7
-      var shares = split.MakeShares(3, 7);
+      //// Security level: 127 (Mersenne prime exponent)
+      var shares = split.MakeShares(3, 7, 127);
 
       //// The property 'shares.OriginalSecret' represents the random secret
       var secret = shares.OriginalSecret;
@@ -310,7 +310,8 @@ namespace Example2
       string password = "Hello World!!";
       //// Minimum number of shared secrets for reconstruction: 3
       //// Maximum number of shared secrets: 7
-      //// Attention: The password length changes the security level set by the ctor
+      //// Attention: The password length can change the security level set by the ctor
+      //// or SecurityLevel property.
       var shares = split.MakeShares(3, 7, password);
 
       //// The property 'shares.OriginalSecret' represents the original password
@@ -357,14 +358,16 @@ namespace Example3
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
 
       //// Create Shamir's Secret Sharing instance with BigInteger
-      //// and security level 521 (Mersenne prime exponent)
-      var split = new ShamirsSecretSharing<BigInteger>(gcd, 521);
+      //// and 
+      var split = new ShamirsSecretSharing<BigInteger>(gcd);
 
       BigInteger number = 20000;
       //// Minimum number of shared secrets for reconstruction: 3
       //// Maximum number of shared secrets: 7
-      //// Attention: The number size changes the security level set by the ctor
-      var shares = split.MakeShares (3, 7, number);
+      //// Security level: 521 (Mersenne prime exponent)
+      //// Attention: The size of the number can change the security level set by the ctor
+      //// or SecurityLevel property.
+      var shares = split.MakeShares (3, 7, number, 521);
 
       //// The property 'shares.OriginalSecret' represents the number (original secret)
       var secret = shares.OriginalSecret;

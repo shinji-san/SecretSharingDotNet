@@ -100,16 +100,16 @@ namespace SecretSharingDotNet
         public static IEnumerable<object[]> TestRandomSecretData =>
             new List<object[]>
             {
-                new object[] {5, 32, 13},
-                new object[] {7, 32, 13},
-                new object[] {13, 32, 13},
-                new object[] {17, 521, 17},
-                new object[] {127, 521, 127},
-                new object[] {130, 5, 521},
-                new object[] {500, 5, 521},
-                new object[] {521, 5, 521},
-                new object[] {1024, 5, 1279},
-                new object[] {1279, 5, 1279}
+                new object[] {5, 13},
+                new object[] {7, 13},
+                new object[] {13, 13},
+                new object[] {17, 17},
+                new object[] {127, 127},
+                new object[] {130, 521},
+                new object[] {500, 521},
+                new object[] {521, 521},
+                new object[] {1024, 1279},
+                new object[] {1279, 1279}
             };
 
         /// <summary>
