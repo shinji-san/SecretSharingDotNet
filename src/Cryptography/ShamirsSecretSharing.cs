@@ -113,7 +113,7 @@ namespace SecretSharingDotNet.Cryptography
             {
                 if (value < 5)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(value), value, "Minimum exceeded!");
+                    throw new ArgumentOutOfRangeException(nameof(value), value, "Minimum security level exceeded!");
                 }
 
                 if (!Secret.LegacyMode.Value && value < 13)
@@ -130,7 +130,7 @@ namespace SecretSharingDotNet.Cryptography
                     }
                     catch (ArgumentOutOfRangeException)
                     {
-                        throw new ArgumentOutOfRangeException(nameof(value), value, "Maximum exceeded!");
+                        throw new ArgumentOutOfRangeException(nameof(value), value, "Maximum security level exceeded!");
                     }
                 }
 
@@ -177,12 +177,12 @@ namespace SecretSharingDotNet.Cryptography
             Calculator<TNumber> max = numberOfShares;
             if (min < Calculator<TNumber>.Two)
             {
-                throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares));
+                throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, "The minimum number of shares is lower than 2.");
             }
 
             if (min > max)
             {
-                throw new ArgumentOutOfRangeException(nameof(numberOfShares), "The pool secret would be irrecoverable.");
+                throw new ArgumentOutOfRangeException(nameof(numberOfShares), numberOfShares, "The pool secret would be irrecoverable. The number of shares is lower than the minimum number of shares.");
             }
 
             if (this.mersennePrime == null)
@@ -243,12 +243,12 @@ namespace SecretSharingDotNet.Cryptography
             Calculator<TNumber> max = numberOfShares;
             if (min < Calculator<TNumber>.Two)
             {
-                throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares));
+                throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, "The minimum number of shares is lower than 2.");
             }
 
             if (min > max)
             {
-                throw new ArgumentOutOfRangeException(nameof(numberOfShares), "The pool secret would be irrecoverable.");
+                throw new ArgumentOutOfRangeException(nameof(numberOfShares), numberOfShares, "The pool secret would be irrecoverable. The number of shares is lower than the minimum number of shares.");
             }
 
             int newSecurityLevel = secret.SecretByteSize * 8;
