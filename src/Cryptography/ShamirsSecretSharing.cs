@@ -104,6 +104,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// Gets or sets the security level
         /// </summary>
+        /// <remarks>Value is lower than 5 or greater than 43112609.</remarks>
         /// <exception cref="T:System.ArgumentOutOfRangeException" accessor="set">Value is lower than 5 or greater than 43112609.</exception>
         public int SecurityLevel
         {
@@ -144,6 +145,7 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
         /// <param name="numberOfShares">Maximum number of shared secrets</param>
+        /// <param name="securityLevel">Security level (in number of bits). Minimum is 5 for legacy mode and 13 for normal mode.</param>
         /// <returns></returns>
         /// <exception cref="T:System.ArgumentOutOfRangeException">The <paramref name="securityLevel"/> parameter is lower than 5 or greater than 43112609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
         public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)
@@ -205,7 +207,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="secret">secret text as <see cref="Secret{TNumber}"/> or see cref="string"/></param>
         /// <param name="securityLevel">Security level (in number of bits). Minimum is 5 for legacy mode and 13 for normal mode.</param>
         /// <returns></returns>
-        /// <remarks>This method modifies the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length</remarks>
+        /// <remarks>This method can modify the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length.</remarks>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="secret"/> parameter is <see langword="null"/>.</exception>
         /// <exception cref="T:System.ArgumentOutOfRangeException">The <paramref name="securityLevel"/> is lower than 5 or greater than 43112609. OR <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
         public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret, int securityLevel)
@@ -230,7 +232,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="secret">secret text as <see cref="Secret{TNumber}"/> or see cref="string"/></param>
         /// <returns></returns>
         /// <remarks>This method modifies the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length</remarks>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="secret"/> is <see langword="null"/></exception>
+        /// <exception cref="T:System.ArgumentNullException"><paramref name="secret"/> is <see langword="null"/>.</exception>
         /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
         public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret)
         {
