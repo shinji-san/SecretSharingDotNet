@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added more examples in the section *Usage* of the `README.md` file to explain the use of shares and the use of the new type casting from byte array to secret and vice versa.
+- Added method `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)`
+- Added method `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret, int securityLevel)`
 
 ### Changed
 - Changed existing examples in the section *Usage* of the `README.md` file to explain the use and the type casting of recovered secrets.
+- Changed ctor `ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd)`. This ctor sets the SecurityLevel to 13.
+
+### Deprecated
+- Ctor `ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd, int securityLevel)` is deprecated.
+- Method `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares)` is deprecated.
 
 ## [0.7.0] - 2022-02-09
 ### Added
