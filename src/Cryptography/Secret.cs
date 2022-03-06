@@ -155,7 +155,7 @@ namespace SecretSharingDotNet.Cryptography
 
             if (secretSource.Length == 0)
             {
-                throw new ArgumentException("Value cannot be an empty collection.", nameof(secretSource));
+                throw new ArgumentException(ErrorMessages.EmptyCollection, nameof(secretSource));
             }
 
             var buffer = new byte[1];
