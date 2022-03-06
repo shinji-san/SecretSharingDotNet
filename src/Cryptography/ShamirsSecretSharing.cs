@@ -114,7 +114,7 @@ namespace SecretSharingDotNet.Cryptography
             {
                 if (value < 5)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(value), value, "Minimum security level exceeded!");
+                    throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MinimumSecurityLevelExceeded);
                 }
 
                 if (!Secret.LegacyMode.Value && value < 13)
@@ -131,7 +131,7 @@ namespace SecretSharingDotNet.Cryptography
                     }
                     catch (ArgumentOutOfRangeException)
                     {
-                        throw new ArgumentOutOfRangeException(nameof(value), value, "Maximum security level exceeded!");
+                        throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MaximumSecurityLevelExceeded);
                     }
                 }
 
@@ -179,12 +179,12 @@ namespace SecretSharingDotNet.Cryptography
             Calculator<TNumber> max = numberOfShares;
             if (min < Calculator<TNumber>.Two)
             {
-                throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, "The minimum number of shares is lower than 2.");
+                throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, ErrorMessages.MinNumberOfSharesLowerThanTwo);
             }
 
             if (min > max)
             {
-                throw new ArgumentOutOfRangeException(nameof(numberOfShares), numberOfShares, "The pool secret would be irrecoverable. The number of shares is lower than the minimum number of shares.");
+                throw new ArgumentOutOfRangeException(nameof(numberOfShares), numberOfShares, ErrorMessages.MaxSharesLowerThanMinShares);
             }
 
             if (this.mersennePrime == null)
@@ -245,12 +245,12 @@ namespace SecretSharingDotNet.Cryptography
             Calculator<TNumber> max = numberOfShares;
             if (min < Calculator<TNumber>.Two)
             {
-                throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, "The minimum number of shares is lower than 2.");
+                throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, ErrorMessages.MinNumberOfSharesLowerThanTwo);
             }
 
             if (min > max)
             {
-                throw new ArgumentOutOfRangeException(nameof(numberOfShares), numberOfShares, "The pool secret would be irrecoverable. The number of shares is lower than the minimum number of shares.");
+                throw new ArgumentOutOfRangeException(nameof(numberOfShares), numberOfShares, ErrorMessages.MaxSharesLowerThanMinShares);
             }
 
             int newSecurityLevel = secret.SecretByteSize * 8;
@@ -346,7 +346,7 @@ namespace SecretSharingDotNet.Cryptography
         {
             if (finitePoints.Distinct().Count() != finitePoints.Count)
             {
-                throw new ArgumentException("Finite points (aka shares) are not distinct!", nameof(finitePoints));
+                throw new ArgumentException(ErrorMessages.FinitePointsNotDistinct, nameof(finitePoints));
             }
 
             int k = finitePoints.Count;
@@ -423,7 +423,7 @@ namespace SecretSharingDotNet.Cryptography
 
             if (shares.Length < 2)
             {
-                throw new ArgumentOutOfRangeException(nameof(shares));
+                throw new ArgumentOutOfRangeException(nameof(shares), ErrorMessages.MinNumberOfSharesLowerThanTwo);
             }
 
             Shares<TNumber> castShares = shares;
@@ -456,7 +456,7 @@ namespace SecretSharingDotNet.Cryptography
 
             if (shares.Length < 2)
             {
-                throw new ArgumentOutOfRangeException(nameof(shares));
+                throw new ArgumentOutOfRangeException(nameof(shares), ErrorMessages.MinNumberOfSharesLowerThanTwo);
             }
 
             var maximumY = shares.Select(point => point.Y).Max();
