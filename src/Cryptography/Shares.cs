@@ -90,7 +90,7 @@ namespace SecretSharingDotNet.Cryptography
         /// Gets the original secret
         /// </summary>
         /// <remarks>Legacy property</remarks>
-        [Obsolete("Legacy property. Will be removed in futures versions.", false)]
+        [Obsolete("Legacy property. Will be removed in futures versions. Pleas use OriginalSecret property.", true)]
         public Secret<TNumber> Item1 => this.OriginalSecret;
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace SecretSharingDotNet.Cryptography
         /// Gets the shares.
         /// </summary>
         /// <remarks>Legacy property</remarks>
-        [Obsolete("Legacy property. Will be removed in futures versions.", false)]
+        [Obsolete("Legacy property. Will be removed in futures versions.", true)]
         public ICollection<FinitePoint<TNumber>> Item2 => this.shareList;
 
         /// <summary>
@@ -118,6 +118,7 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
+        [Obsolete("Legacy property. Will be removed in futures versions.", true)]
         public static implicit operator Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(Shares<TNumber> shares) => new Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(shares?.OriginalSecret, shares);
 
         /// <summary>
