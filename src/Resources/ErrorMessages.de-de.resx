@@ -1,0 +1,50 @@
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>1.3</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="MinimumSecurityLevelExceeded" xml:space="preserve">
+        <value>Der minimale Sicherheitslevel wurde unterschritten!</value>
+    </data>
+    <data name="MaximumSecurityLevelExceeded" xml:space="preserve">
+        <value>Der maximale Sicherheitslevel wurde überschritten!</value>
+    </data>
+    <data name="MinNumberOfSharesLowerThanTwo" xml:space="preserve">
+        <value>Die minimale Anzahl an Teilgeheimnissen ist kleiner als 2! Bitte setze die minimale Anzahl an Teilgeheimnissen auf 2 oder höher.</value>
+    </data>
+    <data name="FinitePointsNotDistinct" xml:space="preserve">
+        <value>Die finiten Punkte (auch als Teilgeheimnis bekannt) sind nicht eindeutig!</value>
+    </data>
+    <data name="MaxSharesLowerThanMinShares" xml:space="preserve">
+        <value>Das Pool-Geheimnis wäre mit diesen Parametern unwiederbringlich, da die maximale Anzahl an Teilgeheimnissen kleiner ist als die minimale Anzahl an Teilgeheimnissen.</value>
+    </data>
+    <data name="ReadOnlyCollection" xml:space="preserve">
+        <value>Die {0}-Sammlung ist schreibgeschützt.</value>
+    </data>
+    <data name="StartArrayIndexNegative" xml:space="preserve">
+        <value>Der Start-Array-Index darf nicht negativ sein.</value>
+    </data>
+    <data name="DestinationArrayHasFewerElements" xml:space="preserve">
+        <value>Das Zielarray hat weniger Elemente als die Sammlung.</value>
+    </data>
+    <data name="InvalidArrayTypeCast" xml:space="preserve">
+        <value>Parameter {0}: Ein Array vom Typ {1} kann nicht in ein Array vom Typ {2} konvertiert werden.</value>
+    </data>
+    <data name="EmptyCollection" xml:space="preserve">
+        <value>Der Wert darf keine leere Sammlung sein.</value>
+    </data>
+    <data name="ValueLowerThanX" xml:space="preserve">
+        <value>Der Wert darf nicht kleiner als {0} sein.</value>
+    </data>
+    <data name="DataTypeNotSupported" xml:space="preserve">
+        <value>Der Datentyp '{0}' wird nicht unterstützt!</value>
+    </data>
+</root>
