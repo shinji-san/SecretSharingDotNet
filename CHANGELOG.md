@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 - Ctor `ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd, int securityLevel)` is deprecated.
 - Method `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares)` is deprecated.
+- Shares to tuple type casting is obsolete and will be remove in the next release.
+- Shares.Item1 property is obsolete and will be remove in the next release.
+- Shares.Item2 property is obsolete and will be remove in the next release.
 
 ## [0.7.0] - 2022-02-09
 ### Added

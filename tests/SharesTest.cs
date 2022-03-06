@@ -46,23 +46,6 @@ namespace SecretSharingDotNet.Test
     public class SharesTest
     {
         /// <summary>
-        /// Tests the implicit cast from <see cref="Shares{TNumber}"/> to <see cref="Tuple"/>.
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        [Fact]
-        public void TestSharesToTupleCast()
-        {
-            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-            var shares = split.MakeShares(3, 6, TestData.DefaultTestPassword);
-            Tuple<Secret<BigInteger>, ICollection<FinitePoint<BigInteger>>> tuple = shares;
-            Assert.NotNull(tuple);
-            Assert.NotNull(tuple.Item1);
-            Assert.NotNull(tuple.Item2);
-            Assert.Equal(6, tuple.Item2.Count);
-            Assert.Equal(TestData.DefaultTestPassword, tuple.Item1);
-        }
-
-        /// <summary>
         /// Tests the cast from <see cref="string"/> array to <see cref="Shares{TNumber}"/> and vice versa.
         /// </summary>
         [Fact]
