@@ -226,7 +226,7 @@ namespace SecretSharingDotNet.Cryptography
         {
             if (this.IsReadOnly)
             {
-                throw new NotSupportedException($"The {nameof(Shares<TNumber>)} collection is read-only.");
+                throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<TNumber>)));
             }
 
             this.shareList.Clear();
@@ -243,7 +243,7 @@ namespace SecretSharingDotNet.Cryptography
         {
             if (this.IsReadOnly)
             {
-                throw new NotSupportedException($"The {nameof(Shares<TNumber>)} collection is read-only.");
+                throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<TNumber>)));
             }
 
             if (!this.Contains(item))
@@ -264,7 +264,7 @@ namespace SecretSharingDotNet.Cryptography
         {
             if (this.IsReadOnly)
             {
-                throw new NotSupportedException($"The {nameof(Shares<TNumber>)} collection is read-only.");
+                throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<TNumber>)));
             }
 
             return this.shareList.Remove(item);
@@ -285,7 +285,7 @@ namespace SecretSharingDotNet.Cryptography
                     this.CopyTo(x, arrayIndex);
                     break;
                 default:
-                    throw new InvalidCastException($"Parameter {nameof(array)}: Cannot convert an array from type {array.GetType().GetElementType()} to an array of type {typeof(FinitePoint<TNumber>)}.");
+                    throw new InvalidCastException(string.Format(ErrorMessages.InvalidArrayTypeCast, nameof(array), array.GetType().GetElementType(), typeof(FinitePoint<TNumber>)));
             }
         }
 
@@ -302,12 +302,12 @@ namespace SecretSharingDotNet.Cryptography
             _ = array ?? throw new ArgumentNullException(nameof(array));
             if (arrayIndex < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(arrayIndex), "The starting array index cannot be negative.");
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex), ErrorMessages.StartArrayIndexNegative);
             }
 
             if (Count > array.Length - arrayIndex + 1)
             {
-                throw new ArgumentException("The destination array has fewer elements than the collection.", nameof(array));
+                throw new ArgumentException(ErrorMessages.DestinationArrayHasFewerElements, nameof(array));
             }
 
             for (int i = 0; i < this.shareList.Count; i++)
