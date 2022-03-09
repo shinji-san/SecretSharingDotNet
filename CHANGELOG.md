@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added more examples in the section *Usage* of the `README.md` file to explain the use of shares and the use of the new type casting from byte array to secret and vice versa.
 - Added method `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)`
 - Added method `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret, int securityLevel)`
+- Added localization for exception messages in English and German languages
 
 ### Changed
 - Changed existing examples in the section *Usage* of the `README.md` file to explain the use and the type casting of recovered secrets.
