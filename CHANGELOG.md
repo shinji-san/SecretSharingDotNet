@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shares.Item1 property is obsolete and will be remove in the next release.
 - Shares.Item2 property is obsolete and will be remove in the next release.
 
+### Removed
+- Removed .NET 5 support, because it retires on May 10, 2022. See [Microsoft .NET and .NET Core - Support Dates](https://docs.microsoft.com/en-us/lifecycle/products/microsoft-net-and-net-core).
+
 ## [0.7.0] - 2022-02-09
 ### Added
 - Added implicit casts for byte arrays in *Secret* class.
