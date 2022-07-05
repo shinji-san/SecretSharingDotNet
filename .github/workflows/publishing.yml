@@ -21,11 +21,6 @@ jobs:
       with:
         dotnet-version: 3.1.415
 
-    - name: Setup .NET 5
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 5.0.403
-
     - name: Setup .NET 6
       uses: actions/setup-dotnet@v1
       with:
@@ -33,7 +28,7 @@ jobs:
 
     - name: .NET Core SxS
       run: |
-        rsync -a ${DOTNET_ROOT/6.0.100/5.0.403/3.1.415}/* $DOTNET_ROOT/
+        rsync -a ${DOTNET_ROOT/6.0.100/3.1.415}/* $DOTNET_ROOT/
 
     - name: Decrypt large secret
       run: ./.github/secrets/decrypt_publisher_snk.sh

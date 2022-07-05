@@ -13,9 +13,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=10><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
-          <td rowspan=10><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=10>Core</td>
+          <td rowspan=9><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
+          <td rowspan=9><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=9>Core</td>
           <td>Core 3.1 (LTS)</td>
       </tr>
       <tr>
@@ -40,20 +40,13 @@ An C# implementation of Shamir's Secret Sharing.
           <td>FX 4.8</td>
       </tr>
       <tr>
-          <td>.NET 5</td>
-      </tr>
-      <tr>
           <td>.NET 6</td>
       </tr>
       <tr>
-          <td rowspan=3><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg" alt="Build status"></a></td>
+          <td rowspan=2><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg" alt="Build status"></a></td>
           <td><code>SecretSharingDotNetCore3.1.sln</code></td>
-          <td rowspan=3>Core</td>
+          <td rowspan=2>Core</td>
           <td>Core 3.1 (LTS)</td>
-      </tr>
-      <tr>
-          <td rowspan=1><code>SecretSharingDotNet5.sln</code></td>
-          <td>.NET 5</td>
       </tr>
       <tr>
           <td rowspan=1><code>SecretSharingDotNet6.sln</code></td>
@@ -81,13 +74,10 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=10><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.7.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=10><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.7.0"/></a></td>
-          <td rowspan=10><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.7.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.7.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.7.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=9><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.7.0"/></a></td>
+          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.7.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.7.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Core 3.1 (LTS)</td>
-      </tr>
-      <tr>
-          <td>.NET 5</td>
       </tr>
       <tr>
           <td>.NET 6</td>
@@ -489,41 +479,40 @@ namespace Example5
 
 # CLI building instructions
 For the following instructions, please make sure that you are connected to the internet. If necessary, NuGet will try to restore the [xUnit](https://xunit.net/) packages.
-## Using dotnet to build for .NET6, .NET 5, .NET Core and .NET FX 4.x
+## Using dotnet to build for .NET6, .NET Core and .NET FX 4.x
 Use one of the following solutions with `dotnet` to build [SecretSharingDotNet](#secretsharingdotnet):
 * `SecretSharingDotNet.sln` (all, [see table](#build--test-status-of-default-branch))
-* `SecretSharingDotNet5.sln` (.NET 5 only)
 * `SecretSharingDotNet6.sln` (.NET 6 only)
 * `SecretSharingDotNetCore3.1.sln` (.NET Core 3.1 only)
 
 The syntax is:
 ```dotnetcli
-dotnet {build|test} -c {Debug|Release} SecretSharingDotNet{6|5|Core3.1}.sln
+dotnet {build|test} -c {Debug|Release} SecretSharingDotNet{6|Core3.1}.sln
 ```
 
-The instructions below are examples, which operate on the `SecretSharingDotNet5.sln`.
+The instructions below are examples, which operate on the `SecretSharingDotNet6.sln`.
 ### Build Debug configuration
 
 ```dotnetcli
-dotnet build -c Debug SecretSharingDotNet5.sln
+dotnet build -c Debug SecretSharingDotNet6.sln
 ```
 
 ### Build Release configuration
 
 ```dotnetcli
-dotnet build -c Release SecretSharingDotNet5.sln
+dotnet build -c Release SecretSharingDotNet6.sln
 ```
 
 ### Test Debug configuration
 
 ```dotnetcli
-dotnet test -c Debug SecretSharingDotNet5.sln
+dotnet test -c Debug SecretSharingDotNet6.sln
 ```
 
 ### Test Release configuration
 
 ```dotnetcli
-dotnet test -c Release SecretSharingDotNet5.sln
+dotnet test -c Release SecretSharingDotNet6.sln
 ```
 
 ## Using MSBuild to build for .NET FX 4.6.2
