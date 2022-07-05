@@ -41,5 +41,10 @@ jobs:
     - name: Test
       run: dotnet test --configuration Release SecretSharingDotNet.sln
 
+    - name: Prepare README.md for NuGet package
+      run: |
+           grep -n "## Install SecretSharingDotNet package" README.md | cut -d: -f 1| xargs -i tail -n +{} README.md > TMP.md && sed -i '1s/^/# Setup\r\n/' TMP.md && mv -f TMP.md README.md
+           grep -n "# CLI building instructions" README.md | cut -d: -f 1| xargs -i head -n {} README.md | head -n -1 > TMP.md && mv -f TMP.md README.md
+
     - name: Create Package
       run: dotnet pack --configuration Release SecretSharingDotNet.sln
