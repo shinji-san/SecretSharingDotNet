@@ -67,17 +67,17 @@ namespace SecretSharingDotNet.Helper
 
             if (array.Length == 0)
             {
-                throw new ArgumentException("Value cannot be an empty collection.", nameof(array));
+                throw new ArgumentException(ErrorMessages.EmptyCollection, nameof(array));
             }
 
             if (index < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(index), index, "Value cannot be lower than 0.");
+                throw new ArgumentOutOfRangeException(nameof(index), index, string.Format(ErrorMessages.ValueLowerThanX, 0));
             }
 
             if (count < 1)
             {
-                throw new ArgumentOutOfRangeException(nameof(count), count, "Value cannot be lower than 1.");
+                throw new ArgumentOutOfRangeException(nameof(count), count, string.Format(ErrorMessages.ValueLowerThanX, 1));
             }
 
             var subset = new TArray[count];
