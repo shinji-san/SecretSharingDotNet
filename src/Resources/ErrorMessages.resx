@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<root>
+    <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+        <xsd:element name="root" msdata:IsDataSet="true">
+            
+        </xsd:element>
+    </xsd:schema>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>1.3</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="MinimumSecurityLevelExceeded" xml:space="preserve">
+        <value>Minimum security level not achieved!</value>
+    </data>
+    <data name="MaximumSecurityLevelExceeded" xml:space="preserve">
+        <value>Maximum security level exceeded!</value>
+    </data>
+    <data name="MinNumberOfSharesLowerThanTwo" xml:space="preserve">
+        <value>The minimum number of shares is lower than 2! Please set the minimum number of shares to 2 or higher.</value>
+    </data>
+    <data name="FinitePointsNotDistinct" xml:space="preserve">
+        <value>Finite points (aka shares) are not distinct!</value>
+    </data>
+    <data name="MaxSharesLowerThanMinShares" xml:space="preserve">
+        <value>The pool secret would be irrecoverable, if you use these parameters, because the maximum number of shares is lower than the minimum number of shares.</value>
+    </data>
+    <data name="ReadOnlyCollection" xml:space="preserve">
+        <value>The {0} collection is read-only.</value>
+    </data>
+    <data name="StartArrayIndexNegative" xml:space="preserve">
+        <value>The starting array index cannot be negative.</value>
+    </data>
+    <data name="DestinationArrayHasFewerElements" xml:space="preserve">
+        <value>The destination array has fewer elements than the collection.</value>
+    </data>
+    <data name="InvalidArrayTypeCast" xml:space="preserve">
+        <value>Parameter {0}: Cannot convert an array of type {1} to an array of type {2}.</value>
+    </data>
+    <data name="EmptyCollection" xml:space="preserve">
+        <value>Value cannot be an empty collection.</value>
+    </data>
+    <data name="ValueLowerThanX" xml:space="preserve">
+        <value>Value cannot be lower than {0}.</value>
+    </data>
+    <data name="DataTypeNotSupported" xml:space="preserve">
+        <value>Data Type '{0}' not supported!</value>
+    </data>
+</root>

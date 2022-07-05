@@ -358,7 +358,7 @@ namespace SecretSharingDotNet.Math
             }
             catch (KeyNotFoundException)
             {
-                throw new NotSupportedException($"Generic Data Type '{typeof(TNumber).Name}' not supported!");
+                throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
             }
         }
 

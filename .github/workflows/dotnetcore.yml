@@ -17,7 +17,7 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     strategy:
       matrix:
-        dotnet: [ '3.1.415', '5.0.403', '6.0.100']
+        dotnet: [ '3.1.415', '6.0.100']
     name: Dotnet ${{ matrix.dotnet }}
 
     steps:
@@ -32,12 +32,6 @@ jobs:
     - name: Test with donet SDK v3.1
       if: matrix.dotnet == '3.1.415'
       run: dotnet test -v d --configuration Release SecretSharingDotNetCore3.1.sln
-    - name: Build with dotnet SDK v5.0
-      if: matrix.dotnet == '5.0.403'
-      run: dotnet build --configuration Release SecretSharingDotNet5.sln
-    - name: Test with dotnet SDK v5.0
-      if: matrix.dotnet == '5.0.403'
-      run: dotnet test --configuration Release SecretSharingDotNet5.sln
     - name: Build with dotnet SDK v6.0
       if: matrix.dotnet == '6.0.100'
       run: dotnet build --configuration Release SecretSharingDotNet6.sln
