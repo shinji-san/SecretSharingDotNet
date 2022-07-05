@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0] - 2022-07-05
 ### Added
 - Added more examples in the section *Usage* of the `README.md` file to explain the use of shares and the use of the new type casting from byte array to secret and vice versa.
 - Added method `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)`
@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Changed existing examples in the section *Usage* of the `README.md` file to explain the use and the type casting of recovered secrets.
+- Minify NuGet package README.md
 - Changed ctor `ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd)`. This ctor sets the SecurityLevel to 13.
 
 ### Deprecated
@@ -125,7 +126,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added LICENSE.md
 - Added README.md
 
-[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.3.0...v0.4.0
