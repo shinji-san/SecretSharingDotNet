@@ -57,6 +57,10 @@ namespace SecretSharingDotNet.Math
         /// <returns>This method returns <see langword="true"/> if this instance is less than or equal to the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
         public override bool EqualOrLowerThan(BigInteger right) => this.Value <= right;
 
+        /// <inheritdoc />
+        /// <exception cref="T:System.OverflowException">Unable to convert the current instance of <see cref="BigIntCalculator"/> class to <see cref="Int32"/>.</exception>
+        public override int ToInt32() => (int)this.Value;
+
         /// <summary>
         /// Compares this instance to a second <see cref="Calculator{BigInteger}"/> and returns an integer that
         /// indicates whether the value of this instance is less than, equal to, or greater than the value of the specified object.
