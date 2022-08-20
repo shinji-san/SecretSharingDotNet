@@ -3,7 +3,7 @@
 // Copyright (c) 2022 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
-// <date>07/21/2022 05:23:42 PM</date>
+// <date>08/20/2022 02:34:00 PM</date>
 // ----------------------------------------------------------------------------
 
 #region License
@@ -48,17 +48,17 @@ namespace SecretSharingDotNet.Math
         /// Saves a dictionary of number data types derived from the <see cref="Calculator{TNumber}"/> class.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2104:DoNotDeclareReadOnlyMutableReferenceTypes")]
-        protected static readonly ReadOnlyDictionary<Type, Type> ChildTypes = new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
+        private static readonly ReadOnlyDictionary<Type, Type> ChildTypes = new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
+
+        /// <summary>
+        /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
+        /// </summary>
+        private static readonly ReadOnlyDictionary<Type, Func<byte[], Calculator>> ChildBaseCtors = new ReadOnlyDictionary<Type, Func<byte[], Calculator>>(GetDerivedCtors<byte[], Calculator>());
 
         /// <summary>
         /// Gets the number of elements of the byte representation of the <see cref="Calculator"/> object.
         /// </summary>
         public abstract int ByteCount { get; }
-
-        /// <summary>
-        /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
-        /// </summary>
-        protected static readonly ReadOnlyDictionary<Type, Func<byte[], Calculator>> ChildBaseCtors = new ReadOnlyDictionary<Type, Func<byte[], Calculator>>(GetDerivedCtors<byte[], Calculator>());
 
         /// <summary>
         /// Gets the byte representation of the <see cref="Calculator"/> object.
@@ -104,7 +104,7 @@ namespace SecretSharingDotNet.Math
             var parameterExpression = Expression.Parameter(paramType);
             foreach (var childType in ChildTypes)
             {
-                var ctorInfo = childType.Value.GetConstructor(new[] { paramType });
+                var ctorInfo = childType.Value.GetConstructor(new[] {paramType});
                 var ctor = Expression.Lambda<Func<TParameter, TCalculator>>(Expression.New(ctorInfo, parameterExpression), parameterExpression)
                     .Compile();
                 res.Add(childType.Key, ctor);
