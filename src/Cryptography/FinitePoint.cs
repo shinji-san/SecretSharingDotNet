@@ -204,13 +204,20 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// Evaluates polynomial (coefficient tuple) at x, used to generate a shamir pool.
         /// </summary>
-        /// <param name="polynomial"></param>
-        /// <param name="x"></param>
+        /// <param name="polynomial">The polynomial</param>
+        /// <param name="x">The x-coordinate</param>
         /// <param name="prime">Mersenne prime greater or equal 5</param>
-        /// <returns></returns>
+        /// <returns>y-coordinate from type <see cref="Calculator{TNumber}"/></returns>
         private static Calculator<TNumber> Evaluate(IEnumerable<Calculator<TNumber>> polynomial, Calculator<TNumber> x, Calculator<TNumber> prime)
         {
-            return polynomial.Reverse().Aggregate(Calculator<TNumber>.Zero, (current, coefficient) => (current * x + coefficient) % prime);
+            var polynomialArray = polynomial as Calculator<TNumber>[] ?? polynomial.ToArray();
+            var result = Calculator<TNumber>.Zero;
+            for (int index = polynomialArray.Length - 1; index >= 0; index--)
+            {
+                result = (result * x + polynomialArray[index]) % prime;
+            }
+
+            return result;
         }
 
         /// <summary>
