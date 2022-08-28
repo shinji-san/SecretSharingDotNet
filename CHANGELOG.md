@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `xunit.runner.visualstudio` Nuget package version to 2.4.5.
 - Set `Calculator` fields `ChildTypes` and `ChildBaseCtors` from protected to private.
 
+### Fixed
+- Fixed style guide violations in SharesEnumerator.cs.
+
+### Removed
+- Removed constructor w/ `ReadOnlyCollection` parameter from the `SharesEnumerator{TNumber}` class.
+
 ## [0.8.0] - 2022-07-05
 ### Added
 - Added more examples in the section *Usage* of the `README.md` file to explain the use of shares and the use of the new type casting from byte array to secret and vice versa.
