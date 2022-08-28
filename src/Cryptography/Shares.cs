@@ -100,14 +100,6 @@ namespace SecretSharingDotNet.Cryptography
         public bool OriginalSecretExists => this.OriginalSecret != null;
 
         /// <summary>
-        /// Casts a <see cref="Shares{TNumber}"/> object to a <see cref="Tuple"/> object.
-        /// </summary>
-        /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
-        [Obsolete("Legacy property. Will be removed in futures versions.", true)]
-        public static implicit operator Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(Shares<TNumber> shares) => new Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(shares?.OriginalSecret, shares);
-
-        /// <summary>
         /// Casts a <see cref="Shares{TNumber}"/> object to a array of <see cref="string"/>s.
         /// </summary>
         /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
