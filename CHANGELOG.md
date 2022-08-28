@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add `ToInt32()` method to `BigInteger` and `Calculator` class.
+
 ### Changed
 - Moved generic version of the `Calculator` class from the `Calculator.cs` file to the ``Calculator`1.cs`` file.
 - Updated `Microsoft.NET.Test.Sdk` Nuget package version to 17.2.0.
