@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved generic version of the `Calculator` class from the `Calculator.cs` file to the ``Calculator`1.cs`` file.
 - Updated `Microsoft.NET.Test.Sdk` Nuget package version to 17.2.0.
 - Updated `xunit.runner.visualstudio` Nuget package version to 2.4.5.
+- Set `Calculator` fields `ChildTypes` and `ChildBaseCtors` from protected to private.
 
 ## [0.8.0] - 2022-07-05
 ### Added
