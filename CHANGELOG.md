@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - Removed constructor w/ `ReadOnlyCollection` parameter from the `SharesEnumerator{TNumber}` class.
+- Removed tuple type casting from the `Shares` class.
+- Removed `Shares.Item1` property.
+- Removed `Shares.Item2` property.
 
 ## [0.8.0] - 2022-07-05
 ### Added
