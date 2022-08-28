@@ -6,6 +6,29 @@
 // <date>04/20/2019 10:52:28 PM</date>
 // ----------------------------------------------------------------------------
 
+#region License
+// ----------------------------------------------------------------------------
+// Copyright 2022 Sebastian Walther
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+#endregion
+
 namespace SecretSharingDotNet.Math
 {
     using System;
@@ -56,6 +79,10 @@ namespace SecretSharingDotNet.Math
         /// <param name="right">right-hand operand</param>
         /// <returns>This method returns <see langword="true"/> if this instance is less than or equal to the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
         public override bool EqualOrLowerThan(BigInteger right) => this.Value <= right;
+
+        /// <inheritdoc />
+        /// <exception cref="T:System.OverflowException">Unable to convert the current instance of <see cref="BigIntCalculator"/> class to <see cref="Int32"/>.</exception>
+        public override int ToInt32() => (int)this.Value;
 
         /// <summary>
         /// Compares this instance to a second <see cref="Calculator{BigInteger}"/> and returns an integer that

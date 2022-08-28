@@ -86,6 +86,13 @@ namespace SecretSharingDotNet.Math
         public abstract int Sign { get; }
 
         /// <summary>
+        /// Converts the current <see cref="Calculator{TNumber}"/> instance to a <see cref="Int32"/>.
+        /// </summary>
+        /// <returns>A value of the <see cref="Int32"/> type.</returns>
+        /// <exception cref="T:System.OverflowException">Unable to convert the current instance of <see cref="Calculator{TNumber}"/> class to <see cref="Int32"/>.</exception>
+        public abstract int ToInt32();
+
+        /// <summary>
         /// Creates a new instance derived from the <see cref="Calculator"/> class.
         /// </summary>
         /// <param name="data">byte array representation of the <paramref name="numberType"/></param>
