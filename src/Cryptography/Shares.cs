@@ -87,13 +87,6 @@ namespace SecretSharingDotNet.Cryptography
         public Secret<TNumber> OriginalSecret { get; }
 
         /// <summary>
-        /// Gets the original secret
-        /// </summary>
-        /// <remarks>Legacy property</remarks>
-        [Obsolete("Legacy property. Will be removed in futures versions. Pleas use OriginalSecret property.", true)]
-        public Secret<TNumber> Item1 => this.OriginalSecret;
-
-        /// <summary>
         /// Gets or sets the <see cref="FinitePoint{TNumber}"/> associated with the specified index.
         /// </summary>
         /// <param name="i">The index of the <see cref="FinitePoint{TNumber}"/> to get or set.</param>
@@ -102,24 +95,9 @@ namespace SecretSharingDotNet.Cryptography
         public FinitePoint<TNumber> this[int i] => this.shareList[i];
 
         /// <summary>
-        /// Gets the shares.
-        /// </summary>
-        /// <remarks>Legacy property</remarks>
-        [Obsolete("Legacy property. Will be removed in futures versions.", true)]
-        public ICollection<FinitePoint<TNumber>> Item2 => this.shareList;
-
-        /// <summary>
         /// Gets a value indicating whether or not the original secret is available.
         /// </summary>
         public bool OriginalSecretExists => this.OriginalSecret != null;
-
-        /// <summary>
-        /// Casts a <see cref="Shares{TNumber}"/> object to a <see cref="Tuple"/> object.
-        /// </summary>
-        /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
-        [Obsolete("Legacy property. Will be removed in futures versions.", true)]
-        public static implicit operator Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(Shares<TNumber> shares) => new Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(shares?.OriginalSecret, shares);
 
         /// <summary>
         /// Casts a <see cref="Shares{TNumber}"/> object to a array of <see cref="string"/>s.
