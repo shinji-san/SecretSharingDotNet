@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Add `ToInt32()` method to `BigInteger` and `Calculator` class.
+- Introduce the `IExtendedGcdResult` interface to decouple GCD result implementations.
 
 ### Changed
 - Moved generic version of the `Calculator` class from the `Calculator.cs` file to the ``Calculator`1.cs`` file.
