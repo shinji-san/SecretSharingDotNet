@@ -383,7 +383,7 @@ namespace SecretSharingDotNet.Math
         /// <summary>
         /// Converts the numeric value of the current <see cref="Calculator{TNumber}"/> object to its equivalent string representation.
         /// </summary>
-        /// <returns>The string representation of the current <see cref="Calculator{TNumber}"/> value.</returns>
-        public override string ToString() => this.Value.ToString();
+        /// <returns>The <see cref="System.String"/> representation of the current <see cref="Calculator{TNumber}"/> value.</returns>
+        public abstract override string ToString();
     }
 }
