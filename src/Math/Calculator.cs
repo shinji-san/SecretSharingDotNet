@@ -48,12 +48,12 @@ namespace SecretSharingDotNet.Math
         /// Saves a dictionary of number data types derived from the <see cref="Calculator{TNumber}"/> class.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2104:DoNotDeclareReadOnlyMutableReferenceTypes")]
-        private static readonly ReadOnlyDictionary<Type, Type> ChildTypes = new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
+        private static readonly IReadOnlyDictionary<Type, Type> ChildTypes = new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
 
         /// <summary>
         /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
         /// </summary>
-        private static readonly ReadOnlyDictionary<Type, Func<byte[], Calculator>> ChildBaseCtors = new ReadOnlyDictionary<Type, Func<byte[], Calculator>>(GetDerivedCtors<byte[], Calculator>());
+        private static readonly IReadOnlyDictionary<Type, Func<byte[], Calculator>> ChildBaseCtors = new ReadOnlyDictionary<Type, Func<byte[], Calculator>>(GetDerivedCtors<byte[], Calculator>());
 
         /// <summary>
         /// Gets the number of elements of the byte representation of the <see cref="Calculator"/> object.
@@ -118,9 +118,12 @@ namespace SecretSharingDotNet.Math
             foreach (var childType in ChildTypes)
             {
                 var ctorInfo = childType.Value.GetConstructor(new[] {paramType});
-                var ctor = Expression.Lambda<Func<TParameter, TCalculator>>(Expression.New(ctorInfo, parameterExpression), parameterExpression)
-                    .Compile();
-                res.Add(childType.Key, ctor);
+                if (ctorInfo != null)
+                {
+                    var ctor = Expression.Lambda<Func<TParameter, TCalculator>>(Expression.New(ctorInfo, parameterExpression), parameterExpression)
+                        .Compile();
+                    res.Add(childType.Key, ctor);
+                }
             }
 
             return res;
@@ -134,8 +137,8 @@ namespace SecretSharingDotNet.Math
         private static Dictionary<Type, Type> GetDerivedNumberTypes()
         {
             var asm = Assembly.GetAssembly(typeof(Calculator));
-            var listOfClasses = asm.GetTypes().Where(x => x.IsSubclassOf(typeof(Calculator)) && !x.IsGenericType);
-            return listOfClasses.ToDictionary(x => x.BaseType?.GetGenericArguments()[0]);
+            var listOfClasses = asm?.GetTypes().Where(x => x.IsSubclassOf(typeof(Calculator)) && !x.IsGenericType);
+            return listOfClasses?.ToDictionary(x => x.BaseType?.GetGenericArguments()[0]) ?? new Dictionary<Type, Type>();
         }
     }
 }
