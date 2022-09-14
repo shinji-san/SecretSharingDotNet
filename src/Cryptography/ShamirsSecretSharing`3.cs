@@ -476,6 +476,11 @@ namespace SecretSharingDotNet.Cryptography
             }
 
             var maximumY = shares.Select(point => point.Y).Max();
+            if (maximumY == null)
+            {
+                throw new ArgumentException(ErrorMessages.NoMaximumY, nameof(shares));
+            }
+
             this.SecurityLevel = maximumY.ByteCount * 8;
             int index = Array.IndexOf(this.securityLevels, this.SecurityLevel);
             while ((maximumY % this.mersennePrime + this.mersennePrime) % this.mersennePrime == maximumY && index > 0 && this.SecurityLevel > 5)
@@ -484,6 +489,7 @@ namespace SecretSharingDotNet.Cryptography
             }
 
             this.SecurityLevel = this.securityLevels[this.SecurityLevel > 5 ? ++index : index];
+
             return this.LagrangeInterpolate(shares, this.mersennePrime);
         }
     }
