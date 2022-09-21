@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `Microsoft.NET.Test.Sdk` Nuget package version to 17.2.0.
 - Updated `xunit.runner.visualstudio` Nuget package version to 2.4.5.
 - Set `Calculator` fields `ChildTypes` and `ChildBaseCtors` from protected to private.
+- Performance improvements for `ShamirsSecretSharing` classes.
+- Performance improvements for `FinitePoint` class.
+- Performance improvements for generic `Calculator` class.
 
 ### Fixed
 - Fixed style guide violations in SharesEnumerator.cs.
