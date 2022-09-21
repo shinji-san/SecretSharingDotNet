@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed style guide violations in Calculator.cs.
 - Fixed style guide violations in Calculator`1.cs.
 - Fixed style guide violations in BigIntCalculator.cs.
+- Fixed style guide violations in Secret.cs. Split file into Secret.cs and Secret`1.cs.
 - Fixed possible null reference exception in `Calculator` class.
 - Fixed possible null reference exception in `Shares` class.
 - Fixed possible null reference exception in `ShamirsSecretSharing` class.
