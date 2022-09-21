@@ -36,7 +36,7 @@ namespace SecretSharingDotNet.Math
     /// including Bézout coefficients.
     /// </summary>
     /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
-    /// <typeparam name="TExtendedGcdResult">Data type of the extended GCD reuslt</typeparam>
+    /// <typeparam name="TExtendedGcdResult">Data type of the extended GCD result</typeparam>
     public interface IExtendedGcdAlgorithm<TNumber, out TExtendedGcdResult> where TExtendedGcdResult : struct, IExtendedGcdResult<TNumber>
     {
         /// <summary>
