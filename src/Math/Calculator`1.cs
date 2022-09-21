@@ -354,18 +354,18 @@ namespace SecretSharingDotNet.Math
         /// <summary>
         /// Gets a value that represents the number zero (0).
         /// </summary>
-        public static Calculator<TNumber> Zero => default(TNumber);
+        public static Calculator<TNumber> Zero { get; } = default(TNumber);
 
         /// <summary>
         /// Gets a value that represents the number one (1).
         /// </summary>
-        public static Calculator<TNumber> One => Zero.Increment();
+        public static Calculator<TNumber> One { get; } = Zero.Increment();
 
         /// <summary>
         /// Gets a value that represents the number two (2).
         /// </summary>
         /// <returns></returns>
-        public static Calculator<TNumber> Two => One.Increment();
+        public static Calculator<TNumber> Two { get; } = One.Increment();
 
         /// <summary>
         /// A shallow copy of the current <see cref="Calculator{TNumber}"/> instance.
