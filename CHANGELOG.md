@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed style guide violations in SharesEnumerator.cs.
 - Fixed style guide violations in IExtendedGcdAlgorithm`2.cs.
 - Fixed style guide violations in ExtendedEuclideanAlgorithm.cs.
+- Fixed style guide violations in Calculator.cs.
+- Fixed style guide violations in Calculator`1.cs.
+- Fixed style guide violations in BigIntCalculator.cs.
 - Fixed possible null reference exception in `Calculator` class.
 - Fixed possible null reference exception in `Shares` class.
 - Fixed possible null reference exception in `ShamirsSecretSharing` class.
