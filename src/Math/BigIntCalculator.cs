@@ -1,9 +1,9 @@
 // ----------------------------------------------------------------------------
 // <copyright file="BigIntCalculator.cs" company="Private">
-// Copyright (c) 2019 All Rights Reserved
+// Copyright (c) 2022 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
-// <date>04/20/2019 10:52:28 PM</date>
+// <date>08/20/2022 02:34:00 PM</date>
 // ----------------------------------------------------------------------------
 
 #region License
@@ -225,5 +225,11 @@ namespace SecretSharingDotNet.Math
                 return root;
             }
         }
+
+        /// <summary>
+        /// Converts the numeric value of the current <see cref="BigIntCalculator"/> object to its equivalent string representation.
+        /// </summary>
+        /// <returns>The <see cref="System.String"/> representation of the current <see cref="BigIntCalculator"/> value.</returns>
+        public override string ToString() => this.Value.ToString();
     }
 }

@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed style guide violations in SharesEnumerator.cs.
+- Fixed unnecessary boxing/unboxing in the `ToString()` methods in `Calculator` classes.
 
 ### Removed
 - Removed constructor w/ `ReadOnlyCollection` parameter from the `SharesEnumerator{TNumber}` class.

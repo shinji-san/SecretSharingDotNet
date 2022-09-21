@@ -101,6 +101,12 @@ namespace SecretSharingDotNet.Math
         public static Calculator Create(byte[] data, Type numberType) => ChildBaseCtors[numberType](data);
 
         /// <summary>
+        /// Returns a <see cref="System.String"/> that represents the current <see cref="Calculator"/>.
+        /// </summary>
+        /// <returns>The <see cref="System.String"/> representation of this <see cref="Calculator"/> object</returns>
+        public abstract override string ToString();
+
+        /// <summary>
         /// Returns a dictionary of constructors of number data types derived from the <see cref="Calculator"/> class.
         /// </summary>
         /// <returns></returns>
