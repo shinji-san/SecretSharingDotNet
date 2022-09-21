@@ -297,7 +297,14 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// Gets an object that can be used to synchronize access to the <see cref="Shares{TNumber}"/> collection.
         /// </summary>
-        object ICollection.SyncRoot => (this.syncRoot ?? Interlocked.CompareExchange(ref this.syncRoot, new object(), null)) ?? this.syncRoot;
+        object ICollection.SyncRoot
+        {
+            get
+            {
+                object newValue = new object();
+                return (this.syncRoot ?? Interlocked.CompareExchange(ref this.syncRoot, newValue, null)) ?? newValue;
+            }
+        }
 
         /// <summary>
         /// Gets a value indicating whether access to the <see cref="Shares{TNumber}"/> collection is synchronized (thread safe).

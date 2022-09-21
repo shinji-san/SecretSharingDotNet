@@ -119,5 +119,11 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("DataTypeNotSupported", resourceCulture);
             }
         }
+        
+        internal static string NoMaximumY {
+            get {
+                return ResourceManager.GetString("NoMaximumY", resourceCulture);
+            }
+        }
     }
 }
