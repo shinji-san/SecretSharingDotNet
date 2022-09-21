@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed style guide violations in SharesEnumerator.cs.
+- Fixed possible null reference exception in `Calculator` class.
+- Fixed possible null reference exception in `Shares` class.
+- Fixed possible null reference exception in `ShamirsSecretSharing` class.
 - Fixed unnecessary boxing/unboxing in the `ToString()` methods in `Calculator` classes.
 
 ### Removed
