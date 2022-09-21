@@ -63,7 +63,7 @@ namespace SecretSharingDotNet.Math
         /// <summary>
         /// Gets the byte representation of the <see cref="Calculator"/> object.
         /// </summary>
-        public abstract ReadOnlyCollection<byte> ByteRepresentation { get; }
+        public abstract IEnumerable<byte> ByteRepresentation { get; }
 
         /// <summary>
         /// Gets a value indicating whether or not the current <see cref="Calculator"/> object is zero.
@@ -118,12 +118,14 @@ namespace SecretSharingDotNet.Math
             foreach (var childType in ChildTypes)
             {
                 var ctorInfo = childType.Value.GetConstructor(new[] {paramType});
-                if (ctorInfo != null)
+                if (ctorInfo == null)
                 {
-                    var ctor = Expression.Lambda<Func<TParameter, TCalculator>>(Expression.New(ctorInfo, parameterExpression), parameterExpression)
-                        .Compile();
-                    res.Add(childType.Key, ctor);
+                    continue;
                 }
+
+                var ctor = Expression.Lambda<Func<TParameter, TCalculator>>(Expression.New(ctorInfo, parameterExpression), parameterExpression)
+                    .Compile();
+                res.Add(childType.Key, ctor);
             }
 
             return res;

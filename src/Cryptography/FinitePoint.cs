@@ -228,13 +228,14 @@ namespace SecretSharingDotNet.Cryptography
         /// <remarks>
         /// Based on discussion on <see href="https://stackoverflow.com/questions/623104/byte-to-hex-string/5919521#5919521">stackoverflow</see>
         /// </remarks>
-        private static string ToHexString(IReadOnlyCollection<byte> bytes)
+        private static string ToHexString(IEnumerable<byte> bytes)
         {
-            StringBuilder hexRepresentation = new StringBuilder(bytes.Count * 2);
-            foreach (byte b in bytes)
+            byte[] byteArray = bytes as byte[] ?? bytes.ToArray();
+            var hexRepresentation = new StringBuilder(byteArray.Length * 2);
+            foreach (byte b in byteArray)
             {
                 const string hexAlphabet = "0123456789ABCDEF";
-                hexRepresentation.Append(new[] { hexAlphabet[b >> 4], hexAlphabet[b & 0xF] });
+                hexRepresentation.Append(hexAlphabet[b >> 4]).Append(hexAlphabet[b & 0xF]);
             }
 
             return hexRepresentation.ToString();

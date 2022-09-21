@@ -332,6 +332,7 @@ namespace SecretSharingDotNet.Math
         /// indicates whether the value of this instance is less than, equal to, or greater than the value of the specified object.
         /// </summary>
         /// <param name="obj">The object to compare</param>
+        /// <exception cref="ArgumentException"><paramref name="obj"/> has a unknown data type</exception>
         /// <returns>A signed integer that indicates the relationship of the current instance to the <paramref name="obj"/> parameter</returns>
         public virtual int CompareTo(object obj)
         {
@@ -364,7 +365,6 @@ namespace SecretSharingDotNet.Math
         /// <summary>
         /// Gets a value that represents the number two (2).
         /// </summary>
-        /// <returns></returns>
         public static Calculator<TNumber> Two { get; } = One.Increment();
 
         /// <summary>
