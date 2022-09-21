@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Add `ToInt32()` method to `BigInteger` and `Calculator` class.
+- Add `ToInt32()` method to `BigIntCalculator` and `Calculator` class.
 - Introduce the `IExtendedGcdResult` interface to decouple GCD result implementations.
 
 ### Changed
@@ -93,7 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated examples in README.md based on the new return type for the split method
 - Updated xUnit package references in CSharp projects 
 - Updated Microsoft Test SDK package references in CSharp projects
-- Updated Mircosoft .NET FX reference assemblies package references in CSharp projects
+- Updated Microsoft .NET FX reference assemblies package references in CSharp projects
 
 ### Deprecated
 - The tuple return type for the split method 'MakeShares' is obsolete
@@ -136,7 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2020-04-12
 ### Added
-- Addded full .NET Core 3.1 support
+- Added full .NET Core 3.1 support
 
 ## [0.1.1] - 2020-04-11
 ### Fixed
@@ -144,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2020-04-11
 ### Added
-- Added initial verion of SecretSharingDotNet
+- Added initial version of SecretSharingDotNet
 - Added .NET FX 4.5.2 support
 - Added .NET Core 2.1 support
 - Added limited .NET Core 3.1 support
