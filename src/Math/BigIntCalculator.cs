@@ -32,6 +32,7 @@
 namespace SecretSharingDotNet.Math
 {
     using System;
+    using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Numerics;
 
@@ -174,7 +175,7 @@ namespace SecretSharingDotNet.Math
         /// <summary>
         /// Gets the byte representation of the <see cref="BigIntCalculator"/> object.
         /// </summary>
-        public override ReadOnlyCollection<byte> ByteRepresentation => new ReadOnlyCollection<byte>(this.Value.ToByteArray());
+        public override IEnumerable<byte> ByteRepresentation => new ReadOnlyCollection<byte>(this.Value.ToByteArray());
 
         /// <summary>
         /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"/> object is zero (0).
@@ -200,9 +201,9 @@ namespace SecretSharingDotNet.Math
         /// Returns the square root of the current <see cref="BigIntCalculator"/> object.
         /// </summary>
         /// <exception cref="T:System.ArithmeticException" accessor="get">NaN (value is lower than zero)</exception>
-        public override Calculator<BigInteger> Sqrt 
+        public override Calculator<BigInteger> Sqrt
         {
-            get 
+            get
             {
                 if (this.Value == BigInteger.Zero)
                 {
@@ -215,11 +216,11 @@ namespace SecretSharingDotNet.Math
                 }
 
                 int bitLength = Convert.ToInt32(Math.Ceiling(BigInteger.Log(this.Value, 2)));
-                BigInteger root = BigInteger.One << (bitLength >> 1);
+                var root = BigInteger.One << (bitLength >> 1);
                 bool IsSqrt(BigInteger n, BigInteger r) => n >= r * r && n < (r + 1) * (r + 1);
                 while (!IsSqrt(this.Value, root))
                 {
-                    root = (root + this.Value / root) >> 1;
+                    root = root + this.Value / root >> 1;
                 }
 
                 return root;
