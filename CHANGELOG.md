@@ -19,13 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Performance improvements for generic `Calculator` class.
 
 ### Fixed
-- Fixed style guide violations in SharesEnumerator.cs.
-- Fixed style guide violations in IExtendedGcdAlgorithm`2.cs.
-- Fixed style guide violations in ExtendedEuclideanAlgorithm.cs.
-- Fixed style guide violations in Calculator.cs.
-- Fixed style guide violations in Calculator`1.cs.
-- Fixed style guide violations in BigIntCalculator.cs.
-- Fixed style guide violations in Secret.cs. Split file into Secret.cs and Secret`1.cs.
+- Fixed style guide violations in `CHANGELOG.md`.
+- Fixed style guide violations in `Shares.cs`.
+- Fixed style guide violations in `SharesEnumerator.cs`.
+- Fixed style guide violations in ``IExtendedGcdAlgorithm`2.cs``.
+- Fixed style guide violations in `ExtendedEuclideanAlgorithm.cs`.
+- Fixed style guide violations in `Calculator.cs`.
+- Fixed style guide violations in ``Calculator`1.cs``.
+- Fixed style guide violations in `BigIntCalculator.cs`.
+- Fixed style guide violations in `Secret.cs`. Split file into `Secret.cs` and ``Secret`1.cs``.
 - Fixed possible null reference exception in `Calculator` class.
 - Fixed possible null reference exception in `Shares` class.
 - Fixed possible null reference exception in `ShamirsSecretSharing` class.
@@ -46,15 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Changed existing examples in the section *Usage* of the `README.md` file to explain the use and the type casting of recovered secrets.
-- Minify NuGet package README.md
+- Minify NuGet package `README.md`
 - Changed ctor `ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd)`. This ctor sets the SecurityLevel to 13.
 
 ### Deprecated
 - Ctor `ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd, int securityLevel)` is deprecated.
 - Method `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares)` is deprecated.
 - Shares to tuple type casting is obsolete and will be remove in the next release.
-- Shares.Item1 property is obsolete and will be remove in the next release.
-- Shares.Item2 property is obsolete and will be remove in the next release.
+- `Shares.Item1` property is obsolete and will be remove in the next release.
+- `Shares.Item2` property is obsolete and will be remove in the next release.
 
 ### Removed
 - Removed .NET 5 support, because it retires on May 10, 2022. See [Microsoft .NET and .NET Core - Support Dates](https://docs.microsoft.com/en-us/lifecycle/products/microsoft-net-and-net-core).
@@ -62,10 +64,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.0] - 2022-02-09
 ### Added
 - Added implicit casts for byte arrays in *Secret* class.
-- Added legacy mode. See README.md, section "Usage" for more details.
+- Added legacy mode. See `README.md`, section "Usage" for more details.
 
 ### Changed
-- Changed behavior of *Secret* class for negative secret values. See README.md, section "Usage" and bug report [#60](https://github.com/shinji-san/SecretSharingDotNet/issues/60) for more details.
+- Changed behavior of *Secret* class for negative secret values. See `README.md`, section "Usage" and bug report [#60](https://github.com/shinji-san/SecretSharingDotNet/issues/60) for more details.
 - Changed calculation of maximum security level in Reconstruction method.
 
 ### Fixed
@@ -82,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add .NET 6 support
 
 ### Changed
-- Use RandomNumberGenerator class instead RNGCryptoServiceProvider class to create the polynomial. For details see dotnet runtime issue [40169](https://github.com/dotnet/runtime/issues/40169)
+- Use `RandomNumberGenerator` class instead `RNGCryptoServiceProvider` class to create the polynomial. For details see dotnet runtime issue [40169](https://github.com/dotnet/runtime/issues/40169)
 
 ### Fixed
 - Fixed bug [#60](https://github.com/shinji-san/SecretSharingDotNet/issues/60) "Reconstruction fails at random" which occurs when the secret is created from a base64 string
@@ -93,10 +95,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - 2021-10-07
 ### Added
 - Introduced a new return type for the split method 'MakeShares'
-- Added CLI building instructions in README.md
+- Added CLI building instructions in `README.md`
 
 ### Changed
-- Updated examples in README.md based on the new return type for the split method
+- Updated examples in `README.md` based on the new return type for the split method
 - Updated xUnit package references in CSharp projects 
 - Updated Microsoft Test SDK package references in CSharp projects
 - Updated Microsoft .NET FX reference assemblies package references in CSharp projects
@@ -107,9 +109,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed CI version dependency
 - Fixed code quality issues in CSharp code
-- Fixed spelling mistakes in README.md
-- Fixed .NET 5 solution filename in README.md
-- Added missing target framework .NET 5 to SecretSharingDotNetTest.csproj 
+- Fixed spelling mistakes in `README.md`
+- Fixed .NET 5 solution filename in `README.md`
+- Added missing target framework .NET 5 to `SecretSharingDotNetTest.csproj` 
 
 ## [0.4.2] - 2020-12-18
 ### Fixed
@@ -138,7 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added .NET Standard 2.1 support
 
 ### Changed
-- README.md: Extend build & test status corresponding to the .NET versions
+- `README.md`: Extend build & test status corresponding to the .NET versions
 
 ## [0.2.0] - 2020-04-12
 ### Added
@@ -155,9 +157,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added .NET Core 2.1 support
 - Added limited .NET Core 3.1 support
 - Added GitHub issue template
-- Added CODE_OF_CONDUCT.md
-- Added LICENSE.md
-- Added README.md
+- Added `CODE_OF_CONDUCT.md`
+- Added `LICENSE.md`
+- Added `README.md`
 
 [Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.8.0...HEAD
 [0.8.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.7.0...v0.8.0
