@@ -57,9 +57,10 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// Initializes a new instance of the <see cref="FinitePoint{TNumber}"/> struct.
         /// </summary>
-        /// <param name="x">X coordinate as known as share index</param>
-        /// <param name="polynomial">Polynomial</param>
+        /// <param name="x">The x-coordinate as known as share index</param>
+        /// <param name="polynomial">The polynomial</param>
         /// <param name="prime">The prime number given by the security level.</param>
+        /// <exception cref="ArgumentNullException">One or more of the parameters <paramref name="x"/>, <paramref name="polynomial"/> or <paramref name="prime"/> are <see langword="null"/></exception>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x")]
         public FinitePoint(Calculator<TNumber> x, ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> prime)
         {
@@ -79,8 +80,8 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentNullException(nameof(serialized));
             }
 
-            var s = serialized.Split('-');
-            Type numberType = typeof(TNumber);
+            string[] s = serialized.Split('-');
+            var numberType = typeof(TNumber);
             this.x = Calculator.Create(ToByteArray(s[0]), numberType) as Calculator<TNumber>;
             this.y = Calculator.Create(ToByteArray(s[1]), numberType) as Calculator<TNumber>;
         }
@@ -111,58 +112,54 @@ namespace SecretSharingDotNet.Cryptography
         public Calculator<TNumber> Y => this.y;
 
         /// <summary>
-        /// 
+        /// Equality operator
         /// </summary>
-        /// <param name="left"></param>
-        /// <param name="right"></param>
-        /// <returns></returns>
+        /// <param name="left">The left operand</param>
+        /// <param name="right">The right operand</param>
+        /// <returns>Returns <see langword="true"/> if its operands are equal, otherwise <see langword="false"/>.</returns>
         public static bool operator ==(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.Equals(right);
 
         /// <summary>
-        /// 
+        /// Inequality operator
         /// </summary>
-        /// <param name="left"></param>
-        /// <param name="right"></param>
-        /// <returns></returns>
+        /// <param name="left">The left operand</param>
+        /// <param name="right">The right operand</param>
+        /// <returns>Returns <see langword="true"/> if its operands are not equal, otherwise <see langword="false"/>.</returns>
         public static bool operator !=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => !left.Equals(right);
 
         /// <summary>
-        /// 
+        /// Greater than operator
         /// </summary>
-        /// <param name="left"></param>
-        /// <param name="right"></param>
-        /// <returns></returns>
+        /// <param name="left">The 1st operand</param>
+        /// <param name="right">The 2nd operand</param>
+        /// <returns>Returns <see langword="true"/> if its 1st operand is greater than its 2nd operand, otherwise <see langword="false"/>.</returns>
         public static bool operator >(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) == 1;
 
         /// <summary>
-        /// 
+        /// Less than operator
         /// </summary>
-        /// <param name="left"></param>
-        /// <param name="right"></param>
-        /// <returns></returns>
+        /// <param name="left">The 1st operand</param>
+        /// <param name="right">The 2nd operand</param>
+        /// <returns>Returns <see langword="true"/> if its 1st operand is less than its 2nd operand, otherwise <see langword="false"/>.</returns>
         public static bool operator <(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) == -1;
 
         /// <summary>
-        /// 
+        /// Greater than or equal operator
         /// </summary>
-        /// <param name="left"></param>
-        /// <param name="right"></param>
-        /// <returns></returns>
+        /// <param name="left">The 1st operand</param>
+        /// <param name="right">The 2nd operand</param>
+        /// <returns>Returns <see langword="true"/> if its 1st operand is greater than or equal to its 2nd operand, otherwise <see langword="false"/>.</returns>
         public static bool operator >=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) >= 0;
 
         /// <summary>
-        /// 
+        /// Less than or equal operator
         /// </summary>
-        /// <param name="left"></param>
-        /// <param name="right"></param>
-        /// <returns></returns>
+        /// <param name="left">The 1st operand</param>
+        /// <param name="right">The 2nd operand</param>
+        /// <returns>Returns <see langword="true"/> if its 1st operand is less than or equal to its 2nd operand, otherwise <see langword="false"/>.</returns>
         public static bool operator <=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) <= 0;
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="other"></param>
-        /// <returns></returns>
+        /// <inheritdoc />
         public int CompareTo(FinitePoint<TNumber> other)
         {
             return ((this.X.Pow(2) + this.Y.Pow(2)).Sqrt - (other.X.Pow(2) + other.Y.Pow(2)).Sqrt).Sign;
@@ -245,11 +242,12 @@ namespace SecretSharingDotNet.Cryptography
         /// Converts a hexadecimal string to a byte array.
         /// </summary>
         /// <param name="hexString">hexadecimal string</param>
-        /// <returns></returns>
+        /// <returns>Returns a byte array</returns>
         private static byte[] ToByteArray(string hexString)
         {
-            var bytes = new byte[hexString.Length / 2];
-            var hexValues = Array.AsReadOnly(new[] {
+            byte[] bytes = new byte[hexString.Length / 2];
+            var hexValues = Array.AsReadOnly(new[]
+            {
                 0x00,
                 0x01,
                 0x02,
@@ -278,7 +276,7 @@ namespace SecretSharingDotNet.Cryptography
             for (int x = 0, i = 0; i < hexString.Length; i += 2, x += 1)
             {
                 const char zeroDigit = '0';
-                bytes[x] = (byte)((hexValues[char.ToUpper(hexString[i + 0], CultureInfo.InvariantCulture) - zeroDigit] << 4) | hexValues[char.ToUpper(hexString[i + 1], CultureInfo.InvariantCulture) - zeroDigit]);
+                bytes[x] = (byte)(hexValues[char.ToUpper(hexString[i + 0], CultureInfo.InvariantCulture) - zeroDigit] << 4 | hexValues[char.ToUpper(hexString[i + 1], CultureInfo.InvariantCulture) - zeroDigit]);
             }
 
             return bytes;
