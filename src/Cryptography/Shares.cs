@@ -65,7 +65,7 @@ namespace SecretSharingDotNet.Cryptography
         private Shares(IList<FinitePoint<TNumber>> shares)
         {
             _ = shares ?? throw new ArgumentNullException(nameof(shares));
-            this.shareList = new Collection<FinitePoint<TNumber>>(shares);
+            this.shareList = shares as Collection<FinitePoint<TNumber>> ?? new Collection<FinitePoint<TNumber>>(shares);
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace SecretSharingDotNet.Cryptography
         {
             this.OriginalSecret = secret ?? throw new ArgumentNullException(nameof(secret));
             _ = shares ?? throw new ArgumentNullException(nameof(shares));
-            this.shareList = new Collection<FinitePoint<TNumber>>(shares);
+            this.shareList = shares as Collection<FinitePoint<TNumber>> ?? new Collection<FinitePoint<TNumber>>(shares);
         }
 
         /// <summary>
@@ -87,10 +87,10 @@ namespace SecretSharingDotNet.Cryptography
         public Secret<TNumber> OriginalSecret { get; }
 
         /// <summary>
-        /// Gets or sets the <see cref="FinitePoint{TNumber}"/> associated with the specified index.
+        /// Gets the <see cref="FinitePoint{TNumber}"/> associated with the specified index.
         /// </summary>
-        /// <param name="i">The index of the <see cref="FinitePoint{TNumber}"/> to get or set.</param>
-        /// <returns></returns>
+        /// <param name="i">The index of the <see cref="FinitePoint{TNumber}"/> to get.</param>
+        /// <returns>Returns a share (shared secret) represented by a <see cref="FinitePoint{TNumber}"/>.</returns>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "i")]
         public FinitePoint<TNumber> this[int i] => this.shareList[i];
 
@@ -149,8 +149,9 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns>A human readable list of shares separated by newlines</returns>
         public override string ToString()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            foreach (var share in this.shareList)
+            var stringBuilder = new StringBuilder();
+            var shares = this.shareList as FinitePoint<TNumber>[] ?? this.shareList.ToArray();
+            foreach (var share in shares)
             {
                 stringBuilder.AppendLine(share.ToString());
             }
@@ -162,13 +163,13 @@ namespace SecretSharingDotNet.Cryptography
         /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
         /// </summary>
         /// <returns>An enumerator that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-        IEnumerator<FinitePoint<TNumber>> IEnumerable<FinitePoint<TNumber>>.GetEnumerator() => GetEnumerator();
+        IEnumerator<FinitePoint<TNumber>> IEnumerable<FinitePoint<TNumber>>.GetEnumerator() => this.GetEnumerator();
 
         /// <summary>
         /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
         /// </summary>
         /// <returns>An <see cref="IEnumerator"/> object that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
         /// <summary>
         /// Returns an <see cref="SharesEnumerator{TNumber}"/> that iterates through the <see cref="Shares{TNumber}"/> collection.
@@ -283,7 +284,7 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentOutOfRangeException(nameof(arrayIndex), ErrorMessages.StartArrayIndexNegative);
             }
 
-            if (Count > array.Length - arrayIndex + 1)
+            if (this.Count > array.Length - arrayIndex + 1)
             {
                 throw new ArgumentException(ErrorMessages.DestinationArrayHasFewerElements, nameof(array));
             }
