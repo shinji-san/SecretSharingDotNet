@@ -65,7 +65,7 @@ namespace SecretSharingDotNet.Cryptography
         private Shares(IList<FinitePoint<TNumber>> shares)
         {
             _ = shares ?? throw new ArgumentNullException(nameof(shares));
-            this.shareList = new Collection<FinitePoint<TNumber>>(shares);
+            this.shareList = shares as Collection<FinitePoint<TNumber>> ?? new Collection<FinitePoint<TNumber>>(shares);
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace SecretSharingDotNet.Cryptography
         {
             this.OriginalSecret = secret ?? throw new ArgumentNullException(nameof(secret));
             _ = shares ?? throw new ArgumentNullException(nameof(shares));
-            this.shareList = new Collection<FinitePoint<TNumber>>(shares);
+            this.shareList = shares as Collection<FinitePoint<TNumber>> ?? new Collection<FinitePoint<TNumber>>(shares);
         }
 
         /// <summary>
@@ -87,39 +87,17 @@ namespace SecretSharingDotNet.Cryptography
         public Secret<TNumber> OriginalSecret { get; }
 
         /// <summary>
-        /// Gets the original secret
+        /// Gets the <see cref="FinitePoint{TNumber}"/> associated with the specified index.
         /// </summary>
-        /// <remarks>Legacy property</remarks>
-        [Obsolete("Legacy property. Will be removed in futures versions. Pleas use OriginalSecret property.", true)]
-        public Secret<TNumber> Item1 => this.OriginalSecret;
-
-        /// <summary>
-        /// Gets or sets the <see cref="FinitePoint{TNumber}"/> associated with the specified index.
-        /// </summary>
-        /// <param name="i">The index of the <see cref="FinitePoint{TNumber}"/> to get or set.</param>
-        /// <returns></returns>
+        /// <param name="i">The index of the <see cref="FinitePoint{TNumber}"/> to get.</param>
+        /// <returns>Returns a share (shared secret) represented by a <see cref="FinitePoint{TNumber}"/>.</returns>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "i")]
         public FinitePoint<TNumber> this[int i] => this.shareList[i];
-
-        /// <summary>
-        /// Gets the shares.
-        /// </summary>
-        /// <remarks>Legacy property</remarks>
-        [Obsolete("Legacy property. Will be removed in futures versions.", true)]
-        public ICollection<FinitePoint<TNumber>> Item2 => this.shareList;
 
         /// <summary>
         /// Gets a value indicating whether or not the original secret is available.
         /// </summary>
         public bool OriginalSecretExists => this.OriginalSecret != null;
-
-        /// <summary>
-        /// Casts a <see cref="Shares{TNumber}"/> object to a <see cref="Tuple"/> object.
-        /// </summary>
-        /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
-        [Obsolete("Legacy property. Will be removed in futures versions.", true)]
-        public static implicit operator Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(Shares<TNumber> shares) => new Tuple<Secret<TNumber>, ICollection<FinitePoint<TNumber>>>(shares?.OriginalSecret, shares);
 
         /// <summary>
         /// Casts a <see cref="Shares{TNumber}"/> object to a array of <see cref="string"/>s.
@@ -171,8 +149,9 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns>A human readable list of shares separated by newlines</returns>
         public override string ToString()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            foreach (var share in this.shareList)
+            var stringBuilder = new StringBuilder();
+            var shares = this.shareList as FinitePoint<TNumber>[] ?? this.shareList.ToArray();
+            foreach (var share in shares)
             {
                 stringBuilder.AppendLine(share.ToString());
             }
@@ -184,13 +163,13 @@ namespace SecretSharingDotNet.Cryptography
         /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
         /// </summary>
         /// <returns>An enumerator that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-        IEnumerator<FinitePoint<TNumber>> IEnumerable<FinitePoint<TNumber>>.GetEnumerator() => GetEnumerator();
+        IEnumerator<FinitePoint<TNumber>> IEnumerable<FinitePoint<TNumber>>.GetEnumerator() => this.GetEnumerator();
 
         /// <summary>
         /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
         /// </summary>
         /// <returns>An <see cref="IEnumerator"/> object that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
         /// <summary>
         /// Returns an <see cref="SharesEnumerator{TNumber}"/> that iterates through the <see cref="Shares{TNumber}"/> collection.
@@ -275,14 +254,14 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the items copied from <see cref="Shares{TNumber}"/> collection.
         /// The  <see cref="Array"/> must have zero-based indexing.</param>
-        /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
-        void ICollection.CopyTo(Array array, int arrayIndex)
+        /// <param name="index">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+        void ICollection.CopyTo(Array array, int index)
         {
             _ = array ?? throw new ArgumentNullException(nameof(array));
             switch (array)
             {
                 case FinitePoint<TNumber>[] x:
-                    this.CopyTo(x, arrayIndex);
+                    this.CopyTo(x, index);
                     break;
                 default:
                     throw new InvalidCastException(string.Format(ErrorMessages.InvalidArrayTypeCast, nameof(array), array.GetType().GetElementType(), typeof(FinitePoint<TNumber>)));
@@ -296,30 +275,37 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="array">The one-dimensional array of <see cref="FinitePoint{TNumber}"/> items that is the destination of the
         /// items copied from <see cref="Shares{TNumber}"/> collection.
         /// The array must have zero-based indexing.</param>
-        /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
-        public void CopyTo(FinitePoint<TNumber>[] array, int arrayIndex)
+        /// <param name="index">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+        public void CopyTo(FinitePoint<TNumber>[] array, int index)
         {
             _ = array ?? throw new ArgumentNullException(nameof(array));
-            if (arrayIndex < 0)
+            if (index < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(arrayIndex), ErrorMessages.StartArrayIndexNegative);
+                throw new ArgumentOutOfRangeException(nameof(index), ErrorMessages.StartArrayIndexNegative);
             }
 
-            if (Count > array.Length - arrayIndex + 1)
+            if (this.Count > array.Length - index + 1)
             {
                 throw new ArgumentException(ErrorMessages.DestinationArrayHasFewerElements, nameof(array));
             }
 
             for (int i = 0; i < this.shareList.Count; i++)
             {
-                array[i + arrayIndex] = this.shareList[i];
+                array[i + index] = this.shareList[i];
             }
         }
 
         /// <summary>
         /// Gets an object that can be used to synchronize access to the <see cref="Shares{TNumber}"/> collection.
         /// </summary>
-        object ICollection.SyncRoot => (this.syncRoot ?? Interlocked.CompareExchange(ref this.syncRoot, new object(), null)) ?? this.syncRoot;
+        object ICollection.SyncRoot
+        {
+            get
+            {
+                object newValue = new object();
+                return (this.syncRoot ?? Interlocked.CompareExchange(ref this.syncRoot, newValue, null)) ?? newValue;
+            }
+        }
 
         /// <summary>
         /// Gets a value indicating whether access to the <see cref="Shares{TNumber}"/> collection is synchronized (thread safe).

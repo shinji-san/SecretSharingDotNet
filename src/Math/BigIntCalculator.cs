@@ -1,14 +1,38 @@
 // ----------------------------------------------------------------------------
 // <copyright file="BigIntCalculator.cs" company="Private">
-// Copyright (c) 2019 All Rights Reserved
+// Copyright (c) 2022 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
-// <date>04/20/2019 10:52:28 PM</date>
+// <date>08/20/2022 02:34:00 PM</date>
 // ----------------------------------------------------------------------------
+
+#region License
+// ----------------------------------------------------------------------------
+// Copyright 2022 Sebastian Walther
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+#endregion
 
 namespace SecretSharingDotNet.Math
 {
     using System;
+    using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Numerics;
 
@@ -56,6 +80,10 @@ namespace SecretSharingDotNet.Math
         /// <param name="right">right-hand operand</param>
         /// <returns>This method returns <see langword="true"/> if this instance is less than or equal to the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
         public override bool EqualOrLowerThan(BigInteger right) => this.Value <= right;
+
+        /// <inheritdoc />
+        /// <exception cref="T:System.OverflowException">Unable to convert the current instance of <see cref="BigIntCalculator"/> class to <see cref="Int32"/>.</exception>
+        public override int ToInt32() => (int)this.Value;
 
         /// <summary>
         /// Compares this instance to a second <see cref="Calculator{BigInteger}"/> and returns an integer that
@@ -147,7 +175,7 @@ namespace SecretSharingDotNet.Math
         /// <summary>
         /// Gets the byte representation of the <see cref="BigIntCalculator"/> object.
         /// </summary>
-        public override ReadOnlyCollection<byte> ByteRepresentation => new ReadOnlyCollection<byte>(this.Value.ToByteArray());
+        public override IEnumerable<byte> ByteRepresentation => new ReadOnlyCollection<byte>(this.Value.ToByteArray());
 
         /// <summary>
         /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"/> object is zero (0).
@@ -173,9 +201,9 @@ namespace SecretSharingDotNet.Math
         /// Returns the square root of the current <see cref="BigIntCalculator"/> object.
         /// </summary>
         /// <exception cref="T:System.ArithmeticException" accessor="get">NaN (value is lower than zero)</exception>
-        public override Calculator<BigInteger> Sqrt 
+        public override Calculator<BigInteger> Sqrt
         {
-            get 
+            get
             {
                 if (this.Value == BigInteger.Zero)
                 {
@@ -188,15 +216,21 @@ namespace SecretSharingDotNet.Math
                 }
 
                 int bitLength = Convert.ToInt32(Math.Ceiling(BigInteger.Log(this.Value, 2)));
-                BigInteger root = BigInteger.One << (bitLength >> 1);
+                var root = BigInteger.One << (bitLength >> 1);
                 bool IsSqrt(BigInteger n, BigInteger r) => n >= r * r && n < (r + 1) * (r + 1);
                 while (!IsSqrt(this.Value, root))
                 {
-                    root = (root + this.Value / root) >> 1;
+                    root = root + this.Value / root >> 1;
                 }
 
                 return root;
             }
         }
+
+        /// <summary>
+        /// Converts the numeric value of the current <see cref="BigIntCalculator"/> object to its equivalent string representation.
+        /// </summary>
+        /// <returns>The <see cref="System.String"/> representation of the current <see cref="BigIntCalculator"/> value.</returns>
+        public override string ToString() => this.Value.ToString();
     }
 }

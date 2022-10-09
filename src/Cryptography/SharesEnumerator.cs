@@ -58,16 +58,6 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="shares">A collection of <see cref="FinitePoint{TNumber}"/> items representing the shares.</param>
         /// <exception cref="T:System.ArgumentNullException"><paramref name="shares"/> is <see langword="null"/></exception>
-        public SharesEnumerator(ReadOnlyCollection<FinitePoint<TNumber>> shares)
-        {
-            this.shareList = shares ?? throw new ArgumentNullException(nameof(shares));
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SharesEnumerator{TNumber}"/> class.
-        /// </summary>
-        /// <param name="shares">A collection of <see cref="FinitePoint{TNumber}"/> items representing the shares.</param>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="shares"/> is <see langword="null"/></exception>
         public SharesEnumerator(Collection<FinitePoint<TNumber>> shares)
         {
             _ = shares ?? throw new ArgumentNullException(nameof(shares));
@@ -82,7 +72,7 @@ namespace SecretSharingDotNet.Cryptography
         public bool MoveNext()
         {
             this.position++;
-            return (this.position < shareList.Count);
+            return this.position < this.shareList.Count;
         }
 
         /// <summary>
@@ -109,7 +99,7 @@ namespace SecretSharingDotNet.Cryptography
             {
                 try
                 {
-                    return this.shareList[position];
+                    return this.shareList[this.position];
                 }
                 catch (IndexOutOfRangeException)
                 {

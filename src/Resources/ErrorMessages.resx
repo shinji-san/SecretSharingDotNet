@@ -54,4 +54,7 @@
     <data name="DataTypeNotSupported" xml:space="preserve">
         <value>Data Type '{0}' not supported!</value>
     </data>
+    <data name="NoMaximumY" xml:space="preserve">
+        <value>Unexpected error. The largest Y coordinate could not be determined. Please check the shares.</value>
+    </data>
 </root>
