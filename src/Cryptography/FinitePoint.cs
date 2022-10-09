@@ -273,10 +273,10 @@ namespace SecretSharingDotNet.Cryptography
                 0x0F
             });
 
-            for (int x = 0, i = 0; i < hexString.Length; i += 2, x += 1)
+            for (int i = 0, j = 0; j < hexString.Length; j += 2, i += 1)
             {
                 const char zeroDigit = '0';
-                bytes[x] = (byte)(hexValues[char.ToUpper(hexString[i + 0], CultureInfo.InvariantCulture) - zeroDigit] << 4 | hexValues[char.ToUpper(hexString[i + 1], CultureInfo.InvariantCulture) - zeroDigit]);
+                bytes[i] = (byte)(hexValues[char.ToUpper(hexString[j + 0], CultureInfo.InvariantCulture) - zeroDigit] << 4 | hexValues[char.ToUpper(hexString[j + 1], CultureInfo.InvariantCulture) - zeroDigit]);
             }
 
             return bytes;
