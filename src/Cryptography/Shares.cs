@@ -254,14 +254,14 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the items copied from <see cref="Shares{TNumber}"/> collection.
         /// The  <see cref="Array"/> must have zero-based indexing.</param>
-        /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
-        void ICollection.CopyTo(Array array, int arrayIndex)
+        /// <param name="index">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+        void ICollection.CopyTo(Array array, int index)
         {
             _ = array ?? throw new ArgumentNullException(nameof(array));
             switch (array)
             {
                 case FinitePoint<TNumber>[] x:
-                    this.CopyTo(x, arrayIndex);
+                    this.CopyTo(x, index);
                     break;
                 default:
                     throw new InvalidCastException(string.Format(ErrorMessages.InvalidArrayTypeCast, nameof(array), array.GetType().GetElementType(), typeof(FinitePoint<TNumber>)));
@@ -275,23 +275,23 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="array">The one-dimensional array of <see cref="FinitePoint{TNumber}"/> items that is the destination of the
         /// items copied from <see cref="Shares{TNumber}"/> collection.
         /// The array must have zero-based indexing.</param>
-        /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
-        public void CopyTo(FinitePoint<TNumber>[] array, int arrayIndex)
+        /// <param name="index">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+        public void CopyTo(FinitePoint<TNumber>[] array, int index)
         {
             _ = array ?? throw new ArgumentNullException(nameof(array));
-            if (arrayIndex < 0)
+            if (index < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(arrayIndex), ErrorMessages.StartArrayIndexNegative);
+                throw new ArgumentOutOfRangeException(nameof(index), ErrorMessages.StartArrayIndexNegative);
             }
 
-            if (this.Count > array.Length - arrayIndex + 1)
+            if (this.Count > array.Length - index + 1)
             {
                 throw new ArgumentException(ErrorMessages.DestinationArrayHasFewerElements, nameof(array));
             }
 
             for (int i = 0; i < this.shareList.Count; i++)
             {
-                array[i + arrayIndex] = this.shareList[i];
+                array[i + index] = this.shareList[i];
             }
         }
 
