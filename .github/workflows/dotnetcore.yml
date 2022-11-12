@@ -17,7 +17,7 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     strategy:
       matrix:
-        dotnet: [ '3.1.415', '6.0.100']
+        dotnet: [ '3.1.415', '6.0.100', '7.0.100' ]
     name: Dotnet ${{ matrix.dotnet }}
 
     steps:
@@ -38,4 +38,6 @@ jobs:
     - name: Test with dotnet SDK v6.0
       if: matrix.dotnet == '6.0.100'
       run: dotnet test --configuration Release SecretSharingDotNet6.sln
-
+    - name: Test with dotnet SDK v7.0
+      if: matrix.dotnet == '7.0.100'
+      run: dotnet test --configuration Release SecretSharingDotNet7.sln
