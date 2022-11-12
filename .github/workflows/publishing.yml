@@ -57,4 +57,4 @@ jobs:
       run: dotnet pack --configuration Release SecretSharingDotNet.sln
 
     - name: Publish package
-      run: dotnet nuget push $(find src/bin/Release -type f  -name 'SecretSharingDotNet*.nupkg' -print 2> /dev/null) -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json
+      run: dotnet nuget push $(find src/bin/Release -type f  -name 'SecretSharingDotNet*.nupkg' -print 2> /dev/null) -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json --skip-duplicate
