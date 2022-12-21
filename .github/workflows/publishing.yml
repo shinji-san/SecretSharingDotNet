@@ -26,9 +26,14 @@ jobs:
       with:
         dotnet-version: 6.0.100
 
+    - name: Setup .NET 7
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 7.0.100
+
     - name: .NET Core SxS
       run: |
-        rsync -a ${DOTNET_ROOT/6.0.100/3.1.415}/* $DOTNET_ROOT/
+        rsync -a ${DOTNET_ROOT/7.0.100/6.0.100/3.1.415}/* $DOTNET_ROOT/
 
     - name: Decrypt large secret
       run: ./.github/secrets/decrypt_publisher_snk.sh
