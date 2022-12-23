@@ -6,10 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Add .NET 7 support
+- Added .NET 7 support
 
 ### Removed
-- Remove .NET Core 3.1 (LTS) support
+- Removed .NET Core 3.1 (LTS) support
+- Removed ctor `ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd, int securityLevel)`.
+- Removed method `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares)`.
 
 ## [0.9.0] - 2022-10-09
 ### Added
