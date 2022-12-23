@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add .NET 7 support
 
+### Removed
+- Remove .NET Core 3.1 (LTS) support
+
 ## [0.9.0] - 2022-10-09
 ### Added
 - Add `ToInt32()` method to `BigIntCalculator` and `Calculator` class.
