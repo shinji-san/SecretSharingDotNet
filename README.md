@@ -74,9 +74,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.9.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=9><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.9.0"/></a></td>
-          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.9.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.9.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.10.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=9><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.10.0"/></a></td>
+          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.10.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.10.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -110,10 +110,10 @@ An C# implementation of Shamir's Secret Sharing.
 
 1. Open a console and switch to the directory, containing your project file.
 
-2. Use the following command to install version 0.9.0 of the SecretSharingDotNet package:
+2. Use the following command to install version 0.10.0 of the SecretSharingDotNet package:
 
     ```dotnetcli
-    dotnet add package SecretSharingDotNet -v 0.9.0 -f <FRAMEWORK>
+    dotnet add package SecretSharingDotNet -v 0.10.0 -f <FRAMEWORK>
     ```
 
 3. After the completition of the command, look at the project file to make sure that the package is successfuly installed.
@@ -122,7 +122,7 @@ An C# implementation of Shamir's Secret Sharing.
 
     ```xml
     <ItemGroup>
-      <PackageReference Include="SecretSharingDotNet" Version="0.9.0" />
+      <PackageReference Include="SecretSharingDotNet" Version="0.10.0" />
     </ItemGroup>
     ```
 ## Remove SecretSharingDotNet package
