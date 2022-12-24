@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added .NET 7 support
 
+### Changed
+- Update `Microsoft.NETFramework.ReferenceAssemblies` to v1.0.3
+
 ### Removed
 - Removed .NET Core 3.1 (LTS) support
 - Removed ctor `ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd, int securityLevel)`.
