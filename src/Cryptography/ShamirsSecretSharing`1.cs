@@ -39,9 +39,5 @@ namespace SecretSharingDotNet.Cryptography
     {
         /// <inheritdoc />
         public ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd) : base(extendedGcd) { }
-
-        /// <inheritdoc />
-        [Obsolete("Obsolete")]
-        public ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd, int securityLevel) : base(extendedGcd, securityLevel) { }
     }
 }

@@ -15,10 +15,7 @@ An C# implementation of Shamir's Secret Sharing.
       <tr>
           <td rowspan=9><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
           <td rowspan=9><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=9>Core</td>
-          <td>Core 3.1 (LTS)</td>
-      </tr>
-      <tr>
+          <td rowspan=9>Sdk</td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -43,14 +40,17 @@ An C# implementation of Shamir's Secret Sharing.
           <td>.NET 6</td>
       </tr>
       <tr>
-          <td rowspan=2><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+Core%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20Core/badge.svg" alt="Build status"></a></td>
-          <td><code>SecretSharingDotNetCore3.1.sln</code></td>
-          <td rowspan=2>Core</td>
-          <td>Core 3.1 (LTS)</td>
+          <td>.NET 7</td>
       </tr>
       <tr>
+          <td rowspan=2><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET/badge.svg" alt="Build status"></a></td>
           <td rowspan=1><code>SecretSharingDotNet6.sln</code></td>
+          <td rowspan=2>SDK</td>
           <td>.NET 6</td>
+      </tr>
+      <tr>
+          <td rowspan=1><code>SecretSharingDotNet7.sln</code></td>
+          <td>.NET 7</td>
       </tr>
       <tr>
           <td><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+FX%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20FX/badge.svg" alt="Build status"></a></td>
@@ -77,12 +77,6 @@ An C# implementation of Shamir's Secret Sharing.
           <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.9.0" alt="SecretSharingDotNet NuGet"/></a></td>
           <td rowspan=9><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.9.0"/></a></td>
           <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.9.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.9.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
-          <td>Core 3.1 (LTS)</td>
-      </tr>
-      <tr>
-          <td>.NET 6</td>
-      </tr>
-      <tr>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -102,6 +96,12 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>FX 4.8</td>
+      </tr>
+      <tr>
+          <td>.NET 6</td>
+      </tr>
+      <tr>
+          <td>.NET 7</td>
       </tr>
   </tbody>
 </table>
@@ -479,15 +479,15 @@ namespace Example5
 
 # CLI building instructions
 For the following instructions, please make sure that you are connected to the internet. If necessary, NuGet will try to restore the [xUnit](https://xunit.net/) packages.
-## Using dotnet to build for .NET6, .NET Core and .NET FX 4.x
+## Using dotnet to build for .NET6, .NET7 and .NET FX 4.x
 Use one of the following solutions with `dotnet` to build [SecretSharingDotNet](#secretsharingdotnet):
 * `SecretSharingDotNet.sln` (all, [see table](#build--test-status-of-default-branch))
 * `SecretSharingDotNet6.sln` (.NET 6 only)
-* `SecretSharingDotNetCore3.1.sln` (.NET Core 3.1 only)
+* `SecretSharingDotNet7.sln` (.NET 7 only)
 
 The syntax is:
 ```dotnetcli
-dotnet {build|test} -c {Debug|Release} SecretSharingDotNet{6|Core3.1}.sln
+dotnet {build|test} -c {Debug|Release} SecretSharingDotNet{6|7}.sln
 ```
 
 The instructions below are examples, which operate on the `SecretSharingDotNet6.sln`.

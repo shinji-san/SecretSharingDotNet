@@ -84,26 +84,6 @@ namespace SecretSharingDotNet.Cryptography
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ShamirsSecretSharing{TNumber, TExtendedGcdResult, TExtendedGcdResult}"/> class.
-        /// </summary>
-        /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
-        /// <param name="securityLevel">Security level (in number of bits). Minimum is 5 for legacy mode and 13 for normal mode.</param>
-        /// <exception cref="T:System.ArgumentOutOfRangeException">The security level is lower than 5 or greater than 43112609.</exception>
-        [Obsolete("Will be removed in future versions. Please use one of the overloads of the method MakeShares.", false)]
-        public ShamirsSecretSharing(TExtendedGcdAlgorithm extendedGcd, int securityLevel)
-        {
-            this.extendedGcd = extendedGcd ?? throw new ArgumentNullException(nameof(extendedGcd));
-            try
-            {
-                this.SecurityLevel = securityLevel;
-            }
-            catch (ArgumentOutOfRangeException e)
-            {
-                throw new ArgumentOutOfRangeException(nameof(securityLevel), securityLevel, e.Message);
-            }
-        }
-
-        /// <summary>
         /// Gets or sets the security level
         /// </summary>
         /// <remarks>Value is lower than 5 or greater than 43112609.</remarks>
@@ -152,8 +132,6 @@ namespace SecretSharingDotNet.Cryptography
         /// <exception cref="T:System.ArgumentOutOfRangeException">The <paramref name="securityLevel"/> parameter is lower than 5 or greater than 43112609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
         public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)
         {
-            int min = ((Calculator<TNumber>)numberOfMinimumShares).ToInt32();
-            int max = ((Calculator<TNumber>)numberOfShares).ToInt32();
             try
             {
                 this.SecurityLevel = securityLevel;
@@ -163,20 +141,6 @@ namespace SecretSharingDotNet.Cryptography
                 throw new ArgumentOutOfRangeException(nameof(securityLevel), securityLevel, e.Message);
             }
 
-            return this.MakeShares(numberOfMinimumShares, numberOfShares);
-        }
-
-        /// <summary>
-        /// Generates a random shamir pool, returns the random secret and the share points.
-        /// </summary>
-        /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
-        /// <param name="numberOfShares">Maximum number of shared secrets</param>
-        /// <returns></returns>
-        /// <exception cref="T:System.ArgumentOutOfRangeException">The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
-        /// <exception cref="T:System.InvalidOperationException">Security Level is not initialized!</exception>
-        [Obsolete("Will be removed in future versions. Please use the method MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel).", false)]
-        public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares)
-        {
             int min = ((Calculator<TNumber>)numberOfMinimumShares).ToInt32();
             int max = ((Calculator<TNumber>)numberOfShares).ToInt32();
             if (min < 2)
