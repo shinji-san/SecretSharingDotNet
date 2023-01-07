@@ -10,7 +10,7 @@ updates:
     target-branch: "develop"
     assignees:
       - "shinji-san"
-    reviewers
+    reviewers:
       - "shinji-san"
 
   - package-ecosystem: github-actions
@@ -20,5 +20,5 @@ updates:
     target-branch: "develop"
     assignees:
       - "shinji-san"
-    reviewers
+    reviewers:
       - "shinji-san"
