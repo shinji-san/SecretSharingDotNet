@@ -33,5 +33,5 @@ jobs:
 
       - name: Test with xUnit.net console runner
         run: |
-           cd "$Env:GITHUB_WORKSPACE\packages\xunit.runner.console.2.4.1\tools\net462"
-           .\xunit.console $Env:GITHUB_WORKSPACE\tests\bin\Release\SecretSharingDotNetTest.dll
+           cd "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\"
+           .\MSBuild.exe /p:Configuration=Release $Env:GITHUB_WORKSPACE\tests\SecretSharingDotNetFx4.6.2Test.csproj /t:Test
