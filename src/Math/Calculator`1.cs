@@ -299,7 +299,7 @@ namespace SecretSharingDotNet.Math
         /// <param name="other">The <see cref="Calculator{TNumber}"/> instance to compare</param>
         /// <returns><see langword="true"/> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <see langword="false"/>.
         /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
-        public bool Equals(Calculator<TNumber> other)
+        public virtual bool Equals(Calculator<TNumber> other)
         {
             return other != null && this.Value.Equals(other.Value);
         }
