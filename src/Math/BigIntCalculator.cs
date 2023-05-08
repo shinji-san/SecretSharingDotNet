@@ -35,6 +35,7 @@ namespace SecretSharingDotNet.Math
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Numerics;
+    using System.Runtime.CompilerServices;
 
     /// <summary>
     /// <see cref="Calculator"/> implementation of <see cref="System.Numerics.BigInteger"/>
@@ -52,6 +53,29 @@ namespace SecretSharingDotNet.Math
         /// </summary>
         /// <param name="data">byte stream representation of numeric value</param>
         public BigIntCalculator(byte[] data) : base(new BigInteger(data)) { }
+
+        /// <summary>
+        /// Determines whether this instance and an <paramref name="other"/> specified <see cref="Calculator{BigInteger}"/> instance are equal.
+        /// </summary>
+        /// <param name="other">The <see cref="Calculator{BigInteger}"/> instance to compare</param>
+        /// <returns><see langword="true"/> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <see langword="false"/>.
+        /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
+        /// <remarks>This is a Slow Equal Implementation to avoid a timing attack. See the reference for more details:
+        /// https://bryanavery.co.uk/cryptography-net-avoiding-timing-attack/</remarks>
+        [MethodImpl(MethodImplOptions.NoOptimization)]
+        public override bool Equals(Calculator<BigInteger> other)
+        {
+            var valueLeft = this.Value.ToByteArray();
+            var valueRight = other?.Value.ToByteArray() ?? Array.Empty<byte>();
+
+            var diff = (uint)valueLeft.Length ^ (uint)valueRight.Length;
+            for (var i = 0; i < valueLeft.Length && i < valueRight.Length; i++)
+            {
+                diff |= (uint)(valueLeft[i] ^ valueRight[i]);
+            }
+
+            return diff == 0;
+        }
 
         /// <summary>
         /// This method represents the Greater Than operator.
