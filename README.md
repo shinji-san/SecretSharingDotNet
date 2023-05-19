@@ -152,7 +152,7 @@ Library version 0.7.0 introduces a normal mode and a legacy mode for secrets. Th
 
 *Why was the normal mode introduced?*
 
-The normal mode supports positive secret values and also negative secret values like negative integer numbers or byte arrays with most significant byte greater than 0x7F. The legacy mode generates shares that can't be used to reconstruct negative secret values. So the original secret and the reconstructed secret aren't identical for negative secret values (e.g. `BigInetger secret = -2000`). The legacy mode only returns correct results for positive secret values.
+The normal mode supports positive secret values and also negative secret values like negative integer numbers or byte arrays with most significant byte greater than 0x7F. The legacy mode generates shares that can't be used to reconstruct negative secret values. So the original secret and the reconstructed secret aren't identical for negative secret values (e.g. `BigInteger secret = -2000`). The legacy mode only returns correct results for positive secret values.
 
 *Mode overview*
 
