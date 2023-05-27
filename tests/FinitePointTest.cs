@@ -1,9 +1,9 @@
 // ----------------------------------------------------------------------------
 // <copyright file="FinitePointTest.cs" company="Private">
-// Copyright (c) 2019 All Rights Reserved
+// Copyright (c) 2023 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
-// <date>04/20/2019 10:52:28 PM</date>
+// <date>05/27/2023 06:05:12 PM</date>
 // ----------------------------------------------------------------------------
 
 #region License
@@ -31,26 +31,73 @@
 
 namespace SecretSharingDotNet.Test
 {
-    using System.Linq;
     using System.Numerics;
     using Cryptography;
-    using Math;
     using Xunit;
 
     public class FinitePointTest
     {
+        private const string FinitePointTextRepresentation1 = "01-2929AA3E809003D578AA69B1C3E6F62C517437FEFBAD5BFBB240";
+        private const string FinitePointTextRepresentation2 = "02-665C74ED38FDFF095B2FC9319A272A75";
+
         /// <summary>
         /// Check <see cref="FinitePoint{TNumber}"/> to <see cref="string"/> conversion and vice vera.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        [Fact]
-        public void FinitePointToString()
+        [Theory]
+        [InlineData(FinitePointTextRepresentation1, FinitePointTextRepresentation1)]
+        [InlineData(FinitePointTextRepresentation2, FinitePointTextRepresentation2)]
+        public void ToString_FromValidFinitePoint_ReturnsCoordinatesSeparatedWithMinus(string input, string expected)
         {
-            var split = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-            FinitePoint<BigInteger> fp = split.MakeShares(3, 7, 500).First();
-            string s1 = fp.ToString();
-            string s2 = new FinitePoint<BigInteger>(s1).ToString();
-            Assert.Equal(s1, s2);
+            // Arrange
+            var finitePointUnderTest = new FinitePoint<BigInteger>(input);
+
+            // Act
+            string actual = finitePointUnderTest.ToString();
+
+            // Assert
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void CompareTo_BigFinitePointToSmallFinitePoint_ReturnsOne()
+        {
+            // Arrange
+            var finitePointUnder1Test = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
+            var finitePointUnder2Test = new FinitePoint<BigInteger>(FinitePointTextRepresentation2);
+
+            // Act
+            int actual = finitePointUnder1Test.CompareTo(finitePointUnder2Test);
+
+            // Assert
+            Assert.Equal(1, actual);
+        }
+
+        [Fact]
+        public void CompareTo_SmallFinitePointToBigFinitePoint_ReturnsMinusOne()
+        {
+            // Arrange
+            var finitePointUnder1Test = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
+            var finitePointUnder2Test = new FinitePoint<BigInteger>(FinitePointTextRepresentation2);
+
+            // Act
+            int actual = finitePointUnder2Test.CompareTo(finitePointUnder1Test);
+
+            // Assert
+            Assert.Equal(-1, actual);
+        }
+
+        [Fact]
+        public void CompareTo_FinitePointToSameFinitePoint_ReturnsZero()
+        {
+            // Arrange
+            var finitePointUnderTest = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
+
+            // Act
+            int actual = finitePointUnderTest.CompareTo(finitePointUnderTest);
+
+            // Assert
+            Assert.Equal(0, actual);
         }
     }
 }
