@@ -7,6 +7,7 @@
 // ----------------------------------------------------------------------------
 
 #region License
+
 // ----------------------------------------------------------------------------
 // Copyright 2019 Sebastian Walther
 //
@@ -27,6 +28,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+
 #endregion
 
 namespace SecretSharingDotNet.Test
@@ -98,6 +100,75 @@ namespace SecretSharingDotNet.Test
 
             // Assert
             Assert.Equal(0, actual);
+        }
+
+        [Fact]
+        public void Equals_FinitePointToSameFinitePoint_ReturnsTrue()
+        {
+            // Arrange
+            var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
+            var finitePointUnderTest2 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
+
+            // Act
+            bool actual = finitePointUnderTest1.Equals(finitePointUnderTest2);
+
+            // Assert
+            Assert.True(actual);
+        }
+
+        [Fact]
+        public void Equals_FinitePointToDifferentFinitePoint_ReturnsFalse()
+        {
+            // Arrange
+            var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
+            var finitePointUnderTest2 = new FinitePoint<BigInteger>(FinitePointTextRepresentation2);
+
+            // Act
+            bool actual = finitePointUnderTest1.Equals(finitePointUnderTest2);
+
+            // Assert
+            Assert.False(actual);
+        }
+
+        [Fact]
+        public void Equals_FinitePointToNull_ReturnsFalse()
+        {
+            // Arrange
+            var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
+
+            // Act
+            bool actual = finitePointUnderTest1.Equals(null);
+
+            // Assert
+            Assert.False(actual);
+        }
+
+        [Fact]
+        public void Equals_FinitePointToSameFinitePointAsObject_ReturnsTrue()
+        {
+            // Arrange
+            var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
+            object finitePointUnderTest2 = finitePointUnderTest1;
+
+            // Act
+            bool actual = finitePointUnderTest1.Equals(finitePointUnderTest2);
+
+            // Assert
+            Assert.True(actual);
+        }
+
+        [Fact]
+        public void Equals_FinitePointToDifferentFinitePointAsObject_ReturnsFalse()
+        {
+            // Arrange
+            var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
+            object finitePointUnderTest2 = new FinitePoint<BigInteger>(FinitePointTextRepresentation2);
+
+            // Act
+            bool actual = finitePointUnderTest1.Equals(finitePointUnderTest2);
+
+            // Assert
+            Assert.False(actual);
         }
     }
 }
