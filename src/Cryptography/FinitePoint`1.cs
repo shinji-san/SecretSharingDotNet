@@ -282,14 +282,10 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns>Returns a byte array</returns>
 #if NET6_0_OR_GREATER
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static byte[] ToByteArray(ReadOnlySpan<char> hexString)
+        private static byte[] ToByteArray(ReadOnlySpan<char> hexString) => Convert.FromHexString(hexString);
 #else
         private static byte[] ToByteArray(string hexString)
-#endif
         {
-#if NET6_0_OR_GREATER
-            return Convert.FromHexString(hexString);
-#else
             byte[] bytes = new byte[hexString.Length / 2];
             var hexValues = Array.AsReadOnly(new[]
             {
@@ -325,7 +321,7 @@ namespace SecretSharingDotNet.Cryptography
             }
 
             return bytes;
-#endif
         }
+#endif
     }
 }
