@@ -1,9 +1,9 @@
 // ----------------------------------------------------------------------------
-// <copyright file="FinitePoint.cs" company="Private">
-// Copyright (c) 2019 All Rights Reserved
+// <copyright file="FinitePoint`1.cs" company="Private">
+// Copyright (c) 2023 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
-// <date>04/20/2019 10:52:28 PM</date>
+// <date>05/27/2023 06:05:12 PM</date>
 // ----------------------------------------------------------------------------
 
 #region License
@@ -36,7 +36,11 @@ namespace SecretSharingDotNet.Cryptography
     using System.Collections.Generic;
     using System.Globalization;
     using System.Linq;
+#if !NET6_0_OR_GREATER
     using System.Text;
+#else
+    using System.Runtime.CompilerServices;
+#endif
 
     /// <summary>
     /// Represents the support point of the polynomial
@@ -73,17 +77,33 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="serialized">string representation of the <see cref="FinitePoint{TNumber}"/> struct</param>
         /// <exception cref="T:System.ArgumentNullException"><paramref name="serialized"/> is <see langword="null"/></exception>
+#if NET6_0_OR_GREATER
+        public FinitePoint(ReadOnlySpan<char> serialized)
+#else
         public FinitePoint(string serialized)
+#endif
         {
+#if NET6_0_OR_GREATER
+            if (serialized == null || serialized.IsEmpty)
+#else
             if (string.IsNullOrWhiteSpace(serialized))
+#endif
             {
                 throw new ArgumentNullException(nameof(serialized));
             }
 
-            string[] s = serialized.Split('-');
+#if NET6_0_OR_GREATER
+            var xReadOnlySpan = serialized[..serialized.IndexOf(SharedSeparator.CoordinateSeparator)];
+            var yReadOnlySpan = serialized[(serialized.IndexOf(SharedSeparator.CoordinateSeparator) + 1)..];
+            var numberType = typeof(TNumber);
+            this.x = Calculator.Create(ToByteArray(xReadOnlySpan), numberType) as Calculator<TNumber>;
+            this.y = Calculator.Create(ToByteArray(yReadOnlySpan), numberType) as Calculator<TNumber>;
+#else
+            string[] s = serialized.Split(SharedSeparator.CoordinateSeparatorArray);
             var numberType = typeof(TNumber);
             this.x = Calculator.Create(ToByteArray(s[0]), numberType) as Calculator<TNumber>;
             this.y = Calculator.Create(ToByteArray(s[1]), numberType) as Calculator<TNumber>;
+#endif
         }
 
         /// <summary>
@@ -95,6 +115,16 @@ namespace SecretSharingDotNet.Cryptography
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x")]
         public FinitePoint(Calculator<TNumber> x, Calculator<TNumber> y)
         {
+            if (x == null)
+            {
+                throw new ArgumentNullException(nameof(x));
+            }
+
+            if (y == null)
+            {
+                throw new ArgumentNullException(nameof(y));
+            }
+
             this.x = x;
             this.y = y;
         }
@@ -196,7 +226,7 @@ namespace SecretSharingDotNet.Cryptography
         /// Returns the string representation of the <see cref="FinitePoint{TNumber}"/> structure.
         /// </summary>
         /// <returns></returns>
-        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}-{1}", ToHexString(this.x.ByteRepresentation), ToHexString(this.y.ByteRepresentation));
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}{1}{2}", ToHexString(this.x.ByteRepresentation), SharedSeparator.CoordinateSeparator.ToString(), ToHexString(this.y.ByteRepresentation));
 
         /// <summary>
         /// Evaluates polynomial (coefficient tuple) at x, used to generate a shamir pool.
@@ -225,8 +255,14 @@ namespace SecretSharingDotNet.Cryptography
         /// <remarks>
         /// Based on discussion on <see href="https://stackoverflow.com/questions/623104/byte-to-hex-string/5919521#5919521">stackoverflow</see>
         /// </remarks>
+#if NET6_0_OR_GREATER
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
         private static string ToHexString(IEnumerable<byte> bytes)
         {
+#if NET6_0_OR_GREATER
+            return Convert.ToHexString(bytes as byte[] ?? bytes.ToArray());
+#else
             byte[] byteArray = bytes as byte[] ?? bytes.ToArray();
             var hexRepresentation = new StringBuilder(byteArray.Length * 2);
             foreach (byte b in byteArray)
@@ -236,6 +272,7 @@ namespace SecretSharingDotNet.Cryptography
             }
 
             return hexRepresentation.ToString();
+#endif
         }
 
         /// <summary>
@@ -243,6 +280,10 @@ namespace SecretSharingDotNet.Cryptography
         /// </summary>
         /// <param name="hexString">hexadecimal string</param>
         /// <returns>Returns a byte array</returns>
+#if NET6_0_OR_GREATER
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static byte[] ToByteArray(ReadOnlySpan<char> hexString) => Convert.FromHexString(hexString);
+#else
         private static byte[] ToByteArray(string hexString)
         {
             byte[] bytes = new byte[hexString.Length / 2];
@@ -281,5 +322,6 @@ namespace SecretSharingDotNet.Cryptography
 
             return bytes;
         }
+#endif
     }
 }
