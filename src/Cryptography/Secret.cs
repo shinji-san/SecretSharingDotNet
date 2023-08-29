@@ -44,13 +44,6 @@ namespace SecretSharingDotNet.Cryptography
     public class Secret
     {
         /// <summary>
-        /// Gets or sets the legacy mode on (<see langword="true"/>) or <see langword="off"/> to be compatible with
-        /// v0.6.0 or older.
-        /// </summary>
-        [Obsolete("Legacy mode is deprecated and will be removed in the next versions.")]
-        public static readonly ThreadLocal<bool> LegacyMode = new ThreadLocal<bool> {Value = false};
-
-        /// <summary>
         /// Maximum mark byte to terminate the secret array and to avoid negative secret values.
         /// </summary>
         /// <remarks>prime number greater than 2^13-1</remarks>
@@ -84,11 +77,6 @@ namespace SecretSharingDotNet.Cryptography
                 rng.GetBytes(randomSecretBytes);
             }
 
-            if (LegacyMode.Value)
-            {
-                return (Calculator.Create(randomSecretBytes, typeof(TNumber)) as Calculator<TNumber>)?.Abs() % prime;
-            }
-
             int i = randomSecretBytes.Length - 1;
             while (i > 0)
             {
@@ -112,20 +100,8 @@ namespace SecretSharingDotNet.Cryptography
         }
 
         /// <summary>
-        /// Gets the MarkByte count in dependency of the <see cref="LegacyMode"/>.
+        /// Gets the MarkByte count.
         /// </summary>
-        protected static int MarkByteCount => LegacyMode.Value ? 0 : 1;
-
-        /// <summary>
-        /// Creates an array from a base64 string as in version 0.6.0 or older
-        /// </summary>
-        [Obsolete("Legacy mode is deprecated and will be removed in the next versions.")]
-        protected static readonly Func<string, byte[]> FromBase64Legacy = base64 =>
-        {
-            var bytes = Convert.FromBase64String(base64).ToList();
-            bytes.Insert(0, 0x00);
-            bytes.Add(0x78);
-            return bytes.ToArray();
-        };
+        protected static int MarkByteCount => 1;
     }
 }

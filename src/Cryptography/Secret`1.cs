@@ -77,7 +77,7 @@ namespace SecretSharingDotNet.Cryptography
             byte maxMarkByte = secretSource.Length == 1 ? MinMarkByte : MaxMarkByte;
             byte markByte = (byte)(new Random(buffer[0]).Next(0x01, maxMarkByte) % maxMarkByte);
             byte[] bytes = (byte[])secretSource.Clone();
-            this.secretNumber = LegacyMode.Value ? bytes : bytes.Concat(new[] {markByte}).ToArray();
+            this.secretNumber = bytes.Concat(new[] {markByte}).ToArray();
         }
 
         /// <summary>
@@ -93,7 +93,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <param name="encoded">Secret encoded as base-64</param>
         /// <remarks>For normal text use the implicit cast from <see cref="string"/> to <see cref="Secret{TNumber}"/></remarks>
         /// <exception cref="T:System.ArgumentNullException"><paramref name="encoded"/> is <see langword="null"/>, empty or consists exclusively of white-space characters</exception>
-        public Secret(string encoded) : this(LegacyMode.Value ? FromBase64Legacy(encoded) : Convert.FromBase64String(encoded)) { }
+        public Secret(string encoded) : this(Convert.FromBase64String(encoded)) { }
 
         /// <summary>
         /// Gets the <see cref="Secret{TNumber}"/> byte size.
@@ -216,11 +216,6 @@ namespace SecretSharingDotNet.Cryptography
         /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
         public bool Equals(Secret<TNumber> other)
         {
-            if (LegacyMode.Value)
-            {
-                return !(other is null) && Calculator.Create(this.secretNumber, typeof(TNumber)).Equals(Calculator.Create(other.secretNumber, typeof(TNumber)));
-            }
-
             return !(other is null) && this.secretNumber.Subset(0, this.SecretByteSize - MarkByteCount)
                 .SequenceEqual(other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount));
         }
@@ -277,11 +272,6 @@ namespace SecretSharingDotNet.Cryptography
         /// <returns>The <see cref="string"/> representation in base 64</returns>
         public string ToBase64()
         {
-            if (LegacyMode.Value)
-            {
-                return Convert.ToBase64String(this.secretNumber, 1, this.secretNumber.Length - 2);
-            }
-
             return Convert.ToBase64String(this.secretNumber, 0, this.secretNumber.Length - MarkByteCount);
         }
     }

@@ -264,26 +264,6 @@ namespace SecretSharingDotNet.Test
         }
 
         /// <summary>
-        /// Tests the secret reconstruction from array of shares represented by strings (legacy mode to compatible to v0.6.0 or older)
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        [Fact]
-        public void TestReconstructFromStringArrayLegacy()
-        {
-            Secret.LegacyMode.Value = true;
-            try
-            {
-                var combine = new ShamirsSecretSharing<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-                var secret = combine.Reconstruction(TestData.GetPredefinedSharesLegacy());
-                Assert.Equal(TestData.DefaultTestPassword, secret);
-            }
-            finally
-            {
-                Secret.LegacyMode.Value = false;
-            }
-        }
-
-        /// <summary>
         /// Tests the secret reconstruction from shares represented by a single string (separated by newline)
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
@@ -328,24 +308,6 @@ namespace SecretSharingDotNet.Test
             }
 
             Assert.Equal(1.0, (double)ok / total);
-        }
-
-        /// <summary>
-        /// Tests whether or not bug #60 occurs [Reconstruction fails at random].
-        /// </summary>
-        [Theory]
-        [MemberData(nameof(TestData.ByteArraySize), MemberType = typeof(TestData))]
-        public void ReconstructionFailsAtRndLegacy(int byteArraySize)
-        {
-            Secret.LegacyMode.Value = true;
-            try
-            {
-                ReconstructionFailsAtRnd(byteArraySize);
-            }
-            finally
-            {
-                Secret.LegacyMode.Value = false;
-            }
         }
     }
 }
