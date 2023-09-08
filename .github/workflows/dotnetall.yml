@@ -21,7 +21,7 @@ jobs:
     - name: Setup .NET 6
       uses: actions/setup-dotnet@v3.2.0
       with:
-        dotnet-version: 6.0.100
+        dotnet-version: 6.0.413
 
     - name: Setup .NET 7
       uses: actions/setup-dotnet@v3.2.0
@@ -30,7 +30,7 @@ jobs:
 
     - name: .NET Core SxS
       run: |
-        rsync -a ${DOTNET_ROOT/7.0.100/6.0.100}/* $DOTNET_ROOT/
+        rsync -a ${DOTNET_ROOT/7.0.100/6.0.413}/* $DOTNET_ROOT/
 
     - name: Restore
       run: dotnet restore SecretSharingDotNet.sln
