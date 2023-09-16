@@ -146,7 +146,7 @@ Afterwards, use the function `Reconstruction` to re-construct the original secre
 
 The length of the shares is based on the security level. It's possible to pre-define a security level by `ctor` or the `SecurityLevel` property. The pre-defined security level will be overriden, if the secret size is greater than the Mersenne prime, which is calculated by means of the security level. It is not necessary to define a security level for a re-construction.
 
-## Attention: Breaking change - Normal and legacy mode in v0.7.0
+## Attention: Breaking change - Normal and legacy mode in v0.7.0 [Deprecated]
 
 Library version 0.7.0 introduces a normal mode and a legacy mode for secrets. The normal mode is the new and default mode. The legacy mode is for backward compatibility.
 

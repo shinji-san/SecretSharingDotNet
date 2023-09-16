@@ -47,6 +47,7 @@ namespace SecretSharingDotNet.Cryptography
         /// Gets or sets the legacy mode on (<see langword="true"/>) or <see langword="off"/> to be compatible with
         /// v0.6.0 or older.
         /// </summary>
+        [Obsolete("Legacy mode is deprecated and will be removed in the next versions.")]
         public static readonly ThreadLocal<bool> LegacyMode = new ThreadLocal<bool> {Value = false};
 
         /// <summary>
@@ -118,6 +119,7 @@ namespace SecretSharingDotNet.Cryptography
         /// <summary>
         /// Creates an array from a base64 string as in version 0.6.0 or older
         /// </summary>
+        [Obsolete("Legacy mode is deprecated and will be removed in the next versions.")]
         protected static readonly Func<string, byte[]> FromBase64Legacy = base64 =>
         {
             var bytes = Convert.FromBase64String(base64).ToList();

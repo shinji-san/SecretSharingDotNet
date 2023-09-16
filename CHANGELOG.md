@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - FinitePoint: Use `ReadOnlySpan<char>` for `string` parameters in ctor and methods.
 
+### Deprecated
+- The Secret Legacy Mode is marked as deprecated and will be removed in one of the next releases.
+
 ## [0.10.1] - 2023-05-08
 ### Fixed
 - Fixed BigIntCalculator's Equals method to avoid timing attacks. The slow equal implementation is used now.
