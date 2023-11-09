@@ -32,7 +32,6 @@
 namespace SecretSharingDotNet.Cryptography
 {
     using Math;
-    using System;
 
     /// <inheritdoc />
     public class ShamirsSecretSharing<TNumber> : ShamirsSecretSharing<TNumber, IExtendedGcdAlgorithm<TNumber>, ExtendedGcdResult<TNumber>>

@@ -43,20 +43,10 @@ namespace SecretSharingDotNet.Cryptography
     /// <typeparam name="TNumber">Numeric data type</typeparam>
     /// <typeparam name="TExtendedGcdAlgorithm"></typeparam>
     /// <typeparam name="TExtendedGcdResult"></typeparam>
-    public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult>
+    public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult> : ShamirsSecretSharing
         where TExtendedGcdAlgorithm : class, IExtendedGcdAlgorithm<TNumber, TExtendedGcdResult>
         where TExtendedGcdResult : struct, IExtendedGcdResult<TNumber>
     {
-        /// <summary>
-        /// Saves the known security levels (Mersenne prime exponents)
-        /// </summary>
-        private readonly int[] securityLevels = new int[]
-        {
-            5, 7, 13, 17, 19, 31, 61, 89, 107, 127, 521, 607, 1279, 2203, 2281, 3217, 4253, 4423, 9689, 9941, 11213,
-            19937, 21701, 23209, 44497, 86243, 110503, 132049, 216091, 756839, 859433, 1257787, 1398269, 2976221,
-            3021377, 6972593, 13466917, 20996011, 24036583, 25964951, 30402457, 32582657, 37156667, 42643801, 43112609
-        };
-
         /// <summary>
         /// Saves the fixed security level
         /// </summary>
@@ -104,12 +94,12 @@ namespace SecretSharingDotNet.Cryptography
                     value = 13;
                 }
 
-                int index = Array.BinarySearch(this.securityLevels, value);
+                int index = Array.BinarySearch(SecurityLevels, value);
                 if (index < 0)
                 {
                     try
                     {
-                        value = this.securityLevels.ElementAt(~index);
+                        value = SecurityLevels.ElementAt(~index);
                     }
                     catch (ArgumentOutOfRangeException)
                     {
@@ -446,13 +436,13 @@ namespace SecretSharingDotNet.Cryptography
             }
 
             this.SecurityLevel = maximumY.ByteCount * 8;
-            int index = Array.IndexOf(this.securityLevels, this.SecurityLevel);
+            int index = Array.IndexOf(SecurityLevels, this.SecurityLevel);
             while ((maximumY % this.mersennePrime + this.mersennePrime) % this.mersennePrime == maximumY && index > 0 && this.SecurityLevel > 5)
             {
-                this.SecurityLevel = this.securityLevels[--index];
+                this.SecurityLevel = SecurityLevels[--index];
             }
 
-            this.SecurityLevel = this.securityLevels[this.SecurityLevel > 5 ? ++index : index];
+            this.SecurityLevel = SecurityLevels[this.SecurityLevel > 5 ? ++index : index];
 
             return this.LagrangeInterpolate(shares, this.mersennePrime);
         }

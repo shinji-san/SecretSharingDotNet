@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added support for .NET FX v4.8.1
 
+### Changed
+- Moved `SecurityLevels` from `ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult>` to `ShamirsSecretSharing`
+
 ## [0.10.2] - 2023-09-16
 ### Changed
 - FinitePoint: Use `ReadOnlySpan<char>` for `string` parameters in ctor and methods.
