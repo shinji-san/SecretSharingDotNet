@@ -29,10 +29,9 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNet.Test
+namespace SecretSharingDotNetTest
 {
-    using Cryptography;
-    using Math;
+    using SecretSharingDotNet.Cryptography;
     using System;
     using System.Collections;
     using System.Collections.Generic;

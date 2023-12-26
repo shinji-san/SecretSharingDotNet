@@ -31,10 +31,10 @@
 
 #endregion
 
-namespace SecretSharingDotNet.Test
+namespace SecretSharingDotNetTest
 {
+    using SecretSharingDotNet.Cryptography;
     using System.Numerics;
-    using Cryptography;
     using Xunit;
 
     public class FinitePointTest
