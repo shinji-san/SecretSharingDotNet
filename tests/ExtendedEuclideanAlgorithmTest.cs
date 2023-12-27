@@ -29,9 +29,9 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNet.Test
+namespace SecretSharingDotNetTest
 {
-    using Math;
+    using SecretSharingDotNet.Math;
     using System.Globalization;
     using System.Numerics;
     using Xunit;
