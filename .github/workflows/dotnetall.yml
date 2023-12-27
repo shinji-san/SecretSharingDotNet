@@ -40,7 +40,7 @@ jobs:
       run: dotnet build --configuration Release --no-restore SecretSharingDotNet.sln
 
     - name: Test
-      run: dotnet test --no-restore --no-build --configuration Release SecretSharingDotNet.sln -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1
+      run: dotnet test --no-restore --no-build --configuration Release SecretSharingDotNet.sln -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 
     - name: Prepare README.md for NuGet package
       run: |
