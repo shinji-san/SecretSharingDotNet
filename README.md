@@ -15,7 +15,7 @@ An C# implementation of Shamir's Secret Sharing.
       <tr>
           <td rowspan=10><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
           <td rowspan=10><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=10>Sdk</td>
+          <td rowspan=10>SDK</td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -44,12 +44,6 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>.NET 8</td>
-      </tr>
-      <tr>
-          <td><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+FX%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20FX/badge.svg" alt="Build status"></a></td>
-          <td><code>SecretSharingDotNetFx4.6.2.sln</code></td>
-          <td>FX</td>
-          <td>FX 4.6.2</td>
       </tr>
   </tbody>
 </table>
@@ -112,7 +106,7 @@ An C# implementation of Shamir's Secret Sharing.
     dotnet add package SecretSharingDotNet -v 0.10.2 -f <FRAMEWORK>
     ```
 
-3. After the completition of the command, look at the project file to make sure that the package is successfuly installed.
+3. After the completion of the command, look at the project file to make sure that the package is successfully installed.
 
    You can open the `.csproj` file to see the added package reference:
 
@@ -131,7 +125,7 @@ An C# implementation of Shamir's Secret Sharing.
     dotnet remove package SecretSharingDotNet
     ```
 
-3. After the completition of the command, look at the project file to make sure that the package is successfuly removed.
+3. After the completion of the command, look at the project file to make sure that the package is successfully removed.
 
    You can open the `.csproj` file to check the deleted package reference.
 
@@ -474,62 +468,45 @@ namespace Example5
 ```
 
 # CLI building instructions
+## Prerequisites
 For the following instructions, please make sure that you are connected to the internet. If necessary, NuGet will try to restore the [xUnit](https://xunit.net/) packages.
-## Using dotnet to build for .NET6, .NET7 and .NET FX 4.x
-Use one of the following solutions with `dotnet` to build [SecretSharingDotNet](#secretsharingdotnet):
-* `SecretSharingDotNet.sln` (all, [see table](#build--test-status-of-default-branch))
-* `SecretSharingDotNet6.sln` (.NET 6 only)
-* `SecretSharingDotNet7.sln` (.NET 7 only)
 
-The syntax is:
+If you start the unit tests on Linux, you must install the `mono-complete` package in case of the .NET Frameworks 4.6.2, 4.7, 4.7.1, 4.7.2, 4.8 and 4.8.1.
+You can find the Mono installation instructions [here](https://www.mono-project.com/download/stable/#download-lin).
+
+The .NET Frameworks 4.6.2, 4.7, 4.7.1, 4.7.2, 4.8 and 4.8.1 can be found [here](https://dotnet.microsoft.com/download/dotnet-framework).
+
+The .NET SDKs 6.0, 7.0 and 8.0 can be found [here](https://dotnet.microsoft.com/download/dotnet).
+
+## Build and test the solution
+You can use the `SecretSharingDotNet.sln` solution file with the `dotnet` command to build the [SecretSharingDotNet](#secretsharingdotnet) library in the `Debug` or `Release` configuration. You can also use the `dotnet` command to start the unit tests.
+
+### 1. Restore NuGet packages
+
 ```dotnetcli
-dotnet {build|test} -c {Debug|Release} SecretSharingDotNet{6|7}.sln
+dotnet restore SecretSharingDotNet.sln
 ```
 
-The instructions below are examples, which operate on the `SecretSharingDotNet6.sln`.
-### Build Debug configuration
+### 2. Build the solution
 
 ```dotnetcli
-dotnet build -c Debug SecretSharingDotNet6.sln
+dotnet build -c Debug --no-restore SecretSharingDotNet.sln
 ```
 
-### Build Release configuration
+or
 
 ```dotnetcli
-dotnet build -c Release SecretSharingDotNet6.sln
+dotnet build -c Release --no-restore SecretSharingDotNet.sln
 ```
 
-### Test Debug configuration
+### 3. Test the solution
 
 ```dotnetcli
-dotnet test -c Debug SecretSharingDotNet6.sln
+dotnet test -c Debug --no-restore --no-build SecretSharingDotNet.sln -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 ```
 
-### Test Release configuration
+or 
 
 ```dotnetcli
-dotnet test -c Release SecretSharingDotNet6.sln
-```
-
-## Using MSBuild to build for .NET FX 4.6.2
-Use one of the following solutions with `msbuild` to build [SecretSharingDotNet](#secretsharingdotnet):
-* `SecretSharingDotNetFx4.6.2.sln`
-
-Currently unit testing with MSBuild isn't possible.
-
-The syntax is:
-```dotnetcli
-msbuild /p:RestorePackagesConfig=true;Configuration={Debug|Release} /t:restore;build SecretSharingDotNetFx4.6.2.sln
-```
-
-### Build Debug configuration
-
-```dotnetcli
-msbuild /p:RestorePackagesConfig=true;Configuration=Debug /t:restore;build SecretSharingDotNetFx4.6.2.sln
-```
-
-### Build Release configuration
-
-```dotnetcli
-msbuild /p:RestorePackagesConfig=true;Configuration=Release /t:restore;build SecretSharingDotNetFx4.6.2.sln
+dotnet test -c Release --no-restore --no-build SecretSharingDotNet.sln -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 ```

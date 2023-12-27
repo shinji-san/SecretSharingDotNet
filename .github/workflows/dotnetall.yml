@@ -33,18 +33,14 @@ jobs:
       with:
         dotnet-version: 8.0.100
 
-    - name: .NET Core SxS
-      run: |
-        rsync -a ${DOTNET_ROOT/8.0.100/7.0.403/6.0.416}/* $DOTNET_ROOT/
-
     - name: Restore
       run: dotnet restore SecretSharingDotNet.sln
 
     - name: Build
-      run: dotnet build --configuration Release SecretSharingDotNet.sln
+      run: dotnet build --configuration Release --no-restore SecretSharingDotNet.sln
 
     - name: Test
-      run: dotnet test --configuration Release SecretSharingDotNet.sln
+      run: dotnet test --no-restore --no-build --configuration Release SecretSharingDotNet.sln -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 
     - name: Prepare README.md for NuGet package
       run: |
@@ -52,4 +48,4 @@ jobs:
            grep -n "# CLI building instructions" README.md | cut -d: -f 1| xargs -i head -n {} README.md | head -n -1 > TMP.md && mv -f TMP.md README.md
 
     - name: Create Package
-      run: dotnet pack --configuration Release SecretSharingDotNet.sln
+      run: dotnet pack --no-restore --no-build --configuration Release SecretSharingDotNet.sln
