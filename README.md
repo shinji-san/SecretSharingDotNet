@@ -15,7 +15,7 @@ An C# implementation of Shamir's Secret Sharing.
       <tr>
           <td rowspan=10><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
           <td rowspan=10><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=10>Sdk</td>
+          <td rowspan=10>SDK</td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -44,12 +44,6 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>.NET 8</td>
-      </tr>
-      <tr>
-          <td><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+.NET+FX%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20.NET%20FX/badge.svg" alt="Build status"></a></td>
-          <td><code>SecretSharingDotNetFx4.6.2.sln</code></td>
-          <td>FX</td>
-          <td>FX 4.6.2</td>
       </tr>
   </tbody>
 </table>
