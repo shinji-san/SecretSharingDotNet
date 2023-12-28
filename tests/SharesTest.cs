@@ -29,70 +29,69 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNetTest
+namespace SecretSharingDotNetTest;
+
+using SecretSharingDotNet.Cryptography;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using Xunit;
+
+/// <summary>
+/// Unit test of the <see cref="Shares{TNumber}"/> class.
+/// </summary>
+public class SharesTest
 {
-    using SecretSharingDotNet.Cryptography;
-    using System;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Numerics;
-    using Xunit;
+    /// <summary>
+    /// Tests the cast from <see cref="string"/> array to <see cref="Shares{TNumber}"/> and vice versa.
+    /// </summary>
+    [Fact]
+    public void TestSharesToStringArray()
+    {
+        Shares<BigInteger> shares = TestData.GetPredefinedShares();
+        Assert.Equal(TestData.GetPredefinedShares(), (string[])shares);
+    }
 
     /// <summary>
-    /// Unit test of the <see cref="Shares{TNumber}"/> class.
+    /// Tests the cast from <see cref="string"/> to <see cref="Shares{TNumber}"/> and vice versa.
     /// </summary>
-    public class SharesTest
+    [Fact]
+    public void TestSharesToString()
     {
-        /// <summary>
-        /// Tests the cast from <see cref="string"/> array to <see cref="Shares{TNumber}"/> and vice versa.
-        /// </summary>
-        [Fact]
-        public void TestSharesToStringArray()
+        var text = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
+        Shares<BigInteger> shares = text;
+        Assert.Equal(text, shares.ToString());
+    }
+
+    /// <summary>
+    /// Tests the Contains method of the <see cref="Shares{TNumber}"/> class.
+    /// </summary>
+    [Fact]
+    public void TestShareContains()
+    {
+        Shares<BigInteger> shares = TestData.GetPredefinedShares();
+        Assert.Contains(new FinitePoint<BigInteger>(TestData.GetPredefinedShares()[0]), shares);
+    }
+
+    /// <summary>
+    /// Tests the <see cref="IEnumerator{T}"/> implementation of the <see cref="SharesEnumerator{TNumber}"/> class in the <see cref="Shares{TNumber}"/> class.
+    /// </summary>
+    [Fact]
+    public void TestSharesEnumerator()
+    {
+        Shares<BigInteger> shares = TestData.GetPredefinedShares();
+        var testDataSequence = TestData.GetPredefinedShares().Select(entry => new FinitePoint<BigInteger>(entry));
+        var testDataArray = testDataSequence as FinitePoint<BigInteger>[] ?? testDataSequence.ToArray();
+        var actual = ((IEnumerable)shares).GetEnumerator();
+        var expected = testDataArray.GetEnumerator();
+        for (var i = 0; i < testDataArray.Length; i++)
         {
-            Shares<BigInteger> shares = TestData.GetPredefinedShares();
-            Assert.Equal(TestData.GetPredefinedShares(), (string[])shares);
+            Assert.Equal(expected.MoveNext(), actual.MoveNext());
+            Assert.Equal(expected.Current, actual.Current);
         }
 
-        /// <summary>
-        /// Tests the cast from <see cref="string"/> to <see cref="Shares{TNumber}"/> and vice versa.
-        /// </summary>
-        [Fact]
-        public void TestSharesToString()
-        {
-            var text = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
-            Shares<BigInteger> shares = text;
-            Assert.Equal(text, shares.ToString());
-        }
-
-        /// <summary>
-        /// Tests the Contains method of the <see cref="Shares{TNumber}"/> class.
-        /// </summary>
-        [Fact]
-        public void TestShareContains()
-        {
-            Shares<BigInteger> shares = TestData.GetPredefinedShares();
-            Assert.Contains(new FinitePoint<BigInteger>(TestData.GetPredefinedShares()[0]), shares);
-        }
-
-        /// <summary>
-        /// Tests the <see cref="IEnumerator{T}"/> implementation of the <see cref="SharesEnumerator{TNumber}"/> class in the <see cref="Shares{TNumber}"/> class.
-        /// </summary>
-        [Fact]
-        public void TestSharesEnumerator()
-        {
-            Shares<BigInteger> shares = TestData.GetPredefinedShares();
-            var testDataSequence = TestData.GetPredefinedShares().Select(entry => new FinitePoint<BigInteger>(entry));
-            var testDataArray = testDataSequence as FinitePoint<BigInteger>[] ?? testDataSequence.ToArray();
-            var actual = ((IEnumerable)shares).GetEnumerator();
-            var expected = testDataArray.GetEnumerator();
-            for (var i = 0; i < testDataArray.Length; i++)
-            {
-                Assert.Equal(expected.MoveNext(), actual.MoveNext());
-                Assert.Equal(expected.Current, actual.Current);
-            }
-
-            Assert.True(shares.SequenceEqual(testDataArray));
-        }
+        Assert.True(shares.SequenceEqual(testDataArray));
     }
 }
