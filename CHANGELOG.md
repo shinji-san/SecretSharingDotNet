@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Moved `SecurityLevels` from `ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult>` to `ShamirsSecretSharing` class.
+- Introduced `ReadOnlySpan<char>` for `string` parameters in `Secret<TNumber>` class.
 
 ### Removed
 - Removed Legacy Mode from `Secret.cs` class.
