@@ -29,8 +29,7 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNet.Math
-{
-    /// <inheritdoc />
-    public interface IExtendedGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber, ExtendedGcdResult<TNumber>> { }
-}
+namespace SecretSharingDotNet.Math;
+
+/// <inheritdoc />
+public interface IExtendedGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber, ExtendedGcdResult<TNumber>>;

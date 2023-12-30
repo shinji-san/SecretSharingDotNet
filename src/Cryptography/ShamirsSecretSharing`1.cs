@@ -29,15 +29,13 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNet.Cryptography
-{
-    using Math;
-    using System;
+namespace SecretSharingDotNet.Cryptography;
 
+using Math;
+
+/// <inheritdoc />
+public class ShamirsSecretSharing<TNumber> : ShamirsSecretSharing<TNumber, IExtendedGcdAlgorithm<TNumber>, ExtendedGcdResult<TNumber>>
+{
     /// <inheritdoc />
-    public class ShamirsSecretSharing<TNumber> : ShamirsSecretSharing<TNumber, IExtendedGcdAlgorithm<TNumber>, ExtendedGcdResult<TNumber>>
-    {
-        /// <inheritdoc />
-        public ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd) : base(extendedGcd) { }
-    }
+    public ShamirsSecretSharing(IExtendedGcdAlgorithm<TNumber> extendedGcd) : base(extendedGcd) { }
 }

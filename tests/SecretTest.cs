@@ -29,194 +29,373 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNet.Test
+namespace SecretSharingDotNetTest;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using Xunit;
+
+public class SecretTest
 {
-    using Cryptography;
-    using Math;
-    using System.Linq;
-    using System.Numerics;
-    using Xunit;
+    private static readonly Secret<BigInteger> Zero = new Secret<BigInteger>(Calculator<BigInteger>.Zero);
+    private static readonly Secret<BigInteger> One = new Secret<BigInteger>(Calculator<BigInteger>.One);
+    private static readonly Secret<BigInteger> Two = new Secret<BigInteger>(Calculator<BigInteger>.Two);
+        
+    /// <summary>
+    /// Equal secrets for testing.
+    /// </summary>
+    public static IEnumerable<object[]> EqualSecrets =>
+        new List<object[]>
+        {
+            new object[] { Zero, Zero},
+            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { One, One},
+            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+            new object[] { Two, Two},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+        };
 
-    public class SecretTest
+    /// <summary>
+    ///  Tests the equality of two <see cref="Secret{TNumber}"/> objects with
+    ///  the <see cref="Secret{TNumber}.Equals(object)"/> method.
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(EqualSecrets), MemberType = typeof(SecretTest))]
+    public void Equal_WithEqualSecrets_ReturnsTrue(Secret<BigInteger> left, Secret<BigInteger> right)
     {
-        private readonly Secret<BigInteger> one = new Secret<BigInteger>(Calculator<BigInteger>.One);
-        private readonly Secret<BigInteger> two = new Secret<BigInteger>(Calculator<BigInteger>.Two);
+        // Arrange, Act & Assert
+        Assert.True(left.Equals(right));
+    }
 
-        [Fact]
-        public void TestSecretEqual()
+    /// <summary>
+    /// Tests the equality of two <see cref="Secret{TNumber}"/> objects with the equal operator.
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(EqualSecrets), MemberType = typeof(SecretTest))]
+    public void EqualOperator_WithEqualSecrets_ReturnsTrue(Secret<BigInteger> left, Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.True(left == right);
+    }
+
+    /// <summary>
+    /// Not equal secrets for testing.
+    /// </summary>
+    public static IEnumerable<object[]> NotEqualSecrets =>
+        new List<object[]>
         {
-            var s2 = new Secret<BigInteger>(Calculator<BigInteger>.One);
-            Secret<BigInteger> leftNull = null;
-            Secret<BigInteger> rightNull = null;
+            new object[] { Zero, One},
+            new object[] { Zero, Two},
+            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+            new object[] { One, Zero},
+            new object[] { One, Two},
+            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+            new object[] { Two, Zero},
+            new object[] { Two, One},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+        };
 
-            Assert.NotEqual(this.one, this.two);
-            Assert.False(this.one == this.two);
+    /// <summary>
+    /// Tests the inequality of two <see cref="Secret{TNumber}"/> objects with
+    /// the <see cref="Secret{TNumber}.Equals(object)"/> method.
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(NotEqualSecrets), MemberType = typeof(SecretTest))]
+    public void Equal_WithNotEqualSecrets_ReturnsFalse(Secret<BigInteger> left, Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.False(left.Equals(right));
+    }
 
-            Assert.Equal(this.one, s2);
-            Assert.True(this.one == s2);
+    /// <summary>
+    /// Tests the inequality of two <see cref="Secret{TNumber}"/> objects with the equal operator.
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(NotEqualSecrets), MemberType = typeof(SecretTest))]
+    public void NotEqualOperator_WithNotEqualSecrets_ReturnsTrue(Secret<BigInteger> left, Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.True(left != right);
+    }
 
-            Assert.Equal(leftNull, rightNull);
-            Assert.True(leftNull == rightNull);
-
-            Assert.NotEqual(leftNull, s2);
-            Assert.False(leftNull == s2);
-
-            Assert.NotEqual(s2, rightNull);
-            Assert.False(s2 == rightNull);
-        }
-
-        [Fact]
-        public void TestSecretNotEqual()
+    /// <summary>
+    /// Lower or equal than secrets for testing.
+    /// </summary>
+    public static IEnumerable<object[]> LowerOrEqualThanSecrets =>
+        new List<object[]>
         {
-            var s2 = new Secret<BigInteger>(Calculator<BigInteger>.Two);
-            Secret<BigInteger> leftNull = null;
-            Secret<BigInteger> rightNull = null;
+            new object[] { Zero, Zero},
+            new object[] { Zero, One},
+            new object[] { Zero, Two},
+            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+            new object[] { One, One},
+            new object[] { One, Two},
+            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+            new object[] { Two, Two},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+        };
 
-            Assert.NotEqual(this.one, s2);
-            Assert.True(this.one != s2);
+    /// <summary>
+    /// Tests the lower or equal than operator with lower or equal than secrets. 
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(LowerOrEqualThanSecrets), MemberType = typeof(SecretTest))]
+    public void LowerOrEqualThanOperator_WithLowerOrEqualThanSecrets_ReturnsTrue(
+        Secret<BigInteger> left,
+        Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.True(left <= right);
+    }
 
-            Assert.False(leftNull != rightNull);
-
-            Assert.NotEqual(this.one, rightNull);
-            Assert.True(this.one != rightNull);
-
-            Assert.NotEqual(leftNull, this.one);
-            Assert.True(leftNull != this.one);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <remarks>For details see https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-value-types#sectionToggle4</remarks>
-        [Fact]
-        public void TestSecretLowerOrEqualThan()
+    /// <summary>
+    /// Greater than secrets for testing.
+    /// </summary>
+    public static IEnumerable<object[]> GreaterThanSecrets =>
+        new List<object[]>
         {
-            Secret<BigInteger> leftEqual = this.one;
-            Secret<BigInteger> rightEqual = this.one;
-            Secret<BigInteger> leftLower = this.one;
-            Secret<BigInteger> rightGreater = this.two;
-            Secret<BigInteger> leftNull = null;
-            Secret<BigInteger> rightNull = null;
+            new object[] { One, Zero},
+            new object[] { Two, Zero},
+            new object[] { Two, One},
+            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+            new object[] { (BigInteger)20001, (BigInteger)20000},
+        };
 
-            Assert.True(leftEqual <= rightEqual);
-            Assert.True(rightEqual <= leftEqual);
-            Assert.True(leftLower <= rightGreater);
-            Assert.False(rightGreater <= leftLower);
-            Assert.False(leftNull <= rightNull);
-            Assert.False(leftNull <= rightEqual);
-            Assert.False(leftEqual <= rightNull);
-        }
+    /// <summary>
+    /// Tests the lower or equal than operator with greater than secrets.
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(GreaterThanSecrets), MemberType = typeof(SecretTest))]
+    public void LowerOrEqualThanOperator_WithGreaterThanSecrets_ReturnsFalse(
+        Secret<BigInteger> left,
+        Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.False(left <= right);
+    }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <remarks>For details see https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-value-types#sectionToggle4</remarks>
-        [Fact]
-        public void TestSecretLowerThan()
+    /// <summary>
+    /// Lower than secrets for testing.
+    /// </summary>
+    public static IEnumerable<object[]> LowerThanSecrets =>
+        new List<object[]>
         {
-            Secret<BigInteger> leftEqual = this.one;
-            Secret<BigInteger> rightEqual = this.one;
-            Secret<BigInteger> leftLower = this.one;
-            Secret<BigInteger> rightGreater = this.two;
-            Secret<BigInteger> leftNull = null;
-            Secret<BigInteger> rightNull = null;
+            new object[] { Zero, One},
+            new object[] { Zero, Two},
+            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+            new object[] { One, Two},
+            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+        };
 
-            Assert.False(leftEqual < rightEqual);
-            Assert.False(rightEqual < leftEqual);
-            Assert.True(leftLower < rightGreater);
-            Assert.False(rightGreater < leftLower);
-            Assert.False(leftNull < rightNull);
-            Assert.False(leftNull < rightEqual);
-            Assert.False(leftEqual < rightNull);
-        }
+    /// <summary>
+    /// Lower than operator with lower than secrets.
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(LowerThanSecrets), MemberType = typeof(SecretTest))]
+    public void LowerThanOperator_WithLowerThanSecrets_ReturnsTrue(
+        Secret<BigInteger> left,
+        Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.True(left < right);
+    }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <remarks>For details see https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-value-types#sectionToggle4</remarks>
-        [Fact]
-        public void TestSecretGreaterOrEqualThan()
+    /// <summary>
+    /// Greater or equal than secrets for testing.
+    /// </summary>
+    public static IEnumerable<object[]> GreaterOrEqualThanSecrets =>
+        new List<object[]>
         {
-            Secret<BigInteger> leftEqual = this.one;
-            Secret<BigInteger> rightEqual = this.one;
-            Secret<BigInteger> leftGreater = this.two;
-            Secret<BigInteger> rightLower = this.one;
-            Secret<BigInteger> leftNull = null;
-            Secret<BigInteger> rightNull = null;
+            new object[] { Zero, Zero},
+            new object[] { One, Zero},
+            new object[] { Two, Zero},
+            new object[] { One, One},
+            new object[] { Two, One},
+            new object[] { Two, Two},
+            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+        };
 
-            Assert.True(leftEqual >= rightEqual);
-            Assert.True(rightEqual >= leftEqual);
-            Assert.True(leftGreater >= rightLower);
-            Assert.False(rightLower >= leftGreater);
-            Assert.False(leftNull >= rightNull);
-            Assert.False(leftNull >= rightEqual);
-            Assert.False(leftEqual >= rightNull);
-        }
+    /// <summary>
+    /// Tests the lower than operator with greater or equal than secrets.
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(GreaterOrEqualThanSecrets), MemberType = typeof(SecretTest))]
+    public void LowerThanOperator_WithGreaterOrEqualThanSecrets_ReturnsFalse(
+        Secret<BigInteger> left,
+        Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.False(left < right);
+    }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <remarks>For details see https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-value-types#sectionToggle4</remarks>
-        [Fact]
-        public void TestSecretGreaterThan()
+    /// <summary>
+    /// Tests the greater or equal than operator with greater or equal than secrets.
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(GreaterOrEqualThanSecrets), MemberType = typeof(SecretTest))]
+    public void GreaterOrEqualThanOperator_WithGreaterOrEqualThanSecrets_ReturnsTrue(
+        Secret<BigInteger> left,
+        Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.True(left >= right);
+    }
+
+    /// <summary>
+    /// Tests the greater or equal than operator with lower than secrets. 
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(LowerThanSecrets), MemberType = typeof(SecretTest))]
+    public void GreaterOrEqualThanOperator_WithLowerThanSecrets_ReturnsFalse(
+        Secret<BigInteger> left,
+        Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.False(left >= right);
+    }
+
+    /// <summary>
+    /// Tests the greater than operator with greater than secrets.
+    /// </summary>
+    /// <param name="left">left secret</param>
+    /// <param name="right">right secret</param>
+    [Theory]
+    [MemberData(nameof(GreaterThanSecrets), MemberType = typeof(SecretTest))]
+    public void GreaterThanOperator_WithGreaterThanSecrets_ReturnsTrue(
+        Secret<BigInteger> left,
+        Secret<BigInteger> right)
+    {
+        // Arrange, Act & Assert
+        Assert.True(left > right);
+    }
+
+    /// <summary>
+    /// Tests the ToString method of the <see cref="Secret{TNumber}"/> class.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Fact]
+    public void ToString_FromValidSecret_ReturnsSecretAsString()
+    {
+        // Arrange
+        const string secretText = "P&ssw0rd!";
+
+        // Act
+        Secret<BigInteger> secret = secretText;
+
+        // Assert
+        Assert.Equal(secretText, secret.ToString());
+    }
+
+    /// <summary>
+    /// Tests the ToBase64 method of the <see cref="Secret{TNumber}"/> class.
+    /// </summary>
+    /// <param name="base64Secret">Secret as base64 string</param>
+    [Theory]
+    [InlineData("UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=")]
+    [InlineData("TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu")]
+    [InlineData("bGlnaHQgd29yaw==")]
+    [InlineData("bGlnaHQgd29yay4=")]
+    public void ToBase64_FromValidSecret_ReturnsSecretAsBase64String(string base64Secret)
+    {
+        // Arrange
+        var secret = new Secret<BigInteger>(base64Secret);
+
+        // Act
+        string actualBase64Secret = secret.ToBase64();
+
+        // Assert
+        Assert.Equal(base64Secret, actualBase64Secret);
+    }
+
+    /// <summary>
+    /// Tests the cast of the <see cref="Secret{TNumber}"/> class.
+    /// </summary>
+    /// <param name="secretSource">Secret as string, BigInteger, int or byte array</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Theory]
+    [MemberData(nameof(TestData.MixedSecrets), MemberType = typeof(TestData))]
+    public void CastObjectToSecret_FromSupportedType_ReturnsSecret(object secretSource)
+    {
+        Secret<BigInteger> secret;
+        switch (secretSource)
         {
-            Secret<BigInteger> leftEqual = this.one;
-            Secret<BigInteger> rightEqual = this.one;
-            Secret<BigInteger> leftGreater = this.two;
-            Secret<BigInteger> rightLower = this.one;
-            Secret<BigInteger> leftNull = null;
-            Secret<BigInteger> rightNull = null;
-
-            Assert.False(leftEqual > rightEqual);
-            Assert.False(rightEqual > leftEqual);
-            Assert.True(leftGreater > rightLower);
-            Assert.False(rightLower > leftGreater);
-            Assert.False(leftNull > rightNull);
-            Assert.False(leftNull > rightEqual);
-            Assert.False(leftEqual > rightNull);
-        }
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        [Fact]
-        public void TestSecretToString()
-        {
-            const string secretText = "P&ssw0rd!";
-            Secret<BigInteger> secret = secretText;
-            Assert.Equal(secretText, secret.ToString());
-        }
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        [Theory]
-        [MemberData(nameof(TestData.MixedSecrets), MemberType = typeof(TestData))]
-        public void TestSecretSourceConversion(object secretSource)
-        {
-            Secret<BigInteger> secret1 = null;
-            switch (secretSource)
-            {
-                case string password:
-                    secret1 = password;
-                    Assert.Equal(password, secret1);
-                    break;
-                case BigInteger bigNumber:
-                    secret1 = bigNumber;
-                    Assert.Equal(bigNumber, (BigInteger)secret1);
-                    break;
-                case int number:
-                    secret1 = (BigInteger)number;
-                    Assert.Equal(number, (BigInteger)secret1);
-                    break;
-                case byte[] bytes1:
-                    secret1 = new Secret<BigInteger>(bytes1);
-                    byte[] bytes2 = secret1;
-                    Assert.True(bytes1.SequenceEqual(bytes2));
-                    break;
-                case null:
-                    return;
-            }
-
-            string base64 = secret1?.ToBase64();
-            Secret<BigInteger> secret2 = new Secret<BigInteger>(base64);
-            Assert.Equal(base64, secret2.ToBase64());
+            case string password:
+                secret = password;
+                Assert.Equal(password, secret);
+                break;
+            case BigInteger bigNumber:
+                secret = bigNumber;
+                Assert.Equal(bigNumber, (BigInteger)secret);
+                break;
+            case int number:
+                secret = (BigInteger)number;
+                Assert.Equal(number, (BigInteger)secret);
+                break;
+            case byte[] bytes1:
+                secret = new Secret<BigInteger>(bytes1);
+                byte[] bytes2 = secret;
+                Assert.True(bytes1.SequenceEqual(bytes2));
+                break;
+            case null:
+                return;
         }
     }
+
+#if NET6_0_OR_GREATER
+    /// <summary>
+    /// Tests ReadOnlySpan cast of the <see cref="Secret{TNumber}"/> class.
+    /// </summary>
+    [Fact]
+    public void CastToReadOnlySpan_FromValidSecret_ReturnsSecretAsReadOnlySpan()
+    {
+        // Arrange
+        byte[] bytes = [0x1, 0x2, 0x3, 0x4];
+        var secret = new Secret<BigInteger>(bytes);
+
+        // Act
+        ReadOnlySpan<byte> readOnlySpan = secret;
+
+        // Assert
+        Assert.Equal(bytes, readOnlySpan.ToArray());
+    }
+#endif
 }
