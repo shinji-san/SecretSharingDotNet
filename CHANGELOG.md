@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added support for .NET FX v4.8.1
 - Added support for .NET 8.0
+- Added support for SourceLink (GitHub)
+- Enable deterministic builds
 
 ### Changed
 - Moved `SecurityLevels` from `ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult>` to `ShamirsSecretSharing` class.
