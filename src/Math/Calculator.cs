@@ -48,7 +48,7 @@ public abstract class Calculator
     /// Saves a dictionary of number data types derived from the <see cref="Calculator{TNumber}"/> class.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2104:DoNotDeclareReadOnlyMutableReferenceTypes")]
-    private static readonly IReadOnlyDictionary<Type, Type> ChildTypes = new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
+    protected static readonly IReadOnlyDictionary<Type, Type> ChildTypes = new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
 
     /// <summary>
     /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
@@ -110,20 +110,20 @@ public abstract class Calculator
     /// Returns a dictionary of constructors of number data types derived from the <see cref="Calculator"/> class.
     /// </summary>
     /// <returns></returns>
-    protected static Dictionary<Type, Func<TParameter, TCalculator>> GetDerivedCtors<TParameter, TCalculator>() where TCalculator : Calculator
+    protected static Dictionary<Type, Func<TParameter1, TCalculator>> GetDerivedCtors<TParameter1, TCalculator>() where TCalculator : Calculator
     {
-        var res = new Dictionary<Type, Func<TParameter, TCalculator>>(ChildTypes.Count);
-        var paramType = typeof(TParameter);
-        var parameterExpression = Expression.Parameter(paramType);
+        var paramType1 = typeof(TParameter1);
+        var parameterExpression1 = Expression.Parameter(paramType1);
+        var res = new Dictionary<Type, Func<TParameter1, TCalculator>>(ChildTypes.Count);
         foreach (var childType in ChildTypes)
         {
-            var ctorInfo = childType.Value.GetConstructor([paramType]);
+            var ctorInfo = childType.Value.GetConstructor([paramType1]);
             if (ctorInfo == null)
             {
                 continue;
             }
 
-            var ctor = Expression.Lambda<Func<TParameter, TCalculator>>(Expression.New(ctorInfo, parameterExpression), parameterExpression)
+            var ctor = Expression.Lambda<Func<TParameter1, TCalculator>>(Expression.New(ctorInfo, parameterExpression1), parameterExpression1)
                 .Compile();
             res.Add(childType.Key, ctor);
         }

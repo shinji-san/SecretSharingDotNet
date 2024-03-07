@@ -43,3 +43,4 @@ internal static class SharedSeparator
     /// </summary>
     internal static readonly char[] CoordinateSeparatorArray = [CoordinateSeparator];
 }
+

@@ -60,7 +60,11 @@ public class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber
             checked
             {
                 var quotient = lastR / r;
-
+#if NET6_0_OR_GREATER
+                (lastR, r) = (r, lastR - quotient * r);
+                (lastX, x) = (x, lastX - quotient * x);
+                (lastY, y) = (y, lastY - quotient * y);
+#else
                 var tmpR = r;
                 r = lastR - quotient * r;
                 lastR = tmpR;
@@ -72,11 +76,10 @@ public class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber
                 var tmpY = y;
                 y = lastY - quotient * y;
                 lastY = tmpY;
+#endif
             }
         }
 
-        var coefficients = new[] {lastX, lastY};
-        var quotients = new[] {x, y};
-        return new ExtendedGcdResult<TNumber>(lastR, coefficients, quotients);
+        return new ExtendedGcdResult<TNumber>(lastR, [lastX, lastY], [x, y]);
     }
 }

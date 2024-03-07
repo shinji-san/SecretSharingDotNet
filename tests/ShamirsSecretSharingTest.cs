@@ -67,7 +67,7 @@ public class ShamirsSecretSharingTest
     }
 
     /// <summary>
-    /// Tests the security level auto-detection of <see cref="ShamirsSecretSharing{TNumber}"/>.
+    /// Tests the security level auto detection of <see cref="ShamirsSecretSharing{TNumber}"/>.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Theory]
@@ -140,6 +140,95 @@ public class ShamirsSecretSharingTest
         Assert.Equal(expectedSecurityLevel, split.SecurityLevel);
     }
 
+#if NET6_0_OR_GREATER
+    /// <summary>
+    /// Checks the following condition: denominator * DivMod(numerator, denominator, prime) % prime == numerator
+    /// ToDo: Find another technical solution for this test. Code redundancy.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Fact]
+    public void TestDivMod_WitSecureBigInteger()
+    {
+        Calculator<SecureBigInteger> DivMod(Calculator<SecureBigInteger> denominator, Calculator<SecureBigInteger> numerator,
+            Calculator<SecureBigInteger> prime)
+        {
+            var gcd = new ExtendedEuclideanAlgorithm<SecureBigInteger>();
+            var result = gcd.Compute(denominator, prime);
+            return numerator * result.BezoutCoefficients[0] * result.GreatestCommonDivisor;
+        }
+
+        Calculator<SecureBigInteger> d = (SecureBigInteger)3000;
+        Calculator<SecureBigInteger> n = (SecureBigInteger)3000;
+        Calculator<SecureBigInteger> p = Calculator<SecureBigInteger>.Two.Pow(127) - Calculator<SecureBigInteger>.One;
+        Assert.Equal(n, d * DivMod(d, n, p) % p);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2000)]
+    [InlineData(20000)]
+    [InlineData(789000)]
+    public void TestWithNumber_WithSecureBigInteger(int value)
+    {
+        // Arrange
+        var number = new SecureBigInteger(value);
+        var split = new ShamirsSecretSharing<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        var combine = new ShamirsSecretSharing<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        
+        // Act
+        var shares = split.MakeShares(3, 7, number);
+        var secret = shares.OriginalSecret;
+        
+        var subSet1 = shares.Where(p => p.X.IsEven).ToList();
+        var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
+        var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
+        var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());
+        
+        // Assert
+        Assert.True(shares.OriginalSecretExists);
+        Assert.NotNull(shares.OriginalSecret);
+        Assert.Equal(split.SecurityLevel, combine.SecurityLevel);
+        Assert.Equal(number, (SecureBigInteger)recoveredSecret1);
+        Assert.Equal(number, (SecureBigInteger)recoveredSecret2);
+        Assert.Equal(secret, recoveredSecret1);
+        Assert.Equal(secret, recoveredSecret2);
+    }
+    
+    [Fact]
+    public void Reconstruction_FromSortedSharesAsString_ReturnsSecureBigIntegerSecret()
+    {
+        // Arrange
+        string sortedShares = "02-665C74ED38FDFF095B2FC9319A272A75" + Environment.NewLine +
+                         "05-CDECB88126DBC04D753E0C2D83D7B55D" + Environment.NewLine +
+                         "07-54A83E34AB0310A7F5D80F2A68FD4F33";
+
+        // Act
+        var gcd = new ExtendedEuclideanAlgorithm<SecureBigInteger>();
+        var combine = new ShamirsSecretSharing<SecureBigInteger>(gcd);
+        var recoveredSecret = ((SecureBigInteger)combine.Reconstruction(sortedShares));
+        
+        // Assert
+        Assert.Equal("52199147989510990914370102003412153", recoveredSecret.ToString());
+    }
+    
+    [Fact]
+    public void Reconstruction_FromUnsortedSharesAsString_ReturnsSecureBigIntegerSecret()
+    {
+        // Arrange
+        string unsortedShares = "05-CDECB88126DBC04D753E0C2D83D7B55D" + Environment.NewLine + 
+                                "02-665C74ED38FDFF095B2FC9319A272A75" + Environment.NewLine +
+                                "07-54A83E34AB0310A7F5D80F2A68FD4F33";
+
+        // Act
+        var gcd = new ExtendedEuclideanAlgorithm<SecureBigInteger>();
+        var combine = new ShamirsSecretSharing<SecureBigInteger>(gcd);
+        var recoveredSecret = ((SecureBigInteger)combine.Reconstruction(unsortedShares));
+        
+        // Assert
+        Assert.Equal("52199147989510990914370102003412153", recoveredSecret.ToString());
+    }
+#endif
+    
     /// <summary>
     /// Tests <see cref="ShamirsSecretSharing{TNumber}"/> with <see cref="BigInteger"/> as secret.
     /// </summary>
@@ -157,7 +246,7 @@ public class ShamirsSecretSharingTest
         Assert.True(shares.OriginalSecretExists);
         Assert.NotNull(shares.OriginalSecret);
         var secret = shares.OriginalSecret;
-        var subSet1 = shares.Where(p => p.X.IsEven).ToList();
+        var subSet1 = shares.Where(p => p.X > new BigIntCalculator((BigInteger)4)).ToList();
         var recoveredSecret1 = combine.Reconstruction(subSet1.ToArray());
         var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
         var recoveredSecret2 = combine.Reconstruction(subSet2.ToArray());

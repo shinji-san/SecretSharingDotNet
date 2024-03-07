@@ -84,4 +84,114 @@ internal static class Extensions
         Array.Copy(array,index, subset, 0, count);
         return subset;
     }
+
+#if NET6_0_OR_GREATER
+    /// <summary>
+    /// Extends the byte array to a length that is a multiple of the size of an unsigned integer (UInt32).
+    /// </summary>
+    /// <param name="byteArray">The byte array representing a big integer.</param>
+    /// <returns>A span of bytes with the length extended to a multiple of the size of UInt32.</returns>
+    public static Span<byte> ExtendToMultipleOfUInt(this Span<byte> byteArray)
+    {
+        int newLength = (byteArray.Length + sizeof(uint) - 1) / sizeof(uint) * sizeof(uint);
+        byte[] extendedArray = new byte[newLength];
+        byteArray.CopyTo(extendedArray);
+        return new Span<byte>(extendedArray);
+    }
+
+    /// <summary>
+    /// Trims trailing zeroes from the provided span of bytes.
+    /// </summary>
+    /// <param name="bytes">The span of bytes from which to trim trailing zeroes.</param>
+    /// <returns>A span of bytes with trailing zeroes removed.</returns>
+    public static Span<byte> TrimTrailingZeroes(this Span<byte> bytes)
+    {
+        int length = bytes.Length;
+        for (int i = bytes.Length - 1; i >= 0; i--)
+        {
+            if (bytes[i] == 0)
+            {
+                length--;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return bytes[..length];
+    }
+
+    /// <summary>
+    /// Applies two's complement to the given byte array, returning a new array
+    /// where each byte is the bitwise complement of the original with an increment of 1.
+    /// </summary>
+    /// <param name="bytes">The byte array to which the two's complement is to be applied.</param>
+    /// <returns>A new byte array that represents the two's complement of the input byte array.</returns>
+    public static Span<byte> ApplyTwoComplement(this Span<byte> bytes)
+    {
+        byte[] complementArray = new byte[bytes.Length];
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            complementArray[i] = (byte)~bytes[i];
+        }
+
+        bool carry = true;
+        for (int i =0; i < complementArray.Length; i++)
+        {
+            if (!carry)
+            {
+                continue;
+            }
+
+            if (complementArray[i] == byte.MaxValue)
+            {
+                complementArray[i] = 0;
+            }
+            else
+            {
+                complementArray[i]++;
+                carry = false;
+            }
+        }
+
+        return complementArray;
+    }
+
+    /// <summary>
+    /// Reverses the two's complement representation of a byte sequence and returns the original byte array.
+    /// </summary>
+    /// <param name="complementArray">The byte array in two's complement form.</param>
+    /// <returns>A byte array representing the original binary number before two's complement was applied.</returns>
+    public static Span<byte> ReverseTwoComplement(this Span<byte> complementArray)
+    {
+        byte[] originalArray = new byte[complementArray.Length];
+        bool borrow = true;
+        for (int i = 0; i < complementArray.Length; i++)
+        {
+            if (borrow)
+            {
+                if (complementArray[i] == 0)
+                {
+                    originalArray[i] = byte.MaxValue;
+                }
+                else
+                {
+                    originalArray[i] = (byte)(complementArray[i] - 1);
+                    borrow = false;
+                }
+            }
+            else
+            {
+                originalArray[i] = complementArray[i];
+            }
+        }
+        for(int i = 0; i < complementArray.Length; i++)
+        {
+            originalArray[i] = (byte)~originalArray[i];
+        }
+
+        return originalArray;
+    }
+#endif
 }

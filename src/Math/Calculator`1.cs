@@ -33,6 +33,7 @@ namespace SecretSharingDotNet.Math;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq.Expressions;
 
 /// <summary>
 /// This class represents the calculator strategy pattern to decouple Shamir's Secret Sharing
@@ -356,17 +357,17 @@ public abstract class Calculator<TNumber> :
     /// <summary>
     /// Gets a value that represents the number zero (0).
     /// </summary>
-    public static Calculator<TNumber> Zero { get; } = default(TNumber);
+    public static Calculator<TNumber> Zero  => default(TNumber);
 
     /// <summary>
     /// Gets a value that represents the number one (1).
     /// </summary>
-    public static Calculator<TNumber> One { get; } = Zero.Increment();
+    public static Calculator<TNumber> One => Zero.Increment();
 
     /// <summary>
     /// Gets a value that represents the number two (2).
     /// </summary>
-    public static Calculator<TNumber> Two { get; } = One.Increment();
+    public static Calculator<TNumber> Two => One.Increment();
 
     /// <summary>
     /// A shallow copy of the current <see cref="Calculator{TNumber}"/> instance.
