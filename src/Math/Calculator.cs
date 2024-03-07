@@ -117,7 +117,7 @@ public abstract class Calculator
         var parameterExpression = Expression.Parameter(paramType);
         foreach (var childType in ChildTypes)
         {
-            var ctorInfo = childType.Value.GetConstructor(new[] {paramType});
+            var ctorInfo = childType.Value.GetConstructor([paramType]);
             if (ctorInfo == null)
             {
                 continue;

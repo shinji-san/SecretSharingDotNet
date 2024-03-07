@@ -6,6 +6,11 @@ namespace SecretSharingDotNet.Cryptography;
 public abstract class ShamirsSecretSharing
 {
     /// <summary>
+    /// The minimum number of shares required to reconstruct the secret
+    /// </summary>
+    protected const int MinimumShareLimit = 2;
+
+    /// <summary>
     /// Saves the known security levels (Mersenne prime exponents)
     /// </summary>
     protected static readonly int[] SecurityLevels =

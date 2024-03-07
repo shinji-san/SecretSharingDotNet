@@ -70,7 +70,7 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
     public ShamirsSecretSharing(TExtendedGcdAlgorithm extendedGcd)
     {
         this.extendedGcd = extendedGcd ?? throw new ArgumentNullException(nameof(extendedGcd));
-        this.SecurityLevel = 13;
+        this.SecurityLevel = SecurityLevels[0];
     }
 
     /// <summary>
@@ -84,7 +84,7 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
 
         set
         {
-            if (value < 13)
+            if (value < SecurityLevels[0])
             {
                 throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MinimumSecurityLevelExceeded);
             }
@@ -128,7 +128,7 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
 
         int min = ((Calculator<TNumber>)numberOfMinimumShares).ToInt32();
         int max = ((Calculator<TNumber>)numberOfShares).ToInt32();
-        if (min < 2)
+        if (min < MinimumShareLimit)
         {
             throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
@@ -187,7 +187,7 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
     {
         int min = ((Calculator<TNumber>)numberOfMinimumShares).ToInt32();
         int max = ((Calculator<TNumber>)numberOfShares).ToInt32();
-        if (min < 2)
+        if (min < MinimumShareLimit)
         {
             throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
@@ -215,20 +215,40 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
     /// </summary>
     /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
     /// <returns></returns>
+#if NET6_0_OR_GREATER
+    private unsafe Calculator<TNumber>[] CreatePolynomial(int numberOfMinimumShares)
+#else
     private Calculator<TNumber>[] CreatePolynomial(int numberOfMinimumShares)
+#endif
     {
         var polynomial = new Calculator<TNumber>[numberOfMinimumShares];
         polynomial[0] = Calculator<TNumber>.Zero;
         byte[] randomNumber = new byte[this.mersennePrime.ByteCount];
-        using (var rng = RandomNumberGenerator.Create())
+#if NET6_0_OR_GREATER
+        fixed (byte* pointer = randomNumber)
         {
+            var span = new Span<byte>(pointer, this.mersennePrime.ByteCount);
+            using var rng = RandomNumberGenerator.Create();
             for (int i = 1; i < numberOfMinimumShares; i++)
             {
-                rng.GetBytes(randomNumber);
-                polynomial[i] = (Calculator.Create(randomNumber, typeof(TNumber)) as Calculator<TNumber>)?.Abs() % this.mersennePrime;
+                rng.GetBytes(span);
+                polynomial[i] = (Calculator.Create(randomNumber, typeof(TNumber)) as Calculator<TNumber>)?.Abs() %
+                                this.mersennePrime;
             }
-        }
 
+            span.Clear();
+        }
+#else
+         using var rng = RandomNumberGenerator.Create();
+         for (int i = 1; i < numberOfMinimumShares; i++)
+         {
+             rng.GetBytes(randomNumber);
+             polynomial[i] = (Calculator.Create(randomNumber, typeof(TNumber)) as Calculator<TNumber>)?.Abs() %
+                             this.mersennePrime;
+         }
+
+         Array.Clear(randomNumber, 0, randomNumber.Length);
+#endif
         return polynomial;
     }
 
