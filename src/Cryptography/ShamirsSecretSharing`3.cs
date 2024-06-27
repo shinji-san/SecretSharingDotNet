@@ -41,9 +41,10 @@ using System.Security.Cryptography;
 /// Shamir's secret sharing algorithm
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type</typeparam>
-/// <typeparam name="TExtendedGcdAlgorithm"></typeparam>
-/// <typeparam name="TExtendedGcdResult"></typeparam>
-public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult> : ShamirsSecretSharing
+/// <typeparam name="TExtendedGcdAlgorithm">Extended greatest common divisor algorithm</typeparam>
+/// <typeparam name="TExtendedGcdResult">Extended greatest common divisor result</typeparam>
+public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult> : ShamirsSecretSharing,
+    IMakeSharesUseCase<TNumber>, IReconstructionUseCase<TNumber>
     where TExtendedGcdAlgorithm : class, IExtendedGcdAlgorithm<TNumber, TExtendedGcdResult>
     where TExtendedGcdResult : struct, IExtendedGcdResult<TNumber>
 {
@@ -70,21 +71,21 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
     public ShamirsSecretSharing(TExtendedGcdAlgorithm extendedGcd)
     {
         this.extendedGcd = extendedGcd ?? throw new ArgumentNullException(nameof(extendedGcd));
-        this.SecurityLevel = 13;
+        this.SecurityLevel = SecurityLevels[0];
     }
 
     /// <summary>
     /// Gets or sets the security level
     /// </summary>
-    /// <remarks>Value is lower than 13 or greater than 43112609.</remarks>
-    /// <exception cref="T:System.ArgumentOutOfRangeException" accessor="set">Value is lower than 13 or greater than 43112609.</exception>
+    /// <remarks>The value is lower than 13 or greater than 43.112.609.</remarks>
+    /// <exception cref="T:System.ArgumentOutOfRangeException" accessor="set">The value is lower than 13 or greater than 43.112.609.</exception>
     public int SecurityLevel
     {
         get => this.fixedSecurityLevel;
 
         set
         {
-            if (value < 13)
+            if (value < SecurityLevels[0])
             {
                 throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MinimumSecurityLevelExceeded);
             }
@@ -112,9 +113,11 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
     /// </summary>
     /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
     /// <param name="numberOfShares">Maximum number of shared secrets</param>
-    /// <param name="securityLevel">Security level (in number of bits). Minimum is 13.</param>
+    /// <param name="securityLevel">Security level (in number of bits). The minimum is 13.</param>
     /// <returns></returns>
-    /// <exception cref="T:System.ArgumentOutOfRangeException">The <paramref name="securityLevel"/> parameter is lower than 13 or greater than 43112609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
+    /// <exception cref="T:System.ArgumentOutOfRangeException">
+    /// The <paramref name="securityLevel"/> parameter is lower than 13 or greater than 43.112.609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// </exception>
     public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)
     {
         try
@@ -156,10 +159,12 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
     /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
     /// <param name="numberOfShares">Maximum number of shared secrets</param>
     /// <param name="secret">secret text as <see cref="Secret{TNumber}"/> or see cref="string"/></param>
-    /// <param name="securityLevel">Security level (in number of bits). Minimum is 13.</param>
+    /// <param name="securityLevel">Security level (in number of bits). The minimum is 13.</param>
     /// <returns></returns>
     /// <remarks>This method can modify the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length.</remarks>
-    /// <exception cref="T:System.ArgumentOutOfRangeException">The <paramref name="securityLevel"/> is lower than 13 or greater than 43112609. OR <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
+    /// <exception cref="T:System.ArgumentOutOfRangeException">
+    /// The <paramref name="securityLevel"/> is lower than 13 or greater than 43.112.609. OR <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// </exception>
     public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret, int securityLevel)
     {
         try
@@ -220,13 +225,11 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
         var polynomial = new Calculator<TNumber>[numberOfMinimumShares];
         polynomial[0] = Calculator<TNumber>.Zero;
         byte[] randomNumber = new byte[this.mersennePrime.ByteCount];
-        using (var rng = RandomNumberGenerator.Create())
+        using var rng = RandomNumberGenerator.Create();
+        for (int i = 1; i < numberOfMinimumShares; i++)
         {
-            for (int i = 1; i < numberOfMinimumShares; i++)
-            {
-                rng.GetBytes(randomNumber);
-                polynomial[i] = (Calculator.Create(randomNumber, typeof(TNumber)) as Calculator<TNumber>)?.Abs() % this.mersennePrime;
-            }
+            rng.GetBytes(randomNumber);
+            polynomial[i] = (Calculator.Create(randomNumber, typeof(TNumber)) as Calculator<TNumber>)?.Abs() % this.mersennePrime;
         }
 
         return polynomial;
@@ -293,7 +296,7 @@ public class ShamirsSecretSharing<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRe
     /// k points will define a polynomial of up to kth order
     /// </summary>
     /// <param name="finitePoints">The shares represented by a set of <see cref="FinitePoint{TNumber}"/>.</param>
-    /// <param name="prime">A prime number must be defined to avoid computation with real numbers. In fact it is finite field arithmetic.
+    /// <param name="prime">A prime number must be defined to avoid computation with real numbers. In fact, it is finite field arithmetic.
     /// The prime number must be the same as used for the construction of shares.</param>
     /// <exception cref="ArgumentException"></exception>
     /// <returns>The re-constructed secret.</returns>

@@ -336,15 +336,12 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <returns>A signed integer that indicates the relationship of the current instance to the <paramref name="obj"/> parameter</returns>
     public virtual int CompareTo(object obj)
     {
-        switch (obj)
+        return obj switch
         {
-            case null:
-                return 1;
-            case TNumber number:
-                return this.CompareTo(number);
-            default:
-                throw new ArgumentException();
-        }
+            null => 1,
+            TNumber number => this.CompareTo(number),
+            _ => throw new ArgumentException()
+        };
     }
 
     /// <summary>

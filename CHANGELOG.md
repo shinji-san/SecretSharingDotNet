@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Added use-case interfaces `IMakeSharesUseCase` and `IReconstructUseCase` to the `SecretSharingDotNet` project.
+- Added a guide to the `README.md` file on how to use the use-case interfaces with dependency injection.
+
 ### Removed
 - Removed .NET 7 support, because it retires on May 14, 2024. See [.NET and .NET Core Support Policy](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core).
 
