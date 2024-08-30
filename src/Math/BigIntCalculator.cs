@@ -66,7 +66,7 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     public override bool Equals(Calculator<BigInteger> other)
     {
         var valueLeft = this.Value.ToByteArray();
-        var valueRight = other?.Value.ToByteArray() ?? Array.Empty<byte>();
+        var valueRight = other?.Value.ToByteArray() ?? [];
 
         var diff = (uint)valueLeft.Length ^ (uint)valueRight.Length;
         for (var i = 0; i < valueLeft.Length && i < valueRight.Length; i++)
@@ -202,17 +202,17 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     public override IEnumerable<byte> ByteRepresentation => new ReadOnlyCollection<byte>(this.Value.ToByteArray());
 
     /// <summary>
-    /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"/> object is zero (0).
+    /// Gets a value indicating whether the current <see cref="BigIntCalculator"/> object is zero (0).
     /// </summary>
     public override bool IsZero => this.Value.IsZero;
 
     /// <summary>
-    /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"/> object is one (1).
+    /// Gets a value indicating whether the current <see cref="BigIntCalculator"/> object is one (1).
     /// </summary>
     public override bool IsOne => this.Value.IsOne;
 
     /// <summary>
-    /// Gets a value indicating whether or not the current <see cref="BigIntCalculator"/> object is an even number.
+    /// Gets a value indicating whether the current <see cref="BigIntCalculator"/> object is an even number.
     /// </summary>
     public override bool IsEven => this.Value % 2 == 0;
 

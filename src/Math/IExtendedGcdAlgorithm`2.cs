@@ -32,7 +32,7 @@
 namespace SecretSharingDotNet.Math;
 
 /// <summary>
-/// Provides mechanism to compute the extended greatest common divisor
+/// Provides a mechanism to compute the extended greatest common divisor
 /// including Bézout coefficients.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
@@ -40,10 +40,10 @@ namespace SecretSharingDotNet.Math;
 public interface IExtendedGcdAlgorithm<TNumber, out TExtendedGcdResult> where TExtendedGcdResult : struct, IExtendedGcdResult<TNumber>
 {
     /// <summary>
-    /// Computes, in addition to the greatest common divisor of integers <paramref name="a"/> and <paramref name="b"/>, also the coefficients of Bézout's identity.
+    /// Computes, in addition to the greatest common divisor of elements of type <see cref="Calculator{TNumber}"/> <paramref name="a"/> and <paramref name="b"/>, also the coefficients of Bézout's identity.
     /// </summary>
-    /// <param name="a">An integer</param>
-    /// <param name="b">An integer</param>
+    /// <param name="a">An element of type <see cref="Calculator{TNumber}"/></param>
+    /// <param name="b">An element of type <see cref="Calculator{TNumber}"/></param>
     /// <returns>For details: <see cref="IExtendedGcdResult{TNumber}"/></returns>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "b")]

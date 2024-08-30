@@ -96,7 +96,7 @@ public readonly struct ExtendedGcdResult<TNumber> : IExtendedGcdResult<TNumber>,
     /// <returns><see langword="true"/> if the specified object is equal to the current <see cref="ExtendedGcdResult{TNumber}"/> structure; otherwise <see langword="false"/>.</returns>
     public override bool Equals(object obj)
     {
-        return obj != null && this.Equals((ExtendedGcdResult<TNumber>)obj);
+        return obj is ExtendedGcdResult<TNumber> other && this.Equals(other);
     }
 
     /// <summary>
