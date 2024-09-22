@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added use-case interfaces `IMakeSharesUseCase` and `IReconstructUseCase` to the `SecretSharingDotNet` project.
 - Added a guide to the `README.md` file on how to use the use-case interfaces with dependency injection.
 
+### Changed
+- Changed the `Sqrt` signature in the `BigIntCalculator` class from property to method.
+- Changed method visibility from `public` to `protected` in the `BigIntCalculator`and `Calculator` classes to restrict access.
+
 ### Removed
 - Removed .NET 7 support, because it retires on May 14, 2024. See [.NET and .NET Core Support Policy](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core).
 

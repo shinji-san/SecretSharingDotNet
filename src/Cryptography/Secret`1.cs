@@ -307,7 +307,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
 
     /// <summary>
     /// Converts the value of <see cref="Secret{TNumber}"/> structure to its equivalent <see cref="string"/> representation
-    /// that is unicode encoded.
+    /// that is Unicode encoded.
     /// </summary>
     /// <returns><see cref="string"/> representation of <see cref="Secret{TNumber}"/></returns>
     public override string ToString()

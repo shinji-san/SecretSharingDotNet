@@ -192,7 +192,7 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     /// <inheritdoc />
     public int CompareTo(FinitePoint<TNumber> other)
     {
-        return ((this.X.Pow(2) + this.Y.Pow(2)).Sqrt - (other.X.Pow(2) + other.Y.Pow(2)).Sqrt).Sign;
+        return ((this.X.Pow(2) + this.Y.Pow(2)).Sqrt() - (other.X.Pow(2) + other.Y.Pow(2)).Sqrt()).Sign;
     }
 
     /// <summary>
