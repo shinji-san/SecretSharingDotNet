@@ -41,19 +41,14 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup .NET 6
-      uses: actions/setup-dotnet@v4.1.0
-      with:
-        dotnet-version: 6.0.425
-
     - name: Setup .NET 8
       uses: actions/setup-dotnet@v4.1.0
       with:
-        dotnet-version: 8.0.401
+        dotnet-version: 8.0.404
 
     - name: .NET Core SxS
       run: |
-        rsync -a ${DOTNET_ROOT/8.0.100/7.0.403/6.0.416}/* $DOTNET_ROOT/
+        rsync -a ${DOTNET_ROOT/8.0.404}/* $DOTNET_ROOT/
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
