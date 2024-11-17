@@ -235,7 +235,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     /// <param name="left">The left operand</param>
     /// <param name="right">The right operand</param>
-    /// <returns>Returns <see langword="true"/> if its operands are not equal, otherwise <see langword="false"/>.</returns>
+    /// <returns>Returns <see langword="true"/> if its operands aren't equal, otherwise <see langword="false"/>.</returns>
     public static bool operator !=(Secret<TNumber> left, Secret<TNumber> right) => !left.Equals(right);
 
     /// <summary>
@@ -276,8 +276,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <param name="other">An <see cref="Secret{TNumber}"/> instance to compare with this instance.</param>
     /// <returns>A value that indicates the relative order of the <see cref="Secret{TNumber}"/> instances being compared.</returns>
     public int CompareTo(Secret<TNumber> other) => this.secretNumber
-        .Subset(0, this.SecretByteSize - MarkByteCount).CompareTo(other.secretNumber
-            .Subset(0, other.SecretByteSize - MarkByteCount));
+        .Subset(0, this.SecretByteSize - MarkByteCount)
+        .CompareTo(other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount));
 
     /// <summary>
     /// Determines whether this instance and an<paramref name="other"/> specified <see cref="Secret{TNumber}"/> instance are equal.
@@ -307,7 +307,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
 
     /// <summary>
     /// Converts the value of <see cref="Secret{TNumber}"/> structure to its equivalent <see cref="string"/> representation
-    /// that is unicode encoded.
+    /// that is Unicode encoded.
     /// </summary>
     /// <returns><see cref="string"/> representation of <see cref="Secret{TNumber}"/></returns>
     public override string ToString()

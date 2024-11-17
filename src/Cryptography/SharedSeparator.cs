@@ -41,5 +41,5 @@ internal static class SharedSeparator
     /// <summary>
     /// Separator array for <see cref="string.Split(char[])"/> method usage to avoid allocation of a new array.
     /// </summary>
-    internal static readonly char[] CoordinateSeparatorArray = { CoordinateSeparator };
+    internal static readonly char[] CoordinateSeparatorArray = [CoordinateSeparator];
 }

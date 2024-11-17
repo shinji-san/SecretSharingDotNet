@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2024-11-17
+### Added
+- Added .NET 9.0 support
+- Added use-case interfaces `IMakeSharesUseCase` and `IReconstructUseCase` to the `SecretSharingDotNet` project.
+- Added a guide to the `README.md` file on how to use the use-case interfaces with dependency injection.
+
+### Changed
+- Changed the `Sqrt` signature in the `BigIntCalculator` class from property to method.
+- Changed method visibility from `public` to `protected` in the `BigIntCalculator`and `Calculator` classes to restrict access.
+
+### Removed
+- Removed .NET 7 support, because it retires on May 14, 2024. See [.NET and .NET Core Support Policy](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core).
+- Removed .NET 6 support, because it retires on November 12, 2024. See [.NET and .NET Core Support Policy](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core).
+
 ## [0.11.0] - 2023-12-30
 ### Added
 - Added support for .NET FX v4.8.1
@@ -206,7 +220,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `LICENSE.md`
 - Added `README.md`
 
-[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.11.0...develop
+[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.12.0...develop
+[0.12.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.10.2...v0.11.0
 [0.10.2]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.10.0...v0.10.1

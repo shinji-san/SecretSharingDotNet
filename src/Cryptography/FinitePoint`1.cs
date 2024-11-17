@@ -154,45 +154,45 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     /// </summary>
     /// <param name="left">The left operand</param>
     /// <param name="right">The right operand</param>
-    /// <returns>Returns <see langword="true"/> if its operands are not equal, otherwise <see langword="false"/>.</returns>
+    /// <returns>Returns <see langword="true"/> if its operands aren't equal, otherwise <see langword="false"/>.</returns>
     public static bool operator !=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => !left.Equals(right);
 
     /// <summary>
     /// Greater than operator
     /// </summary>
-    /// <param name="left">The 1st operand</param>
-    /// <param name="right">The 2nd operand</param>
-    /// <returns>Returns <see langword="true"/> if its 1st operand is greater than its 2nd operand, otherwise <see langword="false"/>.</returns>
+    /// <param name="left">The first operand</param>
+    /// <param name="right">The second operand</param>
+    /// <returns>Returns <see langword="true"/> if its first operand is greater than its second operand, otherwise <see langword="false"/>.</returns>
     public static bool operator >(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) == 1;
 
     /// <summary>
     /// Less than operator
     /// </summary>
-    /// <param name="left">The 1st operand</param>
-    /// <param name="right">The 2nd operand</param>
-    /// <returns>Returns <see langword="true"/> if its 1st operand is less than its 2nd operand, otherwise <see langword="false"/>.</returns>
+    /// <param name="left">The first operand</param>
+    /// <param name="right">The second operand</param>
+    /// <returns>Returns <see langword="true"/> if its first operand is less than its second operand, otherwise <see langword="false"/>.</returns>
     public static bool operator <(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) == -1;
 
     /// <summary>
     /// Greater than or equal operator
     /// </summary>
     /// <param name="left">The 1st operand</param>
-    /// <param name="right">The 2nd operand</param>
-    /// <returns>Returns <see langword="true"/> if its 1st operand is greater than or equal to its 2nd operand, otherwise <see langword="false"/>.</returns>
+    /// <param name="right">The second operand</param>
+    /// <returns>Returns <see langword="true"/> if its first operand is greater than or equal to its second operand, otherwise <see langword="false"/>.</returns>
     public static bool operator >=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) >= 0;
 
     /// <summary>
     /// Less than or equal operator
     /// </summary>
-    /// <param name="left">The 1st operand</param>
-    /// <param name="right">The 2nd operand</param>
-    /// <returns>Returns <see langword="true"/> if its 1st operand is less than or equal to its 2nd operand, otherwise <see langword="false"/>.</returns>
+    /// <param name="left">The first operand</param>
+    /// <param name="right">The second operand</param>
+    /// <returns>Returns <see langword="true"/> if its first operand is less than or equal to its second operand, otherwise <see langword="false"/>.</returns>
     public static bool operator <=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.CompareTo(right) <= 0;
 
     /// <inheritdoc />
     public int CompareTo(FinitePoint<TNumber> other)
     {
-        return ((this.X.Pow(2) + this.Y.Pow(2)).Sqrt - (other.X.Pow(2) + other.Y.Pow(2)).Sqrt).Sign;
+        return ((this.X.Pow(2) + this.Y.Pow(2)).Sqrt() - (other.X.Pow(2) + other.Y.Pow(2)).Sqrt()).Sign;
     }
 
     /// <summary>
@@ -251,7 +251,7 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     /// Converts a byte collection to hexadecimal string.
     /// </summary>
     /// <param name="bytes"></param>
-    /// <returns>human readable / printable string</returns>
+    /// <returns>human-readable / printable string</returns>
     /// <remarks>
     /// Based on discussion on <see href="https://stackoverflow.com/questions/623104/byte-to-hex-string/5919521#5919521">stackoverflow</see>
     /// </remarks>
@@ -287,8 +287,7 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     private static byte[] ToByteArray(string hexString)
         {
             byte[] bytes = new byte[hexString.Length / 2];
-            var hexValues = Array.AsReadOnly(new[]
-            {
+            var hexValues = Array.AsReadOnly([
                 0x00,
                 0x01,
                 0x02,
@@ -312,7 +311,7 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
                 0x0D,
                 0x0E,
                 0x0F
-            });
+            ]);
 
             for (int i = 0, j = 0; j < hexString.Length; j += 2, i += 1)
             {

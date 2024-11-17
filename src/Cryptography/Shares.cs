@@ -95,12 +95,12 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     public FinitePoint<TNumber> this[int i] => this.shareList[i];
 
     /// <summary>
-    /// Gets a value indicating whether or not the original secret is available.
+    /// Gets a value indicating whether the original secret is available.
     /// </summary>
     public bool OriginalSecretExists => this.OriginalSecret != null;
 
     /// <summary>
-    /// Casts a <see cref="Shares{TNumber}"/> object to a array of <see cref="string"/>s.
+    /// Casts a <see cref="Shares{TNumber}"/> object to an array of <see cref="string"/>s.
     /// </summary>
     /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
     public static implicit operator string[](Shares<TNumber> shares) => shares?.Select(s => s.ToString()).ToArray();
@@ -118,7 +118,7 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     public static implicit operator Shares<TNumber>(string s)
     {
         var points = s
-            .Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries)
+            .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries)
             .Select(line => new FinitePoint<TNumber>(line))
             .ToArray();
         return new Shares<TNumber>(points);
@@ -146,7 +146,7 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     /// <summary>
     /// Returns the string representation of the <see cref="Shares{TNumber}"/> instance.
     /// </summary>
-    /// <returns>A human readable list of shares separated by newlines</returns>
+    /// <returns>A human-readable list of shares separated by newlines</returns>
     public override string ToString()
     {
         var stringBuilder = new StringBuilder();
@@ -198,7 +198,7 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     /// <summary>
     /// Removes all items from the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
-    /// <remarks>This method is implemented. However this method does nothing as long as the property <see cref="IsReadOnly"/> is
+    /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
     /// set to <see langword="true"/>.</remarks>
     /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
     public void Clear()
@@ -215,7 +215,7 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     /// Adds an <see cref="FinitePoint{TNumber}"/> to the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     /// <param name="item">The <see cref="FinitePoint{TNumber}"/> to add to the <see cref="Shares{TNumber}"/> collection.</param>
-    /// <remarks>This method is implemented. However this method does nothing as long as the property <see cref="IsReadOnly"/> is
+    /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
     /// set to <see langword="true"/>.</remarks>
     /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
     public void Add(FinitePoint<TNumber> item)
@@ -236,7 +236,7 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     /// </summary>
     /// <param name="item">The <see cref="FinitePoint{TNumber}"/> to remove from the <see cref="Shares{TNumber}"/> collection.</param>
     /// <returns></returns>
-    /// <remarks>This method is implemented. However this method does nothing as long as the property <see cref="IsReadOnly"/> is
+    /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
     /// set to <see langword="true"/>.</remarks>
     /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
     public bool Remove(FinitePoint<TNumber> item)

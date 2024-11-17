@@ -39,7 +39,11 @@ using System.Collections.ObjectModel;
 /// implementation from the concrete numeric data type like BigInteger.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type</typeparam>
-public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TNumber>>, IComparable, IComparable<Calculator<TNumber>>
+public abstract class Calculator<TNumber> :
+    Calculator,
+    IEquatable<Calculator<TNumber>>,
+    IComparable,
+    IComparable<Calculator<TNumber>>
 {
     /// <summary>
     /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
@@ -59,7 +63,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="right">Right value to add (right summand).</param>
     /// <returns>The sum of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
     /// <see cref="Calculator{TNumber}"/> instance.</returns>
-    public abstract Calculator<TNumber> Add(TNumber right);
+    protected abstract Calculator<TNumber> Add(TNumber right);
 
     /// <summary>
     /// Subtracts the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
@@ -68,7 +72,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="right">Right value to subtract (subtrahend).</param>
     /// <returns>The difference of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
     /// <see cref="Calculator{TNumber}"/> instance.</returns>
-    public abstract Calculator<TNumber> Subtract(TNumber right);
+    protected abstract Calculator<TNumber> Subtract(TNumber right);
 
     /// <summary>
     /// Multiplies the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
@@ -77,7 +81,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="right">multiplicand</param>
     /// <returns>The product of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
     /// <see cref="Calculator{TNumber}"/> instance.</returns>
-    public abstract Calculator<TNumber> Multiply(TNumber right);
+    protected abstract Calculator<TNumber> Multiply(TNumber right);
 
     /// <summary>
     /// Divides the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
@@ -86,26 +90,26 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="right">divisor</param>
     /// <returns>The quotient of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
     /// <see cref="Calculator{TNumber}"/> instance.</returns>
-    public abstract Calculator<TNumber> Divide(TNumber right);
+    protected abstract Calculator<TNumber> Divide(TNumber right);
 
     /// <summary>
     /// The modulo operation
     /// </summary>
     /// <param name="right">divisor</param>
     /// <returns>The remainder</returns>
-    public abstract Calculator<TNumber> Modulo(TNumber right);
+    protected abstract Calculator<TNumber> Modulo(TNumber right);
 
     /// <summary>
     /// The unary increment method increments this instance by 1.
     /// </summary>
     /// <returns>This <see cref="Calculator{TNumber}"/> instance plus <see cref="Calculator{TNumber}.One"/></returns>
-    public abstract Calculator<TNumber> Increment();
+    protected abstract Calculator<TNumber> Increment();
 
     /// <summary>
     /// The unary decrement method decrements this instance by 1.
     /// </summary>
     /// <returns>This <see cref="Calculator{TNumber}"/> instance minus <see cref="Calculator{TNumber}.One"/></returns>
-    public abstract Calculator<TNumber> Decrement();
+    protected abstract Calculator<TNumber> Decrement();
 
     /// <summary>
     /// Returns the absolute value of the current <see cref="Calculator{TNumber}"/> object.
@@ -123,35 +127,35 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <summary>
     /// Returns the square root of the current <see cref="Calculator{TNumber}"/>.
     /// </summary>
-    public abstract Calculator<TNumber> Sqrt { get; }
+    public abstract Calculator<TNumber> Sqrt();
 
     /// <summary>
     /// This method represents the Greater Than operator.
     /// </summary>
     /// <param name="right">right-hand operand</param>
     /// <returns>This method returns <see langword="true"/> if this instance is greater than the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
-    public abstract bool GreaterThan(TNumber right);
+    protected abstract bool GreaterThan(TNumber right);
 
     /// <summary>
     /// This method represents the Greater Than Or Equal To operator.
     /// </summary>
     /// <param name="right">right-hand operand</param>
     /// <returns>This method returns <see langword="true"/> if this instance is greater than or equal to the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
-    public abstract bool EqualOrGreaterThan(TNumber right);
+    protected abstract bool EqualOrGreaterThan(TNumber right);
 
     /// <summary>
     /// This method represents the Lower Than operator.
     /// </summary>
     /// <param name="right">right-hand operand</param>
     /// <returns>This method returns <see langword="true"/> if this instance is less than the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
-    public abstract bool LowerThan(TNumber right);
+    protected abstract bool LowerThan(TNumber right);
 
     /// <summary>
     /// This method represents the Lower Than Or Equal To operator.
     /// </summary>
     /// <param name="right">right-hand operand</param>
     /// <returns>This method returns <see langword="true"/> if this instance is less than or equal to the <paramref name="right"/> instance, <see langword="false"/> otherwise.</returns>
-    public abstract bool EqualOrLowerThan(TNumber right);
+    protected abstract bool EqualOrLowerThan(TNumber right);
 
     /// <summary>
     /// Greater than operator
@@ -159,7 +163,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="left">The 1st operand</param>
     /// <param name="right">The 2nd operand</param>
     /// <returns>Returns <see langword="true"/> if its 1st operand is greater than its 2nd operand, otherwise <see langword="false"/>.</returns>
-    public static bool operator >(Calculator<TNumber> left, Calculator<TNumber> right) => !(left is null) && !(right is null) && left.GreaterThan(right.Value);
+    public static bool operator >(Calculator<TNumber> left, Calculator<TNumber> right) => left is not null && right is not null && left.GreaterThan(right.Value);
 
     /// <summary>
     /// Less than operator
@@ -167,7 +171,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="left">The 1st operand</param>
     /// <param name="right">The 2nd operand</param>
     /// <returns>Returns <see langword="true"/> if its 1st operand is less than its 2nd operand, otherwise <see langword="false"/>.</returns>
-    public static bool operator <(Calculator<TNumber> left, Calculator<TNumber> right) => !(left is null) && !(right is null) && left.LowerThan(right.Value);
+    public static bool operator <(Calculator<TNumber> left, Calculator<TNumber> right) => left is not null && right is not null && left.LowerThan(right.Value);
 
     /// <summary>
     /// Greater than or equal operator
@@ -175,7 +179,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="left">The 1st operand</param>
     /// <param name="right">The 2nd operand</param>
     /// <returns>Returns <see langword="true"/> if its 1st operand is greater than or equal to its 2nd operand, otherwise <see langword="false"/>.</returns>
-    public static bool operator >=(Calculator<TNumber> left, Calculator<TNumber> right) => !(left is null) && !(right is null) && left.EqualOrGreaterThan(right.Value);
+    public static bool operator >=(Calculator<TNumber> left, Calculator<TNumber> right) => left is not null && right is not null && left.EqualOrGreaterThan(right.Value);
 
     /// <summary>
     /// Less than or equal operator
@@ -183,7 +187,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="left">The 1st operand</param>
     /// <param name="right">The 2nd operand</param>
     /// <returns>Returns <see langword="true"/> if its 1st operand is less than or equal to its 2nd operand, otherwise <see langword="false"/>.</returns>
-    public static bool operator <=(Calculator<TNumber> left, Calculator<TNumber> right) => !(left is null) && !(right is null) && left.EqualOrLowerThan(right.Value);
+    public static bool operator <=(Calculator<TNumber> left, Calculator<TNumber> right) => left is not null && right is not null && left.EqualOrLowerThan(right.Value);
 
     /// <summary>
     /// Addition operation
@@ -191,7 +195,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="left">The 1st summand</param>
     /// <param name="right">The 2nd summand</param>
     /// <returns>The sum</returns>
-    public static Calculator<TNumber> operator +(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Add(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
+    public static Calculator<TNumber> operator +(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Add(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
     /// Subtraction operation
@@ -199,7 +203,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="left">The minuend</param>
     /// <param name="right">The subtrahend</param>
     /// <returns>The difference</returns>
-    public static Calculator<TNumber> operator -(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Subtract(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
+    public static Calculator<TNumber> operator -(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Subtract(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
     /// Multiplication operation
@@ -207,7 +211,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="left">multiplier</param>
     /// <param name="right">multiplicand</param>
     /// <returns>The product</returns>
-    public static Calculator<TNumber> operator *(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Multiply(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
+    public static Calculator<TNumber> operator *(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Multiply(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
     /// Divide operation
@@ -215,7 +219,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="left">dividend</param>
     /// <param name="right">divisor</param>
     /// <returns>The quotient</returns>
-    public static Calculator<TNumber> operator /(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Divide(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
+    public static Calculator<TNumber> operator /(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Divide(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
     /// Modulo operation
@@ -223,7 +227,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <param name="left">dividend</param>
     /// <param name="right">divisor</param>
     /// <returns>The remainder</returns>
-    public static Calculator<TNumber> operator %(Calculator<TNumber> left, Calculator<TNumber> right) => !(right is null) ? left?.Modulo(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
+    public static Calculator<TNumber> operator %(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Modulo(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
     /// Increment operator
@@ -275,7 +279,7 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// Casts the <see cref="Calculator{TNumber}"/> instance to an <typeparamref name="TNumber"/> instance.
     /// </summary>
     /// <param name="calculatorInstance">A data type from basic class <see cref="Calculator{TNumber}"/>.</param>
-    public static implicit operator TNumber(Calculator<TNumber> calculatorInstance) => !(calculatorInstance is null) ? calculatorInstance.Value : default;
+    public static implicit operator TNumber(Calculator<TNumber> calculatorInstance) => calculatorInstance is not null ? calculatorInstance.Value : default;
 
     /// <summary>
     /// Casts the <typeparamref name="TNumber"/> instance to an <see cref="Calculator{TNumber}"/> instance.
@@ -336,15 +340,12 @@ public abstract class Calculator<TNumber> : Calculator, IEquatable<Calculator<TN
     /// <returns>A signed integer that indicates the relationship of the current instance to the <paramref name="obj"/> parameter</returns>
     public virtual int CompareTo(object obj)
     {
-        switch (obj)
+        return obj switch
         {
-            case null:
-                return 1;
-            case TNumber number:
-                return this.CompareTo(number);
-            default:
-                throw new ArgumentException();
-        }
+            null => 1,
+            TNumber number => this.CompareTo(number),
+            _ => throw new ArgumentException()
+        };
     }
 
     /// <summary>

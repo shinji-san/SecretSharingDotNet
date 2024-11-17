@@ -13,9 +13,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=10><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
-          <td rowspan=10><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=10>SDK</td>
+          <td rowspan=9><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
+          <td rowspan=9><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=9>SDK</td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -37,13 +37,10 @@ An C# implementation of Shamir's Secret Sharing.
           <td>FX 4.8</td>
       </tr>
       <tr>
-          <td>.NET 6</td>
-      </tr>
-      <tr>
-          <td>.NET 7</td>
-      </tr>
-      <tr>
           <td>.NET 8</td>
+      </tr>
+      <tr>
+          <td>.NET 9</td>
       </tr>
   </tbody>
 </table>
@@ -61,9 +58,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=10><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.11.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=10><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.11.0"/></a></td>
-          <td rowspan=10><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.11.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.11.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.12.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=9><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.12.0"/></a></td>
+          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.12.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.12.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -85,13 +82,10 @@ An C# implementation of Shamir's Secret Sharing.
           <td>FX 4.8</td>
       </tr>
       <tr>
-          <td>.NET 6</td>
-      </tr>
-      <tr>
-          <td>.NET 7</td>
-      </tr>
-      <tr>
           <td>.NET 8</td>
+      </tr>
+      <tr>
+          <td>.NET 9</td>
       </tr>
   </tbody>
 </table>
@@ -100,10 +94,10 @@ An C# implementation of Shamir's Secret Sharing.
 
 1. Open a console and switch to the directory, containing your project file.
 
-2. Use the following command to install version 0.11.0 of the SecretSharingDotNet package:
+2. Use the following command to install version 0.12.0 of the SecretSharingDotNet package:
 
     ```dotnetcli
-    dotnet add package SecretSharingDotNet -v 0.11.0 -f <FRAMEWORK>
+    dotnet add package SecretSharingDotNet -v 0.12.0 -f <FRAMEWORK>
     ```
 
 3. After the completion of the command, look at the project file to make sure that the package is successfully installed.
@@ -112,7 +106,7 @@ An C# implementation of Shamir's Secret Sharing.
 
     ```xml
     <ItemGroup>
-      <PackageReference Include="SecretSharingDotNet" Version="0.11.0" />
+      <PackageReference Include="SecretSharingDotNet" Version="0.12.0" />
     </ItemGroup>
     ```
 ## Remove SecretSharingDotNet package
@@ -134,7 +128,45 @@ An C# implementation of Shamir's Secret Sharing.
 Use the function `MakeShares` to generate the shares, based on a random or pre-defined secret.
 Afterwards, use the function `Reconstruction` to re-construct the original secret.
 
-The length of the shares is based on the security level. It's possible to pre-define a security level by `ctor` or the `SecurityLevel` property. The pre-defined security level will be overriden, if the secret size is greater than the Mersenne prime, which is calculated by means of the security level. It is not necessary to define a security level for a re-construction.
+The length of the shares is based on the security level. It is possible to pre-define a security level by `ctor` or the `SecurityLevel` property. The pre-defined security level will be overriden, if the secret size is greater than the Mersenne prime, which is calculated by means of the security level. It is not necessary to define a security level for a re-construction.
+
+## Using the SecretSharingDotNet library with DI in a .NET project.
+This guide will demonstrate how to use the SecretSharingDotNet library with Dependency Injection (DI) in a .NET project.
+
+Firstly, add the following dependencies:
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math;
+using System.Numerics;
+```
+Next, initialize a `ServiceCollection` instance and add dependencies to the DI container:
+```csharp
+var serviceCollection = new ServiceCollection();
+serviceCollection.AddSingleton<IExtendedGcdAlgorithm<BigInteger>,  ExtendedEuclideanAlgorithm<BigInteger>>();
+serviceCollection.AddSingleton<IMakeSharesUseCase<BigInteger>, ShamirsSecretSharing<BigInteger>>();
+serviceCollection.AddSingleton<IReconstructionUseCase<BigInteger>, ShamirsSecretSharing<BigInteger>>();
+using var serviceProvider = serviceCollection.BuildServiceProvider();
+```
+In the code above, the `ServiceCollection` registers an implementation for each of the main components of the SecretSharingDotNet library.
+
+Next, create an instance of the `IMakeSharesUseCase<BigInteger>`:
+```csharp
+var makeSharesUseCase = serviceProvider.GetRequiredService<IMakeSharesUseCase<BigInteger>>();
+```
+Using this instance, it is possible to create shares from a secret:
+```csharp
+var shares = makeSharesUseCase.MakeShares(3, 7, "Hello!");
+Console.WriteLine(shares);
+```
+Similarly, an instance of `IReconstructionUseCase<BigInteger>` can be created to rebuild the original secret:
+```csharp
+var reconstructionUseCase = serviceProvider.GetRequiredService<IReconstructionUseCase<BigInteger>>();
+var reconstruction = reconstructionUseCase.Reconstruction(shares.Where(p => p.X.IsEven).ToArray());
+Console.WriteLine(reconstruction);
+```
+
+The code above reconstructs the original secret from the shares, and then outputs it.
 
 ## Random secret
 Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127:
@@ -409,7 +441,7 @@ You can find the Mono installation instructions [here](https://www.mono-project.
 
 The .NET Frameworks 4.6.2, 4.7, 4.7.1, 4.7.2, 4.8 and 4.8.1 can be found [here](https://dotnet.microsoft.com/download/dotnet-framework).
 
-The .NET SDKs 6.0, 7.0 and 8.0 can be found [here](https://dotnet.microsoft.com/download/dotnet).
+The .NET SDKs 8.0 and 9.0 can be found [here](https://dotnet.microsoft.com/download/dotnet).
 
 ## Build and test the solution
 You can use the `SecretSharingDotNet.sln` solution file with the `dotnet` command to build the [SecretSharingDotNet](#secretsharingdotnet) library in the `Debug` or `Release` configuration. You can also use the `dotnet` command to start the unit tests.
