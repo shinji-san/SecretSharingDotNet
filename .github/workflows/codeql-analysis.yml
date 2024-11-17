@@ -46,9 +46,14 @@ jobs:
       with:
         dotnet-version: 8.0.404
 
+    - name: Setup .NET 9
+      uses: actions/setup-dotnet@v4.1.0
+      with:
+        dotnet-version: 9.0.100
+
     - name: .NET Core SxS
       run: |
-        rsync -a ${DOTNET_ROOT/8.0.404}/* $DOTNET_ROOT/
+        rsync -a ${DOTNET_ROOT/8.0.404/9.0.100}/* $DOTNET_ROOT/
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

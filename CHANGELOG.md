@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added .NET 9.0 support
 - Added use-case interfaces `IMakeSharesUseCase` and `IReconstructUseCase` to the `SecretSharingDotNet` project.
 - Added a guide to the `README.md` file on how to use the use-case interfaces with dependency injection.
 

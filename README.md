@@ -13,9 +13,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=8><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
+          <td rowspan=9><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+%28All+supported+TFM%29%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20(All%20supported%20TFM)/badge.svg" alt="Build status"/></a></td>
           <td rowspan=9><code>SecretSharingDotNet.sln</code></td>
-          <td rowspan=8>SDK</td>
+          <td rowspan=9>SDK</td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -38,6 +38,9 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>.NET 8</td>
+      </tr>
+      <tr>
+          <td>.NET 9</td>
       </tr>
   </tbody>
 </table>
@@ -55,9 +58,9 @@ An C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.11.0" alt="SecretSharingDotNet NuGet"/></a></td>
-          <td rowspan=8><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.11.0"/></a></td>
-          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.11.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.11.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/actions?query=workflow%3A%22SecretSharingDotNet+NuGet%22" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/workflows/SecretSharingDotNet%20NuGet/badge.svg?branch=v0.11.0" alt="SecretSharingDotNet NuGet"/></a></td>
+          <td rowspan=9><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.11.0"/></a></td>
+          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.11.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.11.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -80,6 +83,9 @@ An C# implementation of Shamir's Secret Sharing.
       </tr>
       <tr>
           <td>.NET 8</td>
+      </tr>
+      <tr>
+          <td>.NET 9</td>
       </tr>
   </tbody>
 </table>
@@ -435,7 +441,7 @@ You can find the Mono installation instructions [here](https://www.mono-project.
 
 The .NET Frameworks 4.6.2, 4.7, 4.7.1, 4.7.2, 4.8 and 4.8.1 can be found [here](https://dotnet.microsoft.com/download/dotnet-framework).
 
-The .NET SDK 8.0 can be found [here](https://dotnet.microsoft.com/download/dotnet).
+The .NET SDKs 8.0 and 9.0 can be found [here](https://dotnet.microsoft.com/download/dotnet).
 
 ## Build and test the solution
 You can use the `SecretSharingDotNet.sln` solution file with the `dotnet` command to build the [SecretSharingDotNet](#secretsharingdotnet) library in the `Debug` or `Release` configuration. You can also use the `dotnet` command to start the unit tests.
