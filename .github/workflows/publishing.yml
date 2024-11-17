@@ -16,15 +16,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup .NET 6
-      uses: actions/setup-dotnet@v4.1.0
-      with:
-        dotnet-version: 6.0.425
-
     - name: Setup .NET 8
       uses: actions/setup-dotnet@v4.1.0
       with:
-        dotnet-version: 8.0.401
+        dotnet-version: 8.0.404
 
     - name: Decrypt large secret
       run: ./.github/secrets/decrypt_publisher_snk.sh

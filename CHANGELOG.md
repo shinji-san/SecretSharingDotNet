@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - Removed .NET 7 support, because it retires on May 14, 2024. See [.NET and .NET Core Support Policy](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core).
+- Removed .NET 6 support, because it retires on November 12, 2024. See [.NET and .NET Core Support Policy](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core).
 
 ## [0.11.0] - 2023-12-30
 ### Added
