@@ -1,4 +1,4 @@
-name: SecretSharingDotNet (All supported TFM)
+name: SecretSharingDotNet - Build and Test All .NET Versions
 
 on:
   push:
