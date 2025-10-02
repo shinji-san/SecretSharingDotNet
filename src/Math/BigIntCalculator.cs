@@ -51,7 +51,7 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     /// <summary>
     /// Initializes a new instance of the <see cref="BigIntCalculator"/> class.
     /// </summary>
-    /// <param name="data">byte stream representation of numeric value</param>
+    /// <param name="data">byte stream representation of a numeric value</param>
     public BigIntCalculator(byte[] data) : base(new BigInteger(data)) { }
 
     /// <summary>

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Added `ISecurityLevelManager` and `SecurityLevelManager` (Default Implementation) to manage security levels in one place.
+- Added `IMersennePrimeProvider` and `MersennePrimeProvider` (Default Implementation) to manage Mersenne primes in one place.
+
+### Changed
+- Changed the implementation by modularizing and separating responsibilities of `ShamirsSecretSharing` class into the `ShamirsSecretSharing` and `SecretReconstructor` classes.
+
 ## [0.12.0] - 2024-11-17
 ### Added
 - Added .NET 9.0 support
