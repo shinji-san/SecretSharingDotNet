@@ -50,4 +50,7 @@
     <data name="NoMaximumY" xml:space="preserve">
         <value>Unerwarteter Fehler. Die größte Y-Koordinate konnte nicht ermittelt werden. Bitte prüfe die Teilgeheimnisse.</value>
     </data>
+    <data name="NoValidMersennePrimeExponentAvailable" xml:space="preserve">
+        <value>Kein gültiger Mersenne-Primzahl-Exponent &gt;= {0} verfügbar.</value>
+    </data>
 </root>
