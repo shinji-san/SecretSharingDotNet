@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// <copyright file="ShamirsSecretSharing.cs" company="Private">
+// <copyright file="SecretSplitter`1.cs" company="Private">
 // Copyright (c) 2025 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
