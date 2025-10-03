@@ -10,7 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `IMersennePrimeProvider` and `MersennePrimeProvider` (Default Implementation) to manage Mersenne primes in one place.
 
 ### Changed
-- Changed the implementation by modularizing and separating responsibilities of `ShamirsSecretSharing` class into the `ShamirsSecretSharing` and `SecretReconstructor` classes.
+- Changed the implementation by modularizing and separating responsibilities of `ShamirsSecretSharing` class into the `SecretSplitter` and `SecretReconstructor` classes.
+
+### Removed
+- Removed .NET Framework 4.6.2 support
 
 ## [0.12.0] - 2024-11-17
 ### Added
