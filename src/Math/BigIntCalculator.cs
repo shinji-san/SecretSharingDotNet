@@ -70,7 +70,7 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     {
         var valueLeft = this.Value.ToByteArray();
         var valueRight = other?.Value.ToByteArray() ?? [];
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
         return CryptographicOperations.FixedTimeEquals(valueLeft, valueRight);
 #else
         var diff = (uint)valueLeft.Length ^ (uint)valueRight.Length;
