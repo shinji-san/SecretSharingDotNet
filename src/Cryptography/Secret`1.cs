@@ -287,8 +287,14 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
     public bool Equals(Secret<TNumber> other)
     {
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+        return CryptographicOperations.FixedTimeEquals(
+            this.secretNumber.AsSpan(0, this.SecretByteSize - MarkByteCount),
+            other.secretNumber.AsSpan(0, other.SecretByteSize - MarkByteCount));
+#else
         return this.secretNumber.Subset(0, this.SecretByteSize - MarkByteCount)
             .SequenceEqual(other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount));
+#endif
     }
 
     /// <summary>

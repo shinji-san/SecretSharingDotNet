@@ -36,6 +36,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+using System.Security.Cryptography;
+#endif
 
 /// <summary>
 /// <see cref="Calculator"/> implementation of <see cref="System.Numerics.BigInteger"/>
@@ -67,7 +70,9 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     {
         var valueLeft = this.Value.ToByteArray();
         var valueRight = other?.Value.ToByteArray() ?? [];
-
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+        return CryptographicOperations.FixedTimeEquals(valueLeft, valueRight);
+#else
         var diff = (uint)valueLeft.Length ^ (uint)valueRight.Length;
         for (var i = 0; i < valueLeft.Length && i < valueRight.Length; i++)
         {
@@ -75,6 +80,7 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
         }
 
         return diff == 0;
+#endif
     }
 
     /// <summary>
