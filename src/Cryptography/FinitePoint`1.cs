@@ -84,7 +84,7 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
 #endif
     {
 #if NET8_0_OR_GREATER
-        if (serialized == null || serialized.IsEmpty)
+        if (serialized.IsEmpty)
 #else
         if (string.IsNullOrWhiteSpace(serialized))
 #endif
