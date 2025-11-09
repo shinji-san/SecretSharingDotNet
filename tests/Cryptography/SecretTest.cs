@@ -380,7 +380,7 @@ public class SecretTest
         }
     }
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     /// <summary>
     /// Tests ReadOnlySpan cast of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
