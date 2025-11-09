@@ -34,7 +34,7 @@ namespace SecretSharingDotNet.Cryptography;
 using Helper;
 using Math;
 using System;
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 using System.Buffers;
 #endif
 using System.Collections.Generic;
@@ -80,7 +80,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     /// <param name="secretSource">A secret as array of type <see cref="byte"/></param>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="secretSource"/> is <see langword="null"/></exception>
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     public Secret(ReadOnlySpan<byte> secretSource)
 #else
     public Secret(byte[] secretSource)
@@ -105,7 +105,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         byte[] bytes = new byte[secretSource.Length + 1];
         byte maxMarkByte = secretSource.Length == 1 ? MinMarkByte : MaxMarkByte;
         bytes[secretSource.Length] = (byte)((buffer[0] % maxMarkByte) + 1);
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
         secretSource.CopyTo(bytes);
 #else
         secretSource.CopyTo(bytes, 0);
@@ -126,7 +126,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <param name="encoded">Secret encoded as base-64</param>
     /// <remarks>For normal text use the implicit cast from <see cref="string"/> to <see cref="Secret{TNumber}"/></remarks>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="encoded"/> is <see langword="null"/>, empty or consists exclusively of white-space characters</exception>
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     public Secret(ReadOnlySpan<char> encoded) : this(FromBase64CharSpan(encoded)){ }
 #else
     public Secret(string encoded) : this(Convert.FromBase64String(encoded)) { }
@@ -179,7 +179,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     public static implicit operator Secret<TNumber>(byte[] array) => new Secret<TNumber>(array);
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     /// <summary>
     /// Casts the <see cref="ReadOnlySpan{Byte}"/> to an <see cref="Secret{TNumber}"/> instance.
     /// </summary>
@@ -191,14 +191,14 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     public static implicit operator byte[](Secret<TNumber> secret) => secret.ToByteArray();
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     /// <summary>
     /// Casts the <see cref="Secret{TNumber}"/> instance to a <see cref="ReadOnlySpan{Byte}"/>.
     /// </summary>
     public static implicit operator ReadOnlySpan<byte>(Secret<TNumber> secret) => secret.AsReadOnlySpan();
 #endif
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     /// <summary>
     /// Casts the <see cref="String"/> instance to an <see cref="Secret{TNumber}"/> instance
     /// </summary>
@@ -336,7 +336,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         return this.secretNumber.Subset(0, this.secretNumber.Length - MarkByteCount);
     }
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     /// <summary>
     /// Converts the secret to a <see cref="ReadOnlySpan{Byte}"/>.
     /// </summary>
@@ -357,7 +357,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         return Convert.ToBase64String(this.secretNumber, 0, this.secretNumber.Length - MarkByteCount);
     }
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     private static ReadOnlySpan<byte> FromBase64CharSpan(ReadOnlySpan<char> encoded)
     {
         if (encoded.IsEmpty || encoded.IsWhiteSpace())
