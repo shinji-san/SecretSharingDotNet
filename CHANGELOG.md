@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added `ISecurityLevelManager` and `SecurityLevelManager` (Default Implementation) to manage security levels in one place.
 - Added `IMersennePrimeProvider` and `MersennePrimeProvider` (Default Implementation) to manage Mersenne primes in one place.
+- Added .NET 10.0 support.
 
 ### Changed
 - Changed the implementation by modularizing and separating responsibilities of `ShamirsSecretSharing` class into the `SecretSplitter` and `SecretReconstructor` classes.

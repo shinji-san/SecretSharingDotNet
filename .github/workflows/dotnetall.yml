@@ -18,15 +18,13 @@ jobs:
     steps:
     - uses: actions/checkout@v5
 
-    - name: Setup .NET 8
+    - name: Setup .NET SDKs
       uses: actions/setup-dotnet@v5.0.0
       with:
-        dotnet-version: 8.0.404
-
-    - name: Setup .NET 9
-      uses: actions/setup-dotnet@v5.0.0
-      with:
-        dotnet-version: 9.0.100
+        dotnet-version: |
+          8.0.416
+          9.0.307
+          10.0.100
 
     - name: Restore
       run: dotnet restore SecretSharingDotNet.sln

@@ -41,19 +41,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v5
 
-    - name: Setup .NET 8
+    - name: Setup .NET SDKs
       uses: actions/setup-dotnet@v5.0.0
       with:
-        dotnet-version: 8.0.404
-
-    - name: Setup .NET 9
-      uses: actions/setup-dotnet@v5.0.0
-      with:
-        dotnet-version: 9.0.100
-
-    - name: .NET Core SxS
-      run: |
-        rsync -a ${DOTNET_ROOT/8.0.404/9.0.100}/* $DOTNET_ROOT/
+        dotnet-version: |
+          8.0.416
+          9.0.307
+          10.0.100
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -74,7 +68,7 @@ jobs:
       run: dotnet restore SecretSharingDotNet.sln
 
     - name: Build
-      run: dotnet build --configuration Debug SecretSharingDotNet.sln
+      run: dotnet build --configuration Release SecretSharingDotNet.sln
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 https://git.io/JvXDl
