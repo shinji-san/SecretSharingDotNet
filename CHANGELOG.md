@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2025-11-16
+### Added
+- Added `ISecurityLevelManager` and `SecurityLevelManager` (Default Implementation) to manage security levels in one place.
+- Added `IMersennePrimeProvider` and `MersennePrimeProvider` (Default Implementation) to manage Mersenne primes in one place.
+- Added .NET 10.0 support.
+
+### Changed
+- Changed the implementation by modularizing and separating responsibilities of `ShamirsSecretSharing` class into the `SecretSplitter` and `SecretReconstructor` classes.
+- Changed `Equals` method in `BigIntCalculator` class to use `CryptographicOperations.FixedTimeEquals` for constant time comparison. Affects .NET 8.0 and higher, and .NET Standard 2.1 and higher. All other target frameworks use  a custom fixed-time equals implementation.
+
+### Fixed
+- Fixed time attack vulnerability in `Secret<TNumber>` class by using constant time comparison for equality checks.
+- Fixed code quality issues in `FinitePoint` and `Secret<TNumber>` classes in context of nullability checks for `ReadOnlySpan<char>` parameters.
+- Fixed modular division in secret reconstruction by validating modular inverses (including zero denominators) and ensuring finite field division fails when the denominator is not invertible modulo the prime.
+
+### Removed
+- Removed .NET Framework 4.6.2 support
+
 ## [0.12.0] - 2024-11-17
 ### Added
 - Added .NET 9.0 support
@@ -220,7 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `LICENSE.md`
 - Added `README.md`
 
-[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.12.0...develop
+[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.13.0...develop
+[0.13.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.10.2...v0.11.0
 [0.10.2]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.10.1...v0.10.2

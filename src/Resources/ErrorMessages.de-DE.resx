@@ -50,4 +50,14 @@
     <data name="NoMaximumY" xml:space="preserve">
         <value>Unerwarteter Fehler. Die größte Y-Koordinate konnte nicht ermittelt werden. Bitte prüfe die Teilgeheimnisse.</value>
     </data>
+    <data name="NoValidMersennePrimeExponentAvailable" xml:space="preserve">
+        <value>Kein gültiger Mersenne-Primzahl-Exponent &gt;= {0} verfügbar.</value>
+    </data>
+    <data name="InverseOfZeroDoesNotExist" xml:space="preserve">
+        <value>Die Inverse von 0 existiert nicht.</value>
+    </data>
+    <data name="DenominatorIsNotInvertibleModuloPrime" xml:space="preserve">
+        <value>Der Nenner ist nicht invertierbar modulo Primzahl (ggT != 1).
+Überprüfe, ob alle Berechnungen in GF(p) mit einem Primzahlmodul durchgeführt werden.</value>
+    </data>
 </root>

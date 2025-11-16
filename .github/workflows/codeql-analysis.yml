@@ -9,7 +9,7 @@
 # the `language` matrix defined below to confirm you have the correct set of
 # supported CodeQL languages.
 #
-name: "CodeQL"
+name: "SecretSharingDotNet - CodeQL"
 
 on:
   push:
@@ -23,7 +23,7 @@ on:
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       actions: read
       contents: read
@@ -39,25 +39,19 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
-    - name: Setup .NET 8
-      uses: actions/setup-dotnet@v4.1.0
+    - name: Setup .NET SDKs
+      uses: actions/setup-dotnet@v5.0.0
       with:
-        dotnet-version: 8.0.404
-
-    - name: Setup .NET 9
-      uses: actions/setup-dotnet@v4.1.0
-      with:
-        dotnet-version: 9.0.100
-
-    - name: .NET Core SxS
-      run: |
-        rsync -a ${DOTNET_ROOT/8.0.404/9.0.100}/* $DOTNET_ROOT/
+        dotnet-version: |
+          8.0.416
+          9.0.307
+          10.0.100
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@v4
       with:
         languages: ${{ matrix.language }}
         # If you wish to specify custom queries, you can do so here or in a config file.
@@ -74,7 +68,7 @@ jobs:
       run: dotnet restore SecretSharingDotNet.sln
 
     - name: Build
-      run: dotnet build --configuration Debug SecretSharingDotNet.sln
+      run: dotnet build --configuration Release SecretSharingDotNet.sln
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 https://git.io/JvXDl
@@ -88,4 +82,4 @@ jobs:
     #   make release
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@v4

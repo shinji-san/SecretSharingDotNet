@@ -57,4 +57,14 @@
     <data name="NoMaximumY" xml:space="preserve">
         <value>Unexpected error. The largest Y coordinate could not be determined. Please check the shares.</value>
     </data>
+    <data name="NoValidMersennePrimeExponentAvailable" xml:space="preserve">
+        <value>No valid Mersenne prime exponent &gt;= {0} available.</value>
+    </data>
+    <data name="InverseOfZeroDoesNotExist" xml:space="preserve">
+        <value>Inverse of 0 does not exist.</value>
+    </data>
+    <data name="DenominatorIsNotInvertibleModuloPrime" xml:space="preserve">
+        <value>Denominator is not invertible modulo prime (gcd != 1).
+Check that all computations are performed in GF(p) with a prime modulus.</value>
+    </data>
 </root>

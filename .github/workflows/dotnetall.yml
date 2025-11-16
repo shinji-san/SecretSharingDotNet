@@ -1,4 +1,4 @@
-name: SecretSharingDotNet (All supported TFM)
+name: SecretSharingDotNet - Build and Test All .NET Versions
 
 on:
   push:
@@ -12,21 +12,19 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
-    - name: Setup .NET 8
-      uses: actions/setup-dotnet@v4.1.0
+    - name: Setup .NET SDKs
+      uses: actions/setup-dotnet@v5.0.0
       with:
-        dotnet-version: 8.0.404
-
-    - name: Setup .NET 9
-      uses: actions/setup-dotnet@v4.1.0
-      with:
-        dotnet-version: 9.0.100
+        dotnet-version: |
+          8.0.416
+          9.0.307
+          10.0.100
 
     - name: Restore
       run: dotnet restore SecretSharingDotNet.sln

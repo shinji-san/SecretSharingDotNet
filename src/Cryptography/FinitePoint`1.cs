@@ -36,7 +36,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-#if !NET6_0_OR_GREATER
+#if !NET8_0_OR_GREATER
 using System.Text;
 #else
 using System.Runtime.CompilerServices;
@@ -77,14 +77,14 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     /// </summary>
     /// <param name="serialized">string representation of the <see cref="FinitePoint{TNumber}"/> struct</param>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="serialized"/> is <see langword="null"/></exception>
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     public FinitePoint(ReadOnlySpan<char> serialized)
 #else
     public FinitePoint(string serialized)
 #endif
     {
-#if NET6_0_OR_GREATER
-        if (serialized == null || serialized.IsEmpty)
+#if NET8_0_OR_GREATER
+        if (serialized.IsEmpty)
 #else
         if (string.IsNullOrWhiteSpace(serialized))
 #endif
@@ -92,7 +92,7 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
             throw new ArgumentNullException(nameof(serialized));
         }
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
         var xReadOnlySpan = serialized[..serialized.IndexOf(SharedSeparator.CoordinateSeparator)];
         var yReadOnlySpan = serialized[(serialized.IndexOf(SharedSeparator.CoordinateSeparator) + 1)..];
         var numberType = typeof(TNumber);
@@ -255,12 +255,12 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     /// <remarks>
     /// Based on discussion on <see href="https://stackoverflow.com/questions/623104/byte-to-hex-string/5919521#5919521">stackoverflow</see>
     /// </remarks>
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
     private static string ToHexString(IEnumerable<byte> bytes)
     {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
         return Convert.ToHexString(bytes as byte[] ?? bytes.ToArray());
 #else
         byte[] byteArray = bytes as byte[] ?? bytes.ToArray();
@@ -280,7 +280,7 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     /// </summary>
     /// <param name="hexString">hexadecimal string</param>
     /// <returns>Returns a byte array</returns>
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static byte[] ToByteArray(ReadOnlySpan<char> hexString) => Convert.FromHexString(hexString);
 #else
