@@ -79,6 +79,11 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     /// <param name="other">The <see cref="Calculator{BigInteger}"/> instance to compare</param>
     /// <returns><see langword="true"/> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <see langword="false"/>.
     /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
+    /// <remarks>
+    /// This method performs a constant-time comparison of the underlying byte arrays to mitigate timing attacks.
+    /// This is an important security feature for cryptographic and security-sensitive applications, as it prevents
+    /// attackers from inferring information about the values based on timing differences.
+    /// </remarks>
     public override bool Equals(Calculator<BigInteger> other)
     {
         if (other is null)
