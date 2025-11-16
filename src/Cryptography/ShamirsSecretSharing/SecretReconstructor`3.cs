@@ -230,23 +230,68 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         return this.LagrangeInterpolate(shares, this.securityLevelManager.MersennePrime);
     }
 
+
     /// <summary>
-    /// Computes numerator / denominator modulo prime.
-    /// This means that the return value will be such that
-    /// the following is true:
-    /// denominator * DivMod(numerator, denominator, prime) % prime == numerator
+    /// Performs division in a finite field, returning the modular result of dividing the numerator by the denominator modulo a given prime.
     /// </summary>
-    /// <param name="numerator"></param>
-    /// <param name="denominator"></param>
-    /// <param name="prime"></param>
-    /// <returns></returns>
+    /// <param name="numerator">The value to be divided.</param>
+    /// <param name="denominator">The value by which the numerator is divided.</param>
+    /// <param name="prime">The prime modulus for the finite field operations.</param>
+    /// <returns>The result of the division operation in the finite field, reduced modulo the prime.</returns>
+    /// <exception cref="System.ArgumentNullException">
+    /// Thrown when the <paramref name="denominator"/> or <paramref name="prime"/> parameter is null.
+    /// </exception>
+    /// <exception cref="System.ArgumentException">
+    /// Thrown when the <paramref name="denominator"/> is zero (its modular inverse does not exist) or
+    /// when the denominator is not invertible modulo the prime (gcd does not equal 1).
+    /// </exception>
     private Calculator<TNumber> DivMod(
         Calculator<TNumber> numerator,
         Calculator<TNumber> denominator,
         Calculator<TNumber> prime)
     {
+        if (denominator == null)
+        {
+            throw new ArgumentNullException(nameof(denominator));
+        }
+
+        if (prime == null)
+        {
+            throw new ArgumentNullException(nameof(prime));
+        }
+
+        // Normalize an into [0, p-1]
+        denominator = ModReduce(denominator, prime);
+        if (denominator.IsZero)
+        {
+            throw new ArgumentException(ErrorMessages.InverseOfZeroDoesNotExist, nameof(denominator));
+        }
+
         var result = this.extendedGcd.Compute(denominator, prime);
-        return numerator * result.BezoutCoefficients[0] * result.GreatestCommonDivisor;
+        // Check whether the denominator is invertible modulo the prime
+        if (!result.GreatestCommonDivisor.IsOne)
+        {
+            throw new ArgumentException(ErrorMessages.DenominatorIsNotInvertibleModuloPrime, nameof(denominator));
+        }
+
+        // Normalize inverse: x mod prime
+        var inverse = (result.BezoutCoefficients[0] % prime + prime) % prime;
+        // Normalize numerator: numerator mod prime
+        var normalizedNumerator = (numerator % prime + prime) % prime;
+
+        // (numerator * inverse) mod prime
+        var value = normalizedNumerator * inverse;
+        value = (value % prime + prime) % prime;
+        return value;
+    }
+
+    /// <summary>
+    /// Reduces <paramref name="x"/> into the canonical range [0, p-1].
+    /// </summary>
+    private static Calculator<TNumber> ModReduce(Calculator<TNumber> x, Calculator<TNumber> prime)
+    {
+        var r = (x % prime + prime) % prime;
+        return r.Sign < 0 ? r + prime : r;
     }
 
     /// <summary>
