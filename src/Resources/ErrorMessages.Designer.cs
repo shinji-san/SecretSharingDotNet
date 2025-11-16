@@ -131,5 +131,17 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("NoValidMersennePrimeExponentAvailable", resourceCulture);
             }
         }
+
+        internal static string InverseOfZeroDoesNotExist {
+            get {
+                return ResourceManager.GetString("InverseOfZeroDoesNotExist", resourceCulture);
+            }
+        }
+
+        internal static string DenominatorIsNotInvertibleModuloPrime {
+            get {
+                return ResourceManager.GetString("DenominatorIsNotInvertibleModuloPrime", resourceCulture);
+            }
+        }
     }
 }
