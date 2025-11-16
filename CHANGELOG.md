@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed time attack vulnerability in `Secret<TNumber>` class by using constant time comparison for equality checks.
+- Fixed code quality issues in `FinitePoint` and `Secret<TNumber>` classes in context of nullability checks for `ReadOnlySpan<char>` parameters.
 
 ### Removed
 - Removed .NET Framework 4.6.2 support

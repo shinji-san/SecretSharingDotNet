@@ -82,12 +82,15 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <exception cref="T:System.ArgumentNullException"><paramref name="secretSource"/> is <see langword="null"/></exception>
 #if NET8_0_OR_GREATER
     public Secret(ReadOnlySpan<byte> secretSource)
+    {
+        if (secretSource.IsEmpty)
+        {
 #else
     public Secret(byte[] secretSource)
-#endif
     {
         if (secretSource == null)
         {
+#endif
             throw new ArgumentNullException(nameof(secretSource));
         }
 
