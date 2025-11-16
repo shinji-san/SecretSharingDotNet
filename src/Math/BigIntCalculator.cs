@@ -49,16 +49,29 @@ using System.Security.Cryptography;
 public sealed class BigIntCalculator : Calculator<BigInteger>
 {
     /// <summary>
+    /// Lazily computes and gets the number of bytes allocated by the byte-array representation
+    /// of the <see cref="BigIntCalculator"/> object. This property ensures the computation is
+    /// performed only once and then cached for subsequent calls during the instance lifecycle.
+    /// </summary>
+    private readonly Lazy<int> byteCountLazy;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="BigIntCalculator"/> class.
     /// </summary>
     /// <param name="val">Numeric value</param>
-    public BigIntCalculator(BigInteger val) : base(val) { }
+    public BigIntCalculator(BigInteger val) : base(val)
+    {
+        this.byteCountLazy = this.InitializeByteCountLazy();
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BigIntCalculator"/> class.
     /// </summary>
     /// <param name="data">byte stream representation of a numeric value</param>
-    public BigIntCalculator(byte[] data) : base(new BigInteger(data)) { }
+    public BigIntCalculator(byte[] data) : base(new BigInteger(data))
+    {
+        this.byteCountLazy = this.InitializeByteCountLazy();
+    }
 
     /// <summary>
     /// Determines whether this instance and an <paramref name="other"/> specified <see cref="Calculator{BigInteger}"/> instance are equal.
@@ -227,7 +240,7 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     /// <summary>
     /// Gets the number of elements of the byte representation of the <see cref="BigIntCalculator"/> object.
     /// </summary>
-    public override int ByteCount => this.ByteCountLazy.Value;
+    public override int ByteCount => this.byteCountLazy.Value;
 
     /// <summary>
     /// Gets the byte representation of the <see cref="BigIntCalculator"/> object.
@@ -288,20 +301,23 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     public override string ToString() => this.Value.ToString();
 
     /// <summary>
-    /// Lazily computes and gets the number of bytes allocated by the byte-array representation
-    /// of the <see cref="BigIntCalculator"/> object. This property ensures the computation is
-    /// performed only once and then cached for subsequent calls during the instance lifecycle.
+    /// Creates a lazily initialized instance to compute the byte count of the backing <see cref="BigInteger"/> value.
     /// </summary>
-    private Lazy<int> ByteCountLazy => new(() =>
+    /// <returns>A lazily initialized function that calculates the length of the byte array representing the <see cref="BigInteger"/> value.
+    /// </returns>
+    private Lazy<int> InitializeByteCountLazy()
     {
-        var byteArray = this.Value.ToByteArray();
-        try
+        return new(() =>
         {
-            return byteArray.Length;
-        }
-        finally
-        {
-            Array.Clear(byteArray, 0, byteArray.Length);
-        }
-    }, LazyThreadSafetyMode.ExecutionAndPublication);
+            var byteArray = this.Value.ToByteArray();
+            try
+            {
+                return byteArray.Length;
+            }
+            finally
+            {
+                Array.Clear(byteArray, 0, byteArray.Length);
+            }
+        }, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
 }

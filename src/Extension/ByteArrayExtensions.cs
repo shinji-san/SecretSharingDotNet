@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// <copyright file="ByteArrayExtension.cs" company="Private">
+// <copyright file="ByteArrayExtensions.cs" company="Private">
 // Copyright (c) 2025 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
@@ -33,7 +33,10 @@ namespace SecretSharingDotNet.Extension;
 
 using System.Runtime.CompilerServices;
 
-internal static class ByteArrayExtension
+/// <summary>
+/// Provides extension methods for byte array operations.
+/// </summary>
+internal static class ByteArrayExtensions
 {
     /// <summary>
     /// Compares two byte arrays for equality in a way that resists timing attacks.
@@ -48,15 +51,15 @@ internal static class ByteArrayExtension
     [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
     internal static bool FixedTimeEquals(this byte[] valueLeft, byte[] valueRight)
     {
-        if (valueLeft.Length != valueRight.Length)
-        {
-            return false;
-        }
-
+        valueLeft ??= [];
+        valueRight ??= [];
         var diff = (uint)valueLeft.Length ^ (uint)valueRight.Length;
-        for (var i = 0; i < valueLeft.Length && i < valueRight.Length; i++)
+        int maxLength = System.Math.Max(valueLeft.Length, valueRight.Length);
+        for (var i = 0; i < maxLength; i++)
         {
-            diff |= (uint)(valueLeft[i] ^ valueRight[i]);
+            byte byteLeft = i < valueLeft.Length ? valueLeft[i] : (byte)0;
+            byte byteRight = i < valueRight.Length ? valueRight[i] : (byte)0;
+            diff |= (uint)(byteLeft ^ byteRight);
         }
 
         return diff == 0;
