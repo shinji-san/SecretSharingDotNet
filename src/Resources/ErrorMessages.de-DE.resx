@@ -58,6 +58,6 @@
     </data>
     <data name="DenominatorIsNotInvertibleModuloPrime" xml:space="preserve">
         <value>Der Nenner ist nicht invertierbar modulo Primzahl (ggT != 1).
-Überprüfen Sie, ob alle Berechnungen in GF(p) mit einem Primzahlmodul durchgeführt werden.</value>
+Überprüfe, ob alle Berechnungen in GF(p) mit einem Primzahlmodul durchgeführt werden.</value>
     </data>
 </root>

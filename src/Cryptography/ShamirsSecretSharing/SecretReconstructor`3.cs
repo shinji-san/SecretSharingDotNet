@@ -230,7 +230,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         return this.LagrangeInterpolate(shares, this.securityLevelManager.MersennePrime);
     }
 
-
     /// <summary>
     /// Performs division in a finite field, returning the modular result of dividing the numerator by the denominator modulo a given prime.
     /// </summary>
@@ -239,7 +238,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <param name="prime">The prime modulus for the finite field operations.</param>
     /// <returns>The result of the division operation in the finite field, reduced modulo the prime.</returns>
     /// <exception cref="System.ArgumentNullException">
-    /// Thrown when the <paramref name="denominator"/> or <paramref name="prime"/> parameter is null.
+    /// Thrown when the <paramref name="numerator"/>, <paramref name="denominator"/> or <paramref name="prime"/> parameter is null.
     /// </exception>
     /// <exception cref="System.ArgumentException">
     /// Thrown when the <paramref name="denominator"/> is zero (its modular inverse does not exist) or
@@ -250,6 +249,11 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         Calculator<TNumber> denominator,
         Calculator<TNumber> prime)
     {
+        if (numerator == null)
+        {
+            throw new ArgumentNullException(nameof(numerator));
+        }
+
         if (denominator == null)
         {
             throw new ArgumentNullException(nameof(denominator));
@@ -260,7 +264,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentNullException(nameof(prime));
         }
 
-        // Normalize an into [0, p-1]
+        // Normalize denominator into [0, p-1]
         denominator = ModReduce(denominator, prime);
         if (denominator.IsZero)
         {
