@@ -31,11 +31,17 @@
 
 namespace SecretSharingDotNet.Math;
 
+#if (!NET8_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER)
+using Extension;
+#endif
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Numerics;
-using System.Runtime.CompilerServices;
+using System.Threading;
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+using System.Security.Cryptography;
+#endif
 
 /// <summary>
 /// <see cref="Calculator"/> implementation of <see cref="System.Numerics.BigInteger"/>
@@ -43,16 +49,29 @@ using System.Runtime.CompilerServices;
 public sealed class BigIntCalculator : Calculator<BigInteger>
 {
     /// <summary>
+    /// Lazily computes and gets the number of bytes allocated by the byte-array representation
+    /// of the <see cref="BigIntCalculator"/> object. This property ensures the computation is
+    /// performed only once and then cached for subsequent calls during the instance lifecycle.
+    /// </summary>
+    private readonly Lazy<int> byteCountLazy;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="BigIntCalculator"/> class.
     /// </summary>
     /// <param name="val">Numeric value</param>
-    public BigIntCalculator(BigInteger val) : base(val) { }
+    public BigIntCalculator(BigInteger val) : base(val)
+    {
+        this.byteCountLazy = this.InitializeByteCountLazy();
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BigIntCalculator"/> class.
     /// </summary>
     /// <param name="data">byte stream representation of a numeric value</param>
-    public BigIntCalculator(byte[] data) : base(new BigInteger(data)) { }
+    public BigIntCalculator(byte[] data) : base(new BigInteger(data))
+    {
+        this.byteCountLazy = this.InitializeByteCountLazy();
+    }
 
     /// <summary>
     /// Determines whether this instance and an <paramref name="other"/> specified <see cref="Calculator{BigInteger}"/> instance are equal.
@@ -60,21 +79,53 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     /// <param name="other">The <see cref="Calculator{BigInteger}"/> instance to compare</param>
     /// <returns><see langword="true"/> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <see langword="false"/>.
     /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
-    /// <remarks>This is a Slow Equal Implementation to avoid a timing attack. See the reference for more details:
-    /// https://bryanavery.co.uk/cryptography-net-avoiding-timing-attack/</remarks>
-    [MethodImpl(MethodImplOptions.NoOptimization)]
+    /// <remarks>
+    /// This method performs a constant-time comparison of the underlying byte arrays to mitigate timing attacks.
+    /// This is an important security feature for cryptographic and security-sensitive applications, as it prevents
+    /// attackers from inferring information about the values based on timing differences.
+    /// </remarks>
     public override bool Equals(Calculator<BigInteger> other)
     {
-        var valueLeft = this.Value.ToByteArray();
-        var valueRight = other?.Value.ToByteArray() ?? [];
-
-        var diff = (uint)valueLeft.Length ^ (uint)valueRight.Length;
-        for (var i = 0; i < valueLeft.Length && i < valueRight.Length; i++)
+        if (other is null)
         {
-            diff |= (uint)(valueLeft[i] ^ valueRight[i]);
+            return false;
         }
 
-        return diff == 0;
+        byte[] valueLeft = null;
+        byte[] valueRight = null;
+        bool result;
+        try
+        {
+            valueLeft = this.Value.ToByteArray();
+            valueRight = other.Value.ToByteArray();
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+            result = CryptographicOperations.FixedTimeEquals(valueLeft, valueRight);
+#else
+            result = valueLeft.FixedTimeEquals(valueRight);
+#endif
+        }
+        finally
+        {
+            if (valueLeft != null)
+            {
+#if (NET8_0_OR_GREATER)
+                Array.Clear(valueLeft);
+#else
+                Array.Clear(valueLeft, 0, valueLeft.Length);
+#endif
+            }
+
+            if (valueRight != null)
+            {
+#if (NET8_0_OR_GREATER)
+                Array.Clear(valueRight);
+#else
+                Array.Clear(valueRight, 0, valueRight.Length);
+#endif
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -194,7 +245,7 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     /// <summary>
     /// Gets the number of elements of the byte representation of the <see cref="BigIntCalculator"/> object.
     /// </summary>
-    public override int ByteCount => this.Value.ToByteArray().Length;
+    public override int ByteCount => this.byteCountLazy.Value;
 
     /// <summary>
     /// Gets the byte representation of the <see cref="BigIntCalculator"/> object.
@@ -253,4 +304,25 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     /// </summary>
     /// <returns>The <see cref="System.String"/> representation of the current <see cref="BigIntCalculator"/> value.</returns>
     public override string ToString() => this.Value.ToString();
+
+    /// <summary>
+    /// Creates a lazily initialized instance to compute the byte count of the backing <see cref="BigInteger"/> value.
+    /// </summary>
+    /// <returns>A lazily initialized function that calculates the length of the byte array representing the <see cref="BigInteger"/> value.
+    /// </returns>
+    private Lazy<int> InitializeByteCountLazy()
+    {
+        return new(() =>
+        {
+            var byteArray = this.Value.ToByteArray();
+            try
+            {
+                return byteArray.Length;
+            }
+            finally
+            {
+                Array.Clear(byteArray, 0, byteArray.Length);
+            }
+        }, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
 }

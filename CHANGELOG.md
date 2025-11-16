@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Changed the implementation by modularizing and separating responsibilities of `ShamirsSecretSharing` class into the `SecretSplitter` and `SecretReconstructor` classes.
+- Changed `Equals` method in `BigIntCalculator` class to use `CryptographicOperations.FixedTimeEquals` for constant time comparison. Affects .NET 8.0 and higher, and .NET Standard 2.1 and higher. All other target frameworks use  a custom fixed-time equals implementation.
+
+### Fixed
+- Fixed time attack vulnerability in `Secret<TNumber>` class by using constant time comparison for equality checks.
 
 ### Removed
 - Removed .NET Framework 4.6.2 support

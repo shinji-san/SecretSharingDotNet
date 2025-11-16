@@ -31,7 +31,7 @@
 
 namespace SecretSharingDotNet.Cryptography;
 
-using Helper;
+using Extension;
 using Math;
 using System;
 #if NET8_0_OR_GREATER
@@ -287,8 +287,29 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
     public bool Equals(Secret<TNumber> other)
     {
-        return this.secretNumber.Subset(0, this.SecretByteSize - MarkByteCount)
-            .SequenceEqual(other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount));
+        if (this.SecretByteSize < MarkByteCount && other.SecretByteSize < MarkByteCount)
+        {
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+            return CryptographicOperations.FixedTimeEquals(this.secretNumber, other.secretNumber);
+#else
+            return this.secretNumber.FixedTimeEquals(other.secretNumber);
+#endif
+        }
+
+        if (this.SecretByteSize < MarkByteCount || other.SecretByteSize < MarkByteCount)
+        {
+            return false;
+        }
+
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+        return CryptographicOperations.FixedTimeEquals(
+            this.secretNumber.AsSpan(0, this.SecretByteSize - MarkByteCount),
+            other.secretNumber.AsSpan(0, other.SecretByteSize - MarkByteCount));
+#else
+        var valueLeft = this.secretNumber.Subset(0, this.SecretByteSize - MarkByteCount);
+        var valueRight = other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount);
+        return valueLeft.FixedTimeEquals(valueRight);
+#endif
     }
 
     /// <summary>
