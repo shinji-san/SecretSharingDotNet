@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Changed
+- Changed String Encoding from UTF-16 to UTF-8 in `Secret<TNumber>` class for better interoperability. Encoding.Unicode (UTF-16 LE) is uncommon in cryptographic and web contexts. UTF-8 is the de facto standard and avoids unnecessary null bytes and payload bloat for ASCII-heavy input.
+
 ## [0.13.0] - 2025-11-16
 ### Added
 - Added `ISecurityLevelManager` and `SecurityLevelManager` (Default Implementation) to manage security levels in one place.
