@@ -80,14 +80,24 @@ public static class TestData
     public static IEnumerable<object[]> TestPasswordData =>
         new List<object[]>
         {
-            new object[] {13, 31, " "},
-            new object[] {13, 31, "0"},
-            new object[] {13, 31, "A"},
-            new object[] {13, 31, "Z"},
+            new object[] {13, 17, " "},
+            new object[] {17, 17, " "},
+            new object[] {31, 31, " "},
+            new object[] {13, 17, "0"},
+            new object[] {17, 17, "0"},
+            new object[] {31, 31, "0"},
+            new object[] {13, 17, "A"},
+            new object[] {17, 17, "A"},
+            new object[] {31, 31, "A"},
+            new object[] {13, 17, "Z"},
+            new object[] {17, 17, "Z"},
+            new object[] {31, 31, "Z"},
             new object[] {13, 31, "ÿ"},
-            new object[] {13, 521, DefaultTestPassword},
-            new object[] {17, 521, DefaultTestPassword},
-            new object[] {127, 521, DefaultTestPassword},
+            new object[] {17, 31, "ÿ"},
+            new object[] {31, 31, "ÿ"},
+            new object[] {13, 127, DefaultTestPassword},
+            new object[] {17, 127, DefaultTestPassword},
+            new object[] {127, 127, DefaultTestPassword},
             new object[] {130, 521, DefaultTestPassword},
             new object[] {500, 521, DefaultTestPassword},
             new object[] {1279, 1279, DefaultTestPassword}
@@ -120,7 +130,7 @@ public static class TestData
         new List<object[]>
         {
             new object[] {DefaultPosTestNumber, 31},
-            new object[] {DefaultTestPassword, 521},
+            new object[] {DefaultTestPassword, 127},
         };
 
     /// <summary>
@@ -129,13 +139,13 @@ public static class TestData
     /// <remarks>The reconstruction with these shares should be result in <see cref="DefaultTestPassword"/></remarks>
     public static string[] GetPredefinedShares() =>
     [
-        "01-0131621CFFE838F31347293CC1093C91C7BF50F64AD0F3F09AAF1844F26EECC7F84A23376E5786E8B34DDDFAC957F025201A42114D4C114B42DBC70B96453A19D600",
-        "02-520CE6164D5030CC3670DE39F29EE241A5CC70B5FE5001C1C33A6551C5DE34065B486FAAEA4B51C738352496E78F36096915FF7FE6870E741B859AE72C8D0EF1BC01",
-        "03-3C92F0EF5536528BD77B3FF9E9BF62120B27CC3D7F8249709BA15D28794FD9BA26F8E35975DD609C8EB6D4D158A8D2A9DAF1364CCCB2F77A8BFD7793C4D67C87B400",
-        "04-BDC281A7199B9E30F6694C7AA86CBC02F9CE628FCC64CCFE21E401C90DC1D9E55B5A81450E0CB567B5D1EEAD1DA1C40775AFE975FECCCC5F9244600F5D2285DCBC01",
-        "05-D79D993D987E15BC923A05BD2DA5EF126FC434AAE6F7896C5702523383333687FA6E476DB5D74D29AD86722A367A0C23384E17FD7CD68D22305A535BF66F27F0D500",
-        "06-882338B2D1E0B62DADED69C17969FC426D07428ECD3B82B93BFC4D67D9A6EE9E023636D16A402BE175D55F47A233AAFB23CEBFE147CF3AC3643E517790BF63C2FF01",
-        "07-D2535D05C6C1828545837A878CB9E292F3978A3B8130B5E5CED1F564101B032D74AF4D712E464D8F0FBEB60462CD9D91382FE3235FB7D34130F159632B113A533A01"
+        "01-F4E6D807C77FD480E7ABF046A8578331",
+        "02-217BDFE1200E1C93D2C4A3A8249E3630",
+        "03-CE2180FA7CCB2DA633B77D4696131A7C",
+        "04-FDDABA51DBB709BA0A837E20FDB72D15",
+        "05-ABA68FE73BD3AFCE5728A636598B717B",
+        "06-DB84FEBB9E1D20E41AA7F488AA8DE52E",
+        "07-8B7507CF03975AFA53FF6917F1BE892F"
     ];
 
     /// <summary>
