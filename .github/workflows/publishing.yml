@@ -31,13 +31,13 @@ jobs:
         PUBLISHER_PUB_KEY: ${{ secrets.PUBLISHER_PUB_KEY }}
 
     - name: Restore
-      run: dotnet restore SecretSharingDotNet.sln
+      run: dotnet restore SecretSharingDotNet.slnx
 
     - name: Build
-      run: dotnet build --configuration Release --no-restore SecretSharingDotNet.sln
+      run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
 
     - name: Test
-      run: dotnet test --no-restore --no-build --configuration Release SecretSharingDotNet.sln -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+      run: dotnet test --no-restore --no-build --configuration Release SecretSharingDotNet.slnx -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 
     - name: Remove obsolete NuGet packages
       run: rm -f src/bin/Release/SecretSharingDotNet*.nupk
@@ -48,7 +48,7 @@ jobs:
            grep -n "# CLI building instructions" README.md | cut -d: -f 1| xargs -i head -n {} README.md | head -n -1 > TMP.md && mv -f TMP.md README.md
 
     - name: Create package
-      run: dotnet pack --no-restore --no-build --configuration Release SecretSharingDotNet.sln
+      run: dotnet pack --no-restore --no-build --configuration Release SecretSharingDotNet.slnx
 
     - name: Publish package
       run: dotnet nuget push $(find src/bin/Release -type f  -name 'SecretSharingDotNet*.nupkg' -print 2> /dev/null) -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json --skip-duplicate

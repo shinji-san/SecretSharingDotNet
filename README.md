@@ -14,7 +14,7 @@ An C# implementation of Shamir's Secret Sharing.
   <tbody>
       <tr>
           <td rowspan=9><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/dotnetall.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/dotnetall.yml/badge.svg?branch=main" alt="Build status"/></a></td>
-          <td rowspan=9><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=9><code>SecretSharingDotNet.slnx</code></td>
           <td rowspan=9>SDK</td>
           <td>Standard 2.0</td>
       </tr>
