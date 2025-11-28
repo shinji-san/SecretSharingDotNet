@@ -65,10 +65,10 @@ jobs:
     #  uses: github/codeql-action/autobuild@v1
   
     - name: Restore
-      run: dotnet restore SecretSharingDotNet.sln
+      run: dotnet restore SecretSharingDotNet.slnx
 
     - name: Build
-      run: dotnet build --configuration Release SecretSharingDotNet.sln
+      run: dotnet build --configuration Release SecretSharingDotNet.slnx
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 https://git.io/JvXDl
