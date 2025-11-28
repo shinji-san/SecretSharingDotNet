@@ -1,7 +1,7 @@
-# SecretSharingDotNet
-An C# implementation of Shamir's Secret Sharing.
+# ✨ SecretSharingDotNet ✨
+A C# implementation of Shamir's Secret Sharing.
 
-# Build & Test Status Of Default Branch
+# Build & Test Status Of Default Branch 👷
 <table>
   <thead>
     <tr>
@@ -45,7 +45,7 @@ An C# implementation of Shamir's Secret Sharing.
   </tbody>
 </table>
 
-# NuGet
+# NuGet 📦
 ## Supported Target Frameworks
 <table>
   <thead>
@@ -90,7 +90,7 @@ An C# implementation of Shamir's Secret Sharing.
   </tbody>
 </table>
 
-## Install SecretSharingDotNet package
+## Install SecretSharingDotNet package 📥
 
 1. Open a console and switch to the directory, containing your project file.
 
@@ -109,7 +109,7 @@ An C# implementation of Shamir's Secret Sharing.
       <PackageReference Include="SecretSharingDotNet" Version="0.13.0" />
     </ItemGroup>
     ```
-## Remove SecretSharingDotNet package
+## Remove SecretSharingDotNet package 📤
 
 1. Open a console and switch to the directory, containing your project file.
 
@@ -123,7 +123,10 @@ An C# implementation of Shamir's Secret Sharing.
 
    You can open the `.csproj` file to check the deleted package reference.
 
-# Usage
+# Usage 🔧
+> [!IMPORTANT]
+> Breaking Change in v0.14.0: The string encoding in `SecretSharingDotNet` with text secrets is UTF-8.
+
 ## Basics
 Use the function `MakeShares` to generate the shares, based on a random or pre-defined secret.
 Afterwards, use the function `Reconstruction` to re-construct the original secret.
@@ -169,7 +172,7 @@ Console.WriteLine(reconstruction);
 
 The code above reconstructs the original secret from the shares, and then outputs it.
 
-## Random secret
+## Random secret 🎲
 Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127:
 ```csharp
 using System;
@@ -227,7 +230,7 @@ namespace Example1
   }
 }
 ```
-## Pre-defined secret: text
+## Pre-defined secret: text 📄
 Use a text as secret, which can be divided into shares. The length of the generated shares is based on the security level.
 Here is an example with auto-detected security level:
 ```csharp
@@ -277,7 +280,7 @@ namespace Example2
 }
 ```
 
-## Pre-defined secret: number
+## Pre-defined secret: number 🔢
 Use an integer number as secret, which can be divided into shares. The length of the generated shares is based on the security level.
 Here is an example with a pre-defined security level of 521:
 ```csharp
@@ -328,7 +331,7 @@ namespace Example3
   }
 }
 ```
-## Pre-defined secret: byte array
+## Pre-defined secret: byte array ▦
 Use a byte array as secret, which can be divided into shares. The length of the generated shares is based on the security level.
 Here is an example with auto-detected security level:
 ```csharp
@@ -372,7 +375,7 @@ namespace Example4
 }
 ```
 
-## Shares
+## Shares 🔑
 The following example shows three ways to use shares to reconstruct a secret:
 ```csharp
 using System;
