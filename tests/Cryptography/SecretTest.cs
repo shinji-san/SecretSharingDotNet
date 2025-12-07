@@ -371,7 +371,7 @@ public class SecretTest
                 Assert.Equal(number, (BigInteger)secret);
                 break;
             case byte[] bytes1:
-                secret = new Secret<BigInteger>(bytes1);
+                secret = new Secret<BigInteger>(bytes1, bytes1.Length);
                 byte[] bytes2 = secret;
                 Assert.True(bytes1.SequenceEqual(bytes2));
                 break;
@@ -389,7 +389,7 @@ public class SecretTest
     {
         // Arrange
         byte[] bytes = [0x1, 0x2, 0x3, 0x4];
-        var secret = new Secret<BigInteger>(bytes);
+        var secret = new Secret<BigInteger>(bytes, bytes.Length);
 
         // Act
         ReadOnlySpan<byte> readOnlySpan = secret;

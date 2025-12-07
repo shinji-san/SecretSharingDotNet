@@ -46,6 +46,11 @@ public abstract class Calculator<TNumber> :
     IComparable<Calculator<TNumber>>
 {
     /// <summary>
+    /// Indicates whether the resources used by the current instance have been released.
+    /// </summary>
+    private bool disposed;
+
+    /// <summary>
     /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
     /// </summary>
     private static readonly ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>> ChildCtors = new ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>>(GetDerivedCtors<TNumber, Calculator<TNumber>>());
@@ -110,6 +115,20 @@ public abstract class Calculator<TNumber> :
     /// </summary>
     /// <returns>This <see cref="Calculator{TNumber}"/> instance minus <see cref="Calculator{TNumber}.One"/></returns>
     protected abstract Calculator<TNumber> Decrement();
+
+    /// <summary>
+    /// Computes the mathematical modulo operation for the current <see cref="Calculator{TNumber}"/> instance.
+    /// </summary>
+    /// <param name="right">The divisor used to compute the modulo.</param>
+    /// <returns>
+    /// A new <see cref="Calculator{TNumber}"/> instance representing the result of the modulo operation.
+    /// </returns>
+    public Calculator<TNumber> MathematicalModulo(TNumber right)
+    {
+        using var remainder = this.Modulo(right);
+        using var remainderPlusRight = remainder.Add(right);
+        return remainderPlusRight.Modulo(right);
+    }
 
     /// <summary>
     /// Returns the absolute value of the current <see cref="Calculator{TNumber}"/> object.
@@ -356,23 +375,23 @@ public abstract class Calculator<TNumber> :
     /// <summary>
     /// Gets a value that represents the number zero (0).
     /// </summary>
-    public static Calculator<TNumber> Zero { get; } = default(TNumber);
+    public static Calculator<TNumber> Zero  => default(TNumber);
 
     /// <summary>
     /// Gets a value that represents the number one (1).
     /// </summary>
-    public static Calculator<TNumber> One { get; } = Zero.Increment();
+    public static Calculator<TNumber> One => Zero.Increment();
 
     /// <summary>
     /// Gets a value that represents the number two (2).
     /// </summary>
-    public static Calculator<TNumber> Two { get; } = One.Increment();
+    public static Calculator<TNumber> Two => One.Increment();
 
     /// <summary>
     /// A shallow copy of the current <see cref="Calculator{TNumber}"/> instance.
     /// </summary>
     /// <returns></returns>
-    public Calculator<TNumber> Clone() => this.MemberwiseClone() as Calculator<TNumber>;
+    public virtual Calculator<TNumber> Clone() => this.MemberwiseClone() as Calculator<TNumber>;
 
     /// <summary>
     /// Compares this instance to a second <see cref="Calculator{TNumber}"/> and returns an integer that indicates whether the value of this instance is less than, equal to, or greater than the value of the specified object.
@@ -392,5 +411,26 @@ public abstract class Calculator<TNumber> :
 #else
         return "*** Secured Value ***";
 #endif
+    }
+
+    /// <summary>
+    /// Releases the resources used by the <see cref="Calculator{TNumber}"/> instance.
+    /// </summary>
+    /// <param name="disposing">A boolean value indicating whether the method is being called explicitly or by a finalizer.</param>
+    protected override void Dispose(bool disposing)
+    {
+        if (this.disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            // Release managed resources here
+        }
+        
+        // Release unmanaged resources here
+        this.disposed = true;
+        base.Dispose(disposing);
     }
 }

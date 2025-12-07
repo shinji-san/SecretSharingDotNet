@@ -119,40 +119,64 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentException(ErrorMessages.FinitePointsNotDistinct, nameof(finitePoints));
         }
 
+        using var zero = Calculator<TNumber>.Zero;
+        using var one = Calculator<TNumber>.One;
         var numeratorProducts = new Calculator<TNumber>[numberOfPoints];
         var denominatorProducts = new Calculator<TNumber>[numberOfPoints];
         var numeratorTerms = new Calculator<TNumber>[numberOfPoints];
         var denominatorTerms = new Calculator<TNumber>[numberOfPoints];
-        var denominator = Calculator<TNumber>.One;
+        var denominator = one.Clone();
+
         for (int i = 0; i < numberOfPoints; i++)
         {
             for (int j = 0; j < numberOfPoints; j++)
             {
                 if (finitePoints[i] != finitePoints[j])
                 {
-                    numeratorTerms[j] = Calculator<TNumber>.Zero - finitePoints[j].X;
+                    numeratorTerms[j] = zero - finitePoints[j].X;
                     denominatorTerms[j] = finitePoints[i].X - finitePoints[j].X;
                 }
                 else
                 {
-                    numeratorTerms[j] = denominatorTerms[j] = Calculator<TNumber>.One;
+                    numeratorTerms[j] = denominatorTerms[j] = one;
                 }
             }
 
             numeratorProducts[i] = Product(numeratorTerms);
             denominatorProducts[i] = Product(denominatorTerms);
+            var denominatorTemp = denominator;
             denominator *= denominatorProducts[i];
+            denominatorTemp.Dispose();
         }
 
-        var numerator = Calculator<TNumber>.Zero;
+        var numerator = zero;
         for (int i = 0; i < numberOfPoints; i++)
         {
-            numerator += this.DivMod(numeratorProducts[i] * denominator * ((finitePoints[i].Y % prime + prime) % prime), denominatorProducts[i], prime);
+            using var weightedNumerator = numeratorProducts[i] * denominator;
+            using var normalizedYCoordinate = finitePoints[i].Y.MathematicalModulo(prime);
+            using var currentNumerator = weightedNumerator * normalizedYCoordinate;
+            using var modInversePerPoint = this.DivMod(currentNumerator, denominatorProducts[i], prime);
+            var numeratorTemp = numerator;
+            numerator += modInversePerPoint;
+            numeratorTemp.Dispose();
         }
 
-        var a = this.DivMod(numerator, denominator, prime) + prime;
-        a = (a % prime + prime) % prime; //// mathematical modulo
-        return Secret<TNumber>.FromCoefficient(a);
+        using var modInverse = this.DivMod(numerator, denominator, prime);
+        using var secretCoefficient = modInverse + prime;
+        // Normalized coefficient a0 is the secret
+        using var a0 = secretCoefficient.MathematicalModulo(prime);
+
+        // Disposes all used calculators, but not prime.
+        // Prime is provided from Mersenne prime provider and should not be disposed here.
+        // Finite points are provided from outside and should not be disposed here.
+        numerator.Dispose();
+        denominator.Dispose();
+        numeratorProducts.DisposeAll();
+        denominatorProducts.DisposeAll();
+        numeratorTerms.DisposeAll();
+        denominatorTerms.DisposeAll();
+
+        return Secret<TNumber>.FromCoefficient(a0);
     }
 
     /// <summary>
@@ -218,13 +242,13 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         // Normalize denominator into [0, p-1]
-        denominator = ModReduce(denominator, prime);
-        if (denominator.IsZero)
+        using var normalizedDenominator = ModReduce(denominator, prime);
+        if (normalizedDenominator.IsZero)
         {
             throw new ArgumentException(ErrorMessages.InverseOfZeroDoesNotExist, nameof(denominator));
         }
 
-        var result = this.extendedGcd.Compute(denominator, prime);
+        using var result = this.extendedGcd.Compute(normalizedDenominator, prime);
         // Check whether the denominator is invertible modulo the prime
         if (!result.GreatestCommonDivisor.IsOne)
         {
@@ -232,14 +256,14 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         // Normalize inverse: x mod prime
-        var inverse = (result.BezoutCoefficients[0] % prime + prime) % prime;
+        using var inverse = result.BezoutCoefficients[0].MathematicalModulo(prime);
+
         // Normalize numerator: numerator mod prime
-        var normalizedNumerator = (numerator % prime + prime) % prime;
+        using var normalizedNumerator = numerator.MathematicalModulo(prime);
 
         // (numerator * inverse) mod prime
-        var value = normalizedNumerator * inverse;
-        value = (value % prime + prime) % prime;
-        return value;
+        using var modInverse = normalizedNumerator * inverse;
+        return modInverse.MathematicalModulo(prime);
     }
 
     /// <summary>
@@ -247,22 +271,24 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </summary>
     private static Calculator<TNumber> ModReduce(Calculator<TNumber> x, Calculator<TNumber> prime)
     {
-        var r = (x % prime + prime) % prime;
-        return r.Sign < 0 ? r + prime : r;
+        using var r = x.MathematicalModulo(prime);
+        return r.Sign < 0 ? r + prime : r.Clone();
     }
 
     /// <summary>
     /// Computes the mathematical product of a series of <paramref name="values"/>
     /// </summary>
-    /// <param name="values"></param>
-    /// <returns></returns>
+    /// <param name="values">The values to be multiplied</param>
+    /// <returns>The product of the <paramref name="values"/></returns>
     /// <remarks>Helper method for LagrangeInterpolate</remarks>
     private static Calculator<TNumber> Product(IReadOnlyList<Calculator<TNumber>> values)
     {
         var result = Calculator<TNumber>.One;
         for (int i = 0; i < values.Count; i++)
         {
+            var resultTemp = result;
             result *= values[i];
+            resultTemp.Dispose();
         }
 
         return result;

@@ -153,12 +153,16 @@ internal readonly record struct FinitePoint<TNumber> : IComparable<FinitePoint<T
     private static Calculator<TNumber> Evaluate(IEnumerable<Calculator<TNumber>> polynomial, Calculator<TNumber> x, Calculator<TNumber> prime)
     {
         var polynomialArray = polynomial as Calculator<TNumber>[] ?? polynomial.ToArray();
-        var result = Calculator<TNumber>.Zero;
+        var normalizedY = Calculator<TNumber>.Zero;
         for (int index = polynomialArray.Length - 1; index >= 0; index--)
         {
-            result = (result * x + polynomialArray[index]) % prime;
+            using var intermediateResult = normalizedY * x;
+            using var y = intermediateResult + polynomialArray[index];
+            var normalizedYTemp = normalizedY;
+            normalizedY = y % prime;
+            normalizedYTemp.Dispose();
         }
 
-        return result;
+        return normalizedY;
     }
 }

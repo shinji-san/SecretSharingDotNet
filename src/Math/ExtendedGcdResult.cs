@@ -118,4 +118,21 @@ public readonly struct ExtendedGcdResult<TNumber> : IExtendedGcdResult<TNumber>,
 
         return hashCode;
     }
+
+    /// <summary>
+    /// Releases the unmanaged resources used by the <see cref="ExtendedGcdResult{TNumber}"/> instance and optionally releases managed resources.
+    /// </summary>
+    public void Dispose()
+    {
+        this.GreatestCommonDivisor?.Dispose();
+        foreach (var bezoutCoefficient in this.BezoutCoefficients)
+        {
+            bezoutCoefficient.Dispose();
+        }
+
+        foreach (var quotient in this.Quotients)
+        {
+            quotient.Dispose();
+        }
+    }
 }

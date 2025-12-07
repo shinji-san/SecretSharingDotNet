@@ -29,7 +29,7 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNetTest.Math;
+namespace SecretSharingDotNetTest.Math.BigInteger;
 
 using SecretSharingDotNet.Math;
 using System.Globalization;
@@ -43,7 +43,7 @@ public class ExtendedEuclideanAlgorithmTest
     [Fact]
     public void TestSimpleGcd()
     {
-        Calculator<BigInteger> expected = (BigInteger)3;
+        using Calculator<BigInteger> expected = (BigInteger)3;
         var gcdResult = this.gcd.Compute(BigInteger.Parse("6", CultureInfo.InvariantCulture), BigInteger.Parse("9", CultureInfo.InvariantCulture));
         Assert.Equal(expected, gcdResult.GreatestCommonDivisor);
     }

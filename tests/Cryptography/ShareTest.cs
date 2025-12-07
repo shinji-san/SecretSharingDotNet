@@ -4,7 +4,7 @@ using System;
 
 namespace SecretSharingDotNetTest.Cryptography;
 
-using SecretSharingDotNet.Math;
+using SecretSharingDotNet.Math.BigInteger;
 using System.Numerics;
 
 public class ShareTest

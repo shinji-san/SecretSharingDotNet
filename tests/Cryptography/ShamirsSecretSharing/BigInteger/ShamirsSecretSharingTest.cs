@@ -29,7 +29,7 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNetTest.Cryptography.ShamirsSecretSharing;
+namespace SecretSharingDotNetTest.Cryptography.ShamirsSecretSharing.BigInteger;
 
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;

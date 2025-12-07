@@ -39,6 +39,19 @@ using System;
 internal static class ArrayExtensions
 {
     /// <summary>
+    /// Disposes all elements in the array that implement <see cref="IDisposable"/>.
+    /// </summary>
+    /// <typeparam name="TArray">The type of the elements in the array, which must implement <see cref="IDisposable"/>.</typeparam>
+    /// <param name="array">The array whose elements will be disposed.</param>
+    public static void DisposeAll<TArray>(this TArray[] array) where TArray : IDisposable
+    {
+        foreach (var disposable in array)
+        {
+            disposable.Dispose();
+        }
+    }
+
+    /// <summary>
     /// Creates a new array (destination array) which is a subset of the original array (source array).
     /// </summary>
     /// <typeparam name="TArray">Data type of the array</typeparam>

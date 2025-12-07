@@ -31,6 +31,7 @@
 
 namespace SecretSharingDotNet.Math;
 
+using Cryptography;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -42,8 +43,14 @@ using System.Reflection;
 /// This class represents the calculator strategy pattern to decouple Shamir's Secret Sharing
 /// implementation from the concrete numeric data type like <see cref="System.Numerics.BigInteger"/>.
 /// </summary>
-public abstract class Calculator
+public abstract class Calculator : IDisposable
 {
+    /// <summary>
+    /// Indicates whether resources used by the current instance of the <see cref="Calculator"/> class
+    /// have been released.
+    /// </summary>
+    private bool disposed;
+
     /// <summary>
     /// Saves a dictionary of number data types derived from the <see cref="Calculator{TNumber}"/> class.
     /// </summary>
@@ -63,7 +70,7 @@ public abstract class Calculator
     /// <summary>
     /// Gets the byte representation of the <see cref="Calculator"/> object.
     /// </summary>
-    public abstract IEnumerable<byte> ByteRepresentation { get; }
+    public abstract PinnedPoolArray<byte> ByteRepresentation { get; }
 
     /// <summary>
     /// Gets a value indicating whether or not the current <see cref="Calculator"/> object is zero.
@@ -84,6 +91,15 @@ public abstract class Calculator
     /// Gets a number that indicates the sign (negative, positive, or zero) of the current <see cref="Calculator"/> object.
     /// </summary>
     public abstract int Sign { get; }
+
+    /// <summary>
+    /// Releases the resources used by the current instance of the <see cref="Calculator"/> class.
+    /// </summary>
+    public void Dispose()
+    {
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
     /// <summary>
     /// Creates a new instance derived from the <see cref="Calculator"/> class.
@@ -134,5 +150,25 @@ public abstract class Calculator
         var asm = Assembly.GetAssembly(typeof(Calculator));
         var listOfClasses = asm?.GetTypes().Where(x => x.IsSubclassOf(typeof(Calculator)) && !x.IsGenericType);
         return listOfClasses?.ToDictionary(x => x.BaseType?.GetGenericArguments()[0]) ?? new Dictionary<Type, Type>();
+    }
+
+    /// <summary>
+    /// Releases the resources used by the current instance of the <see cref="Calculator"/> class.
+    /// </summary>
+    /// <param name="disposing">A boolean value that indicates whether the method is being called explicitly or by a finalizer.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (this.disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            // Release managed resources here
+        }
+        
+        // Release unmanaged resources here
+        this.disposed = true;
     }
 }

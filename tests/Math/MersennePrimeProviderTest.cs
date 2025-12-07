@@ -29,11 +29,11 @@
 // THE SOFTWARE.
 #endregion
 
+namespace SecretSharingDotNetTest.Math;
+
 using SecretSharingDotNet.Math;
 using System;
 using Xunit;
-
-namespace SecretSharingDotNetTest.Math;
 
 public class MersennePrimeProviderTest
 {

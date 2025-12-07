@@ -424,8 +424,10 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>, IFor
 
     private string FormatHex(bool uppercase)
     {
-        var indexHex = ToHexString(this.Index.ByteRepresentation, uppercase);
-        var valueHex = ToHexString(this.Value.ByteRepresentation, uppercase);
+        using var indexByteRepresentation = this.Index.ByteRepresentation;
+        using var valueByteRepresentation = this.Value.ByteRepresentation;
+        var indexHex = ToHexString(indexByteRepresentation, uppercase);
+        var valueHex = ToHexString(valueByteRepresentation, uppercase);
         indexHex = FormatHexWithLeadingZero(indexHex);
         valueHex = FormatHexWithLeadingZero(valueHex);
 
@@ -458,14 +460,13 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>, IFor
 #endif
 
 #if NET8_0_OR_GREATER
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static ReadOnlySpan<char> ToHexString(IEnumerable<byte> bytes, bool uppercase)
+    private static ReadOnlySpan<char> ToHexString(PinnedPoolArray<byte> pinnedArray, bool uppercase)
 #else
-    private static string ToHexString(IEnumerable<byte> bytes, bool uppercase)
+    private static string ToHexString(PinnedPoolArray<byte> pinnedArray, bool uppercase)
 #endif
     {
 #if NET8_0_OR_GREATER
-        var byteArray = bytes as byte[] ?? bytes.ToArray();
+        var byteArray = pinnedArray.PoolArray[..pinnedArray.Length];
         var hexString = Convert.ToHexString(byteArray);
 
         if (uppercase)
@@ -477,12 +478,11 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>, IFor
         hexString.AsSpan().ToLowerInvariant(chars);
         return new string(chars);
 #else
-        var byteArray = bytes as byte[] ?? bytes.ToArray();
         var hexAlphabet = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
 
-        var result = new char[byteArray.Length * 2];
+        var result = new char[pinnedArray.Length * 2];
         var pos = 0;
-        foreach (byte b in byteArray)
+        foreach (byte b in pinnedArray.PoolArray)
         {
             result[pos++] = hexAlphabet[b >> 4];
             result[pos++] = hexAlphabet[b & 0xF];

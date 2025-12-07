@@ -53,24 +53,27 @@ public class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber
         var lastX = Calculator<TNumber>.One;
         var y = Calculator<TNumber>.One;
         var lastY = Calculator<TNumber>.Zero;
-        var r = b;
-        var lastR = a;
+        var r = b.Clone();
+        var lastR = a.Clone();
         while (r != Calculator<TNumber>.Zero)
         {
             checked
             {
-                var quotient = lastR / r;
+                using var quotient = lastR / r;
 
                 var tmpR = r;
                 r = lastR - quotient * r;
+                lastR.Dispose();
                 lastR = tmpR;
 
                 var tmpX = x;
                 x = lastX - quotient * x;
+                lastX.Dispose();
                 lastX = tmpX;
 
                 var tmpY = y;
                 y = lastY - quotient * y;
+                lastY.Dispose();
                 lastY = tmpY;
             }
         }

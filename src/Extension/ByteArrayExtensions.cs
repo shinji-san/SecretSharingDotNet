@@ -38,30 +38,41 @@ using System.Runtime.CompilerServices;
 /// </summary>
 internal static class ByteArrayExtensions
 {
-    /// <summary>
-    /// Compares two byte arrays for equality in a way that resists timing attacks.
-    /// </summary>
     /// <param name="valueLeft">The first byte array to compare.</param>
-    /// <param name="valueRight">The second byte array to compare.</param>
-    /// <returns>
-    /// <see langword="true"/> if the two byte arrays are equal in length and content; otherwise, <see langword="false"/>.
-    /// </returns>
-    /// <remarks>This is a Slow Equal Implementation to avoid a timing attack. See the reference for more details:
-    /// https://bryanavery.co.uk/cryptography-net-avoiding-timing-attack/</remarks>
-    [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
-    internal static bool FixedTimeEquals(this byte[] valueLeft, byte[] valueRight)
+    extension(byte[] valueLeft)
     {
-        valueLeft ??= [];
-        valueRight ??= [];
-        var diff = (uint)valueLeft.Length ^ (uint)valueRight.Length;
-        int maxLength = System.Math.Max(valueLeft.Length, valueRight.Length);
-        for (var i = 0; i < maxLength; i++)
+        [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
+        internal bool FixedTimeEquals(byte[] valueRight)
         {
-            byte byteLeft = i < valueLeft.Length ? valueLeft[i] : (byte)0;
-            byte byteRight = i < valueRight.Length ? valueRight[i] : (byte)0;
-            diff |= (uint)(byteLeft ^ byteRight);
+            return valueLeft.FixedTimeEquals(valueRight, valueLeft?.Length ?? 0, valueRight?.Length ?? 0);
         }
 
-        return diff == 0;
+        /// <summary>
+        /// Compares two byte arrays for equality in a way that resists timing attacks.
+        /// </summary>
+        /// <param name="valueRight">The second byte array to compare.</param>
+        /// <param name="lengthLeft">The length of the first byte array to compare.</param>
+        /// <param name="lengthRight">The length of the second byte array to compare.</param>
+        /// <returns>
+        /// <see langword="true"/> if the two byte arrays are equal in length and content; otherwise, <see langword="false"/>.
+        /// </returns>
+        /// <remarks>This is a Slow Equal Implementation to avoid a timing attack. See the reference for more details:
+        /// https://bryanavery.co.uk/cryptography-net-avoiding-timing-attack/</remarks>
+        [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
+        internal bool FixedTimeEquals(byte[] valueRight, int lengthLeft, int lengthRight)
+        {
+            valueLeft ??= [];
+            valueRight ??= [];
+            var diff = (uint)(lengthLeft ^ lengthRight);
+            var maxLength = System.Math.Max(lengthLeft, lengthRight);
+            for (var i = 0; i < maxLength; i++)
+            {
+                var byteLeft = i < lengthLeft ? valueLeft[i] : (byte)0;
+                var byteRight = i < lengthRight ? valueRight[i] : (byte)0;
+                diff |= (uint)(byteLeft ^ byteRight);
+            }
+
+            return diff == 0;
+        }
     }
 }

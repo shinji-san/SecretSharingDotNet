@@ -32,12 +32,13 @@
 namespace SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 
 using Math;
+using System;
 
 /// <summary>
 /// Manages security level configuration and provides the corresponding Mersenne prime.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type</typeparam>
-public interface ISecurityLevelManager<TNumber>
+public interface ISecurityLevelManager<TNumber> : IDisposable
 {
     /// <summary>
     /// Gets or sets the security level (in bits).

@@ -29,13 +29,14 @@
 // THE SOFTWARE.
 #endregion
 
+namespace SecretSharingDotNetTest.Math.BigInteger;
+
 using System;
 using System.Linq;
 using System.Numerics;
 using SecretSharingDotNet.Math;
+using SecretSharingDotNet.Math.BigInteger;
 using Xunit;
-
-namespace SecretSharingDotNetTest.Math;
 
 public class BigIntCalculatorTest
 {
@@ -56,7 +57,7 @@ public class BigIntCalculatorTest
     public void Constructor_WithByteArray_ShouldInitializeValue()
     {
         // Arrange
-        byte[] data = [1, 2, 3, 4];
+        byte[] data = [1, 2, 3, 4, 0, 0, 0, 0];
 
         // Act
         Calculator<BigInteger> calculator = new BigIntCalculator(data);
@@ -273,10 +274,17 @@ public class BigIntCalculatorTest
     [Fact]
     public void ByteRepresentation_ShouldReturnCorrectBytes()
     {
+        // Arrange
         var value = new BigInteger(1234567890);
         var calculator = new BigIntCalculator(value);
+        
+        // Act
+        using var calculatorByteRepresentation = calculator.ByteRepresentation;
 
-        Assert.True(calculator.ByteRepresentation.SequenceEqual(value.ToByteArray()));
+        // Assert
+        var expectedByteArray = value.ToByteArray();
+        Assert.Equal(expectedByteArray.Length, calculatorByteRepresentation.Length);
+        Assert.True(expectedByteArray.SequenceEqual(calculatorByteRepresentation.PoolArray.Take(calculatorByteRepresentation.Length)));
     }
 
     [Fact]

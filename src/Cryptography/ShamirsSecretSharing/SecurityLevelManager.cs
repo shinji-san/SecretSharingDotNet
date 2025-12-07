@@ -55,6 +55,11 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     private int fixedSecurityLevel;
 
     /// <summary>
+    /// Indicates whether the instance has been disposed.
+    /// </summary>
+    private bool disposed;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="SecurityLevelManager{TNumber}"/> class with the
     /// default Mersenne prime provider.
     /// </summary>
@@ -76,6 +81,14 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
         this.SecurityLevel = this.mersennePrimeProvider.MinMersennePrimeExponent;
     }
 
+    /// <summary>
+    /// Finalizes an instance of the <see cref="SecurityLevelManager{TNumber}"/> class.
+    /// </summary>
+    ~SecurityLevelManager()
+    {
+        this.Dispose(false);
+    }
+
     /// <inheritdoc/>
     public int SecurityLevel
     {
@@ -95,8 +108,10 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
             int validSecurityLevel = !this.mersennePrimeProvider.IsValidMersennePrimeExponent(value) 
                 ? this.mersennePrimeProvider.GetNextMersennePrimeExponent(value) 
                 : value;
-            
-            this.MersennePrime = Calculator<TNumber>.Two.Pow(validSecurityLevel) - Calculator<TNumber>.One;
+
+            using var one = Calculator<TNumber>.One;
+            using var two = Calculator<TNumber>.Two;
+            this.MersennePrime = two.Pow(validSecurityLevel) - one;
             this.fixedSecurityLevel = validSecurityLevel;
         }
     }
@@ -119,5 +134,36 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
         }
 
         this.SecurityLevel = this.mersennePrimeProvider.GetMersennePrimeExponentByIndex(index + 1);
+    }
+
+    /// <summary>
+    /// Releases all resources used by the current instance of the <see cref="SecurityLevelManager{TNumber}"/> class.
+    /// </summary>
+    public void Dispose()
+    {
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases the resources used by the <see cref="SecurityLevelManager{TNumber}"/> instance.
+    /// </summary>
+    /// <param name="disposing">A boolean value indicating whether to release managed resources (true) or
+    /// only unmanaged resources (false).</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (this.disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            this.MersennePrime.Dispose();
+        }
+
+        // Dispose unmanaged resources here if any
+
+        this.disposed = true;
     }
 }

@@ -37,7 +37,6 @@ using System;
 #if NET8_0_OR_GREATER
 using System.Buffers;
 #endif
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -68,25 +67,41 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     ///  Represents an empty secret.
     /// </summary>
-    private static readonly Secret<TNumber> EmptySecret = new Secret<TNumber>([0x00]) ;
+    private static readonly Secret<TNumber> EmptySecret = new Secret<TNumber>([0x00], 1) ;
 
     /// <summary>
     /// Saves the secret
     /// </summary>
     private readonly byte[] secretNumber;
-
+    
     /// <summary>
     /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
     /// <param name="secretSource">A secret as array of type <see cref="byte"/></param>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="secretSource"/> is <see langword="null"/></exception>
 #if NET8_0_OR_GREATER
-    public Secret(ReadOnlySpan<byte> secretSource)
+    public Secret(ReadOnlySpan<byte> secretSource) : this(secretSource, secretSource.Length)
+    {
+    }
+#else
+    public Secret(byte[] secretSource) : this(secretSource, secretSource.Length)
+    {
+    }
+#endif
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class.
+    /// </summary>
+    /// <param name="secretSource">A secret as array of type <see cref="byte"/></param>
+    /// <param name="length">Length of the secret</param>
+    /// <exception cref="T:System.ArgumentNullException"><paramref name="secretSource"/> is <see langword="null"/></exception>
+#if NET8_0_OR_GREATER
+    public Secret(ReadOnlySpan<byte> secretSource, int length)
     {
         if (secretSource.IsEmpty)
         {
 #else
-    public Secret(byte[] secretSource)
+    public Secret(byte[] secretSource, int length)
     {
         if (secretSource == null)
         {
@@ -94,7 +109,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
             throw new ArgumentNullException(nameof(secretSource));
         }
 
-        if (secretSource.Length == 0)
+        if (length == 0)
         {
             throw new ArgumentException(ErrorMessages.EmptyCollection, nameof(secretSource));
         }
@@ -105,13 +120,13 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
             rng.GetNonZeroBytes(buffer);
         }
 
-        byte[] bytes = new byte[secretSource.Length + 1];
-        byte maxMarkByte = secretSource.Length == 1 ? MinMarkByte : MaxMarkByte;
-        bytes[secretSource.Length] = (byte)((buffer[0] % maxMarkByte) + 1);
+        byte[] bytes = new byte[length + 1];
+        byte maxMarkByte = length == 1 ? MinMarkByte : MaxMarkByte;
+        bytes[length] = (byte)((buffer[0] % maxMarkByte) + 1);
 #if NET8_0_OR_GREATER
-        secretSource.CopyTo(bytes);
+        secretSource[..length].CopyTo(bytes);
 #else
-        secretSource.CopyTo(bytes, 0);
+        Array.Copy(secretSource, 0, bytes, 0, length);
 #endif
         this.secretNumber = bytes;
     }
@@ -120,7 +135,10 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
     /// <param name="secretSource">Secret as <see cref="Calculator"/> or <see cref="Calculator{TNumber}"/> value.</param>
-    public Secret(Calculator secretSource) : this(secretSource.ByteRepresentation.ToArray()) { }
+    public Secret(Calculator secretSource) : this(secretSource.ByteRepresentation.PoolArray,
+        secretSource.ByteRepresentation.Length)
+    {
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class. Use this ctor to deserialize a base64 string to
@@ -130,7 +148,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <remarks>For normal text use the implicit cast from <see cref="string"/> to <see cref="Secret{TNumber}"/></remarks>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="encoded"/> is <see langword="null"/>, empty or consists exclusively of white-space characters</exception>
 #if NET8_0_OR_GREATER
-    public Secret(ReadOnlySpan<char> encoded) : this(FromBase64CharSpan(encoded)){ }
+    public Secret(ReadOnlySpan<char> encoded) : this(FromBase64CharSpan(encoded) ){ }
 #else
     public Secret(string encoded) : this(Convert.FromBase64String(encoded)) { }
 #endif
@@ -148,7 +166,12 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// Casts the <typeparamref name="TNumber"/> instance to an <see cref="Secret{TNumber}"/> instance
     /// </summary>
-    public static implicit operator Secret<TNumber>(TNumber number) => ((Calculator<TNumber>)number).ByteRepresentation.ToArray();
+    public static implicit operator Secret<TNumber>(TNumber number)
+    {
+        var secretCalculator = (Calculator<TNumber>)number;
+        using var secretBytes = secretCalculator.ByteRepresentation;
+        return new Secret<TNumber>(secretBytes.PoolArray, secretCalculator.ByteCount);
+    }
 
     /// <summary>
     /// Casts the <see cref="Secret{TNumber}"/> instance to an <typeparamref name="TNumber"/> instance
@@ -168,25 +191,29 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     public static implicit operator Calculator<TNumber>(Secret<TNumber> secret)
     {
-        byte[] bytes = secret.secretNumber.Subset(0, secret.secretNumber.Length - MarkByteCount);
-        return Calculator.Create(bytes, typeof(TNumber)) as Calculator<TNumber>;
+        var secretBytes = secret.secretNumber.Subset(0, secret.secretNumber.Length - MarkByteCount);
+        return Calculator.Create(secretBytes, typeof(TNumber)) as Calculator<TNumber>;
     }
 
     /// <summary>
     /// Casts the <see cref="Calculator{TNumber}"/> instance to an <see cref="Secret{TNumber}"/> instance.
     /// </summary>
-    public static implicit operator Secret<TNumber>(Calculator<TNumber> calculator) => calculator.ByteRepresentation.ToArray();
+    public static implicit operator Secret<TNumber>(Calculator<TNumber> calculator)
+    {
+        var calculatorByteRepresentation = calculator.ByteRepresentation;
+        return new Secret<TNumber>(calculatorByteRepresentation.PoolArray, calculatorByteRepresentation.Length);
+    }
 
     /// <summary>
     /// Casts the <see cref="byte"/> array instance to an <see cref="Secret{TNumber}"/> instance.
     /// </summary>
-    public static implicit operator Secret<TNumber>(byte[] array) => new Secret<TNumber>(array);
+    public static implicit operator Secret<TNumber>(byte[] array) => new Secret<TNumber>(array, array.Length);
 
 #if NET8_0_OR_GREATER
     /// <summary>
     /// Casts the <see cref="ReadOnlySpan{Byte}"/> to an <see cref="Secret{TNumber}"/> instance.
     /// </summary>
-    public static implicit operator Secret<TNumber>(ReadOnlySpan<byte> buffer) => new Secret<TNumber>(buffer);
+    public static implicit operator Secret<TNumber>(ReadOnlySpan<byte> buffer) => new Secret<TNumber>(buffer, buffer.Length);
 #endif
 
     /// <summary>
@@ -214,7 +241,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     {
         ArrayBufferWriter<byte> arrayBufferWriter = new();
         Encoding.UTF8.GetBytes(secretText, arrayBufferWriter);
-        Secret<TNumber> secret = new(arrayBufferWriter.WrittenSpan);
+        var secretBytes = arrayBufferWriter.WrittenSpan;
+        Secret<TNumber> secret = new(secretBytes, secretBytes.Length);
         arrayBufferWriter.Clear();
         return secret;
     }
@@ -222,7 +250,11 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// Casts the <see cref="string"/> instance to an <see cref="Secret{TNumber}"/> instance
     /// </summary>
-    public static implicit operator Secret<TNumber>(string secretText) => new Secret<TNumber>(Encoding.UTF8.GetBytes(secretText));
+    public static implicit operator Secret<TNumber>(string secretText)
+    {
+        var secretBytes = Encoding.UTF8.GetBytes(secretText);
+        return new Secret<TNumber>(secretBytes, secretBytes.Length);
+    }
 #endif
 
     /// <summary>
@@ -393,8 +425,12 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <typeparam name="TNumberStatic"></typeparam>
     /// <param name="coefficient">a0 coefficient</param>
     /// <returns>A <see cref="Secret{TNumber}"/></returns>
-    internal static Secret<TNumberStatic> FromCoefficient<TNumberStatic>(Calculator<TNumberStatic> coefficient) =>
-        new Secret<TNumberStatic>(coefficient.ByteRepresentation.Take(coefficient.ByteCount - MarkByteCount).ToArray());
+    internal static Secret<TNumberStatic> FromCoefficient<TNumberStatic>(Calculator<TNumberStatic> coefficient)
+    {
+        var coefficientByteRepresentation = coefficient.ByteRepresentation;
+        var secretBytes = coefficientByteRepresentation.PoolArray.Take(coefficient.ByteCount - MarkByteCount).ToArray();
+        return new Secret<TNumberStatic>(secretBytes, secretBytes.Length);
+    }
 
     /// <summary>
     /// Creates a random secret
@@ -428,6 +464,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
             randomSecretBytes[i--] = 0x00;
         }
 
-        return new Secret<TNumberStatic>(randomSecretBytes.Subset(0, randomSecretBytes.Length - (randomSecretBytes.Length - i)));
+        var secretBytes = randomSecretBytes.Subset(0, randomSecretBytes.Length - (randomSecretBytes.Length - i));
+        return new Secret<TNumberStatic>(secretBytes, secretBytes.Length);
     }
 }

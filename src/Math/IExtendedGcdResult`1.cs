@@ -31,13 +31,14 @@
 
 namespace SecretSharingDotNet.Math;
 
+using System;
 using System.Collections.ObjectModel;
 
 /// <summary>
 /// Represents the result of the extended greatest common divisor computation.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type</typeparam>
-public interface IExtendedGcdResult<TNumber>
+public interface IExtendedGcdResult<TNumber> : IDisposable
 {
     /// <summary>
     /// Gets the greatest common divisor

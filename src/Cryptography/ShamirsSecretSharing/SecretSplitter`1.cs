@@ -34,7 +34,9 @@ namespace SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using Extension;
 using Math;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 /// <summary>
@@ -123,6 +125,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         var polynomial = this.CreatePolynomial(numberOfMinimumShares);
         polynomial[0] = generatedSecret.ToCoefficient;
         var points = this.CreateFinitePoints(numberOfShares, polynomial);
+        polynomial.DisposeAll();
         return new Shares<TNumber>(points.ToShares());
     }
 
@@ -182,7 +185,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         var polynomial = this.CreatePolynomial(numberOfMinimumShares);
         polynomial[0] = secret.ToCoefficient;
         var points = this.CreateFinitePoints(numberOfShares, polynomial);
-
+        polynomial.DisposeAll();
         return new Shares<TNumber>(points.ToShares());
     }
 
@@ -195,12 +198,20 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     {
         var polynomial = new Calculator<TNumber>[numberOfMinimumShares];
         polynomial[0] = Calculator<TNumber>.Zero;
-        byte[] randomNumber = new byte[this.securityLevelManager.MersennePrime.ByteCount];
+        var mersennePrimeByteCount = this.securityLevelManager.MersennePrime.ByteCount;
+        using var randomBytePool = new PinnedPoolArray<byte>(mersennePrimeByteCount);
         using var rng = RandomNumberGenerator.Create();
         for (int i = 1; i < numberOfMinimumShares; i++)
         {
-            rng.GetBytes(randomNumber);
-            polynomial[i] = (Calculator.Create(randomNumber, typeof(TNumber)) as Calculator<TNumber>)?.Abs() % this.securityLevelManager.MersennePrime;
+            rng.GetBytes(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
+            using var randomValue = Calculator.Create(randomBytePool.PoolArray, typeof(TNumber)) as Calculator<TNumber>;
+            if (randomValue == null)
+            {
+                throw new InvalidOperationException("Random value generation failed!");
+            }
+
+            using var abs = randomValue.Abs();
+            polynomial[i] = abs % this.securityLevelManager.MersennePrime;
         }
 
         return polynomial;
