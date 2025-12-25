@@ -73,7 +73,7 @@
         <value>Hex-String muss eine gerade Länge haben.</value>
     </data>
     <data name="InvalidHexCharacter" xml:space="preserve">
-        <value>UIngültiges Hex-Zeichen an Position {0}</value>
+        <value>Ungültiges Hex-Zeichen an Position {0}</value>
     </data>
     <data name="InvalidShareFormat" xml:space="preserve">
         <value>Ungültiges Share-Format. Erwartetes Format: 'X{0}Y', wobei X und Y hexadezimale Werte sind.</value>

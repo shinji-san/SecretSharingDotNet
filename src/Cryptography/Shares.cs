@@ -157,7 +157,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// Casts an array of <see cref="Share{TNumber}"/> items to a <see cref="Shares{TNumber}"/> object.
     /// </summary>
     /// <param name="shares">An array of <see cref="Share{TNumber}"/> items.</param>
-    /// <returns></returns>
+    /// <returns>A <see cref="Shares{TNumber}"/> instance that contains the specified shares.</returns>
     public static implicit operator Shares<TNumber>(Share<TNumber>[] shares) => new Shares<TNumber>(shares);
 
     /// <summary>

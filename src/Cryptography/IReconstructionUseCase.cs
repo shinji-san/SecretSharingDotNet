@@ -8,7 +8,7 @@ using System;
 /// <typeparam name="TNumber"></typeparam>
 public interface IReconstructionUseCase<TNumber>
 {
-    /// <summary>q
+    /// <summary>
     /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
     /// </summary>
     /// <param name="shares">Shares represented by <see cref="string"/> and separated by newline.</param>
