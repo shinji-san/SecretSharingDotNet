@@ -80,26 +80,25 @@ public class SecretSplitterTest
         var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act & Assert
-        Shares<BigInteger> shares = null;
+        Secret<BigInteger> s;
         switch (secret)
         {
             case string password:
-                shares = secretSplitter.MakeShares(3, 7, password);
+                s = password;
                 break;
             case BigInteger number:
-                shares = secretSplitter.MakeShares(3, 7, number);
+                s = number;
                 break;
             case null:
                 return;
         }
+        var shares = secretSplitter.MakeShares(3, 7, s);
 
         Assert.NotNull(shares);
-        Assert.True(shares.OriginalSecretExists);
-        Assert.NotNull(shares.OriginalSecret);
-        var subSet1 = shares.Where(p => p.X.IsEven).ToList();
-        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1.ToArray());
-        var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
-        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2.ToArray());
+        var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
+        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+        var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
+        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
 
         switch (secret)
         {
@@ -111,8 +110,8 @@ public class SecretSplitterTest
                 break;
         }
 
-        Assert.Equal(shares.OriginalSecret, recoveredSecret1);
-        Assert.Equal(shares.OriginalSecret, recoveredSecret2);
+        Assert.Equal(s, recoveredSecret1);
+        Assert.Equal(s, recoveredSecret2);
         Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
     }
 
@@ -133,18 +132,14 @@ public class SecretSplitterTest
 
         // Act
         var shares = secretSplitter.MakeShares(3, 7, password, splitSecurityLevel);
-        var secret = shares.OriginalSecret;
-        var subSet1 = shares.Where(p => p.X.IsEven).ToList();
-        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1.ToArray());
-        var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
-        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2.ToArray());
+        var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
+        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+        var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
+        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
 
         // Assert
-        Assert.True(shares.OriginalSecretExists);
-        Assert.NotNull(shares.OriginalSecret);
         Assert.Equal(password, recoveredSecret1);
-        Assert.Equal(secret, recoveredSecret1);
-        Assert.Equal(secret, recoveredSecret2);
+        Assert.Equal(password, recoveredSecret2);
         Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
     }
 
@@ -165,18 +160,14 @@ public class SecretSplitterTest
 
         // Act
         var shares = secretSplitter.MakeShares(3, 7, number, splitSecurityLevel);
-        var secret = shares.OriginalSecret;
-        var subSet1 = shares.Where(p => p.X.IsEven).ToList();
-        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1.ToArray());
-        var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
-        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2.ToArray());
+        var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
+        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+        var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
+        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
 
         // Assert
-        Assert.True(shares.OriginalSecretExists);
-        Assert.NotNull(shares.OriginalSecret);
         Assert.Equal(number, (BigInteger)recoveredSecret1);
-        Assert.Equal(secret, recoveredSecret1);
-        Assert.Equal(secret, recoveredSecret2);
+        Assert.Equal(number, (BigInteger)recoveredSecret2);
         Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
     }
 
@@ -195,23 +186,20 @@ public class SecretSplitterTest
         var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act
-        var shares = secretSplitter.MakeShares(3, 7, splitSecurityLevel);
-        var secret = shares.OriginalSecret;
-        var subSet1 = shares.Where(p => p.X.IsEven).ToList();
-        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1.ToArray());
-        var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
-        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2.ToArray());
+        var shares = secretSplitter.MakeShares(3, 7, splitSecurityLevel, out var originalSecret);
+        var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
+        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+        var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
+        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
 
         // Assert
-        Assert.True(shares.OriginalSecretExists);
-        Assert.NotNull(shares.OriginalSecret);
-        Assert.Equal(secret, recoveredSecret1);
-        Assert.Equal(secret, recoveredSecret2);
+        Assert.Equal(originalSecret, recoveredSecret1);
+        Assert.Equal(originalSecret, recoveredSecret2);
         Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
     }
 
     /// <summary>
-    /// Tests the MakeShares method with a minimum shares number of 1 to be sure that a error occurs.
+    /// Tests the MakeShares method with a minimum shares number of 1 to be sure that an error occurs.
     /// Only a minimum shares number of greater or equal to 2 is valid.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
@@ -222,7 +210,7 @@ public class SecretSplitterTest
         var secretSplitter = new SecretSplitter<BigInteger>();
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => secretSplitter.MakeShares(1, 7, 5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => secretSplitter.MakeShares(1, 7, 5, out _));
     }
 
     /// <summary>
@@ -237,9 +225,9 @@ public class SecretSplitterTest
         var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act & Assert
-        var shares = secretSplitter.MakeShares(2, 7, 13);
-        var subSet = shares.Where(p => p.X == Calculator<BigInteger>.One).ToList();
-        Assert.Throws<ArgumentOutOfRangeException>(() => secretReconstructor.Reconstruction(subSet.ToArray()));
+        var shares = secretSplitter.MakeShares(2, 7, 13, out _);
+        var subSet = shares.Where(p => p.Index == Calculator<BigInteger>.One).ToArray();
+        Assert.Throws<ArgumentOutOfRangeException>(() => secretReconstructor.Reconstruction(subSet));
     }
 
     /// <summary>
@@ -254,12 +242,12 @@ public class SecretSplitterTest
         var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act
-        var shares = secretSplitter.MakeShares(3, 7, 51);
-        var subSet = shares.Take(2).ToList();
-        var secret = secretReconstructor.Reconstruction(subSet.ToArray());
+        var shares = secretSplitter.MakeShares(3, 7, 51, out var originalSecret);
+        var subSet = shares.Take(2).ToArray();
+        var secret = secretReconstructor.Reconstruction(subSet);
 
         // Assert
-        Assert.NotEqual(shares.OriginalSecret, secret);
+        Assert.NotEqual(originalSecret, secret);
     }
 
     /// <summary>
@@ -277,10 +265,10 @@ public class SecretSplitterTest
 
         // Act
         var shares = secretSplitter.MakeShares(3, 7, longSecret, 1024);
-        var subSet1 = shares.Where(p => p.X.IsEven).ToList();
-        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1.ToArray());
-        var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
-        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2.ToArray());
+        var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
+        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+        var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
+        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
 
         // Assert
         Assert.Equal(longSecret, recoveredSecret1);

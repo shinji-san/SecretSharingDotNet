@@ -41,12 +41,12 @@ using System.Collections.ObjectModel;
 /// </summary>
 /// <typeparam name="TNumber">The type of integer which is used by the <see cref="FinitePoint{TNumber}"/> items of the
 /// <see cref="Shares{TNumber}"/> collection.</typeparam>
-public sealed class SharesEnumerator<TNumber> : IEnumerator<FinitePoint<TNumber>>
+public sealed class SharesEnumerator<TNumber> : IEnumerator<Share<TNumber>>
 {
     /// <summary>
     /// Saves a list of <see cref="FinitePoint{TNumber}"/>.
     /// </summary>
-    private readonly ReadOnlyCollection<FinitePoint<TNumber>> shareList;
+    private readonly ReadOnlyCollection<Share<TNumber>> shareList;
 
     /// <summary>
     /// Saves the current of the enumerator
@@ -58,10 +58,10 @@ public sealed class SharesEnumerator<TNumber> : IEnumerator<FinitePoint<TNumber>
     /// </summary>
     /// <param name="shares">A collection of <see cref="FinitePoint{TNumber}"/> items representing the shares.</param>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="shares"/> is <see langword="null"/></exception>
-    public SharesEnumerator(Collection<FinitePoint<TNumber>> shares)
+    public SharesEnumerator(Collection<Share<TNumber>> shares)
     {
         _ = shares ?? throw new ArgumentNullException(nameof(shares));
-        this.shareList = new ReadOnlyCollection<FinitePoint<TNumber>>(shares);
+        this.shareList = new ReadOnlyCollection<Share<TNumber>>(shares);
     }
 
     /// <summary>
@@ -93,7 +93,7 @@ public sealed class SharesEnumerator<TNumber> : IEnumerator<FinitePoint<TNumber>
     /// <summary>
     /// Gets the element in the <see cref="Shares{TNumber}"/> collection at the current position of the enumerator.
     /// </summary>
-    public FinitePoint<TNumber> Current
+    public Share<TNumber> Current
     {
         get
         {

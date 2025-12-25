@@ -1,7 +1,7 @@
-# SecretSharingDotNet
-An C# implementation of Shamir's Secret Sharing.
+# ✨ SecretSharingDotNet ✨
+A C# implementation of Shamir's Secret Sharing.
 
-# Build & Test Status Of Default Branch
+# Build & Test Status Of Default Branch 👷
 <table>
   <thead>
     <tr>
@@ -14,7 +14,7 @@ An C# implementation of Shamir's Secret Sharing.
   <tbody>
       <tr>
           <td rowspan=9><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/dotnetall.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/dotnetall.yml/badge.svg?branch=main" alt="Build status"/></a></td>
-          <td rowspan=9><code>SecretSharingDotNet.sln</code></td>
+          <td rowspan=9><code>SecretSharingDotNet.slnx</code></td>
           <td rowspan=9>SDK</td>
           <td>Standard 2.0</td>
       </tr>
@@ -45,7 +45,7 @@ An C# implementation of Shamir's Secret Sharing.
   </tbody>
 </table>
 
-# NuGet
+# NuGet 📦
 ## Supported Target Frameworks
 <table>
   <thead>
@@ -59,8 +59,8 @@ An C# implementation of Shamir's Secret Sharing.
   <tbody>
       <tr>
           <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml/badge.svg" alt="SecretSharingDotNet - NuGet Publishing"/></a></td>
-          <td rowspan=9><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.13.0"/></a></td>
-          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.13.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.13.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=9><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.14.0"/></a></td>
+          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.14.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.14.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -90,14 +90,14 @@ An C# implementation of Shamir's Secret Sharing.
   </tbody>
 </table>
 
-## Install SecretSharingDotNet package
+## Install SecretSharingDotNet package 📥
 
 1. Open a console and switch to the directory, containing your project file.
 
-2. Use the following command to install version 0.13.0 of the SecretSharingDotNet package:
+2. Use the following command to install version 0.14.0 of the SecretSharingDotNet package:
 
     ```dotnetcli
-    dotnet add package SecretSharingDotNet -v 0.13.0 -f <FRAMEWORK>
+    dotnet add package SecretSharingDotNet -v 0.14.0 -f <FRAMEWORK>
     ```
 
 3. After the completion of the command, look at the project file to make sure that the package is successfully installed.
@@ -106,10 +106,10 @@ An C# implementation of Shamir's Secret Sharing.
 
     ```xml
     <ItemGroup>
-      <PackageReference Include="SecretSharingDotNet" Version="0.13.0" />
+      <PackageReference Include="SecretSharingDotNet" Version="0.14.0" />
     </ItemGroup>
     ```
-## Remove SecretSharingDotNet package
+## Remove SecretSharingDotNet package 📤
 
 1. Open a console and switch to the directory, containing your project file.
 
@@ -123,7 +123,10 @@ An C# implementation of Shamir's Secret Sharing.
 
    You can open the `.csproj` file to check the deleted package reference.
 
-# Usage
+# Usage 🔧
+> [!IMPORTANT]
+> Breaking Change in v0.14.0: The string encoding in `SecretSharingDotNet` with text secrets is UTF-8.
+
 ## Basics
 Use the function `MakeShares` to generate the shares, based on a random or pre-defined secret.
 Afterwards, use the function `Reconstruction` to re-construct the original secret.
@@ -163,13 +166,13 @@ Console.WriteLine(shares);
 Similarly, an instance of `IReconstructionUseCase<BigInteger>` can be created to rebuild the original secret:
 ```csharp
 var reconstructionUseCase = serviceProvider.GetRequiredService<IReconstructionUseCase<BigInteger>>();
-var reconstruction = reconstructionUseCase.Reconstruction(shares.Where(p => p.X.IsEven).ToArray());
+var reconstruction = reconstructionUseCase.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
 Console.WriteLine(reconstruction);
 ```
 
 The code above reconstructs the original secret from the shares, and then outputs it.
 
-## Random secret
+## Random secret 🎲
 Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127:
 ```csharp
 using System;
@@ -193,10 +196,7 @@ namespace Example1
       //// Minimum number of shared secrets for reconstruction: 3
       //// Maximum number of shared secrets: 7
       //// Security level: 127 (Mersenne prime exponent)
-      var shares = splitter.MakeShares(3, 7, 127);
-
-      //// The property 'shares.OriginalSecret' represents the random secret
-      var secret = shares.OriginalSecret;
+      var shares = splitter.MakeShares(3, 7, 127, out var secret);
 
       //// Secret as big integer number
       Console.WriteLine((BigInteger)secret);
@@ -207,9 +207,9 @@ namespace Example1
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       //// The 'shares' instance contains the shared secrets
       var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet1 = shares.Where(p => p.X.IsEven).ToList();
+      var subSet1 = shares.Where(p => p.IsIndexEven).ToList();
       var recoveredSecret1 = combiner.Reconstruction(subSet1.ToArray());
-      var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
+      var subSet2 = shares.Where(p => p.IsIndexOdd).ToList();
       var recoveredSecret2 = combiner.Reconstruction(subSet2.ToArray());
 
       //// String representation of all shares
@@ -230,7 +230,7 @@ namespace Example1
   }
 }
 ```
-## Pre-defined secret: text
+## Pre-defined secret: text 📄
 Use a text as secret, which can be divided into shares. The length of the generated shares is based on the security level.
 Here is an example with auto-detected security level:
 ```csharp
@@ -259,15 +259,12 @@ namespace Example2
       //// or SecurityLevel property.
       var shares = splitter.MakeShares(3, 7, password);
 
-      //// The property 'shares.OriginalSecret' represents the original password
-      var secret = shares.OriginalSecret;
-
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       //// The 'shares' instance contains the shared secrets
       var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet1 = shares.Where(p => p.X.IsEven).ToList();
+      var subSet1 = shares.Where(p => p.IsIndexEven).ToList();
       var recoveredSecret1 = combiner.Reconstruction(subSet1.ToArray());
-      var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
+      var subSet2 = shares.Where(p => p.IsIndexOdd).ToList();
       var recoveredSecret2 = combiner.Reconstruction(subSet2.ToArray());
 
       //// String representation of all shares
@@ -283,7 +280,7 @@ namespace Example2
 }
 ```
 
-## Pre-defined secret: number
+## Pre-defined secret: number 🔢
 Use an integer number as secret, which can be divided into shares. The length of the generated shares is based on the security level.
 Here is an example with a pre-defined security level of 521:
 ```csharp
@@ -314,15 +311,12 @@ namespace Example3
       //// or SecurityLevel property.
       var shares = splitter.MakeShares (3, 7, number, 521);
 
-      //// The property 'shares.OriginalSecret' represents the number (original secret)
-      var secret = shares.OriginalSecret;
-
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       ////  The 'shares' instance contains the shared secrets
       var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet1 = shares.Where(p => p.X.IsEven).ToList();
+      var subSet1 = shares.Where(p => p.IsIndexEven).ToList();
       var recoveredSecret1 = combiner.Reconstruction(subSet1.ToArray());
-      var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
+      var subSet2 = shares.Where(p => p.IsIndexOdd).ToList();
       var recoveredSecret2 = combiner.Reconstruction(subSet2.ToArray());
 
       //// String representation of all shares
@@ -337,7 +331,7 @@ namespace Example3
   }
 }
 ```
-## Pre-defined secret: byte array
+## Pre-defined secret: byte array ▦
 Use a byte array as secret, which can be divided into shares. The length of the generated shares is based on the security level.
 Here is an example with auto-detected security level:
 ```csharp
@@ -368,7 +362,7 @@ namespace Example4
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       //// The 'shares' instance contains the shared secrets
       var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet = shares.Where(p => p.X.IsEven).ToList();
+      var subSet = shares.Where(p => p.IsIndexEven).ToList();
       var recoveredSecret = combiner.Reconstruction(subSet.ToArray()).ToByteArray();
 
       //// String representation of all shares
@@ -381,7 +375,7 @@ namespace Example4
 }
 ```
 
-## Shares
+## Shares 🔑
 The following example shows three ways to use shares to reconstruct a secret:
 ```csharp
 using System;
@@ -410,9 +404,9 @@ namespace Example5
                           "05-CDECB88126DBC04D753E0C2D83D7B55D"};
 
       //// Another way to use shares
-      var fp1 = new FinitePoint<BigInteger>("05-CDECB88126DBC04D753E0C2D83D7B55D");
-      var fp2 = new FinitePoint<BigInteger>("07-54A83E34AB0310A7F5D80F2A68FD4F33");
-      var fp3 = new FinitePoint<BigInteger>("02-665C74ED38FDFF095B2FC9319A272A75");
+      var share1 = new Share<BigInteger>("05-CDECB88126DBC04D753E0C2D83D7B55D");
+      var share2 = new Share<BigInteger>("07-54A83E34AB0310A7F5D80F2A68FD4F33");
+      var share3 = new Share<BigInteger>("02-665C74ED38FDFF095B2FC9319A272A75");
 
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       var combiner = new SecretReconstructor<BigInteger>(gcd);
@@ -426,7 +420,7 @@ namespace Example5
       Console.WriteLine((BigInteger)recoveredSecret2);
 
       //// Output should be 52199147989510990914370102003412153
-      var recoveredSecret3 = combiner.Reconstruction(fp1, fp2, fp3);
+      var recoveredSecret3 = combiner.Reconstruction(share1, share2, share3);
       Console.WriteLine((BigInteger)recoveredSecret3);
     }
   }

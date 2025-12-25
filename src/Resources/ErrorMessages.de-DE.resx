@@ -60,4 +60,22 @@
         <value>Der Nenner ist nicht invertierbar modulo Primzahl (ggT != 1).
 Überprüfe, ob alle Berechnungen in GF(p) mit einem Primzahlmodul durchgeführt werden.</value>
     </data>
+    <data name="ShareIndexMustBePositive" xml:space="preserve">
+        <value>Der Share-Index muss eine positive ganze Zahl größer Null sein.</value>
+    </data>
+    <data name="ShareStringCannotBeEmpty" xml:space="preserve">
+        <value>Der Share-String darf nicht leer sein.</value>
+    </data>
+    <data name="ShareIndexAndValueMustBeNonEmpty" xml:space="preserve">
+        <value>Ungültiges Share-Format. Der Index und der Wert des Shares dürfen nicht leer sein.</value>
+    </data>
+    <data name="HexStringMustBeEven" xml:space="preserve">
+        <value>Hex-String muss eine gerade Länge haben.</value>
+    </data>
+    <data name="InvalidHexCharacter" xml:space="preserve">
+        <value>Ungültiges Hex-Zeichen an Position {0}</value>
+    </data>
+    <data name="InvalidShareFormat" xml:space="preserve">
+        <value>Ungültiges Share-Format. Erwartetes Format: 'X{0}Y', wobei X und Y hexadezimale Werte sind.</value>
+    </data>
 </root>

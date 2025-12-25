@@ -213,7 +213,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public static implicit operator Secret<TNumber>(ReadOnlySpan<char> secretText)
     {
         ArrayBufferWriter<byte> arrayBufferWriter = new();
-        Encoding.Unicode.GetBytes(secretText, arrayBufferWriter);
+        Encoding.UTF8.GetBytes(secretText, arrayBufferWriter);
         Secret<TNumber> secret = new(arrayBufferWriter.WrittenSpan);
         arrayBufferWriter.Clear();
         return secret;
@@ -222,7 +222,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// Casts the <see cref="string"/> instance to an <see cref="Secret{TNumber}"/> instance
     /// </summary>
-    public static implicit operator Secret<TNumber>(string secretText) => new Secret<TNumber>(Encoding.Unicode.GetBytes(secretText));
+    public static implicit operator Secret<TNumber>(string secretText) => new Secret<TNumber>(Encoding.UTF8.GetBytes(secretText));
 #endif
 
     /// <summary>
@@ -336,19 +336,12 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <returns><see cref="string"/> representation of <see cref="Secret{TNumber}"/></returns>
     public override string ToString()
     {
-        int padCount = (this.secretNumber.Length - MarkByteCount) % sizeof(char);
-        if (padCount == 0)
+        if (this.secretNumber is not { Length: > MarkByteCount })
         {
-            return Encoding.Unicode.GetString(this.secretNumber, 0, this.secretNumber.Length - MarkByteCount);
+            return string.Empty;
         }
 
-        var padded = new List<byte>(this.secretNumber.Subset(0, this.secretNumber.Length - MarkByteCount));
-        for (int i = 0; i < padCount; i++)
-        {
-            padded.Add(0x00);
-        }
-
-        return Encoding.Unicode.GetString(padded.ToArray(), 0, padded.Count);
+        return Encoding.UTF8.GetString(this.secretNumber, 0, this.secretNumber.Length - MarkByteCount);
     }
 
     /// <summary>
