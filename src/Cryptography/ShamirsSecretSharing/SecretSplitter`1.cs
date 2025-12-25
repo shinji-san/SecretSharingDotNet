@@ -124,7 +124,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         var polynomial = this.CreatePolynomial(min);
         polynomial[0] = secret.ToCoefficient;
         var points = this.CreateFinitePoints(max, polynomial);
-        return new Shares<TNumber>(secret, points.ToShares());
+        return new Shares<TNumber>(points.ToShares());
     }
 
     /// <summary>
@@ -170,7 +170,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         var polynomial = this.CreatePolynomial(min);
         polynomial[0] = secret.ToCoefficient;
         var points = this.CreateFinitePoints(max, polynomial);
-        return new Shares<TNumber>(secret, points.ToShares());
+        return new Shares<TNumber>(points.ToShares());
     }
 
     /// <summary>
@@ -232,7 +232,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         polynomial[0] = secret.ToCoefficient;
         var points = this.CreateFinitePoints(max, polynomial);
 
-        return new Shares<TNumber>(secret, points.ToShares());
+        return new Shares<TNumber>(points.ToShares());
     }
 
     /// <summary>
