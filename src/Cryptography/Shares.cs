@@ -65,7 +65,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     internal Shares(IList<Share<TNumber>> shares)
     {
         _ = shares ?? throw new ArgumentNullException(nameof(shares));
-        var sortedShares = shares.ToArray();
+        var sortedShares = shares as Share<TNumber>[] ?? shares.ToArray();
         Array.Sort(sortedShares);
         this.shareList = new Collection<Share<TNumber>>(sortedShares);
     }
@@ -96,13 +96,13 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// <param name="s">A <see cref="string"/> object representing two or more finite points separated by newline.</param>
     public static implicit operator Shares<TNumber>(string s)
     {
-        var points = s
+        var shares = s
             .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries)
             .Select(line => line.Trim())
             .Where(line => !string.IsNullOrEmpty(line))
             .Select(line => new Share<TNumber>(line))
             .ToArray();
-        return new Shares<TNumber>(points);
+        return new Shares<TNumber>(shares);
     }
 
     /// <summary>
@@ -111,12 +111,12 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// <param name="s">An array of <see cref="string"/> representing two or more finite points.</param>
     public static implicit operator Shares<TNumber>(string[] s)
     {
-        var points = s
+        var shares = s
             .Select(line => line.Trim())
             .Where(line => !string.IsNullOrEmpty(line))
             .Select(line => new Share<TNumber>(line))
             .ToArray();
-        return new Shares<TNumber>(points);
+        return new Shares<TNumber>(shares);
     }
 
     /// <summary>

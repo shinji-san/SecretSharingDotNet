@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Removed `OriginalSecret` property from `Shares` class.
 - Removed `OriginalSecretExists` property from `Shares` class.
+- Removed `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)` method.
+- Removed `Secret<TNumber> Reconstruction(FinitePoint<TNumber>[] shares)` method.
+- Removed `Secret<TNumber> Reconstruction(Share<TNumber>[] shares)` method.
+- Removed `Secret<TNumber> Reconstruction(string[] shares)` method.
+- Removed `Secret<TNumber> Reconstruction(string shares)` method.
 
 ## [0.14.0] - 2025-12-25
 ### Added
