@@ -31,6 +31,7 @@
 
 namespace SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 
+using Extension;
 using Math;
 using System;
 using System.Collections.Generic;
@@ -86,10 +87,11 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
     /// <param name="numberOfShares">Maximum number of shared secrets</param>
     /// <param name="securityLevel">Security level (in number of bits). The minimum is 13.</param>
-    /// <returns></returns>
+    /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The <paramref name="securityLevel"/> parameter is lower than 13 or greater than 43.112.609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.
     /// </exception>
+    [Obsolete("Use MakeShares with out parameter secret instead", false)]
     public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)
     {
         try
@@ -121,8 +123,54 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         var secret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime);
         var polynomial = this.CreatePolynomial(min);
         polynomial[0] = secret.ToCoefficient;
-        var points = this.CreateSharedSecrets(max, polynomial);
-        return new Shares<TNumber>(secret, points);
+        var points = this.CreateFinitePoints(max, polynomial);
+        return new Shares<TNumber>(secret, points.ToShares());
+    }
+
+    /// <summary>
+    /// Generates a random shamir pool, returns the random secret and the share points.
+    /// </summary>
+    /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
+    /// <param name="numberOfShares">Maximum number of shared secrets</param>
+    /// <param name="securityLevel">Security level (in number of bits). The minimum is 13.</param>
+    /// <param name="secret">output parameter returning the generated secret as <see cref="Secret{TNumber}"/></param>
+    /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
+    /// <exception cref="T:System.ArgumentOutOfRangeException">
+    /// The <paramref name="securityLevel"/> parameter is lower than 13 or greater than 43.112.609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// </exception>
+    public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel, out Secret<TNumber> secret)
+    {
+        try
+        {
+            this.SecurityLevel = securityLevel;
+        }
+        catch (ArgumentOutOfRangeException e)
+        {
+            throw new ArgumentOutOfRangeException(nameof(securityLevel), securityLevel, e.Message);
+        }
+
+        int min = ((Calculator<TNumber>)numberOfMinimumShares).ToInt32();
+        int max = ((Calculator<TNumber>)numberOfShares).ToInt32();
+        if (min < 2)
+        {
+            throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, ErrorMessages.MinNumberOfSharesLowerThanTwo);
+        }
+
+        if (min > max)
+        {
+            throw new ArgumentOutOfRangeException(nameof(numberOfShares), numberOfShares, ErrorMessages.MaxSharesLowerThanMinShares);
+        }
+
+        if (this.securityLevelManager.MersennePrime == null)
+        {
+            throw new InvalidOperationException("Security Level is not initialized!");
+        }
+
+        secret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime);
+        var polynomial = this.CreatePolynomial(min);
+        polynomial[0] = secret.ToCoefficient;
+        var points = this.CreateFinitePoints(max, polynomial);
+        return new Shares<TNumber>(secret, points.ToShares());
     }
 
     /// <summary>
@@ -132,7 +180,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <param name="numberOfShares">Maximum number of shared secrets</param>
     /// <param name="secret">secret text as <see cref="Secret{TNumber}"/> or see cref="string"/></param>
     /// <param name="securityLevel">Security level (in number of bits). The minimum is 13.</param>
-    /// <returns></returns>
+    /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
     /// <remarks>This method can modify the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length.</remarks>
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The <paramref name="securityLevel"/> is lower than 13 or greater than 43.112.609. OR <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
@@ -157,7 +205,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
     /// <param name="numberOfShares">Maximum number of shared secrets</param>
     /// <param name="secret">secret text as <see cref="Secret{TNumber}"/> or see cref="string"/></param>
-    /// <returns></returns>
+    /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
     /// <remarks>This method modifies the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length</remarks>
     /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
     public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret)
@@ -182,9 +230,9 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
 
         var polynomial = this.CreatePolynomial(min);
         polynomial[0] = secret.ToCoefficient;
-        var points = this.CreateSharedSecrets(max, polynomial);
+        var points = this.CreateFinitePoints(max, polynomial);
 
-        return new Shares<TNumber>(secret, points);
+        return new Shares<TNumber>(secret, points.ToShares());
     }
 
     /// <summary>
@@ -208,17 +256,17 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     }
 
     /// <summary>
-    /// Creates shared Secrets
+    /// Creates finite points representing the shared secrets
     /// </summary>
     /// <param name="numberOfShares">Maximum number of shared secrets</param>
-    /// <param name="polynomial"></param>
+    /// <param name="polynomial">The polynomial coefficients</param>
     /// <returns>Finite points representing the shared secrets</returns>
-    private FinitePoint<TNumber>[] CreateSharedSecrets(int numberOfShares, ICollection<Calculator<TNumber>> polynomial)
+    private FinitePoint<TNumber>[] CreateFinitePoints(int numberOfShares, ICollection<Calculator<TNumber>> polynomial)
     {
-        int size = numberOfShares + 1;
+        var size = numberOfShares + 1;
         var points = new FinitePoint<TNumber>[numberOfShares];
 
-        for (int i = 1; i < size; i++)
+        for (var i = 1; i < size; i++)
         {
             var x = Calculator.Create(BitConverter.GetBytes(i), typeof(TNumber)) as Calculator<TNumber>;
             points[i - 1] = new FinitePoint<TNumber>(x, polynomial, this.securityLevelManager.MersennePrime);

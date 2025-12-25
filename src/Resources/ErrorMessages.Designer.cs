@@ -131,16 +131,52 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("NoValidMersennePrimeExponentAvailable", resourceCulture);
             }
         }
-
+        
         internal static string InverseOfZeroDoesNotExist {
             get {
                 return ResourceManager.GetString("InverseOfZeroDoesNotExist", resourceCulture);
             }
         }
-
+        
         internal static string DenominatorIsNotInvertibleModuloPrime {
             get {
                 return ResourceManager.GetString("DenominatorIsNotInvertibleModuloPrime", resourceCulture);
+            }
+        }
+        
+        internal static string ShareIndexMustBePositive {
+            get {
+                return ResourceManager.GetString("ShareIndexMustBePositive", resourceCulture);
+            }
+        }
+        
+        internal static string ShareStringCannotBeEmpty {
+            get {
+                return ResourceManager.GetString("ShareStringCannotBeEmpty", resourceCulture);
+            }
+        }
+        
+        internal static string ShareIndexAndValueMustBeNonEmpty {
+            get {
+                return ResourceManager.GetString("ShareIndexAndValueMustBeNonEmpty", resourceCulture);
+            }
+        }
+        
+        internal static string HexStringMustBeEven {
+            get {
+                return ResourceManager.GetString("HexStringMustBeEven", resourceCulture);
+            }
+        }
+        
+        internal static string InvalidHexCharacter {
+            get {
+                return ResourceManager.GetString("InvalidHexCharacter", resourceCulture);
+            }
+        }
+        
+        internal static string InvalidShareFormat {
+            get {
+                return ResourceManager.GetString("InvalidShareFormat", resourceCulture);
             }
         }
     }

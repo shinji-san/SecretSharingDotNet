@@ -300,12 +300,6 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     }
 
     /// <summary>
-    /// Converts the numeric value of the current <see cref="BigIntCalculator"/> object to its equivalent string representation.
-    /// </summary>
-    /// <returns>The <see cref="System.String"/> representation of the current <see cref="BigIntCalculator"/> value.</returns>
-    public override string ToString() => this.Value.ToString();
-
-    /// <summary>
     /// Creates a lazily initialized instance to compute the byte count of the backing <see cref="BigInteger"/> value.
     /// </summary>
     /// <returns>A lazily initialized function that calculates the length of the byte array representing the <see cref="BigInteger"/> value.

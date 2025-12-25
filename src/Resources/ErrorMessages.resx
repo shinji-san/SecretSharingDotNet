@@ -67,4 +67,22 @@
         <value>Denominator is not invertible modulo prime (gcd != 1).
 Check that all computations are performed in GF(p) with a prime modulus.</value>
     </data>
+    <data name="ShareIndexMustBePositive" xml:space="preserve">
+        <value>Share index must be a positive integer greater than zero.</value>
+    </data>
+    <data name="ShareStringCannotBeEmpty" xml:space="preserve">
+        <value>Share string cannot be empty.</value>
+    </data>
+    <data name="ShareIndexAndValueMustBeNonEmpty" xml:space="preserve">
+        <value>Invalid share format. Both index and value parts must be non-empty.</value>
+    </data>
+    <data name="HexStringMustBeEven" xml:space="preserve">
+        <value>Hex string must have even length</value>
+    </data>
+    <data name="InvalidHexCharacter" xml:space="preserve">
+        <value>Invalid hex character at position {0}</value>
+    </data>
+    <data name="InvalidShareFormat" xml:space="preserve">
+        <value>Invalid share format. Expected format: 'X{0}Y' where X and Y are hexadecimal values.</value>
+    </data>
 </root>
