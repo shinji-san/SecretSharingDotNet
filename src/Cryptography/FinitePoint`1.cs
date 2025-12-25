@@ -46,18 +46,9 @@ using System.Runtime.CompilerServices;
 /// Represents the support point of the polynomial
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
-public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, IComparable<FinitePoint<TNumber>>
+[Obsolete("Use Share<TNumber> struct instead. This struct will be marked as internal in future releases.", false)]
+public readonly record struct FinitePoint<TNumber> : IComparable<FinitePoint<TNumber>>
 {
-    /// <summary>
-    /// Saves the X coordinate
-    /// </summary>
-    private readonly Calculator<TNumber> x;
-
-    /// <summary>
-    /// Saves the Y coordinate
-    /// </summary>
-    private readonly Calculator<TNumber> y;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="FinitePoint{TNumber}"/> struct.
     /// </summary>
@@ -68,8 +59,8 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x")]
     public FinitePoint(Calculator<TNumber> x, ICollection<Calculator<TNumber>> polynomial, Calculator<TNumber> prime)
     {
-        this.x = x ?? throw new ArgumentNullException(nameof(x));
-        this.y = Evaluate(polynomial ?? throw new ArgumentNullException(nameof(polynomial)), this.x, prime ?? throw new ArgumentNullException(nameof(prime)));
+        this.X = x ?? throw new ArgumentNullException(nameof(x));
+        this.Y = Evaluate(polynomial ?? throw new ArgumentNullException(nameof(polynomial)), this.X, prime ?? throw new ArgumentNullException(nameof(prime)));
     }
 
     /// <summary>
@@ -93,16 +84,16 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
         }
 
 #if NET8_0_OR_GREATER
-        var xReadOnlySpan = serialized[..serialized.IndexOf(SharedSeparator.CoordinateSeparator)];
-        var yReadOnlySpan = serialized[(serialized.IndexOf(SharedSeparator.CoordinateSeparator) + 1)..];
+        var xReadOnlySpan = serialized[..serialized.IndexOf(Share<TNumber>.CoordinateSeparator)];
+        var yReadOnlySpan = serialized[(serialized.IndexOf(Share<TNumber>.CoordinateSeparator) + 1)..];
         var numberType = typeof(TNumber);
-        this.x = Calculator.Create(ToByteArray(xReadOnlySpan), numberType) as Calculator<TNumber>;
-        this.y = Calculator.Create(ToByteArray(yReadOnlySpan), numberType) as Calculator<TNumber>;
+        this.X = Calculator.Create(ToByteArray(xReadOnlySpan), numberType) as Calculator<TNumber>;
+        this.Y = Calculator.Create(ToByteArray(yReadOnlySpan), numberType) as Calculator<TNumber>;
 #else
-        string[] s = serialized.Split(SharedSeparator.CoordinateSeparatorArray);
+        string[] s = serialized.Split(Share<TNumber>.CoordinateSeparatorArray);
         var numberType = typeof(TNumber);
-        this.x = Calculator.Create(ToByteArray(s[0]), numberType) as Calculator<TNumber>;
-        this.y = Calculator.Create(ToByteArray(s[1]), numberType) as Calculator<TNumber>;
+        this.X = Calculator.Create(ToByteArray(s[0]), numberType) as Calculator<TNumber>;
+        this.Y = Calculator.Create(ToByteArray(s[1]), numberType) as Calculator<TNumber>;
 #endif
     }
 
@@ -115,47 +106,32 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x")]
     public FinitePoint(Calculator<TNumber> x, Calculator<TNumber> y)
     {
-        if (x == null)
-        {
-            throw new ArgumentNullException(nameof(x));
-        }
+        this.X = x ?? throw new ArgumentNullException(nameof(x));
+        this.Y = y ?? throw new ArgumentNullException(nameof(y));
+    }
 
-        if (y == null)
-        {
-            throw new ArgumentNullException(nameof(y));
-        }
-
-        this.x = x;
-        this.y = y;
+    /// <summary>
+    /// Deconstructs this <see cref="FinitePoint{TNumber}"/> into its components.
+    /// </summary>
+    /// <param name="x">The X coordinate of the <see cref="FinitePoint{TNumber}"/>.</param>
+    /// <param name="y">The Y coordinate of the <see cref="FinitePoint{TNumber}"/>.</param>
+    public void Deconstruct(out Calculator<TNumber> x, out Calculator<TNumber> y)
+    {
+        x = this.X;
+        y = this.Y;
     }
 
     /// <summary>
     /// Gets the X coordinate
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "X")]
-    public Calculator<TNumber> X => this.x;
+    public Calculator<TNumber> X { get; }
 
     /// <summary>
     /// Gets the Y coordinate
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Y")]
-    public Calculator<TNumber> Y => this.y;
-
-    /// <summary>
-    /// Equality operator
-    /// </summary>
-    /// <param name="left">The left operand</param>
-    /// <param name="right">The right operand</param>
-    /// <returns>Returns <see langword="true"/> if its operands are equal, otherwise <see langword="false"/>.</returns>
-    public static bool operator ==(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => left.Equals(right);
-
-    /// <summary>
-    /// Inequality operator
-    /// </summary>
-    /// <param name="left">The left operand</param>
-    /// <param name="right">The right operand</param>
-    /// <returns>Returns <see langword="true"/> if its operands aren't equal, otherwise <see langword="false"/>.</returns>
-    public static bool operator !=(FinitePoint<TNumber> left, FinitePoint<TNumber> right) => !left.Equals(right);
+    public Calculator<TNumber> Y { get; }
 
     /// <summary>
     /// Greater than operator
@@ -196,37 +172,10 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     }
 
     /// <summary>
-    /// Determines whether this <see cref="FinitePoint{TNumber}"/> and a specified <see cref="FinitePoint{TNumber}"/> have the same value.
-    /// </summary>
-    /// <param name="other">The <see cref="FinitePoint{TNumber}"/> to compare to this instance.</param>
-    /// <returns><see langword="true"/> if the value of the value parameter is the same as this <see cref="FinitePoint{TNumber}"/>; otherwise, <see langword="false"/>.</returns>
-    public bool Equals(FinitePoint<TNumber> other)
-    {
-        return this.X.Equals(other.X) && this.Y.Equals(other.Y);
-    }
-
-    /// <summary>
-    /// Determines whether this structure and a specified object, which must also be a <see cref="FinitePoint{TNumber}"/> object, have the same value.
-    /// </summary>
-    /// <param name="obj">The <see cref="FinitePoint{TNumber}"/> to compare to this instance.</param>
-    /// <returns><see langword="true"/> if <paramref name="obj"/> is a <see cref="FinitePoint{TNumber}"/> and its value is the same as this instance; otherwise, <see langword="false"/>.
-    /// If <paramref name="obj"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
-    public override bool Equals(object obj)
-    {
-        return obj != null && this.Equals((FinitePoint<TNumber>)obj);
-    }
-
-    /// <summary>
-    /// Returns the hash code for the current <see cref="FinitePoint{TNumber}"/> structure.
-    /// </summary>
-    /// <returns>A 32-bit signed integer hash code.</returns>
-    public override int GetHashCode() => this.X.GetHashCode() ^ this.y.GetHashCode();
-
-    /// <summary>
     /// Returns the string representation of the <see cref="FinitePoint{TNumber}"/> structure.
     /// </summary>
-    /// <returns></returns>
-    public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}{1}{2}", ToHexString(this.x.ByteRepresentation), SharedSeparator.CoordinateSeparator.ToString(), ToHexString(this.y.ByteRepresentation));
+    /// <returns>The string representation of the <see cref="FinitePoint{TNumber}"/> structure.</returns>
+    public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}{1}{2}", ToHexString(this.X.ByteRepresentation), Share<TNumber>.CoordinateSeparator.ToString(), ToHexString(this.Y.ByteRepresentation));
 
     /// <summary>
     /// Evaluates polynomial (coefficient tuple) at x, used to generate a shamir pool.
@@ -255,6 +204,7 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     /// <remarks>
     /// Based on discussion on <see href="https://stackoverflow.com/questions/623104/byte-to-hex-string/5919521#5919521">stackoverflow</see>
     /// </remarks>
+    [Obsolete("Will be removed in future releases.", false)]
 #if NET8_0_OR_GREATER
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
@@ -280,6 +230,7 @@ public readonly struct FinitePoint<TNumber> : IEquatable<FinitePoint<TNumber>>, 
     /// </summary>
     /// <param name="hexString">hexadecimal string</param>
     /// <returns>Returns a byte array</returns>
+    [Obsolete("Will be removed in future releases.", false)]
 #if NET8_0_OR_GREATER
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static byte[] ToByteArray(ReadOnlySpan<char> hexString) => Convert.FromHexString(hexString);

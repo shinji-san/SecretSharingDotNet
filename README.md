@@ -163,7 +163,7 @@ Console.WriteLine(shares);
 Similarly, an instance of `IReconstructionUseCase<BigInteger>` can be created to rebuild the original secret:
 ```csharp
 var reconstructionUseCase = serviceProvider.GetRequiredService<IReconstructionUseCase<BigInteger>>();
-var reconstruction = reconstructionUseCase.Reconstruction(shares.Where(p => p.X.IsEven).ToArray());
+var reconstruction = reconstructionUseCase.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
 Console.WriteLine(reconstruction);
 ```
 
@@ -193,10 +193,7 @@ namespace Example1
       //// Minimum number of shared secrets for reconstruction: 3
       //// Maximum number of shared secrets: 7
       //// Security level: 127 (Mersenne prime exponent)
-      var shares = splitter.MakeShares(3, 7, 127);
-
-      //// The property 'shares.OriginalSecret' represents the random secret
-      var secret = shares.OriginalSecret;
+      var shares = splitter.MakeShares(3, 7, 127, out var secret);
 
       //// Secret as big integer number
       Console.WriteLine((BigInteger)secret);
@@ -207,9 +204,9 @@ namespace Example1
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       //// The 'shares' instance contains the shared secrets
       var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet1 = shares.Where(p => p.X.IsEven).ToList();
+      var subSet1 = shares.Where(p => p.IsIndexEven).ToList();
       var recoveredSecret1 = combiner.Reconstruction(subSet1.ToArray());
-      var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
+      var subSet2 = shares.Where(p => p.IsIndexOdd).ToList();
       var recoveredSecret2 = combiner.Reconstruction(subSet2.ToArray());
 
       //// String representation of all shares
@@ -259,15 +256,12 @@ namespace Example2
       //// or SecurityLevel property.
       var shares = splitter.MakeShares(3, 7, password);
 
-      //// The property 'shares.OriginalSecret' represents the original password
-      var secret = shares.OriginalSecret;
-
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       //// The 'shares' instance contains the shared secrets
       var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet1 = shares.Where(p => p.X.IsEven).ToList();
+      var subSet1 = shares.Where(p => p.IsIndexEven).ToList();
       var recoveredSecret1 = combiner.Reconstruction(subSet1.ToArray());
-      var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
+      var subSet2 = shares.Where(p => p.IsIndexOdd).ToList();
       var recoveredSecret2 = combiner.Reconstruction(subSet2.ToArray());
 
       //// String representation of all shares
@@ -314,15 +308,12 @@ namespace Example3
       //// or SecurityLevel property.
       var shares = splitter.MakeShares (3, 7, number, 521);
 
-      //// The property 'shares.OriginalSecret' represents the number (original secret)
-      var secret = shares.OriginalSecret;
-
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       ////  The 'shares' instance contains the shared secrets
       var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet1 = shares.Where(p => p.X.IsEven).ToList();
+      var subSet1 = shares.Where(p => p.IsIndexEven).ToList();
       var recoveredSecret1 = combiner.Reconstruction(subSet1.ToArray());
-      var subSet2 = shares.Where(p => !p.X.IsEven).ToList();
+      var subSet2 = shares.Where(p => p.IsIndexOdd).ToList();
       var recoveredSecret2 = combiner.Reconstruction(subSet2.ToArray());
 
       //// String representation of all shares
@@ -368,7 +359,7 @@ namespace Example4
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       //// The 'shares' instance contains the shared secrets
       var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet = shares.Where(p => p.X.IsEven).ToList();
+      var subSet = shares.Where(p => p.IsIndexEven).ToList();
       var recoveredSecret = combiner.Reconstruction(subSet.ToArray()).ToByteArray();
 
       //// String representation of all shares
@@ -410,9 +401,9 @@ namespace Example5
                           "05-CDECB88126DBC04D753E0C2D83D7B55D"};
 
       //// Another way to use shares
-      var fp1 = new FinitePoint<BigInteger>("05-CDECB88126DBC04D753E0C2D83D7B55D");
-      var fp2 = new FinitePoint<BigInteger>("07-54A83E34AB0310A7F5D80F2A68FD4F33");
-      var fp3 = new FinitePoint<BigInteger>("02-665C74ED38FDFF095B2FC9319A272A75");
+      var share1 = new Share<BigInteger>("05-CDECB88126DBC04D753E0C2D83D7B55D");
+      var share2 = new Share<BigInteger>("07-54A83E34AB0310A7F5D80F2A68FD4F33");
+      var share3 = new Share<BigInteger>("02-665C74ED38FDFF095B2FC9319A272A75");
 
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       var combiner = new SecretReconstructor<BigInteger>(gcd);
@@ -426,7 +417,7 @@ namespace Example5
       Console.WriteLine((BigInteger)recoveredSecret2);
 
       //// Output should be 52199147989510990914370102003412153
-      var recoveredSecret3 = combiner.Reconstruction(fp1, fp2, fp3);
+      var recoveredSecret3 = combiner.Reconstruction(share1, share2, share3);
       Console.WriteLine((BigInteger)recoveredSecret3);
     }
   }

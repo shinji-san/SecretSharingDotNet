@@ -382,8 +382,15 @@ public abstract class Calculator<TNumber> :
     public abstract int CompareTo(Calculator<TNumber> other);
 
     /// <summary>
-    /// Converts the numeric value of the current <see cref="Calculator{TNumber}"/> object to its equivalent string representation.
+    /// Converts the numeric value of the current <see cref="Calculator{TNumber}"/> instance to its equivalent <see cref="System.String"/> representation.
     /// </summary>
     /// <returns>The <see cref="System.String"/> representation of the current <see cref="Calculator{TNumber}"/> value.</returns>
-    public abstract override string ToString();
+    public override string ToString()
+    {
+#if DEBUG
+        return $"{this.GetType().Name}({this.Value})";
+#else
+        return "*** Secured Value ***";
+#endif
+    }
 }

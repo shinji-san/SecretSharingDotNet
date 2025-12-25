@@ -5,8 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Added `Share` struct to represent individual shares for future extensibility.
+- Added `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel, out Secret<TNumber> secret)` method to generate shares and output the random secret.
+
 ### Changed
 - Changed String Encoding from UTF-16 to UTF-8 in `Secret<TNumber>` class for better interoperability. Encoding.Unicode (UTF-16 LE) is uncommon in cryptographic and web contexts. UTF-8 is the de facto standard and avoids unnecessary null bytes and payload bloat for ASCII-heavy input.
+- Chnaged `Shares` class to use the new `Share` struct instead of `FinitePoint<TNumber>` for better clarity and future extensibility.
+- Changeed constructor of `Shares` class to sort shares by their X (index) values upon creation to ensure consistent ordering.
+
+### Deprecated
+- The `FinitePoint` struct is marked as deprecated and will be set internal instead public in one of the next releases.
+- The `OriginalSecret` property in `Shares` class is marked as deprecated and will be removed in one of the next releases.
+- The `OriginalSecretExists` property in `Shares` class is marked as deprecated and will be removed in one of the next releases.
+- The `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)` method is marked as deprecated and will be removed in one of the next releases.
+- The `Secret<TNumber> Reconstruction(FinitePoint<TNumber>[] shares)` method is marked as deprecated and will be removed in one of the next releases.
+- The `Secret<TNumber> Reconstruction(string[] shares)` method is marked as deprecated and will be removed in one of the next releases.
+- The `Secret<TNumber> Reconstruction(string shares)` method is marked as deprecated and will be removed in one of the next releases.
 
 ## [0.13.0] - 2025-11-16
 ### Added

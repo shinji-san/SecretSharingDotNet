@@ -31,6 +31,7 @@
 
 namespace SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 
+using Extension;
 using Math;
 using System;
 using System.Collections.Generic;
@@ -102,12 +103,12 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <returns>The re-constructed secret.</returns>
     private Secret<TNumber> LagrangeInterpolate(FinitePoint<TNumber>[] finitePoints, Calculator<TNumber> prime)
     {
-        if (finitePoints == null)
+        if (finitePoints is null)
         {
             throw new ArgumentNullException(nameof(finitePoints));
         }
 
-        if (prime == null)
+        if (prime is null)
         {
             throw new ArgumentNullException(nameof(prime));
         }
@@ -159,6 +160,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </summary>
     /// <param name="shares">Shares represented by <see cref="string"/> and separated by newline.</param>
     /// <returns>Re-constructed secret</returns>
+    [Obsolete("Use Reconstruction(Shares<TNumber> shares) instead", false)]
     public Secret<TNumber> Reconstruction(string shares)
     {
         if (string.IsNullOrWhiteSpace(shares))
@@ -175,9 +177,10 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </summary>
     /// <param name="shares">Shares represented by <see cref="string"/> array.</param>
     /// <returns>Re-constructed secret</returns>
+    [Obsolete("Use Reconstruction(Shares<TNumber> shares) instead", false)]
     public Secret<TNumber> Reconstruction(string[] shares)
     {
-        if (shares == null)
+        if (shares is null)
         {
             throw new ArgumentNullException(nameof(shares));
         }
@@ -198,7 +201,25 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <returns>Re-constructed secret</returns>
     public Secret<TNumber> Reconstruction(Shares<TNumber> shares)
     {
-        return this.Reconstruction((FinitePoint<TNumber>[])shares);
+        if (shares is null)
+        {
+            throw new ArgumentNullException(nameof(shares));
+        }
+
+        if (shares.Count < 2)
+        {
+            throw new ArgumentOutOfRangeException(nameof(shares), ErrorMessages.MinNumberOfSharesLowerThanTwo);
+        }
+
+        var finitePoints = shares.ToFinitePoints();
+        var maximumY = finitePoints.Select(point => point.Y).Max();
+        if (maximumY is null)
+        {
+            throw new ArgumentException(ErrorMessages.NoMaximumY, nameof(shares));
+        }
+
+        this.securityLevelManager.AdjustSecurityLevel(maximumY);
+        return this.LagrangeInterpolate(finitePoints, this.securityLevelManager.MersennePrime);
     }
 
     /// <summary>
@@ -208,9 +229,10 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <returns>Re-constructed secret</returns>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="shares"/> is <see langword="null"/>.</exception>
     /// <exception cref="T:System.ArgumentOutOfRangeException">The length of <paramref name="shares"/> is lower than 2.</exception>
-    public Secret<TNumber> Reconstruction(FinitePoint<TNumber>[] shares)
+    [Obsolete("Use Reconstruction(Shares<TNumber> shares) instead", false)]
+    public Secret<TNumber> Reconstruction(Share<TNumber>[] shares)
     {
-        if (shares == null)
+        if (shares is null)
         {
             throw new ArgumentNullException(nameof(shares));
         }
@@ -220,14 +242,28 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentOutOfRangeException(nameof(shares), ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
 
-        var maximumY = shares.Select(point => point.Y).Max();
+        var finitePoints = shares.ToFinitePoints();
+        var maximumY = finitePoints.Select(point => point.Y).Max();
         if (maximumY == null)
         {
             throw new ArgumentException(ErrorMessages.NoMaximumY, nameof(shares));
         }
 
         this.securityLevelManager.AdjustSecurityLevel(maximumY);
-        return this.LagrangeInterpolate(shares, this.securityLevelManager.MersennePrime);
+        return this.LagrangeInterpolate(finitePoints, this.securityLevelManager.MersennePrime);
+    }
+
+    /// <summary>
+    /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
+    /// </summary>
+    /// <param name="shares">Two or more shares represented by a set of <see cref="FinitePoint{TNumber}"/></param>
+    /// <returns>Re-constructed secret</returns>
+    /// <exception cref="T:System.ArgumentNullException"><paramref name="shares"/> is <see langword="null"/>.</exception>
+    /// <exception cref="T:System.ArgumentOutOfRangeException">The length of <paramref name="shares"/> is lower than 2.</exception>
+    [Obsolete("Use Reconstruction(Share<TNumber>[] shares) instead", false)]
+    public Secret<TNumber> Reconstruction(FinitePoint<TNumber>[] shares)
+    {
+        return this.Reconstruction(shares.ToShares());
     }
 
     /// <summary>
@@ -249,17 +285,17 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         Calculator<TNumber> denominator,
         Calculator<TNumber> prime)
     {
-        if (numerator == null)
+        if (numerator is null)
         {
             throw new ArgumentNullException(nameof(numerator));
         }
 
-        if (denominator == null)
+        if (denominator is null)
         {
             throw new ArgumentNullException(nameof(denominator));
         }
 
-        if (prime == null)
+        if (prime is null)
         {
             throw new ArgumentNullException(nameof(prime));
         }

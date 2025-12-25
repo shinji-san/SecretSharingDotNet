@@ -44,12 +44,12 @@ using System.Threading;
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
 [Serializable]
-public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollection
+public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
 {
     /// <summary>
     /// Saves a collection of shares.
     /// </summary>
-    private readonly Collection<FinitePoint<TNumber>> shareList;
+    private readonly Collection<Share<TNumber>> shareList;
 
     /// <summary>
     /// Saves an object that can be used to synchronize access to the <see cref="Shares{TNumber}"/>
@@ -60,43 +60,50 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     /// <summary>
     /// Initializes a new instance of the <see cref="Shares{TNumber}"/> class.
     /// </summary>
-    /// <param name="shares">A list of <see cref="FinitePoint{TNumber}"/> objects.</param>
+    /// <param name="shares">A list of <see cref="Share{TNumber}"/> objects.</param>
     /// <exception cref="ArgumentNullException"><paramref name="shares"/> is <see langword="null"/>.</exception>
-    private Shares(IList<FinitePoint<TNumber>> shares)
+    private Shares(IList<Share<TNumber>> shares)
     {
         _ = shares ?? throw new ArgumentNullException(nameof(shares));
-        this.shareList = shares as Collection<FinitePoint<TNumber>> ?? new Collection<FinitePoint<TNumber>>(shares);
+        var sortedShares = shares.ToArray();
+        Array.Sort(sortedShares);
+        this.shareList = new Collection<Share<TNumber>>(sortedShares);
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Shares{TNumber}"/> class.
     /// </summary>
     /// <param name="secret">The original secret which was split into <paramref name="shares"/>.</param>
-    /// <param name="shares">A list of <see cref="FinitePoint{TNumber}"/> objects.</param>
+    /// <param name="shares">A list of <see cref="Share{TNumber}"/> objects.</param>
     /// <exception cref="ArgumentNullException"><paramref name="secret"/> or <paramref name="shares"/> is <see langword="null"/>.</exception>
-    internal Shares(Secret<TNumber> secret, IList<FinitePoint<TNumber>> shares)
+    [Obsolete("This constructor is obsolete and will be removed in future versions.", false)]
+    internal Shares(Secret<TNumber> secret, IList<Share<TNumber>> shares)
     {
         this.OriginalSecret = secret;
         _ = shares ?? throw new ArgumentNullException(nameof(shares));
-        this.shareList = shares as Collection<FinitePoint<TNumber>> ?? new Collection<FinitePoint<TNumber>>(shares);
+        var sortedShares = shares.ToArray();
+        Array.Sort(sortedShares);
+        this.shareList = new Collection<Share<TNumber>>(sortedShares);
     }
 
     /// <summary>
     /// Gets the original secret
     /// </summary>
+    [Obsolete("The property OriginalSecret is obsolete and will be removed in future versions.", false)]
     public Secret<TNumber>? OriginalSecret { get; }
 
     /// <summary>
-    /// Gets the <see cref="FinitePoint{TNumber}"/> associated with the specified index.
+    /// Gets the <see cref="Share{TNumber}"/> associated with the specified index.
     /// </summary>
-    /// <param name="i">The index of the <see cref="FinitePoint{TNumber}"/> to get.</param>
-    /// <returns>Returns a share (shared secret) represented by a <see cref="FinitePoint{TNumber}"/>.</returns>
+    /// <param name="i">The index of the <see cref="Share{TNumber}"/> to get.</param>
+    /// <returns>Returns a share (shared secret) represented by a <see cref="Share{TNumber}"/>.</returns>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "i")]
-    public FinitePoint<TNumber> this[int i] => this.shareList[i];
+    public Share<TNumber> this[int i] => this.shareList[i];
 
     /// <summary>
     /// Gets a value indicating whether the original secret is available.
     /// </summary>
+    [Obsolete("The property OriginalSecretExists is obsolete and will be removed in future versions.", false)]
     public bool OriginalSecretExists => this.OriginalSecret != null;
 
     /// <summary>
@@ -119,7 +126,9 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     {
         var points = s
             .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => new FinitePoint<TNumber>(line))
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrEmpty(line))
+            .Select(line => new Share<TNumber>(line))
             .ToArray();
         return new Shares<TNumber>(points);
     }
@@ -131,17 +140,25 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     public static implicit operator Shares<TNumber>(string[] s)
     {
         var points = s
-            .Select(line => new FinitePoint<TNumber>(line))
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrEmpty(line))
+            .Select(line => new Share<TNumber>(line))
             .ToArray();
         return new Shares<TNumber>(points);
     }
 
     /// <summary>
-    /// Casts a <see cref="Shares{TNumber}"/> object to an array of <see cref="FinitePoint{TNumber}"/> items.
+    /// Casts a <see cref="Shares{TNumber}"/> object to an array of <see cref="Share{TNumber}"/> items.
     /// </summary>
     /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
-    public static explicit operator FinitePoint<TNumber>[](Shares<TNumber> shares) =>
-        shares.Select(s => s).ToArray();
+    public static implicit operator Share<TNumber>[](Shares<TNumber> shares) => shares.ToArray();
+
+    /// <summary>
+    /// Casts an array of <see cref="Share{TNumber}"/> items to a <see cref="Shares{TNumber}"/> object.
+    /// </summary>
+    /// <param name="shares">An array of <see cref="Share{TNumber}"/> items.</param>
+    /// <returns></returns>
+    public static implicit operator Shares<TNumber>(Share<TNumber>[] shares) => new Shares<TNumber>(shares);
 
     /// <summary>
     /// Returns the string representation of the <see cref="Shares{TNumber}"/> instance.
@@ -150,7 +167,7 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     public override string ToString()
     {
         var stringBuilder = new StringBuilder();
-        var shares = this.shareList as FinitePoint<TNumber>[] ?? this.shareList.ToArray();
+        var shares = this.shareList as Share<TNumber>[] ?? this.shareList.ToArray();
         foreach (var share in shares)
         {
             stringBuilder.AppendLine(share.ToString());
@@ -163,7 +180,7 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     /// <returns>An enumerator that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-    IEnumerator<FinitePoint<TNumber>> IEnumerable<FinitePoint<TNumber>>.GetEnumerator() => this.GetEnumerator();
+    IEnumerator<Share<TNumber>> IEnumerable<Share<TNumber>>.GetEnumerator() => this.GetEnumerator();
 
     /// <summary>
     /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
@@ -184,16 +201,16 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     public bool IsReadOnly => true;
 
     /// <summary>
-    /// Gets the number of <see cref="FinitePoint{TNumber}"/> items contained in the <see cref="Shares{TNumber}"/> collection.
+    /// Gets the number of <see cref="Share{TNumber}"/> items contained in the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     public int Count => this.shareList.Count;
 
     /// <summary>
-    /// Determines whether the <see cref="Shares{TNumber}"/> collection contains a specific <see cref="FinitePoint{TNumber}"/>.
+    /// Determines whether the <see cref="Shares{TNumber}"/> collection contains a specific <see cref="Share{TNumber}"/>.
     /// </summary>
-    /// <param name="item">The <see cref="FinitePoint{TNumber}"/> to locate in the <see cref="Shares{TNumber}"/> collection.</param>
+    /// <param name="item">The <see cref="Share{TNumber}"/> to locate in the <see cref="Shares{TNumber}"/> collection.</param>
     /// <returns><see langword="true"/> if item is found in the <see cref="Shares{TNumber}"/> collection; otherwise, <see langword="false"/>.</returns>
-    public bool Contains(FinitePoint<TNumber> item) => this.shareList.Any(share => share.Equals(item));
+    public bool Contains(Share<TNumber> item) => this.shareList.Any(share => share.Equals(item));
 
     /// <summary>
     /// Removes all items from the <see cref="Shares{TNumber}"/> collection.
@@ -212,13 +229,13 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     }
 
     /// <summary>
-    /// Adds an <see cref="FinitePoint{TNumber}"/> to the <see cref="Shares{TNumber}"/> collection.
+    /// Adds an <see cref="Share{TNumber}"/> to the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
-    /// <param name="item">The <see cref="FinitePoint{TNumber}"/> to add to the <see cref="Shares{TNumber}"/> collection.</param>
+    /// <param name="item">The <see cref="Share{TNumber}"/> to add to the <see cref="Shares{TNumber}"/> collection.</param>
     /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
     /// set to <see langword="true"/>.</remarks>
     /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
-    public void Add(FinitePoint<TNumber> item)
+    public void Add(Share<TNumber> item)
     {
         if (this.IsReadOnly)
         {
@@ -232,14 +249,14 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
     }
 
     /// <summary>
-    /// Removes the first occurrence of a specific <see cref="FinitePoint{TNumber}"/> from the <see cref="Shares{TNumber}"/> collection.
+    /// Removes the first occurrence of a specific <see cref="Share{TNumber}"/> from the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     /// <param name="item">The <see cref="FinitePoint{TNumber}"/> to remove from the <see cref="Shares{TNumber}"/> collection.</param>
     /// <returns></returns>
     /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
     /// set to <see langword="true"/>.</remarks>
     /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
-    public bool Remove(FinitePoint<TNumber> item)
+    public bool Remove(Share<TNumber> item)
     {
         if (this.IsReadOnly)
         {
@@ -260,23 +277,23 @@ public sealed class Shares<TNumber> : ICollection<FinitePoint<TNumber>>, ICollec
         _ = array ?? throw new ArgumentNullException(nameof(array));
         switch (array)
         {
-            case FinitePoint<TNumber>[] x:
+            case Share<TNumber>[] x:
                 this.CopyTo(x, index);
                 break;
             default:
-                throw new InvalidCastException(string.Format(ErrorMessages.InvalidArrayTypeCast, nameof(array), array.GetType().GetElementType(), typeof(FinitePoint<TNumber>)));
+                throw new InvalidCastException(string.Format(ErrorMessages.InvalidArrayTypeCast, nameof(array), array.GetType().GetElementType(), typeof(Share<TNumber>)));
         }
     }
 
     /// <summary>
-    /// Copies the items of the <see cref="Shares{TNumber}"/> collection to an array of <see cref="FinitePoint{TNumber}"/> items,
+    /// Copies the items of the <see cref="Shares{TNumber}"/> collection to an array of <see cref="Share{TNumber}"/> items,
     /// starting at a particular array index.
     /// </summary>
-    /// <param name="array">The one-dimensional array of <see cref="FinitePoint{TNumber}"/> items that is the destination of the
+    /// <param name="array">The one-dimensional array of <see cref="Share{TNumber}"/> items that is the destination of the
     /// items copied from <see cref="Shares{TNumber}"/> collection.
     /// The array must have zero-based indexing.</param>
     /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
-    public void CopyTo(FinitePoint<TNumber>[] array, int arrayIndex)
+    public void CopyTo(Share<TNumber>[] array, int arrayIndex)
     {
         _ = array ?? throw new ArgumentNullException(nameof(array));
         if (arrayIndex < 0)
