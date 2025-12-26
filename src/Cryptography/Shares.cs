@@ -62,35 +62,13 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// </summary>
     /// <param name="shares">A list of <see cref="Share{TNumber}"/> objects.</param>
     /// <exception cref="ArgumentNullException"><paramref name="shares"/> is <see langword="null"/>.</exception>
-    private Shares(IList<Share<TNumber>> shares)
+    internal Shares(IList<Share<TNumber>> shares)
     {
         _ = shares ?? throw new ArgumentNullException(nameof(shares));
         var sortedShares = shares.ToArray();
         Array.Sort(sortedShares);
         this.shareList = new Collection<Share<TNumber>>(sortedShares);
     }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="Shares{TNumber}"/> class.
-    /// </summary>
-    /// <param name="secret">The original secret which was split into <paramref name="shares"/>.</param>
-    /// <param name="shares">A list of <see cref="Share{TNumber}"/> objects.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="secret"/> or <paramref name="shares"/> is <see langword="null"/>.</exception>
-    [Obsolete("This constructor is obsolete and will be removed in future versions.", false)]
-    internal Shares(Secret<TNumber> secret, IList<Share<TNumber>> shares)
-    {
-        this.OriginalSecret = secret;
-        _ = shares ?? throw new ArgumentNullException(nameof(shares));
-        var sortedShares = shares.ToArray();
-        Array.Sort(sortedShares);
-        this.shareList = new Collection<Share<TNumber>>(sortedShares);
-    }
-
-    /// <summary>
-    /// Gets the original secret
-    /// </summary>
-    [Obsolete("The property OriginalSecret is obsolete and will be removed in future versions.", false)]
-    public Secret<TNumber>? OriginalSecret { get; }
 
     /// <summary>
     /// Gets the <see cref="Share{TNumber}"/> associated with the specified index.
@@ -99,12 +77,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// <returns>Returns a share (shared secret) represented by a <see cref="Share{TNumber}"/>.</returns>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "i")]
     public Share<TNumber> this[int i] => this.shareList[i];
-
-    /// <summary>
-    /// Gets a value indicating whether the original secret is available.
-    /// </summary>
-    [Obsolete("The property OriginalSecretExists is obsolete and will be removed in future versions.", false)]
-    public bool OriginalSecretExists => this.OriginalSecret != null;
 
     /// <summary>
     /// Casts a <see cref="Shares{TNumber}"/> object to an array of <see cref="string"/>s.
