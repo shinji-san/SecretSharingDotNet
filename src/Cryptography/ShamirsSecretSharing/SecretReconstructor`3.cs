@@ -197,7 +197,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// Thrown when the <paramref name="denominator"/> is zero (its modular inverse does not exist) or
     /// when the denominator is not invertible modulo the prime (gcd does not equal 1).
     /// </exception>
-    private Calculator<TNumber> DivMod(
+    internal Calculator<TNumber> DivMod(
         Calculator<TNumber> numerator,
         Calculator<TNumber> denominator,
         Calculator<TNumber> prime)

@@ -9,6 +9,9 @@ using System.Numerics;
 
 public class ShareTest
 {
+    private const string Share1TextRepresentation = "01-2929AA3E809003D578AA69B1C3E6F62C517437FEFBAD5BFBB240";
+    private const string Share2TextRepresentation = "02-665C74ED38FDFF095B2FC9319A272A75";
+
     [Theory]
     [InlineData(5, 10)]
     [InlineData(1, 0)]
@@ -104,7 +107,8 @@ public class ShareTest
     [InlineData(11, -86, "0b-aa")]
     [InlineData(1, 1, "01-01")]
     [InlineData(1000, 4096, "e803-0010")]
-    public void ToString_WithFormatSpecifier_ShouldReturnFormattedString(BigInteger index, BigInteger value, string expected)
+    public void ToString_WithFormatSpecifier_ShouldReturnFormattedString(BigInteger index, BigInteger value,
+        string expected)
     {
         // Arrange
         var share = new Share<BigInteger>(index, value);
@@ -125,6 +129,21 @@ public class ShareTest
         // Assert
         Assert.Equal(new BigIntCalculator(11), share.Index);
         Assert.Equal(new BigIntCalculator(-86), share.Value);
+    }
+
+    [Theory]
+    [InlineData(Share1TextRepresentation, Share1TextRepresentation)]
+    [InlineData(Share2TextRepresentation, Share2TextRepresentation)]
+    public void ToString_FromValidShare_ReturnsCoordinatesSeparatedWithMinus(string input, string expected)
+    {
+        // Arrange
+        var shareUnderTest = new Share<BigInteger>(input);
+
+        // Act
+        string actual = shareUnderTest.ToString();
+
+        // Assert
+        Assert.Equal(expected, actual);
     }
 
     [Fact]

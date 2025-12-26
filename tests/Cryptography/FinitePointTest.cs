@@ -34,42 +34,79 @@
 namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
+using System;
+using System.Globalization;
 using System.Numerics;
 using Xunit;
 
 public class FinitePointTest
 {
-    private const string FinitePointTextRepresentation1 = "01-2929AA3E809003D578AA69B1C3E6F62C517437FEFBAD5BFBB240";
-    private const string FinitePointTextRepresentation2 = "02-665C74ED38FDFF095B2FC9319A272A75";
+    private static readonly FinitePoint<BigInteger> FinitePoint1UnderTest = new(new BigInteger(1),
+        BigInteger.Parse("2929AA3E809003D578AA69B1C3E6F62C517437FEFBAD5BFBB240", NumberStyles.HexNumber));
 
-    /// <summary>
-    /// Check <see cref="FinitePoint{TNumber}"/> to <see cref="string"/> conversion and vice vera.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-    [Theory]
-    [InlineData(FinitePointTextRepresentation1, FinitePointTextRepresentation1)]
-    [InlineData(FinitePointTextRepresentation2, FinitePointTextRepresentation2)]
-    public void ToString_FromValidFinitePoint_ReturnsCoordinatesSeparatedWithMinus(string input, string expected)
+    private static readonly FinitePoint<BigInteger> FinitePoint2UnderTest = new(new BigInteger(2),
+        BigInteger.Parse("665C74ED38FDFF095B2FC9319A272A75", NumberStyles.HexNumber));
+
+
+    [Fact]
+    public void Constructor_ValidParameters_PropertiesSetCorrectly()
     {
         // Arrange
-        var finitePointUnderTest = new FinitePoint<BigInteger>(input);
+        var x = new BigInteger(5);
+        var y = BigInteger.Parse("1234567890ABCDEF", NumberStyles.HexNumber);
 
         // Act
-        string actual = finitePointUnderTest.ToString();
+        var finitePoint = new FinitePoint<BigInteger>(x, y);
 
         // Assert
-        Assert.Equal(expected, actual);
+        Assert.Equal(x, finitePoint.X.Value);
+        Assert.Equal(y, finitePoint.Y.Value);
+    }
+
+    [Fact]
+    public void Constructor_NullX_ThrowsArgumentNullException()
+    {
+        // Arrange
+        BigInteger? x = null;
+        var y = BigInteger.Parse("1234567890ABCDEF", NumberStyles.HexNumber);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new FinitePoint<BigInteger>(x!, y));
+    }
+
+    [Fact]
+    public void Constructor_NullY_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var x = new BigInteger(5);
+        BigInteger? y = null;
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new FinitePoint<BigInteger>(x, y!));
+    }
+    
+    [Fact]
+    public void ToString_ValidFinitePoint_ReturnsCorrectStringRepresentation()
+    {
+        // Arrange
+#if DEBUG
+        const string expectedString = "(BigIntCalculator(1), BigIntCalculator(66145995360161795056928953403445996185990931982120007327527488))";
+#else
+        const string expectedString = "*** Secured Value ***";
+#endif
+
+        // Act
+        string actualString = FinitePoint1UnderTest.ToString();
+
+        // Assert
+        Assert.Equal(expectedString, actualString);
     }
 
     [Fact]
     public void CompareTo_BigFinitePointToSmallFinitePoint_ReturnsOne()
     {
-        // Arrange
-        var finitePointUnder1Test = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
-        var finitePointUnder2Test = new FinitePoint<BigInteger>(FinitePointTextRepresentation2);
-
-        // Act
-        int actual = finitePointUnder1Test.CompareTo(finitePointUnder2Test);
+        // Arrange & Act
+        int actual = FinitePoint1UnderTest.CompareTo(FinitePoint2UnderTest);
 
         // Assert
         Assert.Equal(1, actual);
@@ -78,12 +115,8 @@ public class FinitePointTest
     [Fact]
     public void CompareTo_SmallFinitePointToBigFinitePoint_ReturnsMinusOne()
     {
-        // Arrange
-        var finitePointUnder1Test = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
-        var finitePointUnder2Test = new FinitePoint<BigInteger>(FinitePointTextRepresentation2);
-
-        // Act
-        int actual = finitePointUnder2Test.CompareTo(finitePointUnder1Test);
+        // Arrange & Act
+        int actual = FinitePoint2UnderTest.CompareTo(FinitePoint1UnderTest);
 
         // Assert
         Assert.Equal(-1, actual);
@@ -92,11 +125,8 @@ public class FinitePointTest
     [Fact]
     public void CompareTo_FinitePointToSameFinitePoint_ReturnsZero()
     {
-        // Arrange
-        var finitePointUnderTest = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
-
-        // Act
-        int actual = finitePointUnderTest.CompareTo(finitePointUnderTest);
+        // Arrange & Act
+        int actual = FinitePoint1UnderTest.CompareTo(FinitePoint1UnderTest);
 
         // Assert
         Assert.Equal(0, actual);
@@ -105,12 +135,8 @@ public class FinitePointTest
     [Fact]
     public void Equals_FinitePointToSameFinitePoint_ReturnsTrue()
     {
-        // Arrange
-        var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
-        var finitePointUnderTest2 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
-
-        // Act
-        bool actual = finitePointUnderTest1.Equals(finitePointUnderTest2);
+        // Arrange & Act
+        bool actual = FinitePoint1UnderTest.Equals(FinitePoint1UnderTest);
 
         // Assert
         Assert.True(actual);
@@ -119,12 +145,8 @@ public class FinitePointTest
     [Fact]
     public void Equals_FinitePointToDifferentFinitePoint_ReturnsFalse()
     {
-        // Arrange
-        var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
-        var finitePointUnderTest2 = new FinitePoint<BigInteger>(FinitePointTextRepresentation2);
-
-        // Act
-        bool actual = finitePointUnderTest1.Equals(finitePointUnderTest2);
+        // Arrange & Act
+        bool actual = FinitePoint1UnderTest.Equals(FinitePoint2UnderTest);
 
         // Assert
         Assert.False(actual);
@@ -133,11 +155,8 @@ public class FinitePointTest
     [Fact]
     public void Equals_FinitePointToNull_ReturnsFalse()
     {
-        // Arrange
-        var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
-
-        // Act
-        bool actual = finitePointUnderTest1.Equals(null);
+        // Arrange & Act
+        bool actual = FinitePoint1UnderTest.Equals(null);
 
         // Assert
         Assert.False(actual);
@@ -147,11 +166,10 @@ public class FinitePointTest
     public void Equals_FinitePointToSameFinitePointAsObject_ReturnsTrue()
     {
         // Arrange
-        var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
-        object finitePointUnderTest2 = finitePointUnderTest1;
+        object finitePointAsObject = FinitePoint1UnderTest;
 
         // Act
-        bool actual = finitePointUnderTest1.Equals(finitePointUnderTest2);
+        bool actual = FinitePoint1UnderTest.Equals(finitePointAsObject);
 
         // Assert
         Assert.True(actual);
@@ -161,11 +179,10 @@ public class FinitePointTest
     public void Equals_FinitePointToDifferentFinitePointAsObject_ReturnsFalse()
     {
         // Arrange
-        var finitePointUnderTest1 = new FinitePoint<BigInteger>(FinitePointTextRepresentation1);
-        object finitePointUnderTest2 = new FinitePoint<BigInteger>(FinitePointTextRepresentation2);
+        object finitePointAsObject = FinitePoint2UnderTest;
 
         // Act
-        bool actual = finitePointUnderTest1.Equals(finitePointUnderTest2);
+        bool actual = FinitePoint1UnderTest.Equals(finitePointAsObject);
 
         // Assert
         Assert.False(actual);

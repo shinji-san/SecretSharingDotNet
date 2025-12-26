@@ -34,20 +34,13 @@ namespace SecretSharingDotNet.Cryptography;
 using Math;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-#if !NET8_0_OR_GREATER
-using System.Text;
-#else
-using System.Runtime.CompilerServices;
-#endif
 
 /// <summary>
 /// Represents the support point of the polynomial
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
-[Obsolete("Use Share<TNumber> struct instead. This struct will be marked as internal in future releases.", false)]
-public readonly record struct FinitePoint<TNumber> : IComparable<FinitePoint<TNumber>>
+internal readonly record struct FinitePoint<TNumber> : IComparable<FinitePoint<TNumber>>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="FinitePoint{TNumber}"/> struct.
@@ -61,40 +54,6 @@ public readonly record struct FinitePoint<TNumber> : IComparable<FinitePoint<TNu
     {
         this.X = x ?? throw new ArgumentNullException(nameof(x));
         this.Y = Evaluate(polynomial ?? throw new ArgumentNullException(nameof(polynomial)), this.X, prime ?? throw new ArgumentNullException(nameof(prime)));
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FinitePoint{TNumber}"/> struct.
-    /// </summary>
-    /// <param name="serialized">string representation of the <see cref="FinitePoint{TNumber}"/> struct</param>
-    /// <exception cref="T:System.ArgumentNullException"><paramref name="serialized"/> is <see langword="null"/></exception>
-#if NET8_0_OR_GREATER
-    public FinitePoint(ReadOnlySpan<char> serialized)
-#else
-    public FinitePoint(string serialized)
-#endif
-    {
-#if NET8_0_OR_GREATER
-        if (serialized.IsEmpty)
-#else
-        if (string.IsNullOrWhiteSpace(serialized))
-#endif
-        {
-            throw new ArgumentNullException(nameof(serialized));
-        }
-
-#if NET8_0_OR_GREATER
-        var xReadOnlySpan = serialized[..serialized.IndexOf(Share<TNumber>.CoordinateSeparator)];
-        var yReadOnlySpan = serialized[(serialized.IndexOf(Share<TNumber>.CoordinateSeparator) + 1)..];
-        var numberType = typeof(TNumber);
-        this.X = Calculator.Create(ToByteArray(xReadOnlySpan), numberType) as Calculator<TNumber>;
-        this.Y = Calculator.Create(ToByteArray(yReadOnlySpan), numberType) as Calculator<TNumber>;
-#else
-        string[] s = serialized.Split(Share<TNumber>.CoordinateSeparatorArray);
-        var numberType = typeof(TNumber);
-        this.X = Calculator.Create(ToByteArray(s[0]), numberType) as Calculator<TNumber>;
-        this.Y = Calculator.Create(ToByteArray(s[1]), numberType) as Calculator<TNumber>;
-#endif
     }
 
     /// <summary>
@@ -175,7 +134,14 @@ public readonly record struct FinitePoint<TNumber> : IComparable<FinitePoint<TNu
     /// Returns the string representation of the <see cref="FinitePoint{TNumber}"/> structure.
     /// </summary>
     /// <returns>The string representation of the <see cref="FinitePoint{TNumber}"/> structure.</returns>
-    public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}{1}{2}", ToHexString(this.X.ByteRepresentation), Share<TNumber>.CoordinateSeparator.ToString(), ToHexString(this.Y.ByteRepresentation));
+    public override string ToString()
+    {
+#if DEBUG
+        return $"({this.X}, {this.Y})";
+#else
+        return "*** Secured Value ***";
+#endif
+    }
 
     /// <summary>
     /// Evaluates polynomial (coefficient tuple) at x, used to generate a shamir pool.
@@ -195,82 +161,4 @@ public readonly record struct FinitePoint<TNumber> : IComparable<FinitePoint<TNu
 
         return result;
     }
-
-    /// <summary>
-    /// Converts a byte collection to hexadecimal string.
-    /// </summary>
-    /// <param name="bytes"></param>
-    /// <returns>human-readable / printable string</returns>
-    /// <remarks>
-    /// Based on discussion on <see href="https://stackoverflow.com/questions/623104/byte-to-hex-string/5919521#5919521">stackoverflow</see>
-    /// </remarks>
-    [Obsolete("Will be removed in future releases.", false)]
-#if NET8_0_OR_GREATER
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-    private static string ToHexString(IEnumerable<byte> bytes)
-    {
-#if NET8_0_OR_GREATER
-        return Convert.ToHexString(bytes as byte[] ?? bytes.ToArray());
-#else
-        byte[] byteArray = bytes as byte[] ?? bytes.ToArray();
-        var hexRepresentation = new StringBuilder(byteArray.Length * 2);
-        foreach (byte b in byteArray)
-        {
-            const string hexAlphabet = "0123456789ABCDEF";
-            hexRepresentation.Append(hexAlphabet[b >> 4]).Append(hexAlphabet[b & 0xF]);
-        }
-
-        return hexRepresentation.ToString();
-#endif
-    }
-
-    /// <summary>
-    /// Converts a hexadecimal string to a byte array.
-    /// </summary>
-    /// <param name="hexString">hexadecimal string</param>
-    /// <returns>Returns a byte array</returns>
-    [Obsolete("Will be removed in future releases.", false)]
-#if NET8_0_OR_GREATER
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static byte[] ToByteArray(ReadOnlySpan<char> hexString) => Convert.FromHexString(hexString);
-#else
-    private static byte[] ToByteArray(string hexString)
-        {
-            byte[] bytes = new byte[hexString.Length / 2];
-            var hexValues = Array.AsReadOnly([
-                0x00,
-                0x01,
-                0x02,
-                0x03,
-                0x04,
-                0x05,
-                0x06,
-                0x07,
-                0x08,
-                0x09,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x0A,
-                0x0B,
-                0x0C,
-                0x0D,
-                0x0E,
-                0x0F
-            ]);
-
-            for (int i = 0, j = 0; j < hexString.Length; j += 2, i += 1)
-            {
-                const char zeroDigit = '0';
-                bytes[i] = (byte)(hexValues[char.ToUpper(hexString[j + 0], CultureInfo.InvariantCulture) - zeroDigit] << 4 | hexValues[char.ToUpper(hexString[j + 1], CultureInfo.InvariantCulture) - zeroDigit]);
-            }
-
-            return bytes;
-        }
-#endif
 }
