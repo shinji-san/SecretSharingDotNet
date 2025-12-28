@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `Secret<TNumber> Reconstruction(Share<TNumber>[] shares)` method.
 - Removed `Secret<TNumber> Reconstruction(string[] shares)` method.
 - Removed `Secret<TNumber> Reconstruction(string shares)` method.
+- Removed `X` property from `Share` struct.
+- Removed `Y` property from `Share` struct.
 
 ## [0.14.0] - 2025-12-25
 ### Added
