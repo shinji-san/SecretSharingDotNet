@@ -66,7 +66,7 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>, IFor
     /// The separator between the X and Y coordinate
     /// </summary>
     /// <remarks>Todo: Make private and configure via options in future versions.</remarks>
-    internal const char CoordinateSeparator = '-';
+    private const char CoordinateSeparator = '-';
 
     /// <summary>
     /// Separator array for <see cref="string.Split(char[])"/> method usage to avoid allocation of a new array.
@@ -84,15 +84,6 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>, IFor
     public Calculator<TNumber> Index { get; }
 
     /// <summary>
-    /// Represents the `Index` of the Share structure, exposed under the alias `X`.
-    /// </summary>
-    /// <remarks>
-    /// This property is marked as obsolete. Use the `Index` property directly for clarity.
-    /// </remarks>
-    [Obsolete("Use 'Index' property instead.")]
-    public Calculator<TNumber> X => this.Index;
-
-    /// <summary>
     /// The value (Y coordinate) of this share.
     /// </summary>
     /// <remarks>
@@ -100,15 +91,6 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>, IFor
     /// on the polynomial at the given index.
     /// </remarks>
     public Calculator<TNumber> Value { get; }
-
-    /// <summary>
-    /// Gets the value associated with the share.
-    /// </summary>
-    /// <remarks>
-    /// This property is marked as obsolete. Use the 'Value' property instead for accessing the share value.
-    /// </remarks>
-    [Obsolete("Use 'Value' property instead.")]
-    public Calculator<TNumber> Y => this.Value;
 
     /// <summary>
     /// Gets a value indicating whether the share index is even.
