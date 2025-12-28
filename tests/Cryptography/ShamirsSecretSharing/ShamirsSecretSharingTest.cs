@@ -47,24 +47,15 @@ public class SecretSplitterTest
 {
     /// <summary>
     /// Checks the following condition: denominator * DivMod(numerator, denominator, prime) % prime == numerator
-    /// ToDo: Find another technical solution for this test. Code redundancy.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Fact]
     public void TestDivMod()
     {
-        Calculator<BigInteger> DivMod(Calculator<BigInteger> denominator, Calculator<BigInteger> numerator,
-            Calculator<BigInteger> prime)
-        {
-            var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
-            var result = gcd.Compute(denominator, prime);
-            return numerator * result.BezoutCoefficients[0] * result.GreatestCommonDivisor;
-        }
-
+        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         Calculator<BigInteger> d = (BigInteger)3000;
         Calculator<BigInteger> n = (BigInteger)3000;
         Calculator<BigInteger> p = Calculator<BigInteger>.Two.Pow(127) - Calculator<BigInteger>.One;
-        Assert.Equal(n, d * DivMod(d, n, p) % p);
+        Assert.Equal(n, d * secretReconstructor.DivMod(d, n, p) % p);
     }
 
     /// <summary>
