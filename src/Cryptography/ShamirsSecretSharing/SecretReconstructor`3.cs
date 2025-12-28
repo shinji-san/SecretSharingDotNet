@@ -158,45 +158,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <summary>
     /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
     /// </summary>
-    /// <param name="shares">Shares represented by <see cref="string"/> and separated by newline.</param>
-    /// <returns>Re-constructed secret</returns>
-    [Obsolete("Use Reconstruction(Shares<TNumber> shares) instead", false)]
-    public Secret<TNumber> Reconstruction(string shares)
-    {
-        if (string.IsNullOrWhiteSpace(shares))
-        {
-            throw new ArgumentNullException(nameof(shares));
-        }
-
-        Shares<TNumber> castShares = shares;
-        return this.Reconstruction(castShares);
-    }
-
-    /// <summary>
-    /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
-    /// </summary>
-    /// <param name="shares">Shares represented by <see cref="string"/> array.</param>
-    /// <returns>Re-constructed secret</returns>
-    [Obsolete("Use Reconstruction(Shares<TNumber> shares) instead", false)]
-    public Secret<TNumber> Reconstruction(string[] shares)
-    {
-        if (shares is null)
-        {
-            throw new ArgumentNullException(nameof(shares));
-        }
-
-        if (shares.Length < 2)
-        {
-            throw new ArgumentOutOfRangeException(nameof(shares), ErrorMessages.MinNumberOfSharesLowerThanTwo);
-        }
-
-        Shares<TNumber> castShares = shares;
-        return this.Reconstruction(castShares);
-    }
-
-    /// <summary>
-    /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
-    /// </summary>
     /// <param name="shares">For details <see cref="Shares{TNumber}"/></param>
     /// <returns>Re-constructed secret</returns>
     public Secret<TNumber> Reconstruction(Shares<TNumber> shares)
@@ -220,50 +181,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
 
         this.securityLevelManager.AdjustSecurityLevel(maximumY);
         return this.LagrangeInterpolate(finitePoints, this.securityLevelManager.MersennePrime);
-    }
-
-    /// <summary>
-    /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
-    /// </summary>
-    /// <param name="shares">Two or more shares represented by a set of <see cref="FinitePoint{TNumber}"/></param>
-    /// <returns>Re-constructed secret</returns>
-    /// <exception cref="T:System.ArgumentNullException"><paramref name="shares"/> is <see langword="null"/>.</exception>
-    /// <exception cref="T:System.ArgumentOutOfRangeException">The length of <paramref name="shares"/> is lower than 2.</exception>
-    [Obsolete("Use Reconstruction(Shares<TNumber> shares) instead", false)]
-    public Secret<TNumber> Reconstruction(Share<TNumber>[] shares)
-    {
-        if (shares is null)
-        {
-            throw new ArgumentNullException(nameof(shares));
-        }
-
-        if (shares.Length < 2)
-        {
-            throw new ArgumentOutOfRangeException(nameof(shares), ErrorMessages.MinNumberOfSharesLowerThanTwo);
-        }
-
-        var finitePoints = shares.ToFinitePoints();
-        var maximumY = finitePoints.Select(point => point.Y).Max();
-        if (maximumY == null)
-        {
-            throw new ArgumentException(ErrorMessages.NoMaximumY, nameof(shares));
-        }
-
-        this.securityLevelManager.AdjustSecurityLevel(maximumY);
-        return this.LagrangeInterpolate(finitePoints, this.securityLevelManager.MersennePrime);
-    }
-
-    /// <summary>
-    /// Recovers the secret from the given <paramref name="shares"/> (points with x and y on the polynomial)
-    /// </summary>
-    /// <param name="shares">Two or more shares represented by a set of <see cref="FinitePoint{TNumber}"/></param>
-    /// <returns>Re-constructed secret</returns>
-    /// <exception cref="T:System.ArgumentNullException"><paramref name="shares"/> is <see langword="null"/>.</exception>
-    /// <exception cref="T:System.ArgumentOutOfRangeException">The length of <paramref name="shares"/> is lower than 2.</exception>
-    [Obsolete("Use Reconstruction(Share<TNumber>[] shares) instead", false)]
-    public Secret<TNumber> Reconstruction(FinitePoint<TNumber>[] shares)
-    {
-        return this.Reconstruction(shares.ToShares());
     }
 
     /// <summary>

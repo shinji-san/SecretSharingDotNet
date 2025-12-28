@@ -39,7 +39,7 @@ using System.Linq;
 /// <summary>
 /// Provides extension methods for working with shares.
 /// </summary>
-public static class ShareExtensions
+internal static class ShareExtensions
 {
     /// <summary>
     /// Converts a collection of shares to an array of <see cref="FinitePoint{TNumber}"/>.

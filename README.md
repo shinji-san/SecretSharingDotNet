@@ -420,8 +420,14 @@ namespace Example5
       Console.WriteLine((BigInteger)recoveredSecret2);
 
       //// Output should be 52199147989510990914370102003412153
-      var recoveredSecret3 = combiner.Reconstruction(share1, share2, share3);
+      Share<BigInteger>[] shareArray = [share1, share2, share3];
+      var recoveredSecret3 = combiner.Reconstruction(shareArray);
       Console.WriteLine((BigInteger)recoveredSecret3);
+
+      //// Output should be 52199147989510990914370102003412153
+      Shares<BigInteger> shares3 = shareArray;
+      var recoveredSecret4 = combiner.Reconstruction(shares3);
+      Console.WriteLine((BigInteger)recoveredSecret4);
     }
   }
 }
