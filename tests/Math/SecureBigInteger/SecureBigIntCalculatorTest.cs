@@ -282,10 +282,16 @@ public class SecureBigIntCalculatorTest
         // Arrange
         using var value = new SecureBigInteger(1234567890);
         using var calculator = new SecureBigIntCalculator(value);
-        using var data = value.ToByteArray();
+        using var expectedPinnedPoolArray = value.ToByteArray();
 
-        // Act & Assert
-        Assert.True(calculator.ByteRepresentation.PoolArray.SequenceEqual(data.PoolArray));
+        // Act
+        using var actualPinnedPoolArray = calculator.ByteRepresentation;
+
+        // Assert
+        Assert.Equal(expectedPinnedPoolArray.Length, actualPinnedPoolArray.Length);
+        Assert.True(expectedPinnedPoolArray.PoolArray
+            .Take(expectedPinnedPoolArray.Length)
+            .SequenceEqual(actualPinnedPoolArray.PoolArray.Take(actualPinnedPoolArray.Length)));
     }
 
     [Fact]
