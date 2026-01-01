@@ -93,7 +93,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The <paramref name="securityLevel"/> parameter is lower than 13 or greater than 43.112.609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.
     /// </exception>
-    public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel, out Secret<TNumber> generatedSecret)
+    public Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, int securityLevel, out Secret<TNumber> generatedSecret)
     {
         try
         {
@@ -104,14 +104,12 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
             throw new ArgumentOutOfRangeException(nameof(securityLevel), securityLevel, e.Message);
         }
 
-        int min = ((Calculator<TNumber>)numberOfMinimumShares).ToInt32();
-        int max = ((Calculator<TNumber>)numberOfShares).ToInt32();
-        if (min < 2)
+        if (numberOfMinimumShares < 2)
         {
             throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
 
-        if (min > max)
+        if (numberOfMinimumShares > numberOfShares)
         {
             throw new ArgumentOutOfRangeException(nameof(numberOfShares), numberOfShares, ErrorMessages.MaxSharesLowerThanMinShares);
         }
@@ -122,9 +120,9 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         generatedSecret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime);
-        var polynomial = this.CreatePolynomial(min);
+        var polynomial = this.CreatePolynomial(numberOfMinimumShares);
         polynomial[0] = generatedSecret.ToCoefficient;
-        var points = this.CreateFinitePoints(max, polynomial);
+        var points = this.CreateFinitePoints(numberOfShares, polynomial);
         return new Shares<TNumber>(points.ToShares());
     }
 
@@ -140,7 +138,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The <paramref name="securityLevel"/> is lower than 13 or greater than 43.112.609. OR <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
     /// </exception>
-    public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret, int securityLevel)
+    public Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret, int securityLevel)
     {
         try
         {
@@ -163,16 +161,14 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
     /// <remarks>This method modifies the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length</remarks>
     /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
-    public Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret)
+    public Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret)
     {
-        int min = ((Calculator<TNumber>)numberOfMinimumShares).ToInt32();
-        int max = ((Calculator<TNumber>)numberOfShares).ToInt32();
-        if (min < 2)
+        if (numberOfMinimumShares < 2)
         {
             throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
 
-        if (min > max)
+        if (numberOfMinimumShares > numberOfShares)
         {
             throw new ArgumentOutOfRangeException(nameof(numberOfShares), numberOfShares, ErrorMessages.MaxSharesLowerThanMinShares);
         }
@@ -183,9 +179,9 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
             this.SecurityLevel = newSecurityLevel;
         }
 
-        var polynomial = this.CreatePolynomial(min);
+        var polynomial = this.CreatePolynomial(numberOfMinimumShares);
         polynomial[0] = secret.ToCoefficient;
-        var points = this.CreateFinitePoints(max, polynomial);
+        var points = this.CreateFinitePoints(numberOfShares, polynomial);
 
         return new Shares<TNumber>(points.ToShares());
     }

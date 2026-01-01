@@ -18,7 +18,7 @@ public interface IMakeSharesUseCase<TNumber>
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The <paramref name="securityLevel"/> parameter is lower than 13 or greater than 43.112.609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.
     /// </exception>
-    Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel, out Secret<TNumber> generatedSecret);
+    Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, int securityLevel, out Secret<TNumber> generatedSecret);
 
     /// <summary>
     /// Generates a shamir pool using the provided <paramref name="secret"/> and returns the share points.
@@ -31,7 +31,7 @@ public interface IMakeSharesUseCase<TNumber>
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The <paramref name="securityLevel"/> is lower than 13 or greater than 43.112.609. OR <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
     /// </exception>
-    Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret, int securityLevel);
+    Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret, int securityLevel);
 
     /// <summary>
     /// Generates a shamir pool using the provided <paramref name="secret"/> and returns the share points.
@@ -41,5 +41,5 @@ public interface IMakeSharesUseCase<TNumber>
     /// <param name="secret">secret text as <see cref="Secret{TNumber}"/> or see cref="string"/></param>
     /// <returns>A <see cref="Shares{TNumber}"/> object</returns>
     /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
-    Shares<TNumber> MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, Secret<TNumber> secret);
+    Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret);
 }

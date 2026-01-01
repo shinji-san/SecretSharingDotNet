@@ -134,26 +134,6 @@ public class BigIntCalculatorTest
     }
 
     [Fact]
-    public void ToInt32_ShouldConvertCorrectly()
-    {
-        // Arrange
-        var calculator = new BigIntCalculator(new BigInteger(123));
-
-        // Act & Assert
-        Assert.Equal(123, calculator.ToInt32());
-    }
-
-    [Fact]
-    public void ToInt32_ShouldThrowOverflowException_OnLargeValue()
-    {
-        // Arrange
-        var calculator = new BigIntCalculator(BigInteger.Parse("12345678901234567890"));
-
-        // Act & Assert
-        Assert.Throws<OverflowException>(() => calculator.ToInt32());
-    }
-
-    [Fact]
     public void CompareTo_ShouldReturnCorrectComparison()
     {
         // Arrange

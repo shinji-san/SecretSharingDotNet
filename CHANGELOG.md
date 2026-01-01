@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - Set `FinitePoint` struct internal instead public to reduce the public API surface.
+- Set data type of `numberOfMinimumShares` and `numberOfShares` parameters from `TNumber` to `int` in `MakeShares` method.
 
 ### Removed
 - Removed `OriginalSecret` property from `Shares` class.
@@ -18,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `Secret<TNumber> Reconstruction(string shares)` method.
 - Removed `X` property from `Share` struct.
 - Removed `Y` property from `Share` struct.
+- Removed `ToInt32()` method from `BigIntCalculator` class.
+- Removed `ToInt32()` method from `Calculator` class.
 
 ## [0.14.0] - 2025-12-25
 ### Added
