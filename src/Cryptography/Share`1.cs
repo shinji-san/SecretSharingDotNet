@@ -482,8 +482,9 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>, IFor
 
         var result = new char[pinnedArray.Length * 2];
         var pos = 0;
-        foreach (byte b in pinnedArray.PoolArray)
+        for (int index = 0; index < pinnedArray.Length; index++)
         {
+            var b = pinnedArray.PoolArray[index];
             result[pos++] = hexAlphabet[b >> 4];
             result[pos++] = hexAlphabet[b & 0xF];
         }

@@ -200,7 +200,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     public static implicit operator Secret<TNumber>(Calculator<TNumber> calculator)
     {
-        var calculatorByteRepresentation = calculator.ByteRepresentation;
+        using var calculatorByteRepresentation = calculator.ByteRepresentation;
         return new Secret<TNumber>(calculatorByteRepresentation.PoolArray, calculatorByteRepresentation.Length);
     }
 
@@ -427,7 +427,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <returns>A <see cref="Secret{TNumber}"/></returns>
     internal static Secret<TNumberStatic> FromCoefficient<TNumberStatic>(Calculator<TNumberStatic> coefficient)
     {
-        var coefficientByteRepresentation = coefficient.ByteRepresentation;
+        using var coefficientByteRepresentation = coefficient.ByteRepresentation;
         var secretBytes = coefficientByteRepresentation.PoolArray.Take(coefficient.ByteCount - MarkByteCount).ToArray();
         return new Secret<TNumberStatic>(secretBytes, secretBytes.Length);
     }
