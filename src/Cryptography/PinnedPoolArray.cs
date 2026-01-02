@@ -130,7 +130,7 @@ public sealed class PinnedPoolArray<T> : IDisposable where T : struct
 
         CryptographicOperations.ZeroMemory(data);
 #else
-        LegacySecureClear(this.poolArrayHandle.AddrOfPinnedObject(), this.poolArray.Length * this.SizeOf());
+        LegacySecureClear(this.poolArrayHandle.AddrOfPinnedObject(), this.poolArray.Length * SizeOf());
 #endif
     }
     
@@ -195,9 +195,9 @@ public sealed class PinnedPoolArray<T> : IDisposable where T : struct
     /// Determines the size, in bytes, of an object of type <typeparamref name="T"/>.
     /// </summary>
     /// <returns>The size, in bytes, of the type <typeparamref name="T"/>.
-    /// This value is calculated using <see cref="Marshal.SizeOf"/>.
+    /// This value is calculated using <see cref="System.Runtime.InteropServices.Marshal.SizeOf(Type)"/>.
     /// </returns>
-    private int SizeOf()
+    private static int SizeOf()
     {
         return Marshal.SizeOf(typeof(T));
     }
@@ -220,7 +220,12 @@ public sealed class PinnedPoolArray<T> : IDisposable where T : struct
         {
             for (int pass = 0; pass < 3; pass++)
             {
-                byte pattern = (byte)(pass == 0 ? 0xFF : pass == 1 ? 0x00 : 0xAA);
+                byte pattern = pass switch
+                {
+                    0 => 0xFF,
+                    1 => 0x00,
+                    _ => 0xAA
+                };
                 for (int i = 0; i < byteLength; i++)
                 {
                     Volatile.Write(ref bytePointer[i], pattern);

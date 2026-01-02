@@ -62,7 +62,9 @@ public class SecureBigIntegerTests
         // Assert
         Assert.True(num.IsZero);
         Assert.Equal(0, num.Sign);
-        Assert.Equal("0", num.ToString());
+        using var pinnedCharArray = num.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("0", s);
     }
 
     [Theory]
@@ -79,7 +81,9 @@ public class SecureBigIntegerTests
         using var num = new SecureBigInteger(value);
 
         // Assert
-        Assert.Equal(value.ToString(), num.ToString());
+        using var pinnedCharArray = num.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(value.ToString(), s);
     }
 
     [Theory]
@@ -96,7 +100,9 @@ public class SecureBigIntegerTests
         using var num = new SecureBigInteger(value);
 
         // Assert
-        Assert.Equal(value.ToString(), num.ToString());
+        using var pinnedCharArray = num.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(value.ToString(), s);
     }
 
     [Fact]
@@ -128,7 +134,8 @@ public class SecureBigIntegerTests
         string expected = value.TrimStart('+');
 
         // Assert
-        Assert.Equal(expected, num.ToString());
+        using var pinnedCharArray = num.ToPinnedCharArray();
+        Assert.Equal(expected, new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length));
     }
 
     [Fact]
@@ -218,7 +225,9 @@ public class SecureBigIntegerTests
         using var result = SecureBigInteger.Add(num1, num2);
 
         // Assert
-        Assert.Equal(expected.ToString(), result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
@@ -232,7 +241,9 @@ public class SecureBigIntegerTests
         using var result = num1 + num2;
 
         // Assert
-        Assert.Equal("5555", result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("5555", s);
     }
 
     [Theory]
@@ -253,7 +264,9 @@ public class SecureBigIntegerTests
         using var result = SecureBigInteger.Subtract(num1, num2);
 
         // Assert
-        Assert.Equal(expected.ToString(), result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
@@ -267,7 +280,9 @@ public class SecureBigIntegerTests
         using var result = num1 - num2;
 
         // Assert
-        Assert.Equal("20", result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("20", s);
     }
 
     [Theory]
@@ -291,7 +306,9 @@ public class SecureBigIntegerTests
         using var result = SecureBigInteger.Multiply(num1, num2);
 
         // Assert
-        Assert.Equal(expected.ToString(), result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
@@ -305,7 +322,9 @@ public class SecureBigIntegerTests
         using var result = SecureBigInteger.Multiply(num1, num2);
 
         // Assert
-        Assert.Equal("121932631112635269", result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("121932631112635269", s);
     }
 
     [Fact]
@@ -319,7 +338,9 @@ public class SecureBigIntegerTests
         using var result = num1 * num2;
 
         // Assert
-        Assert.Equal("42", result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("42", s);
     }
 
     [Theory]
@@ -340,7 +361,9 @@ public class SecureBigIntegerTests
         using var result = SecureBigInteger.Divide(num1, num2);
 
         // Assert
-        Assert.Equal(expected.ToString(), result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
@@ -351,7 +374,10 @@ public class SecureBigIntegerTests
         using var num2 = new SecureBigInteger(0);
 
         // Act & Assert
-        Assert.Throws<DivideByZeroException>(() => SecureBigInteger.Divide(num1, num2));
+        Assert.Throws<DivideByZeroException>(() =>
+        {
+            using var _ = SecureBigInteger.Divide(num1, num2);
+        });
     }
 
     [Fact]
@@ -365,7 +391,9 @@ public class SecureBigIntegerTests
         using var result = num1 / num2;
 
         // Assert
-        Assert.Equal("5", result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("5", s);
     }
 
     [Theory]
@@ -376,27 +404,47 @@ public class SecureBigIntegerTests
     [InlineData(10, -3, 1)]
     public void Remainder_ReturnsCorrectRemainder(int a, int b, int expected)
     {
+        // Arrange
         using var num1 = new SecureBigInteger(a);
         using var num2 = new SecureBigInteger(b);
+
+        // Act
         using var result = SecureBigInteger.Remainder(num1, num2);
-        Assert.Equal(expected.ToString(), result.ToString());
+        
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
     public void Remainder_ByZero_ThrowsDivideByZeroException()
     {
+        // Arrange
         using var num1 = new SecureBigInteger(10);
         using var num2 = new SecureBigInteger(0);
-        Assert.Throws<DivideByZeroException>(() => SecureBigInteger.Remainder(num1, num2));
+        
+        // Act & Assert
+        Assert.Throws<DivideByZeroException>(() =>
+        {
+            using var _ = SecureBigInteger.Remainder(num1, num2);
+        });
     }
 
     [Fact]
     public void ModuloOperator_ReturnsCorrectRemainder()
     {
+        // Arrange
         using var num1 = new SecureBigInteger(17);
         using var num2 = new SecureBigInteger(5);
+
+        // Act
         using var result = num1 % num2;
-        Assert.Equal("2", result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("2", s);
     }
 
     [Theory]
@@ -409,9 +457,16 @@ public class SecureBigIntegerTests
     [InlineData(12, 144)]
     public void Square_ReturnsCorrectSquare(int value, int expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
+
+        // Act
         using var result = num.Square();
-        Assert.Equal(expected.ToString(), result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Theory]
@@ -426,16 +481,29 @@ public class SecureBigIntegerTests
     [InlineData(10, 3)]
     public void Sqrt_ReturnsCorrectRoot(int value, int expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
+
+        // Act
         using var result = num.Sqrt();
-        Assert.Equal(expected.ToString(), result.ToString());
+        
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
     public void Sqrt_NegativeNumber_ThrowsInvalidOperationException()
     {
+        // Arrange
         using var num = new SecureBigInteger(-4);
-        Assert.Throws<InvalidOperationException>(() => num.Sqrt());
+        
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            using var _ = num.Sqrt();
+        });
     }
 
     [Theory]
@@ -447,32 +515,61 @@ public class SecureBigIntegerTests
     [InlineData(100, 2, 10)]
     public void NthRoot_ReturnsCorrectRoot(int value, int n, int expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
+
+        // Act
         using var result = num.NthRoot(n);
-        Assert.Equal(expected.ToString(), result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
     public void NthRoot_NegativeWithOddRoot_ReturnsCorrectRoot()
     {
+        // Arrange
         using var num = new SecureBigInteger(-8);
+
+        // Act
         using var result = num.NthRoot(3);
-        Assert.Equal("-2", result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("-2", s);
     }
 
     [Fact]
     public void NthRoot_NegativeWithEvenRoot_ThrowsInvalidOperationException()
     {
+        // Arrange
         using var num = new SecureBigInteger(-16);
-        Assert.Throws<InvalidOperationException>(() => num.NthRoot(2));
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            using var _ = num.NthRoot(2);
+        });
     }
 
     [Fact]
     public void NthRoot_ZeroOrNegativeExponent_ThrowsArgumentException()
     {
+        // Arrange
         using var num = new SecureBigInteger(8);
-        Assert.Throws<ArgumentException>(() => num.NthRoot(0));
-        Assert.Throws<ArgumentException>(() => num.NthRoot(-1));
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+        {
+            using var _ = num.NthRoot(0);
+        });
+        Assert.Throws<ArgumentException>(() =>
+        {
+            using var _ = num.NthRoot(-1);
+        });
     }
 
     [Theory]
@@ -483,9 +580,16 @@ public class SecureBigIntegerTests
     [InlineData(-100, 100)]
     public void Abs_ReturnsAbsoluteValue(int value, int expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
+
+        // Act
         using var result = num.Abs();
-        Assert.Equal(expected.ToString(), result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Theory]
@@ -495,17 +599,31 @@ public class SecureBigIntegerTests
     [InlineData(100, -100)]
     public void Negate_ReturnsNegatedValue(int value, int expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
+
+        // Act
         using var result = num.Negate();
-        Assert.Equal(expected.ToString(), result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
     public void NegateOperator_ReturnsNegatedValue()
     {
+        // Arrange
         using var num = new SecureBigInteger(42);
+
+        // Act
         using var result = -num;
-        Assert.Equal("-42", result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("-42", s);
     }
 
     [Theory]
@@ -521,24 +639,44 @@ public class SecureBigIntegerTests
     [InlineData(10, 6, 1000000)]
     public void Pow_ReturnsCorrectPower(int baseValue, int exponent, int expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(baseValue);
+
+        // Act
         using var result = num.Pow(exponent);
-        Assert.Equal(expected.ToString(), result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
     public void Pow_NegativeExponent_ThrowsArgumentException()
     {
+        // Arrange
         using var num = new SecureBigInteger(2);
-        Assert.Throws<ArgumentException>(() => num.Pow(-1));
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+        {
+            using var _ = num.Pow(-1);
+        });
     }
 
     [Fact]
     public void Pow_LargeExponent_ReturnsCorrectPower()
     {
+        // Arrange
         using var num = new SecureBigInteger(2);
+
+        // Act
         using var result = num.Pow(20);
-        Assert.Equal("1048576", result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("1048576", s);
     }
 
     [Theory]
@@ -551,58 +689,93 @@ public class SecureBigIntegerTests
     [InlineData(27, 3, 3.0)]
     public void Log_WithValidInputs_ReturnsCorrectValue(int value, double baseValue, double expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
-        double result = SecureBigInteger.Log(num, baseValue);
+
+        // Act
+        var result = SecureBigInteger.Log(num, baseValue);
+
+        // Assert
         Assert.Equal(expected, result, 10);
     }
 
     [Fact]
     public void Log_WithBase10_MatchesStandardLog10()
     {
+        // Arrange
         using var num = new SecureBigInteger(12345);
-        double result = SecureBigInteger.Log(num, 10);
-        double expected = Math.Log10(12345);
+
+        // Act
+        var result = SecureBigInteger.Log(num, 10);
+
+        // Assert
+        var expected = Math.Log10(12345);
         Assert.Equal(expected, result, 10);
     }
 
     [Fact]
     public void Log_WithBaseE_MatchesNaturalLog()
     {
+        // Arrange
         using var num = new SecureBigInteger(12345);
-        double result = SecureBigInteger.Log(num, Math.E);
-        double expected = Math.Log(12345);
+
+        // Act
+        var result = SecureBigInteger.Log(num, Math.E);
+
+        // Assert
+        var expected = Math.Log(12345);
         Assert.Equal(expected, result, 10);
     }
 
     [Fact]
     public void Log_WithBase2_MatchesLog2()
     {
+        // Arrange
         using var num = new SecureBigInteger(1024);
-        double result = SecureBigInteger.Log(num, 2);
+
+        // Act
+        var result = SecureBigInteger.Log(num, 2);
+
+        // Assert
         Assert.Equal(10.0, result, 10);
     }
 
     [Fact]
     public void Log_OfZero_ReturnsNegativeInfinity()
     {
+        // Arrange
         using var num = new SecureBigInteger(0);
-        double result = SecureBigInteger.Log(num, 10);
+
+        // Act
+        var result = SecureBigInteger.Log(num, 10);
+
+        // Assert
         Assert.Equal(double.NegativeInfinity, result);
     }
 
     [Fact]
     public void Log_OfNegativeNumber_ReturnsNaN()
     {
+        // Arrange
         using var num = new SecureBigInteger(-100);
-        double result = SecureBigInteger.Log(num, 10);
+
+        // Act
+        var result = SecureBigInteger.Log(num, 10);
+
+        // Assert
         Assert.True(double.IsNaN(result));
     }
 
     [Fact]
     public void Log_WithBase1_ReturnsNaN()
     {
+        // Arrange
         using var num = new SecureBigInteger(100);
-        double result = SecureBigInteger.Log(num, 1.0);
+
+        // Act
+        var result = SecureBigInteger.Log(num, 1.0);
+
+        // Assert
         Assert.True(double.IsNaN(result));
     }
 
@@ -866,19 +1039,33 @@ public class SecureBigIntegerTests
     [InlineData(5, 0, 5)]
     public void Gcd_ReturnsCorrectGcd(int a, int b, int expected)
     {
+        // Arrange
         using var num1 = new SecureBigInteger(a);
         using var num2 = new SecureBigInteger(b);
+
+        // Act
         using var result = SecureBigInteger.Gcd(num1, num2);
-        Assert.Equal(expected.ToString(), result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
     public void Gcd_WithNegativeNumbers_ReturnsPositiveGcd()
     {
+        // Arrange
         using var num1 = new SecureBigInteger(-12);
         using var num2 = new SecureBigInteger(8);
+
+        // Act
         using var result = SecureBigInteger.Gcd(num1, num2);
-        Assert.Equal("4", result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("4", s);
     }
 
     [Theory]
@@ -890,29 +1077,48 @@ public class SecureBigIntegerTests
     [InlineData(7, 256, 1009, 383)]
     public void ModPow_ReturnsCorrectResult(int baseValue, int exponent, int modulus, int expected)
     {
+        // Arrange
         using var b = new SecureBigInteger(baseValue);
         using var e = new SecureBigInteger(exponent);
         using var m = new SecureBigInteger(modulus);
+
+        // Act
         using var result = SecureBigInteger.ModPow(b, e, m);
-        Assert.Equal(expected.ToString(), result.ToString());
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected.ToString(), s);
     }
 
     [Fact]
     public void ModPow_ZeroModulus_ThrowsDivideByZeroException()
     {
+        // Arrange
         using var b = new SecureBigInteger(2);
         using var e = new SecureBigInteger(3);
         using var m = new SecureBigInteger(0);
-        Assert.Throws<DivideByZeroException>(() => SecureBigInteger.ModPow(b, e, m));
+
+        // Act & Assert
+        Assert.Throws<DivideByZeroException>(() =>
+        {
+            using var _ = SecureBigInteger.ModPow(b, e, m);
+        });
     }
 
     [Fact]
     public void ModPow_NegativeExponent_ThrowsArgumentException()
     {
+        // Arrange
         using var b = new SecureBigInteger(2);
         using var e = new SecureBigInteger(-1);
         using var m = new SecureBigInteger(5);
-        Assert.Throws<ArgumentException>(() => SecureBigInteger.ModPow(b, e, m));
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+        {
+            using var _ = SecureBigInteger.ModPow(b, e, m);
+        });
     }
 
     [Theory]
@@ -966,8 +1172,11 @@ public class SecureBigIntegerTests
     [InlineData(-5, 3, true)]
     public void LessThan_ReturnsCorrectResult(int a, int b, bool expected)
     {
+        // Arrange
         using var num1 = new SecureBigInteger(a);
         using var num2 = new SecureBigInteger(b);
+
+        // Act & Assert
         Assert.Equal(expected, num1 < num2);
     }
 
@@ -978,8 +1187,11 @@ public class SecureBigIntegerTests
     [InlineData(3, -5, true)]
     public void GreaterThan_ReturnsCorrectResult(int a, int b, bool expected)
     {
+        // Arrange
         using var num1 = new SecureBigInteger(a);
         using var num2 = new SecureBigInteger(b);
+
+        // Act & Assert
         Assert.Equal(expected, num1 > num2);
     }
 
@@ -989,8 +1201,11 @@ public class SecureBigIntegerTests
     [InlineData(5, 5, true)]
     public void LessThanOrEqual_ReturnsCorrectResult(int a, int b, bool expected)
     {
+        // Arrange
         using var num1 = new SecureBigInteger(a);
         using var num2 = new SecureBigInteger(b);
+
+        // Acter & Assert
         Assert.Equal(expected, num1 <= num2);
     }
 
@@ -1000,8 +1215,11 @@ public class SecureBigIntegerTests
     [InlineData(5, 5, true)]
     public void GreaterThanOrEqual_ReturnsCorrectResult(int a, int b, bool expected)
     {
+        // Arrange
         using var num1 = new SecureBigInteger(a);
         using var num2 = new SecureBigInteger(b);
+
+        // Act & Assert
         Assert.Equal(expected, num1 >= num2);
     }
 
@@ -1013,9 +1231,14 @@ public class SecureBigIntegerTests
     [InlineData(3, -5, 1)]
     public void CompareTo_ReturnsCorrectResult(int a, int b, int expected)
     {
+        // Arrange
         using var num1 = new SecureBigInteger(a);
         using var num2 = new SecureBigInteger(b);
-        int result = num1.CompareTo(num2);
+
+        // Act
+        var result = num1.CompareTo(num2);
+
+        // Assert
         Assert.Equal(expected, Math.Sign(result));
     }
 
@@ -1029,7 +1252,9 @@ public class SecureBigIntegerTests
         using var result = ++num;
 
         // Assert
-        Assert.Equal("42", result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("42", s);
         num.Dispose();
     }
 
@@ -1043,7 +1268,9 @@ public class SecureBigIntegerTests
         using var result = --num;
 
         // Assert
-        Assert.Equal("42", result.ToString());
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("42", s);
         num.Dispose();
     }
 
@@ -1105,6 +1332,28 @@ public class SecureBigIntegerTests
     }
 
     [Theory]
+    [InlineData(0, "SecureBigInteger(0)")]
+    [InlineData(42, "SecureBigInteger(42)")]
+    [InlineData(-42, "SecureBigInteger(-42)")]
+    [InlineData(123456, "SecureBigInteger(123456)")]
+    [InlineData(int.MaxValue, "SecureBigInteger(2147483647)")]
+    [InlineData(int.MinValue, "SecureBigInteger(-2147483648)")]
+    [InlineData(long.MaxValue, "SecureBigInteger(9223372036854775807)")]
+    [InlineData(long.MinValue, "SecureBigInteger(-9223372036854775808)")]
+    public void ToString_ReturnsCorrectString(long value, string expected)
+    {
+        // Arrange
+        using var num = new SecureBigInteger(value);
+
+        // Act & Assert
+#if DEBUG
+        Assert.Equal(expected, num.ToString());
+#else
+        Assert.Equal("*** Secured Value ***", num.ToString());
+#endif
+    }
+    
+    [Theory]
     [InlineData(0, "0")]
     [InlineData(42, "42")]
     [InlineData(-42, "-42")]
@@ -1113,10 +1362,17 @@ public class SecureBigIntegerTests
     [InlineData(int.MinValue, "-2147483648")]
     [InlineData(long.MaxValue, "9223372036854775807")]
     [InlineData(long.MinValue, "-9223372036854775808")]
-    public void ToString_ReturnsCorrectString(long value, string expected)
+    public void ToPinnedCharArray_ReturnsCorrectString(long value, string expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
-        Assert.Equal(expected, num.ToString());
+
+        // Act
+        using var pinnedCharArray = num.ToPinnedCharArray();
+
+        // Assert
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expected, s);
     }
 
     [Theory]
@@ -1155,9 +1411,19 @@ public class SecureBigIntegerTests
         Assert.Throws<ObjectDisposedException>(() => num.IsZero);
         Assert.Throws<ObjectDisposedException>(() => num.IsOne);
         Assert.Throws<ObjectDisposedException>(() => num.Sign);
-        Assert.Throws<ObjectDisposedException>(() => num.Abs());
-        Assert.Throws<ObjectDisposedException>(() => num.Negate());
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = num.Abs();
+        });
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = num.Negate();
+        });
         Assert.Throws<ObjectDisposedException>(() => num.ToString());
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = num.ToPinnedCharArray();
+        });
     }
 
     [Fact]
@@ -1174,28 +1440,45 @@ public class SecureBigIntegerTests
     [Fact]
     public void MultipleOperationsChained_WorksCorrectly()
     {
+        // Arrange
         using var a = new SecureBigInteger(10);
         using var b = new SecureBigInteger(20);
         using var c = new SecureBigInteger(30);
+
+        // Act
         using var result = (a + b) * c;
-        Assert.Equal("900", result.ToString()); // (10 + 20) * 30 = 900
+
+        // Assert
+        using var pinnedCharArray = result.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal("900", s); // (10 + 20) * 30 = 900
     }
 
     [Fact]
     public void ZeroDividedByAnything_ReturnsZero()
     {
+        // Arrange
         using var zero = new SecureBigInteger(0);
         using var divisor = new SecureBigInteger(42);
+
+        // Act
         using var result = zero / divisor;
+
+        // Assert
         Assert.True(result.IsZero);
     }
 
     [Fact]
     public void NegativeZero_IsNormalizedToPositiveZero()
     {
+        // Arrange
         using var a = new SecureBigInteger(5);
         using var b = new SecureBigInteger(5);
+
+        // Act
         using var result = a - b;
+
+        // Assert
         Assert.True(result.IsZero);
         Assert.Equal(0, result.Sign);
     }
@@ -1203,33 +1486,60 @@ public class SecureBigIntegerTests
     [Fact]
     public void GetHashCode_SameValues_ReturnsSameHashCode()
     {
+        // Arrange
         using var num1 = new SecureBigInteger(42);
         using var num2 = new SecureBigInteger(42);
+
+        // Act & Assert
         Assert.Equal(num1.GetHashCode(), num2.GetHashCode());
     }
 
     [Fact]
     public void Add_WithNullLeft_ThrowsArgumentNullException()
     {
+        // Arrange
         using var num = new SecureBigInteger(42);
-        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Add(null, num));
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            using var _ = SecureBigInteger.Add(null, num);
+        });
     }
 
     [Fact]
     public void Add_WithNullRight_ThrowsArgumentNullException()
     {
+        // Arrange
         using var num = new SecureBigInteger(42);
-        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Add(num, null));
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            using var _ = SecureBigInteger.Add(num, null);
+        });
     }
 
     [Fact]
     public void Constructor_Copy_WithNull_ThrowsArgumentNullException()
     {
         // Arrange, Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new SecureBigInteger(null as SecureBigInteger));
-        Assert.Throws<ArgumentNullException>(() => new SecureBigInteger(null, false));
-        Assert.Throws<ArgumentNullException>(() => new SecureBigInteger(null, true));
-        Assert.Throws<ArgumentNullException>(() => new SecureBigInteger(null as byte[]));
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            using var _ = new SecureBigInteger(null as SecureBigInteger);
+        });
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            using var _ = new SecureBigInteger(null, false);
+        });
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            using var _ = new SecureBigInteger(null, true);
+        });
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            using var _ = new SecureBigInteger(null as byte[]);
+        });
     }
 
     [Theory]

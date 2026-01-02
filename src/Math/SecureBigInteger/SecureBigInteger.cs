@@ -318,7 +318,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
                 throw new FormatException($"Ungültiges Zeichen in Zahl: {c}");
             }
 
-            int digit = c - '0';
+            int digit = c - DigitOffset;
 
             // result = result * 10 + digit
             var temp1 = MultiplyUnsigned(result, ten);
@@ -347,6 +347,13 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     {
         this.Dispose(false);
     }
+
+    /// <summary>
+    /// The character offset used to convert between numeric digits and their character representations.
+    /// This value is typically set to '0' to align with ASCII encoding, where the character '0' has
+    /// the numeric code 48. It is used internally for parsing and formatting numeric values.
+    /// </summary>
+    private static char DigitOffset => '0';
 
     /// <summary>
     /// Gets the number of bytes used to represent the internal data of the SecureBigInteger.
@@ -2182,34 +2189,67 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         return this.isNegative ? -comparison : comparison;
     }
 
-    public override string ToString()
+    /// <summary>
+    /// Converts the current <see cref="SecureBigInteger"/> instance to a character array representation.
+    /// </summary>
+    /// <returns>A character array containing the string representation of the current instance.</returns>
+    public PinnedPoolArray<char> ToPinnedCharArray()
     {
         this.ThrowIfDisposed();
 
         if (this.IsZeroInternal())
         {
-            return "0";
+            var zeroArray = new PinnedPoolArray<char>(1);
+            zeroArray.PoolArray[0] = DigitOffset;
+            return zeroArray;
         }
 
-        var result = new List<char>();
+        using var negatedValue = this.Negate();
+        var digitCount = (int)(Log10(this.isNegative ? negatedValue: this) + 1);
+
+        var totalLength = this.isNegative ? digitCount + 1 : digitCount;
+        var result = new PinnedPoolArray<char>(totalLength);
+        var index = totalLength - 1;
+
         var temp = new SecureBigInteger(this);
+        // Work with absolute value
+        temp.isNegative = false;
         using var zero = new SecureBigInteger(0);
         using var ten = new SecureBigInteger(10);
 
         while (CompareUnsigned(temp.data.PoolArray, temp.Length, zero.data.PoolArray, 1) > 0)
         {
-            var quotient = DivideUnsigned(temp, ten, out var rem);
-            result.Insert(0, (char)('0' + rem.data.PoolArray[0]));
+            using var quotient = DivideUnsigned(temp, ten, out var rem);
+            result.PoolArray[index--] = (char)(DigitOffset + rem.data.PoolArray[0]);
+            rem.Dispose();
             temp.Dispose();
             temp = new SecureBigInteger(quotient);
         }
 
+        temp.Dispose();
+
         if (this.isNegative)
         {
-            result.Insert(0, '-');
+            result.PoolArray[0] = '-';
         }
 
-        return new string(result.ToArray());
+        return result;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public override string ToString()
+    {
+        this.ThrowIfDisposed();
+#if DEBUG
+        using var pinnedCharArray = this.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        return $"{this.GetType().Name}({s})";
+#else
+        return "*** Secured Value ***";
+#endif
     }
 
     public string ToHexString()
