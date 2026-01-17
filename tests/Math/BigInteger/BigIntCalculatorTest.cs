@@ -60,7 +60,7 @@ public class BigIntCalculatorTest
         byte[] data = [1, 2, 3, 4, 0, 0, 0, 0];
 
         // Act
-        Calculator<BigInteger> calculator = new BigIntCalculator(data);
+        Calculator<BigInteger> calculator = new BigIntCalculator(data, data.Length);
 
         // Assert
         Assert.Equal(new BigInteger(data), calculator.Value);

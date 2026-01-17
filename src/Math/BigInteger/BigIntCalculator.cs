@@ -36,8 +36,6 @@ using Extension;
 #endif
 using Cryptography;
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Numerics;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
 using System.Security.Cryptography;
@@ -69,10 +67,29 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     /// Initializes a new instance of the <see cref="BigIntCalculator"/> class.
     /// </summary>
     /// <param name="data">byte stream representation of a numeric value</param>
-    public BigIntCalculator(byte[] data) : base(new BigInteger(data))
+    /// <param name="length">length of the byte stream representation</param>
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+    public BigIntCalculator(byte[] data, int length) : base(new BigInteger(data.AsSpan(0, length)))
+#else
+    public BigIntCalculator(byte[] data, int length) : base(CreateBigInteger(data, length))
+#endif
     {
         this.byteCountLazy = this.InitializeByteCountLazy();
     }
+
+#if (!NET8_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER)
+    public static BigInteger CreateBigInteger(byte[] buffer, int length)
+    {
+    if (buffer.Length == length)
+    {
+        return new BigInteger(buffer);
+    }
+
+    byte[] slice = new byte[length];
+    Buffer.BlockCopy(buffer, 0, slice, 0, length);
+    return new BigInteger(slice);
+    }
+#endif
 
     /// <summary>
     /// Finalizes an instance of the <see cref="BigIntCalculator"/> class.
@@ -110,7 +127,7 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
             result = CryptographicOperations.FixedTimeEquals(valueLeft, valueRight);
 #else
-            result = valueLeft.FixedTimeEquals(valueRight);
+            result = valueLeft.FixedTimeEquals(valueRight, valueLeft.Length, valueRight.Length);
 #endif
         }
         finally

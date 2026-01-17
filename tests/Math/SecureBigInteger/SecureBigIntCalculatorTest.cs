@@ -60,7 +60,7 @@ public class SecureBigIntCalculatorTest
         using var data = expected.ToByteArray();
 
         // Act
-        using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(data.PoolArray);
+        using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(data.PoolArray, data.Length);
 
         // Assert
         Assert.Equal(expected, calculator.Value);

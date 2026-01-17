@@ -157,13 +157,13 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>, IFor
     /// </exception>
     public Share(byte[] indexBytes, byte[] valueBytes)
     {
-        this.Index = Calculator.Create(indexBytes, typeof(TNumber)) as Calculator<TNumber>;
+        this.Index = Calculator.Create(indexBytes, indexBytes.Length, typeof(TNumber)) as Calculator<TNumber>;
         if (this.Index < Calculator<TNumber>.One)
         {
             throw new ArgumentOutOfRangeException(nameof(indexBytes), ErrorMessages.ShareIndexMustBePositive);
         }
 
-        this.Value = Calculator.Create(valueBytes, typeof(TNumber)) as Calculator<TNumber>;
+        this.Value = Calculator.Create(valueBytes, valueBytes.Length, typeof(TNumber)) as Calculator<TNumber>;
     }
 
     /// <summary>
@@ -406,13 +406,17 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>, IFor
         }
 
         var numberType = typeof(TNumber);
-        var index = Calculator.Create(ToByteArray(FormatHexWithLeadingZero(indexReadOnlySpan)), numberType) as Calculator<TNumber>;
-        var value = Calculator.Create(ToByteArray(FormatHexWithLeadingZero(valueReadOnlySpan)), numberType) as Calculator<TNumber>;
+        var indexByteArray = ToByteArray(FormatHexWithLeadingZero(indexReadOnlySpan));
+        var index = Calculator.Create(indexByteArray, indexByteArray.Length, numberType) as Calculator<TNumber>;
+        var valueByteArray = ToByteArray(FormatHexWithLeadingZero(valueReadOnlySpan));
+        var value = Calculator.Create(valueByteArray, valueByteArray.Length, numberType) as Calculator<TNumber>;
 #else
         var shareCoordinates = serialized.Split(CoordinateSeparatorArray);
         var numberType = typeof(TNumber);
-        var index = Calculator.Create(ToByteArray(FormatHexWithLeadingZero(shareCoordinates[0])), numberType) as Calculator<TNumber>;
-        var value = Calculator.Create(ToByteArray(FormatHexWithLeadingZero(shareCoordinates[1])), numberType) as Calculator<TNumber>;
+        var indexByteArray = ToByteArray(FormatHexWithLeadingZero(shareCoordinates[0]));
+        var index = Calculator.Create(indexByteArray, indexByteArray.Length, numberType) as Calculator<TNumber>;
+        var valueByteArray = ToByteArray(FormatHexWithLeadingZero(shareCoordinates[1]));
+        var value = Calculator.Create(valueByteArray, valueByteArray.Length, numberType) as Calculator<TNumber>;
 #endif
         if (index < Calculator<TNumber>.One)
         {

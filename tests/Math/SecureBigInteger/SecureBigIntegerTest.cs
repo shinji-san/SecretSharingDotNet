@@ -1380,10 +1380,19 @@ public class SecureBigIntegerTests
     [InlineData(255, "FF")]
     [InlineData(256, "0100")]
     [InlineData(-255, "-FF")]
-    public void ToHexString_ReturnsCorrectHexString(int value, string expected)
+    [InlineData(65535, "FFFF")]
+    [InlineData(-65535, "-FFFF")]
+    public void ToHexadecimal_ReturnsCorrectHexString(int value, string expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
-        Assert.Equal(expected, num.ToHexString());
+
+        // Act
+        using var result = num.ToHexadecimal();
+
+        // Assert
+        var s = new string(result.PoolArray, 0, result.Length);
+        Assert.Equal(expected, s);
     }
 
     [Fact]

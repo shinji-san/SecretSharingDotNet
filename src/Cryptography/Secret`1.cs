@@ -45,7 +45,7 @@ using System.Text;
 /// This class represents the secret including members to parse or convert it.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer data type)</typeparam>
-public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparable<Secret<TNumber>>
+public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparable<Secret<TNumber>>, IDisposable
 {
     /// <summary>
     /// Maximum mark byte to terminate the secret array and to avoid negative secret values.
@@ -72,8 +72,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// Saves the secret
     /// </summary>
-    private readonly byte[] secretNumber;
-    
+    private readonly PinnedPoolArray<byte> secretNumber;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
@@ -114,21 +114,20 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
             throw new ArgumentException(ErrorMessages.EmptyCollection, nameof(secretSource));
         }
 
-        byte[] buffer = new byte[1];
+        using var buffer = new PinnedPoolArray<byte>(1);
         using (var rng = RandomNumberGenerator.Create())
         {
-            rng.GetNonZeroBytes(buffer);
+            rng.GetNonZeroBytes(buffer.PoolArray);
         }
 
-        byte[] bytes = new byte[length + 1];
+        this.secretNumber = new PinnedPoolArray<byte>(length + 1);
         byte maxMarkByte = length == 1 ? MinMarkByte : MaxMarkByte;
-        bytes[length] = (byte)((buffer[0] % maxMarkByte) + 1);
+        this.secretNumber.PoolArray[length] = (byte)(buffer.PoolArray[0] % maxMarkByte + 1);
 #if NET8_0_OR_GREATER
-        secretSource[..length].CopyTo(bytes);
+        secretSource[..length].CopyTo(this.secretNumber.PoolArray);
 #else
-        Array.Copy(secretSource, 0, bytes, 0, length);
+        Array.Copy(secretSource, 0, this.secretNumber.PoolArray, 0, length);
 #endif
-        this.secretNumber = bytes;
     }
 
     /// <summary>
@@ -161,7 +160,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// Gets this <see cref="Secret{TNumber}"/> as an a0 coefficient.
     /// </summary>
-    internal Calculator<TNumber> ToCoefficient => Calculator.Create(this.secretNumber, typeof(TNumber)) as Calculator<TNumber>;
+    internal Calculator<TNumber> ToCoefficient => Calculator.Create(this.secretNumber.PoolArray, this.secretNumber.Length, typeof(TNumber)) as Calculator<TNumber>;
 
     /// <summary>
     /// Casts the <typeparamref name="TNumber"/> instance to an <see cref="Secret{TNumber}"/> instance
@@ -191,8 +190,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     public static implicit operator Calculator<TNumber>(Secret<TNumber> secret)
     {
-        var secretBytes = secret.secretNumber.Subset(0, secret.secretNumber.Length - MarkByteCount);
-        return Calculator.Create(secretBytes, typeof(TNumber)) as Calculator<TNumber>;
+        using var secretBytes = secret.secretNumber.Subset(0, secret.secretNumber.Length - MarkByteCount);
+        return Calculator.Create(secretBytes.PoolArray, secretBytes.Length, typeof(TNumber)) as Calculator<TNumber>;
     }
 
     /// <summary>
@@ -207,7 +206,18 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// Casts the <see cref="byte"/> array instance to an <see cref="Secret{TNumber}"/> instance.
     /// </summary>
-    public static implicit operator Secret<TNumber>(byte[] array) => new Secret<TNumber>(array, array.Length);
+    public static implicit operator Secret<TNumber>(byte[] array)
+    {
+        return new Secret<TNumber>(array, array.Length);
+    }
+
+    /// <summary>
+    /// Casts the <see cref="PinnedPoolArray{Byte}"/> instance to an <see cref="Secret{TNumber}"/> instance.
+    /// </summary>
+    public static implicit operator Secret<TNumber>(PinnedPoolArray<byte> array)
+    {
+        return new Secret<TNumber>(array.PoolArray, array.Length);
+    }
 
 #if NET8_0_OR_GREATER
     /// <summary>
@@ -217,9 +227,9 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
 #endif
 
     /// <summary>
-    /// Casts the <see cref="Secret{TNumber}"/> instance to an <see cref="byte"/> array instance.
+    /// Casts the <see cref="Secret{TNumber}"/> instance to an <see cref="PinnedPoolArray{Byte}"/> instance.
     /// </summary>
-    public static implicit operator byte[](Secret<TNumber> secret) => secret.ToByteArray();
+    public static implicit operator PinnedPoolArray<byte>(Secret<TNumber> secret) => secret.ToByteArray();
 
 #if NET8_0_OR_GREATER
     /// <summary>
@@ -239,10 +249,10 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     public static implicit operator Secret<TNumber>(ReadOnlySpan<char> secretText)
     {
-        ArrayBufferWriter<byte> arrayBufferWriter = new();
+        var arrayBufferWriter = new ArrayBufferWriter<byte>();
         Encoding.UTF8.GetBytes(secretText, arrayBufferWriter);
         var secretBytes = arrayBufferWriter.WrittenSpan;
-        Secret<TNumber> secret = new(secretBytes, secretBytes.Length);
+        var secret = new Secret<TNumber>(secretBytes, secretBytes.Length);
         arrayBufferWriter.Clear();
         return secret;
     }
@@ -310,9 +320,12 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     /// <param name="other">An <see cref="Secret{TNumber}"/> instance to compare with this instance.</param>
     /// <returns>A value that indicates the relative order of the <see cref="Secret{TNumber}"/> instances being compared.</returns>
-    public int CompareTo(Secret<TNumber> other) => this.secretNumber
-        .Subset(0, this.SecretByteSize - MarkByteCount)
-        .CompareTo(other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount));
+    public int CompareTo(Secret<TNumber> other)
+    {
+        using var pinnedPoolArrayLeft = this.secretNumber.Subset(0, this.SecretByteSize - MarkByteCount);
+        using var pinnedPoolArrayRight = other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount);
+        return pinnedPoolArrayLeft.CompareTo(pinnedPoolArrayRight);
+    }
 
     /// <summary>
     /// Determines whether this instance and an<paramref name="other"/> specified <see cref="Secret{TNumber}"/> instance are equal.
@@ -325,7 +338,9 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         if (this.SecretByteSize < MarkByteCount && other.SecretByteSize < MarkByteCount)
         {
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
-            return CryptographicOperations.FixedTimeEquals(this.secretNumber, other.secretNumber);
+            var secretSpan = this.secretNumber.PoolArray.AsSpan(0, this.secretNumber.Length);
+            var otherSecretSpan = other.secretNumber.PoolArray.AsSpan(0, other.secretNumber.Length);
+            return CryptographicOperations.FixedTimeEquals(secretSpan, otherSecretSpan);
 #else
             return this.secretNumber.FixedTimeEquals(other.secretNumber);
 #endif
@@ -338,11 +353,11 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
 
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
         return CryptographicOperations.FixedTimeEquals(
-            this.secretNumber.AsSpan(0, this.SecretByteSize - MarkByteCount),
-            other.secretNumber.AsSpan(0, other.SecretByteSize - MarkByteCount));
+            this.secretNumber.PoolArray.AsSpan(0, this.SecretByteSize - MarkByteCount),
+            other.secretNumber.PoolArray.AsSpan(0, other.SecretByteSize - MarkByteCount));
 #else
-        var valueLeft = this.secretNumber.Subset(0, this.SecretByteSize - MarkByteCount);
-        var valueRight = other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount);
+        using var valueLeft = this.secretNumber.Subset(0, this.SecretByteSize - MarkByteCount);
+        using var valueRight = other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount);
         return valueLeft.FixedTimeEquals(valueRight);
 #endif
     }
@@ -373,14 +388,23 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
             return string.Empty;
         }
 
-        return Encoding.UTF8.GetString(this.secretNumber, 0, this.secretNumber.Length - MarkByteCount);
+        // Todo
+        return Encoding.UTF8.GetString(this.secretNumber.PoolArray, 0, this.secretNumber.Length - MarkByteCount);
+    }
+
+    /// <summary>
+    /// Releases all resources used by the current instance of the <see cref="Secret{TNumber}"/> struct.
+    /// </summary>
+    public void Dispose()
+    {
+        this.secretNumber.Dispose();
     }
 
     /// <summary>
     /// Converts the secret to a byte array.
     /// </summary>
     /// <returns>Array of type <see cref="byte"/></returns>
-    public byte[] ToByteArray()
+    public PinnedPoolArray<byte> ToByteArray()
     {
         return this.secretNumber.Subset(0, this.secretNumber.Length - MarkByteCount);
     }
@@ -392,7 +416,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <returns></returns>
     public ReadOnlySpan<byte> AsReadOnlySpan()
     {
-        return this.secretNumber.AsSpan(0, this.secretNumber.Length - MarkByteCount);
+        return this.secretNumber.PoolArray.AsSpan(0, this.secretNumber.Length - MarkByteCount);
     }
 #endif
 
@@ -403,7 +427,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <returns>The <see cref="string"/> representation in base 64</returns>
     public string ToBase64()
     {
-        return Convert.ToBase64String(this.secretNumber, 0, this.secretNumber.Length - MarkByteCount);
+        // Todo
+        return Convert.ToBase64String(this.secretNumber.PoolArray, 0, this.secretNumber.Length - MarkByteCount);
     }
 
 #if NET8_0_OR_GREATER
@@ -439,17 +464,19 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <remarks>Use this ctor to create a random secret</remarks>
     internal static Secret<TNumberStatic> CreateRandom<TNumberStatic>(Calculator<TNumberStatic> prime)
     {
-        byte[] randomSecretBytes = new byte[prime.ByteCount];
+        using var randomSecretBytes = new PinnedPoolArray<byte>(prime.ByteCount);
         using (var rng = RandomNumberGenerator.Create())
         {
-            rng.GetBytes(randomSecretBytes);
+            rng.GetBytes(randomSecretBytes.PoolArray);
         }
 
         int i = randomSecretBytes.Length - 1;
         while (i > 0)
         {
-            randomSecretBytes[i] = i == 1 ? MinMarkByte : MaxMarkByte;
-            var randomSecretNumber = Calculator.Create(randomSecretBytes, typeof(TNumberStatic)) as Calculator<TNumberStatic>;
+            randomSecretBytes.PoolArray[i] = i == 1 ? MinMarkByte : MaxMarkByte;
+            var randomSecretNumber =
+                Calculator.Create(randomSecretBytes.PoolArray, randomSecretBytes.Length, typeof(TNumberStatic)) as
+                    Calculator<TNumberStatic>;
             var a0 = randomSecretNumber?.Abs() % prime;
             if (a0 == randomSecretNumber)
             {
@@ -461,10 +488,10 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
                 return Secret<TNumberStatic>.EmptySecret;
             }
 
-            randomSecretBytes[i--] = 0x00;
+            randomSecretBytes.PoolArray[i--] = 0x00;
         }
 
-        var secretBytes = randomSecretBytes.Subset(0, randomSecretBytes.Length - (randomSecretBytes.Length - i));
-        return new Secret<TNumberStatic>(secretBytes, secretBytes.Length);
+        using var secretBytes = randomSecretBytes.Subset(0, randomSecretBytes.Length - (randomSecretBytes.Length - i));
+        return new Secret<TNumberStatic>(secretBytes.PoolArray, secretBytes.Length);
     }
 }

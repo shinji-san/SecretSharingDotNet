@@ -87,7 +87,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public SecureBigInteger()
     {
         this.data = new PinnedPoolArray<byte>(1);
-        this.data.PoolArray[0] = 0;
+        this.data[0] = 0;
     }
 
     /// <summary>
@@ -100,16 +100,16 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         {
             case 0:
                 this.data = new PinnedPoolArray<byte>(1);
-                this.data.PoolArray[0] = 0;
+                this.data[0] = 0;
                 break;
             case int.MinValue:
                 this.isNegative = true;
                 var intSize = sizeof(int);
                 this.data = new PinnedPoolArray<byte>(intSize);
-                this.data.PoolArray[0] = 0;
-                this.data.PoolArray[1] = 0;
-                this.data.PoolArray[2] = 0;
-                this.data.PoolArray[3] = 128;
+                this.data[0] = 0;
+                this.data[1] = 0;
+                this.data[2] = 0;
+                this.data[3] = 128;
                 break;
             default:
                 this.isNegative = value < 0;
@@ -117,7 +117,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
                 if (absoluteValue == 0)
                 {
                     this.data = new PinnedPoolArray<byte>(1);
-                    this.data.PoolArray[0] = 0;
+                    this.data[0] = 0;
                     break;
                 }
 
@@ -132,7 +132,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
                 this.data = new PinnedPoolArray<byte>(byteCount);
                 for (int i = 0; i < byteCount; i++)
                 {
-                    this.data.PoolArray[i] = (byte)(absoluteValue & 0xFF);
+                    this.data[i] = (byte)(absoluteValue & 0xFF);
                     absoluteValue >>= 8;
                 }
 
@@ -150,20 +150,20 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         {
             case 0:
                 this.data = new PinnedPoolArray<byte>(1);
-                this.data.PoolArray[0] = 0;
+                this.data[0] = 0;
                 break;
             case long.MinValue:
                 this.isNegative = true;
                 var longSize = sizeof(long);
                 this.data = new PinnedPoolArray<byte>(longSize);
-                this.data.PoolArray[0] = 0;
-                this.data.PoolArray[1] = 0;
-                this.data.PoolArray[2] = 0;
-                this.data.PoolArray[3] = 0;
-                this.data.PoolArray[4] = 0;
-                this.data.PoolArray[5] = 0;
-                this.data.PoolArray[6] = 0;
-                this.data.PoolArray[7] = 128;
+                this.data[0] = 0;
+                this.data[1] = 0;
+                this.data[2] = 0;
+                this.data[3] = 0;
+                this.data[4] = 0;
+                this.data[5] = 0;
+                this.data[6] = 0;
+                this.data[7] = 128;
                 break;
             default:
                 this.isNegative = value < 0;
@@ -171,7 +171,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
                 if (absoluteValue == 0)
                 {
                     this.data = new PinnedPoolArray<byte>(1);
-                    this.data.PoolArray[0] = 0;
+                    this.data[0] = 0;
                     break;
                 }
 
@@ -186,7 +186,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
                 this.data = new PinnedPoolArray<byte>(byteCount);
                 for (int i = 0; i < byteCount; i++)
                 {
-                    this.data.PoolArray[i] = (byte)(absoluteValue & 0xFF);
+                    this.data[i] = (byte)(absoluteValue & 0xFF);
                     absoluteValue >>= 8;
                 }
 
@@ -254,17 +254,29 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="data">The byte array containing the serialized representation.</param>
     /// <exception cref="EndOfStreamException">Thrown if the byte array is incomplete or corrupted.</exception>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="data"/> is <see langword="null"/>.</exception>
-    public SecureBigInteger(byte[] data)
+    public SecureBigInteger(byte[] data) : this(data ?? throw new ArgumentNullException(nameof(data)), data.Length)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SecureBigInteger"/> class from a byte array, which contains
+    /// the serialized representation.
+    /// </summary>
+    /// <param name="data">The byte array containing the serialized representation.</param>
+    /// <param name="length">The length of the byte array containing the serialized representation.</param>
+    /// <exception cref="EndOfStreamException">Thrown if the byte array is incomplete or corrupted.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="data"/> is <see langword="null"/>.</exception>
+    public SecureBigInteger(byte[] data, int length)
     {
         if (data is null)
         {
             throw new ArgumentNullException(nameof(data));
         }
 
-        var isNegativeRepresentation = IsNegativeRepresentation(data, data.Length);
+        var isNegativeRepresentation = IsNegativeRepresentation(data, length);
         this.isNegative = isNegativeRepresentation;
-        var length = GetActualLength(data, data.Length);
-        this.data = new PinnedPoolArray<byte>(length);
+        var trimmedLength = GetActualLength(data, length);
+        this.data = new PinnedPoolArray<byte>(trimmedLength);
         if (isNegativeRepresentation)
         {
             using var normalizedData = TwosComplement(data, this.Length);
@@ -387,7 +399,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         get
         {
             this.ThrowIfDisposed();
-            return !this.isNegative && this.Length == 1 && this.data.PoolArray[0] == 1;
+            return !this.isNegative && this.Length == 1 && this.data[0] == 1;
         }
     }
 
@@ -875,21 +887,21 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         if (length == 0 || data is null || (length == 1 && data[0] == 0))
         {
             var zeroArray = new PinnedPoolArray<byte>(1);
-            zeroArray.PoolArray[0] = 0;
+            zeroArray[0] = 0;
             return zeroArray;
         }
 
         var twosCompArray = new PinnedPoolArray<byte>(length);
         for (int i = 0; i < length; i++)
         {
-            twosCompArray.PoolArray[i] = (byte)~data[i];
+            twosCompArray[i] = (byte)~data[i];
         }
 
         int carry = 1;
         for (int i = 0; i < length && carry != 0; i++)
         {
-            int sum = twosCompArray.PoolArray[i] + carry;
-            twosCompArray.PoolArray[i] = (byte)sum;
+            int sum = twosCompArray[i] + carry;
+            twosCompArray[i] = (byte)sum;
             carry = sum >> 8;
         }
 
@@ -1284,7 +1296,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             using var exp = new SecureBigInteger(exponent);
             while (!exp.IsZeroInternal())
             {
-                if ((exp.data.PoolArray[0] & 1) == 1)
+                if ((exp.data[0] & 1) == 1)
                 {
                     using var temp = Multiply(result, baseValue);
                     using var tempMod = Remainder(temp, modulus);
@@ -1526,7 +1538,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         uint result = 0;
         for (var i = Math.Min(3, value.Length - 1); i >= 0; i--)
         {
-            result = (result << 8) | value.data.PoolArray[i];
+            result = (result << 8) | value.data[i];
         }
 
         if (result > int.MaxValue && !(value.isNegative && result == (uint)int.MaxValue + 1))
@@ -1561,7 +1573,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         var result = 0UL;
         for (var i = Math.Min(7, value.Length - 1); i >= 0; i--)
         {
-            result = result << 8 | value.data.PoolArray[i];
+            result = result << 8 | value.data[i];
         }
 
         if (result > long.MaxValue && !(value.isNegative && result == (ulong)long.MaxValue + 1))
@@ -1592,15 +1604,15 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             var sum = carry;
             if (i < leftLen)
             {
-                sum += left.data.PoolArray[i];
+                sum += left.data[i];
             }
 
             if (i < rightLen)
             {
-                sum += right.data.PoolArray[i];
+                sum += right.data[i];
             }
 
-            result.PoolArray[i] = (byte)(sum & 0xFF);
+            result[i] = (byte)(sum & 0xFF);
             carry = sum >> 8;
         }
 
@@ -1623,10 +1635,10 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         var i = 0;
         for (; i < leftLen; i++)
         {
-            int diff = left.data.PoolArray[i] - borrow;
+            int diff = left.data[i] - borrow;
             if (i < rightLen)
             {
-                diff -= right.data.PoolArray[i];
+                diff -= right.data[i];
             }
 
             if (diff < 0)
@@ -1639,7 +1651,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
                 borrow = 0;
             }
 
-            result.PoolArray[i] = (byte)diff;
+            result[i] = (byte)diff;
         }
 
         return new SecureBigInteger(result.PoolArray, GetActualLength(result.PoolArray, i), false);
@@ -1656,7 +1668,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         var leftLen = GetActualLength(left);
         var rightLen = GetActualLength(right);
 
-        if (leftLen == 1 && left.data.PoolArray[0] == 0 || rightLen == 1 && right.data.PoolArray[0] == 0)
+        if (leftLen == 1 && left.data[0] == 0 || rightLen == 1 && right.data[0] == 0)
         {
             return new SecureBigInteger(0);
         }
@@ -1664,7 +1676,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         using var result = new PinnedPoolArray<byte>(leftLen + rightLen);
         for (int i = 0; i < leftLen; i++)
         {
-            if (left.data.PoolArray[i] == 0)
+            if (left.data[i] == 0)
             {
                 continue;
             }
@@ -1672,13 +1684,13 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             ulong carry = 0;
             for (int j = 0; j < rightLen || carry > 0; j++)
             {
-                ulong product = result.PoolArray[i + j] + carry;
+                ulong product = result[i + j] + carry;
                 if (j < rightLen)
                 {
-                    product += (ulong)left.data.PoolArray[i] * right.data.PoolArray[j];
+                    product += (ulong)left.data[i] * right.data[j];
                 }
 
-                result.PoolArray[i + j] = (byte)(product & 0xFF);
+                result[i + j] = (byte)(product & 0xFF);
                 carry = product >> 8;
             }
         }
@@ -1864,12 +1876,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     private static int GetBitLength(SecureBigInteger secureBigInteger)
     {
         var len = GetActualLength(secureBigInteger);
-        if (len == 0 || (len == 1 && secureBigInteger.data.PoolArray[0] == 0))
+        if (len == 0 || (len == 1 && secureBigInteger.data[0] == 0))
         {
             return 0;
         }
 
-        var highByte = secureBigInteger.data.PoolArray[len - 1];
+        var highByte = secureBigInteger.data[len - 1];
         var bits = (len - 1) * 8;
 
         while (highByte > 0)
@@ -1918,15 +1930,15 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         for (var i = 0; i < actualLen; i++)
         {
-            int shifted = (secureBigInteger.data.PoolArray[i] << 1) | carry;
-            result.PoolArray[i] = (byte)(shifted & 0xFF);
+            int shifted = (secureBigInteger.data[i] << 1) | carry;
+            result[i] = (byte)(shifted & 0xFF);
             carry = shifted >> 8;
         }
 
         var finalLen = actualLen;
         if (carry > 0)
         {
-            result.PoolArray[actualLen] = (byte)carry;
+            result[actualLen] = (byte)carry;
             finalLen++;
         }
 
@@ -1952,14 +1964,14 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         for (int i = 0; i < value.Length - byteShift; i++)
         {
-            int val = value.data.PoolArray[i + byteShift] >> bitShift;
+            int val = value.data[i + byteShift] >> bitShift;
 
             if (i + byteShift + 1 < value.Length && bitShift > 0)
             {
-                val |= (value.data.PoolArray[i + byteShift + 1] << (8 - bitShift)) & 0xFF;
+                val |= (value.data[i + byteShift + 1] << (8 - bitShift)) & 0xFF;
             }
 
-            result.PoolArray[i] = (byte)val;
+            result[i] = (byte)val;
         }
 
         return new SecureBigInteger(result.PoolArray, GetActualLength(result.PoolArray, value.Length - byteShift), value.isNegative);
@@ -1979,7 +1991,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         {
             value.data.SecureClear();
             value.Length = 1;
-            value.data.PoolArray[0] = 0;
+            value.data[0] = 0;
             value.isNegative = false;
             return;
         }
@@ -1989,12 +2001,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         {
             for (int i = 0; i < value.Length - byteShift; i++)
             {
-                value.data.PoolArray[i] = value.data.PoolArray[i + byteShift];
+                value.data[i] = value.data[i + byteShift];
             }
 
             for (int i = value.Length - byteShift; i < value.Length; i++)
             {
-                value.data.PoolArray[i] = 0;
+                value.data[i] = 0;
             }
 
             value.Length -= byteShift;
@@ -2005,10 +2017,10 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         {
             for (int i = 0; i < value.Length - 1; i++)
             {
-                value.data.PoolArray[i] = (byte)(value.data.PoolArray[i] >> bitShift | value.data.PoolArray[i + 1] << (8 - bitShift));
+                value.data[i] = (byte)(value.data[i] >> bitShift | value.data[i + 1] << (8 - bitShift));
             }
 
-            value.data.PoolArray[value.Length - 1] >>= bitShift;
+            value.data[value.Length - 1] >>= bitShift;
         }
 
         value.TrimLeadingZerosInPlace();
@@ -2024,7 +2036,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <returns>
     /// True if the instance represents the value zero; otherwise, false.
     /// </returns>
-    private bool IsZeroInternal() => this.Length == 1 && this.data.PoolArray[0] == 0;
+    private bool IsZeroInternal() => this.Length == 1 && this.data[0] == 0;
 
     /// <summary>
     /// Throws an <see cref="ObjectDisposedException"/> if the current instance has been disposed.
@@ -2107,7 +2119,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         return CryptographicOperations.FixedTimeEquals(this.data.PoolArray.AsSpan(0, this.Length),
             other.data.PoolArray.AsSpan(0, other.Length));
 #else
-        return this.data.PoolArray.FixedTimeEquals(other.data.PoolArray, this.Length, other.Length);
+        return this.data.FixedTimeEquals(other.data);
 #endif
     }
 
@@ -2139,7 +2151,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 #else
         for (int i = 0; i < this.Length; i++)
         {
-            hash.Add(this.data.PoolArray[i]);
+            hash.Add(this.data[i]);
         }
 #endif
         return hash.ToHashCode();
@@ -2151,7 +2163,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             hash = hash * 31 + this.Length.GetHashCode();
             for (int i = 0; i < this.Length; i++)
             {
-                hash = hash * 31 + this.data.PoolArray[i].GetHashCode();
+                hash = hash * 31 + this.data[i].GetHashCode();
             }
 
             return hash;
@@ -2200,7 +2212,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         if (this.IsZeroInternal())
         {
             var zeroArray = new PinnedPoolArray<char>(1);
-            zeroArray.PoolArray[0] = DigitOffset;
+            zeroArray[0] = DigitOffset;
             return zeroArray;
         }
 
@@ -2220,7 +2232,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         while (CompareUnsigned(temp.data.PoolArray, temp.Length, zero.data.PoolArray, 1) > 0)
         {
             using var quotient = DivideUnsigned(temp, ten, out var rem);
-            result.PoolArray[index--] = (char)(DigitOffset + rem.data.PoolArray[0]);
+            result[index--] = (char)(DigitOffset + rem.data[0]);
             rem.Dispose();
             temp.Dispose();
             temp = new SecureBigInteger(quotient);
@@ -2230,16 +2242,20 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (this.isNegative)
         {
-            result.PoolArray[0] = '-';
+            result[0] = '-';
         }
 
         return result;
     }
 
     /// <summary>
-    /// 
+    /// Returns a string representation of the <see cref="SecureBigInteger"/> instance.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// A string that represents the current <see cref="SecureBigInteger"/> instance.
+    /// In debug mode, the string includes the numerical value of the object, while in release mode,
+    /// it returns a placeholder string indicating secured content.
+    /// </returns>
     public override string ToString()
     {
         this.ThrowIfDisposed();
@@ -2252,21 +2268,39 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 #endif
     }
 
-    public string ToHexString()
+    /// <summary>
+    /// Converts the current <see cref="SecureBigInteger"/> instance to its hexadecimal string representation.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="PinnedPoolArray{T}"/> containing the hexadecimal representation of the number.
+    /// If the instance is negative, the resulting hexadecimal string starts with a '-' character.
+    /// </returns>
+    public PinnedPoolArray<char> ToHexadecimal()
     {
         this.ThrowIfDisposed();
 
-        var sb = new StringBuilder();
+        var hexLength = this.Length * 2;
+        var totalLength = this.isNegative ? hexLength + 1 : hexLength;
+        var result = new PinnedPoolArray<char>(totalLength);
+        var index = 0;
+
         if (this.isNegative)
         {
-            sb.Append('-');
+            result[index++] = '-';
         }
 
         for (int i = this.Length - 1; i >= 0; i--)
         {
-            sb.Append(this.data.PoolArray[i].ToString("X2"));
+            byte b = this.data[i];
+            result[index++] = GetHexChar((b >> 4) & 0xF);
+            result[index++] = GetHexChar(b & 0xF);
         }
 
-        return sb.ToString();
+        return result;
+    }
+
+    private static char GetHexChar(int value)
+    {
+        return value < 10 ? (char)(DigitOffset + value) : (char)('A' + value - 10);
     }
 }

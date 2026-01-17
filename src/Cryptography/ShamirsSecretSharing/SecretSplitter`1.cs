@@ -204,7 +204,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         for (int i = 1; i < numberOfMinimumShares; i++)
         {
             rng.GetBytes(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
-            using var randomValue = Calculator.Create(randomBytePool.PoolArray, typeof(TNumber)) as Calculator<TNumber>;
+            using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>;
             if (randomValue == null)
             {
                 throw new InvalidOperationException("Random value generation failed!");
@@ -230,7 +230,8 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
 
         for (var i = 1; i < size; i++)
         {
-            var x = Calculator.Create(BitConverter.GetBytes(i), typeof(TNumber)) as Calculator<TNumber>;
+            var bytes = BitConverter.GetBytes(i);
+            var x = Calculator.Create(bytes, bytes.Length, typeof(TNumber)) as Calculator<TNumber>;
             points[i - 1] = new FinitePoint<TNumber>(x, polynomial, this.securityLevelManager.MersennePrime);
         }
 

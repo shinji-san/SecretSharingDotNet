@@ -2,6 +2,7 @@ namespace SecretSharingDotNet.Cryptography;
 
 using System;
 using System.Buffers;
+using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
@@ -18,7 +19,7 @@ using System.Threading;
 /// <typeparam name="T">
 /// The type of data stored in the array. Must be a value type.
 /// </typeparam>
-public sealed class PinnedPoolArray<T> : IDisposable where T : struct
+public sealed class PinnedPoolArray<T> : IStructuralComparable, IDisposable where T : struct
 {
     /// <summary>
     /// Indicates whether the current instance has been disposed.
@@ -81,6 +82,38 @@ public sealed class PinnedPoolArray<T> : IDisposable where T : struct
     }
 
     /// <summary>
+    /// Gets or sets the element at the specified index.
+    /// </summary>
+    /// <param name="index">The zero-based index of the element to get or set.</param>
+    /// <returns>The element at the specified index.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when the index is less than zero or greater than or equal to <see cref="Length"/>.
+    /// </exception>
+    public T this[int index]
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            if (index < 0 || index >= this.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index), "Index must be non-negative and less than the length of the array.");
+            }
+
+            return this.poolArray[index];
+        }
+        set
+        {
+            this.ThrowIfDisposed();
+            if (index < 0 || index >= this.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index), "Index must be non-negative and less than the length of the array.");
+            }
+
+            this.poolArray[index] = value;
+        }
+    }
+
+    /// <summary>
     /// Gets the capacity of the pinned byte array.
     /// </summary>
     public int Capacity
@@ -104,6 +137,35 @@ public sealed class PinnedPoolArray<T> : IDisposable where T : struct
         }
     }
 
+    int IStructuralComparable.CompareTo(object other, IComparer comparer)
+    {
+        if (other == null)
+        {
+            return 1;
+        }
+        
+        if (other is not PinnedPoolArray<T> otherArray)
+        {
+            throw new ArgumentException($"Argument must be an Array, but was {other?.GetType().Name ?? "null"}");
+        }
+
+        if (this.Length != otherArray.Length)
+        {
+            throw new ArgumentException($"Argument must be an Array of the same length, but was {otherArray.Length} instead of {this.Length}");
+        }
+
+        int i = 0;
+        int c = 0;
+
+        while (i < otherArray.Length && c == 0)
+        {
+            c = comparer.Compare(this[i], otherArray[i]);
+            i++;
+        }
+
+        return c;
+    }
+    
     /// <summary>
     /// Overwrites the contents of the specified byte array with multiple passes of different patterns
     /// to securely clear its data, ensuring sensitive information is not left in memory.

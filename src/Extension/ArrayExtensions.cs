@@ -32,6 +32,7 @@
 namespace SecretSharingDotNet.Extension;
 
 using System;
+using System.Runtime.CompilerServices;
 
 /// <summary>
 /// Provides extension methods for array operations.
@@ -52,37 +53,29 @@ internal static class ArrayExtensions
     }
 
     /// <summary>
-    /// Creates a new array (destination array) which is a subset of the original array (source array).
+    /// Compares two byte arrays for equality in a way that resists timing attacks.
     /// </summary>
-    /// <typeparam name="TArray">Data type of the array</typeparam>
-    /// <param name="array">source array</param>
-    /// <param name="index">start index</param>
-    /// <param name="count">number of elements to copy to new subset array</param>
-    /// <returns>An array that contains the specified number of elements from the <paramref name="index"/> of the <paramref name="array"/>.</returns>
-    public static TArray[] Subset<TArray>(this TArray[] array, int index, int count)
+    /// /// <param name="valueLeft">The first byte array to compare.</param>
+    /// <param name="valueRight">The second byte array to compare.</param>
+    /// <param name="lengthLeft">The length of the first byte array to compare.</param>
+    /// <param name="lengthRight">The length of the second byte array to compare.</param>
+    /// <returns>
+    /// <see langword="true"/> if the two byte arrays are equal in length and content; otherwise, <see langword="false"/>.
+    /// </returns>
+    /// <remarks>This is a Slow Equal Implementation to avoid a timing attack. See the reference for more details:
+    /// https://bryanavery.co.uk/cryptography-net-avoiding-timing-attack/</remarks>
+    [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
+    internal static bool FixedTimeEquals(this byte[] valueLeft, byte[] valueRight, int lengthLeft, int lengthRight)
     {
-        if (array == null)
+        var diff = (uint)(lengthLeft ^ lengthRight);
+        var maxLength = Math.Max(lengthLeft, lengthRight);
+        for (var i = 0; i < maxLength; i++)
         {
-            throw new ArgumentNullException(nameof(array));
+            var byteLeft = i < lengthLeft ? valueLeft[i] : (byte)0;
+            var byteRight = i < lengthRight ? valueRight[i] : (byte)0;
+            diff |= (uint)(byteLeft ^ byteRight);
         }
 
-        if (array.Length == 0)
-        {
-            throw new ArgumentException(ErrorMessages.EmptyCollection, nameof(array));
-        }
-
-        if (index < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(index), index, string.Format(ErrorMessages.ValueLowerThanX, 0));
-        }
-
-        if (count < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(count), count, string.Format(ErrorMessages.ValueLowerThanX, 1));
-        }
-
-        var subset = new TArray[count];
-        Array.Copy(array,index, subset, 0, count);
-        return subset;
+        return diff == 0;
     }
 }

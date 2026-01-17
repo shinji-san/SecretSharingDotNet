@@ -33,6 +33,7 @@ namespace SecretSharingDotNet.Math;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq.Expressions;
 
 /// <summary>
 /// This class represents the calculator strategy pattern to decouple Shamir's Secret Sharing
@@ -53,7 +54,9 @@ public abstract class Calculator<TNumber> :
     /// <summary>
     /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
     /// </summary>
-    private static readonly ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>> ChildCtors = new ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>>(GetDerivedCtors<TNumber, Calculator<TNumber>>());
+    private static readonly ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>> ChildCtors =
+        new ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>>(
+            GetDerivedCtors<Func<TNumber, Calculator<TNumber>>>());
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Calculator{TNumber}"/> class.

@@ -56,7 +56,8 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// Initializes a new instance of the <see cref="SecureBigIntCalculator"/> class.
     /// </summary>
     /// <param name="data">byte stream representation of a numeric value</param>
-    public SecureBigIntCalculator(byte[] data) : base(new SecureBigInteger(data))
+    /// <param name="length">length of the byte stream representation</param>
+    public SecureBigIntCalculator(byte[] data, int length) : base(new SecureBigInteger(data, length))
     {
     }
 

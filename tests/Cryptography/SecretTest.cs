@@ -41,22 +41,24 @@ using Xunit;
 
 public class SecretTest
 {
-    private static readonly Secret<BigInteger> Zero = new Secret<BigInteger>(Calculator<BigInteger>.Zero);
-    private static readonly Secret<BigInteger> One = new Secret<BigInteger>(Calculator<BigInteger>.One);
-    private static readonly Secret<BigInteger> Two = new Secret<BigInteger>(Calculator<BigInteger>.Two);
-        
     /// <summary>
     /// Equal secrets for testing.
     /// </summary>
     public static IEnumerable<object[]> EqualSecrets =>
         new List<object[]>
         {
-            new object[] { Zero, Zero},
-            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { One, One},
-            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.One)},
-            new object[] { Two, Two},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Zero), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.One), new Secret<BigInteger>(Calculator<BigInteger>.One)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.Two)
+            }
         };
 
     /// <summary>
@@ -92,18 +94,30 @@ public class SecretTest
     public static IEnumerable<object[]> NotEqualSecrets =>
         new List<object[]>
         {
-            new object[] { Zero, One},
-            new object[] { Zero, Two},
-            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.One)},
-            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
-            new object[] { One, Zero},
-            new object[] { One, Two},
-            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
-            new object[] { Two, Zero},
-            new object[] { Two, One},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.One)},
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Zero), new Secret<BigInteger>(Calculator<BigInteger>.One)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Zero), new Secret<BigInteger>(Calculator<BigInteger>.Two)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.One), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.One), new Secret<BigInteger>(Calculator<BigInteger>.Two)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.One)
+            }
         };
 
     /// <summary>
@@ -139,18 +153,30 @@ public class SecretTest
     public static IEnumerable<object[]> LowerOrEqualThanSecrets =>
         new List<object[]>
         {
-            new object[] { Zero, Zero},
-            new object[] { Zero, One},
-            new object[] { Zero, Two},
-            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.One)},
-            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
-            new object[] { One, One},
-            new object[] { One, Two},
-            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.One)},
-            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
-            new object[] { Two, Two},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Zero), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Zero), new Secret<BigInteger>(Calculator<BigInteger>.One)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Zero), new Secret<BigInteger>(Calculator<BigInteger>.Two)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.One), new Secret<BigInteger>(Calculator<BigInteger>.One)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.One), new Secret<BigInteger>(Calculator<BigInteger>.Two)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.Two)
+            }
         };
 
     /// <summary>
@@ -174,13 +200,19 @@ public class SecretTest
     public static IEnumerable<object[]> GreaterThanSecrets =>
         new List<object[]>
         {
-            new object[] { One, Zero},
-            new object[] { Two, Zero},
-            new object[] { Two, One},
-            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.One)},
-            new object[] { (BigInteger)20001, (BigInteger)20000},
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.One), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.One)
+            },
+            new object[] { (BigInteger)20001, (BigInteger)20000 }
         };
 
     /// <summary>
@@ -204,12 +236,18 @@ public class SecretTest
     public static IEnumerable<object[]> LowerThanSecrets =>
         new List<object[]>
         {
-            new object[] { Zero, One},
-            new object[] { Zero, Two},
-            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.One)},
-            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
-            new object[] { One, Two},
-            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Zero), new Secret<BigInteger>(Calculator<BigInteger>.One)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Zero), new Secret<BigInteger>(Calculator<BigInteger>.Two)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.One), new Secret<BigInteger>(Calculator<BigInteger>.Two)
+            }
         };
 
     /// <summary>
@@ -233,19 +271,34 @@ public class SecretTest
     public static IEnumerable<object[]> GreaterOrEqualThanSecrets =>
         new List<object[]>
         {
-            new object[] { Zero, Zero},
-            new object[] { One, Zero},
-            new object[] { Two, Zero},
-            new object[] { One, One},
-            new object[] { Two, One},
-            new object[] { Two, Two},
-            new object[] { Zero, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { One, new Secret<BigInteger>(Calculator<BigInteger>.One)},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Zero)},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.One)},
-            new object[] { Two, new Secret<BigInteger>(Calculator<BigInteger>.Two)},
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Zero), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.One), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.One), new Secret<BigInteger>(Calculator<BigInteger>.One)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.Zero)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.One)
+            },
+            new object[]
+            {
+                new Secret<BigInteger>(Calculator<BigInteger>.Two), new Secret<BigInteger>(Calculator<BigInteger>.Two)
+            }
         };
 
     /// <summary>
@@ -372,8 +425,8 @@ public class SecretTest
                 break;
             case byte[] bytes1:
                 secret = new Secret<BigInteger>(bytes1, bytes1.Length);
-                byte[] bytes2 = secret;
-                Assert.True(bytes1.SequenceEqual(bytes2));
+                var pinnedPoolArray = secret.ToByteArray();
+                Assert.True(bytes1.SequenceEqual(pinnedPoolArray.PoolArray));
                 break;
             case null:
                 return;

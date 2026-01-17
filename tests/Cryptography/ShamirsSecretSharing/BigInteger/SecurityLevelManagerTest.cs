@@ -39,6 +39,7 @@ using System;
 using System.Numerics;
 using Xunit;
 using Moq;
+using System.Collections.Generic;
 
 public class SecurityLevelManagerTest
 {
@@ -177,7 +178,8 @@ public class SecurityLevelManagerTest
         // Arrange
         var securityLevelManager = new SecurityLevelManager<BigInteger>();
         var initialSecurityLevel = securityLevelManager.SecurityLevel;
-        var maximumY = new BigIntCalculator([0xFF, 0x0F]);
+        byte[] byteArray = [0xFF, 0x0F];
+        var maximumY = new BigIntCalculator(byteArray, byteArray.Length);
 
         // Act
         securityLevelManager.AdjustSecurityLevel(maximumY);
@@ -192,7 +194,8 @@ public class SecurityLevelManagerTest
         // Arrange
         var securityLevelManager = new SecurityLevelManager<BigInteger>();
         var initialSecurityLevel = securityLevelManager.SecurityLevel;
-        var maximumY = new BigIntCalculator([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F]);
+        byte[] byteArray = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F];
+        var maximumY = new BigIntCalculator(byteArray, byteArray.Length);
 
         // Act
         securityLevelManager.AdjustSecurityLevel(maximumY);
@@ -208,7 +211,8 @@ public class SecurityLevelManagerTest
         var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 31;
         securityLevelManager.SecurityLevel = initialSecurityLevel;
-        var maximumY = new BigIntCalculator([0x0F, 0x0F]);
+        byte[] byteArray = [0x0F, 0x0F];
+        var maximumY = new BigIntCalculator(byteArray, byteArray.Length);
 
         // Act
         securityLevelManager.AdjustSecurityLevel(maximumY);

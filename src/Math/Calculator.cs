@@ -55,12 +55,14 @@ public abstract class Calculator : IDisposable
     /// Saves a dictionary of number data types derived from the <see cref="Calculator{TNumber}"/> class.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2104:DoNotDeclareReadOnlyMutableReferenceTypes")]
-    private static readonly IReadOnlyDictionary<Type, Type> ChildTypes = new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
+    private static readonly ReadOnlyDictionary<Type, Type> ChildTypes =
+        new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
 
     /// <summary>
     /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
     /// </summary>
-    private static readonly IReadOnlyDictionary<Type, Func<byte[], Calculator>> ChildBaseCtors = new ReadOnlyDictionary<Type, Func<byte[], Calculator>>(GetDerivedCtors<byte[], Calculator>());
+    private static readonly IReadOnlyDictionary<Type, Func<byte[], int, Calculator>> ChildBaseCtors =
+        new ReadOnlyDictionary<Type, Func<byte[], int, Calculator>>(GetDerivedCtors<Func<byte[], int, Calculator>>());
 
     /// <summary>
     /// Gets the number of elements of the byte representation of the <see cref="Calculator"/> object.
@@ -105,9 +107,10 @@ public abstract class Calculator : IDisposable
     /// Creates a new instance derived from the <see cref="Calculator"/> class.
     /// </summary>
     /// <param name="data">byte array representation of the <paramref name="numberType"/></param>
+    /// <param name="length">Length of the byte array</param>
     /// <param name="numberType">Type of number</param>
-    /// <returns></returns>
-    public static Calculator Create(byte[] data, Type numberType) => ChildBaseCtors[numberType](data);
+    /// <returns>A <see cref="Calculator"/> instance</returns>
+    public static Calculator Create(byte[] data, int length, Type numberType) => ChildBaseCtors[numberType](data, length);
 
     /// <summary>
     /// Returns a <see cref="System.String"/> that represents the current <see cref="Calculator"/>.
@@ -118,23 +121,51 @@ public abstract class Calculator : IDisposable
     /// <summary>
     /// Returns a dictionary of constructors of number data types derived from the <see cref="Calculator"/> class.
     /// </summary>
-    /// <returns></returns>
-    protected static Dictionary<Type, Func<TParameter, TCalculator>> GetDerivedCtors<TParameter, TCalculator>() where TCalculator : Calculator
+    /// <returns>A dictionary of constructors of number data types derived from the <see cref="Calculator"/> class.</returns>
+    protected static Dictionary<Type, TDelegate> GetDerivedCtors<TDelegate>() where TDelegate : Delegate
     {
-        var res = new Dictionary<Type, Func<TParameter, TCalculator>>(ChildTypes.Count);
-        var paramType = typeof(TParameter);
-        var parameterExpression = Expression.Parameter(paramType);
+        var delegateType = typeof(TDelegate);
+        var methodInfo = delegateType.GetMethod(nameof(Func<>.Invoke)) ??
+                         throw new InvalidOperationException(
+                             $"Delegate type '{delegateType.Name}' does not have an '{nameof(Func<>.Invoke)}' method.");
+        var parameterTypes = methodInfo.GetParameters().Select(x => x.ParameterType).ToArray();
+        var parameterExpressions = parameterTypes.Select(Expression.Parameter).ToArray();
+        var expressions = parameterExpressions.OfType<Expression>().ToArray();
+
+        var res = new Dictionary<Type, TDelegate>(ChildTypes.Count);
         foreach (var childType in ChildTypes)
         {
-            var ctorInfo = childType.Value.GetConstructor([paramType]);
-            if (ctorInfo == null)
+            var constructorInfos = childType.Value.GetConstructors();
+            foreach (var constructorInfo in constructorInfos)
             {
-                continue;
-            }
+                var ctorParams = constructorInfo.GetParameters();
+                if (ctorParams.Length != parameterTypes.Length)
+                {
+                    continue;
+                }
 
-            var ctor = Expression.Lambda<Func<TParameter, TCalculator>>(Expression.New(ctorInfo, parameterExpression), parameterExpression)
-                .Compile();
-            res.Add(childType.Key, ctor);
+                var matches = true;
+                for (int i = 0; i < ctorParams.Length; i++)
+                {
+                    if (ctorParams[i].ParameterType == parameterTypes[i])
+                    {
+                        continue;
+                    }
+
+                    matches = false;
+                    break;
+                }
+
+                if (!matches)
+                {
+                    continue;
+                }
+
+                var ctor = Expression
+                    .Lambda<TDelegate>(Expression.New(constructorInfo, expressions), parameterExpressions)
+                    .Compile();
+                res.Add(childType.Key, ctor);
+            }
         }
 
         return res;
@@ -148,8 +179,9 @@ public abstract class Calculator : IDisposable
     private static Dictionary<Type, Type> GetDerivedNumberTypes()
     {
         var asm = Assembly.GetAssembly(typeof(Calculator));
-        var listOfClasses = asm?.GetTypes().Where(x => x.IsSubclassOf(typeof(Calculator)) && !x.IsGenericType);
-        return listOfClasses?.ToDictionary(x => x.BaseType?.GetGenericArguments()[0]) ?? new Dictionary<Type, Type>();
+        var listOfClasses = asm?.GetTypes()
+            .Where(x => x.IsSubclassOf(typeof(Calculator)) && !x.IsGenericType);
+        return listOfClasses?.ToDictionary(type => type.BaseType?.GetGenericArguments()[0]) ?? [];
     }
 
     /// <summary>
