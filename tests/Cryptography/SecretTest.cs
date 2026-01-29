@@ -314,8 +314,16 @@ public class SecretTest
         Secret<BigInteger> left,
         Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.False(left < right);
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.False(left < right);
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -329,8 +337,16 @@ public class SecretTest
         Secret<BigInteger> left,
         Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.True(left >= right);
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.True(left >= right);
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -344,8 +360,16 @@ public class SecretTest
         Secret<BigInteger> left,
         Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.False(left >= right);
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.False(left >= right);
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -359,8 +383,16 @@ public class SecretTest
         Secret<BigInteger> left,
         Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.True(left > right);
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.True(left > right);
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -374,7 +406,7 @@ public class SecretTest
         const string secretText = "P&ssw0rd!";
 
         // Act
-        Secret<BigInteger> secret = secretText;
+        using Secret<BigInteger> secret = secretText;
 
         // Assert
         Assert.Equal(secretText, secret.ToString());
@@ -392,7 +424,7 @@ public class SecretTest
     public void ToBase64_FromValidSecret_ReturnsSecretAsBase64String(string base64Secret)
     {
         // Arrange
-        var secret = new Secret<BigInteger>(base64Secret);
+        using var secret = new Secret<BigInteger>(base64Secret);
 
         // Act
         string actualBase64Secret = secret.ToBase64();
@@ -411,28 +443,35 @@ public class SecretTest
     public void CastObjectToSecret_FromSupportedType_ReturnsSecret(object secretSource)
     {
         Secret<BigInteger> secret;
-        switch (secretSource)
+        try
         {
-            case string password:
-                secret = password;
-                Assert.Equal(password, secret);
-                break;
-            case BigInteger bigNumber:
-                secret = bigNumber;
-                Assert.Equal(bigNumber, (BigInteger)secret);
-                break;
-            case int number:
-                secret = (BigInteger)number;
-                Assert.Equal(number, (BigInteger)secret);
-                break;
-            case byte[] byteArray:
-                secret = new Secret<BigInteger>(byteArray, byteArray.Length);
-                var pinnedPoolArray = secret.ToByteArray();
-                var cmp = new CountedEqualityComparer<byte>(count: byteArray.Length);
-                Assert.True(pinnedPoolArray.Equals(byteArray, cmp));
-                break;
-            case null:
-                return;
+            switch (secretSource)
+            {
+                case string password:
+                    secret = password;
+                    Assert.Equal(password, secret);
+                    break;
+                case BigInteger bigNumber:
+                    secret = bigNumber;
+                    Assert.Equal(bigNumber, (BigInteger)secret);
+                    break;
+                case int number:
+                    secret = (BigInteger)number;
+                    Assert.Equal(number, (BigInteger)secret);
+                    break;
+                case byte[] byteArray:
+                    secret = new Secret<BigInteger>(byteArray, byteArray.Length);
+                    var pinnedPoolArray = secret.ToByteArray();
+                    var cmp = new CountedEqualityComparer<byte>(count: byteArray.Length);
+                    Assert.True(pinnedPoolArray.Equals(byteArray, cmp));
+                    break;
+                case null:
+                    return;
+            }
+        }
+        finally
+        {
+            secret.Dispose();
         }
     }
 
@@ -445,7 +484,7 @@ public class SecretTest
     {
         // Arrange
         byte[] bytes = [0x1, 0x2, 0x3, 0x4];
-        var secret = new Secret<BigInteger>(bytes, bytes.Length);
+        using var secret = new Secret<BigInteger>(bytes, bytes.Length);
 
         // Act
         ReadOnlySpan<byte> readOnlySpan = secret;
