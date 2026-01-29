@@ -206,16 +206,16 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
             throw new ArgumentException($"Argument must be an Array of the same length, but was {otherArray.Length} instead of {this.Length}");
         }
 
-        int i = 0;
-        int c = 0;
+        var index = 0;
+        var result = 0;
 
-        while (i < otherArray.Length && c == 0)
+        while (index < otherArray.Length && result == 0)
         {
-            c = comparer.Compare(this[i], otherArray[i]);
-            i++;
+            result = comparer.Compare(this[index], otherArray[index]);
+            index++;
         }
 
-        return c;
+        return result;
     }
 
     /// <summary>
@@ -224,7 +224,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <param name="other">The object to compare to the current instance.</param>
     /// <param name="comparer">The equality comparer used to evaluate equality.</param>
     /// <returns>
-    /// <c>true</c> if the current instance and the specified object are equal; otherwise, <c>false</c>.
+    /// <see langword="true"/> if the current instance and the specified object are equal; otherwise, <see langword="false"/>
     /// </returns>
     /// <exception cref="ArgumentException">
     /// Thrown when the specified comparer is not an instance of a counted comparer.
@@ -239,7 +239,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
             return true;
         }
 
-        int otherLength = 0;
+        int otherLength;
         if (other is not T[] otherArray)
         {
             if (other is not PinnedPoolArray<T> otherPinnedArray)
@@ -262,12 +262,12 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
                 "to specify the number of elements to compare.",
                 nameof(comparer));
         }
-        
+
         var count = countedComparer.Count;
         if (count > this.Length || count > otherLength)
         {
             throw new ArgumentOutOfRangeException(
-                nameof(countedComparer),
+                nameof(comparer),
                 $"Count '{count}' exceeds one of the array lengths ({this.Length}, {otherLength}).");
         }
 
@@ -282,6 +282,24 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         return true;
     }
 
+    /// <summary>
+    /// Computes a hash code for the current instance by using the provided comparer,
+    /// considering a specific number of elements defined by the comparer.
+    /// </summary>
+    /// <param name="comparer">
+    /// An <see cref="IEqualityComparer"/> instance that specifies how to compute the hash
+    /// and the number of elements to include in the hash computation. Must implement
+    /// <see cref="ICountedEqualityComparer{T}"/>.
+    /// </param>
+    /// <returns>
+    /// An <see cref="int"/> hash code calculated based on the specified number of array elements.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the provided comparer is not an instance of <see cref="ICountedEqualityComparer{T}"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when the number of elements specified by the comparer exceeds the length of the array.
+    /// </exception>
     public int GetHashCode(IEqualityComparer comparer)
     {
         if (comparer is not ICountedEqualityComparer<T> countedComparer)
@@ -293,7 +311,6 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         }
 
         var count = countedComparer.Count;
-
         if (count > this.Length)
         {
             throw new ArgumentOutOfRangeException(
@@ -301,21 +318,31 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
                 $"Count '{count}' exceeds the array length ({this.Length}).");
         }
 
-        // Deterministic structural hash (no System.HashCode in net47).
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+        var hash = new HashCode();
+        hash.Add(count);
+
+        for (var i = 0; i < count; i++)
+        {
+            hash.Add(this.poolArray[i], countedComparer);
+        }
+
+        return hash.ToHashCode();
+#else
         unchecked
         {
             int hash = 17;
-            hash = (hash * 31) + count;
+            hash = hash * 31 + count;
 
             for (int i = 0; i < count; i++)
             {
-                // Counted comparer delegates to element comparer; default comparer returns 0 for null refs.
                 int elementHash = countedComparer.GetHashCode(this.poolArray[i]);
-                hash = (hash * 31) + elementHash;
+                hash = hash * 31 + elementHash;
             }
 
             return hash;
         }
+#endif
     }
 
     /// <summary>
