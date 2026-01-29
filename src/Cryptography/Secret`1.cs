@@ -454,8 +454,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     internal static Secret<TNumberStatic> FromCoefficient<TNumberStatic>(Calculator<TNumberStatic> coefficient)
     {
         using var coefficientByteRepresentation = coefficient.ByteRepresentation;
-        var secretBytes = coefficientByteRepresentation.PoolArray.Take(coefficient.ByteCount - MarkByteCount).ToArray();
-        return new Secret<TNumberStatic>(secretBytes, secretBytes.Length);
+        return new Secret<TNumberStatic>(coefficientByteRepresentation.PoolArray, coefficient.ByteCount - MarkByteCount);
     }
 
     /// <summary>
