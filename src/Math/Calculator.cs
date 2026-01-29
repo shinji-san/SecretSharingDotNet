@@ -31,7 +31,7 @@
 
 namespace SecretSharingDotNet.Math;
 
-using Cryptography;
+using Cryptography.SecureArray;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;

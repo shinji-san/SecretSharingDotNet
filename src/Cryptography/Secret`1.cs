@@ -33,6 +33,7 @@ namespace SecretSharingDotNet.Cryptography;
 
 using Extension;
 using Math;
+using SecureArray;
 using System;
 #if NET8_0_OR_GREATER
 using System.Buffers;

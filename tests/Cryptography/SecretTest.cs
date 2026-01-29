@@ -32,10 +32,12 @@
 namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureArray;
 using SecretSharingDotNet.Math;
+#if NET8_0_OR_GREATER
 using System;
+#endif
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using Xunit;
 
@@ -423,10 +425,11 @@ public class SecretTest
                 secret = (BigInteger)number;
                 Assert.Equal(number, (BigInteger)secret);
                 break;
-            case byte[] bytes1:
-                secret = new Secret<BigInteger>(bytes1, bytes1.Length);
+            case byte[] byteArray:
+                secret = new Secret<BigInteger>(byteArray, byteArray.Length);
                 var pinnedPoolArray = secret.ToByteArray();
-                Assert.True(bytes1.SequenceEqual(pinnedPoolArray.PoolArray));
+                var cmp = new CountedEqualityComparer<byte>(count: byteArray.Length);
+                Assert.True(pinnedPoolArray.Equals(byteArray, cmp));
                 break;
             case null:
                 return;

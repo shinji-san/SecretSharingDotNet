@@ -34,6 +34,7 @@
 namespace SecretSharingDotNet.Extension;
 
 using Cryptography;
+using Cryptography.SecureArray;
 using System;
 using System.Runtime.CompilerServices;
 

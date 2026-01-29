@@ -1,4 +1,35 @@
-namespace SecretSharingDotNet.Cryptography;
+// ----------------------------------------------------------------------------
+// <copyright file="PinnedPoolArray`1.cs" company="Private">
+// Copyright (c) 2025 All Rights Reserved
+// </copyright>
+// <author>Sebastian Walther</author>
+// <date>12/07/2025 06:20:00 PM</date>
+// ----------------------------------------------------------------------------
+
+#region License
+// ----------------------------------------------------------------------------
+// Copyright 2025 Sebastian Walther
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+#endregion
+
+namespace SecretSharingDotNet.Cryptography.SecureArray;
 
 using System;
 using System.Buffers;
@@ -19,7 +50,7 @@ using System.Threading;
 /// <typeparam name="T">
 /// The type of data stored in the array. Must be a value type.
 /// </typeparam>
-public sealed class PinnedPoolArray<T> : IStructuralComparable, IDisposable where T : struct
+public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquatable, IDisposable where T : struct
 {
     /// <summary>
     /// Indicates whether the current instance has been disposed.
@@ -137,16 +168,37 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IDisposable wher
         }
     }
 
+    /// <summary>
+    /// Compares the current <see cref="PinnedPoolArray{T}"/> instance to another object using a specified comparer.
+    /// </summary>
+    /// <param name="other">
+    /// The object to compare with the current instance. It must be another <see cref="PinnedPoolArray{T}"/>
+    /// of the same length and type, or an <see cref="ArgumentException"/> will be thrown.
+    /// </param>
+    /// <param name="comparer">
+    /// The <see cref="IComparer"/> implementation to use for comparing individual elements
+    /// of the two arrays.
+    /// </param>
+    /// <returns>
+    /// An integer indicating the relative order of the objects being compared:
+    /// -1 if the current instance is less than the `other`.
+    /// 0 if the current instance is equal to the `other`.
+    /// 1 if the current instance is greater than the `other`.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown if the `other` object is not a <see cref="PinnedPoolArray{T}"/>,
+    /// or if the lengths of the arrays differ.
+    /// </exception>
     int IStructuralComparable.CompareTo(object other, IComparer comparer)
     {
         if (other == null)
         {
             return 1;
         }
-        
+
         if (other is not PinnedPoolArray<T> otherArray)
         {
-            throw new ArgumentException($"Argument must be an Array, but was {other?.GetType().Name ?? "null"}");
+            throw new ArgumentException($"Argument must be an Array, but was {other.GetType().Name}");
         }
 
         if (this.Length != otherArray.Length)
@@ -165,7 +217,107 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IDisposable wher
 
         return c;
     }
-    
+
+    /// <summary>
+    /// Determines whether the current instance is equal to another object based on the specified equality comparer.
+    /// </summary>
+    /// <param name="other">The object to compare to the current instance.</param>
+    /// <param name="comparer">The equality comparer used to evaluate equality.</param>
+    /// <returns>
+    /// <c>true</c> if the current instance and the specified object are equal; otherwise, <c>false</c>.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the specified comparer is not an instance of a counted comparer.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when the count specified by the comparer exceeds the length of one of the arrays.
+    /// </exception>
+    public bool Equals(object other, IEqualityComparer comparer)
+    {
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        int otherLength = 0;
+        if (other is not T[] otherArray)
+        {
+            if (other is not PinnedPoolArray<T> otherPinnedArray)
+            {
+                return false;
+            }
+
+            otherArray = otherPinnedArray.poolArray;
+            otherLength = otherPinnedArray.Length;
+        }
+        else
+        {
+            otherLength = otherArray.Length;
+        }
+
+        if (comparer is not ICountedEqualityComparer<T> countedComparer)
+        {
+            throw new ArgumentException(
+                $"A counted comparer is required. Use '{typeof(CountedEqualityComparer<T>).FullName}' " +
+                "to specify the number of elements to compare.",
+                nameof(comparer));
+        }
+        
+        var count = countedComparer.Count;
+        if (count > this.Length || count > otherLength)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(countedComparer),
+                $"Count '{count}' exceeds one of the array lengths ({this.Length}, {otherLength}).");
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            if (!countedComparer.Equals(this.poolArray[i], otherArray[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public int GetHashCode(IEqualityComparer comparer)
+    {
+        if (comparer is not ICountedEqualityComparer<T> countedComparer)
+        {
+            throw new ArgumentException(
+                $"A counted comparer is required. Use '{typeof(CountedEqualityComparer<T>).FullName}' " +
+                "to specify the number of elements to hash.",
+                nameof(comparer));
+        }
+
+        var count = countedComparer.Count;
+
+        if (count > this.Length)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(countedComparer),
+                $"Count '{count}' exceeds the array length ({this.Length}).");
+        }
+
+        // Deterministic structural hash (no System.HashCode in net47).
+        unchecked
+        {
+            int hash = 17;
+            hash = (hash * 31) + count;
+
+            for (int i = 0; i < count; i++)
+            {
+                // Counted comparer delegates to element comparer; default comparer returns 0 for null refs.
+                int elementHash = countedComparer.GetHashCode(this.poolArray[i]);
+                hash = (hash * 31) + elementHash;
+            }
+
+            return hash;
+        }
+    }
+
     /// <summary>
     /// Overwrites the contents of the specified byte array with multiple passes of different patterns
     /// to securely clear its data, ensuring sensitive information is not left in memory.

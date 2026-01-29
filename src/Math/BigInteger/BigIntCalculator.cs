@@ -34,7 +34,7 @@ namespace SecretSharingDotNet.Math.BigInteger;
 #if (!NET8_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER)
 using Extension;
 #endif
-using Cryptography;
+using Cryptography.SecureArray;
 using System;
 using System.Numerics;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)

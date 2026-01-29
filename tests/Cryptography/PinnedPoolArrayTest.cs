@@ -1,8 +1,8 @@
-using SecretSharingDotNet.Cryptography;
+namespace SecretSharingDotNetTest.Cryptography;
+
+using SecretSharingDotNet.Cryptography.SecureArray;
 using Xunit;
 using System;
-
-namespace SecretSharingDotNetTest.Cryptography;
 
 public class PinnedPoolArrayTest
 {

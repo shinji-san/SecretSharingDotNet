@@ -31,7 +31,7 @@
 
 namespace SecretSharingDotNet.Math.SecureBigInteger;
 
-using Cryptography;
+using Cryptography.SecureArray;
 using System;
 
 /// <summary>
