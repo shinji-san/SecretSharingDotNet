@@ -462,8 +462,8 @@ public class SecretTest
                 case byte[] byteArray:
                     secret = new Secret<BigInteger>(byteArray, byteArray.Length);
                     var pinnedPoolArray = secret.ToByteArray();
-                    var cmp = new CountedEqualityComparer<byte>(count: byteArray.Length);
-                    Assert.True(pinnedPoolArray.Equals(byteArray, cmp));
+                    var countedEqualityComparer = new CountedEqualityComparer<byte>(count: byteArray.Length);
+                    Assert.True(pinnedPoolArray.Equals(byteArray, countedEqualityComparer));
                     break;
                 case null:
                     return;
