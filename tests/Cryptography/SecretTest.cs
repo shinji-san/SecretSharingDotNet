@@ -409,7 +409,51 @@ public class SecretTest
         using Secret<BigInteger> secret = secretText;
 
         // Assert
+#if DEBUG
         Assert.Equal(secretText, secret.ToString());
+#else
+        Assert.Equal("*** Secured Value ***", secret.ToString());
+#endif
+    }
+
+    /// <summary>
+    /// Tests the ToCharArray method of the <see cref="Secret{TNumber}"/> class.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Fact]
+    public void ToCharArray_FromValidSecret_ReturnsSecretAsCharArray()
+    {
+        // Arrange
+        const string secretText = "P&ssw0rd!";
+        char[] expectedChars = secretText.ToCharArray();
+
+        // Act
+        using Secret<BigInteger> secret = secretText;
+        using PinnedPoolArray<char> charArray = secret.ToCharArray();
+
+        // Assert
+        Assert.Equal(expectedChars.Length, charArray.Length);
+        for (int i = 0; i < expectedChars.Length; i++)
+        {
+            Assert.Equal(expectedChars[i], charArray.PoolArray[i]);
+        }
+    }
+
+    /// <summary>
+    /// Tests the ToCharArray method of the <see cref="Secret{TNumber}"/> class with an empty secret.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Fact]
+    public void ToCharArray_FromEmptySecret_ReturnsEmptyCharArray()
+    {
+        // Arrange
+        using var emptySecret = new Secret<BigInteger>(new byte[] { 0x00 }, 1);
+
+        // Act
+        using PinnedPoolArray<char> charArray = emptySecret.ToCharArray();
+
+        // Assert
+        Assert.True(charArray.Length <= 1);
     }
 
     /// <summary>

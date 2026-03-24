@@ -35,10 +35,10 @@ using Extension;
 using Math;
 using SecureArray;
 using System;
+using System.Diagnostics;
 #if NET8_0_OR_GREATER
 using System.Buffers;
 #endif
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -46,6 +46,11 @@ using System.Text;
 /// This class represents the secret including members to parse or convert it.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer data type)</typeparam>
+#if DEBUG
+[DebuggerDisplay("{ToString()}")]
+#else
+[DebuggerDisplay("*** Secured Value ***")]
+#endif
 public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparable<Secret<TNumber>>, IDisposable
 {
     /// <summary>
@@ -381,16 +386,23 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// Converts the value of <see cref="Secret{TNumber}"/> structure to its equivalent <see cref="string"/> representation
     /// that is Unicode encoded.
     /// </summary>
-    /// <returns><see cref="string"/> representation of <see cref="Secret{TNumber}"/></returns>
+    /// <returns>
+    /// In Debug builds: the UTF-8 decoded <see cref="string"/> representation of the secret.
+    /// In Release builds: always returns <c>"*** Secured Value ***"</c> to prevent accidental exposure
+    /// in logs, exception messages or other output.
+    /// </returns>
     public override string ToString()
     {
+#if DEBUG
         if (this.secretNumber is not { Length: > MarkByteCount })
         {
             return string.Empty;
         }
 
-        // Todo
         return Encoding.UTF8.GetString(this.secretNumber.PoolArray, 0, this.secretNumber.Length - MarkByteCount);
+#else
+        return "*** Secured Value ***";
+#endif
     }
 
     /// <summary>
@@ -408,6 +420,36 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public PinnedPoolArray<byte> ToByteArray()
     {
         return this.secretNumber.Subset(0, this.secretNumber.Length - MarkByteCount);
+    }
+
+    /// <summary>
+    /// Converts the secret bytes to a <see cref="PinnedPoolArray{Char}"/> containing the UTF-16 characters.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="PinnedPoolArray{Char}"/> with the decoded characters of the secret, excluding the termination byte.
+    /// The caller is responsible for disposing the returned instance.
+    /// Returns a <see cref="PinnedPoolArray{Char}"/> with length zero if the secret is empty or uninitialized.
+    /// </returns>
+    public PinnedPoolArray<char> ToCharArray()
+    {
+        if (this.secretNumber is not { Length: > MarkByteCount })
+        {
+            return new PinnedPoolArray<char>(1);
+        }
+
+        int byteCount = this.secretNumber.Length - MarkByteCount;
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+        ReadOnlySpan<byte> sourceSpan = this.secretNumber.PoolArray.AsSpan(0, byteCount);
+        int charCount = Encoding.UTF8.GetCharCount(sourceSpan);
+        var result = new PinnedPoolArray<char>(charCount);
+        Encoding.UTF8.GetChars(sourceSpan, result.PoolArray.AsSpan(0, charCount));
+        return result;
+#else
+        int charCount = Encoding.UTF8.GetCharCount(this.secretNumber.PoolArray, 0, byteCount);
+        var result = new PinnedPoolArray<char>(charCount);
+        Encoding.UTF8.GetChars(this.secretNumber.PoolArray, 0, byteCount, result.PoolArray, 0);
+        return result;
+#endif
     }
 
 #if NET8_0_OR_GREATER
