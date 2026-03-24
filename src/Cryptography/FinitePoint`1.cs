@@ -33,6 +33,7 @@ namespace SecretSharingDotNet.Cryptography;
 
 using Math;
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -40,6 +41,11 @@ using System.Linq;
 /// Represents the support point of the polynomial
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
+#if DEBUG
+[DebuggerDisplay("{ToString()}")]
+#else
+[DebuggerDisplay("*** Secured Value ***")]
+#endif
 internal readonly record struct FinitePoint<TNumber> : IComparable<FinitePoint<TNumber>>
 {
     /// <summary>

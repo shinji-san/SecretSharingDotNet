@@ -40,6 +40,7 @@ using Cryptography.SecureArray;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -54,6 +55,11 @@ using System.Threading;
 /// Represents a secure arbitrary-precision integer with support for basic arithmetic operations.
 /// The internal data is securely cleared from memory when the instance is disposed.
 /// </summary>
+#if DEBUG
+[DebuggerDisplay("{ToString()}")]
+#else
+[DebuggerDisplay("*** Secured Value ***")]
+#endif
 public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>, IComparable<SecureBigInteger>
 {
     // Todo: Data is Little-Endian Byte-Array

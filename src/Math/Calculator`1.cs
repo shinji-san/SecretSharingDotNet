@@ -31,6 +31,7 @@
 namespace SecretSharingDotNet.Math;
 
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq.Expressions;
@@ -40,6 +41,11 @@ using System.Linq.Expressions;
 /// implementation from the concrete numeric data type like BigInteger.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type</typeparam>
+#if DEBUG
+[DebuggerDisplay("{ToString()}")]
+#else
+[DebuggerDisplay("*** Secured Value ***")]
+#endif
 public abstract class Calculator<TNumber> :
     Calculator,
     IEquatable<Calculator<TNumber>>,
