@@ -467,11 +467,54 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// Converts the value of <see cref="Secret{TNumber}"/> structure to its equivalent <see cref="string"/> representation
     /// that is encoded with base-64 digits.
     /// </summary>
-    /// <returns>The <see cref="string"/> representation in base 64</returns>
-    public string ToBase64()
+    /// <returns>
+    /// In Debug builds: the base-64 encoded <see cref="string"/> representation of the secret.
+    /// In Release builds: always returns <c>"*** Secured Value ***"</c> to prevent accidental exposure
+    /// in logs, exception messages or other output.
+    /// </returns>
+    public string ToBase64String()
     {
-        // Todo
+#if DEBUG
+        if (this.secretNumber is not { Length: > MarkByteCount })
+        {
+            return string.Empty;
+        }
+
         return Convert.ToBase64String(this.secretNumber.PoolArray, 0, this.secretNumber.Length - MarkByteCount);
+#else
+        return "*** Secured Value ***";
+#endif
+    }
+
+    /// <summary>
+    /// Converts the secret bytes to a <see cref="PinnedPoolArray{Char}"/> containing the base-64 encoded characters.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="PinnedPoolArray{Char}"/> with the base-64 encoded characters of the secret,
+    /// excluding the termination byte. The caller is responsible for disposing the returned instance.
+    /// Returns a <see cref="PinnedPoolArray{Char}"/> with length zero if the secret is empty or uninitialized.
+    /// </returns>
+    public PinnedPoolArray<char> ToBase64CharArray()
+    {
+        if (this.secretNumber is not { Length: > MarkByteCount })
+        {
+            return new PinnedPoolArray<char>(0);
+        }
+
+        int byteCount = this.secretNumber.Length - MarkByteCount;
+        int charCount = ((byteCount + 2) / 3) * 4;
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+        ReadOnlySpan<byte> sourceSpan = this.secretNumber.PoolArray.AsSpan(0, byteCount);
+        var result = new PinnedPoolArray<char>(charCount);
+        Convert.TryToBase64Chars(sourceSpan, result.PoolArray.AsSpan(0, charCount), out int charsWritten);
+        result.Length = charsWritten;
+        return result;
+#else
+        string base64 = Convert.ToBase64String(this.secretNumber.PoolArray, 0, byteCount);
+        var result = new PinnedPoolArray<char>(base64.Length);
+        base64.CopyTo(0, result.PoolArray, 0, base64.Length);
+        return result;
+#endif
     }
 
 #if NET8_0_OR_GREATER

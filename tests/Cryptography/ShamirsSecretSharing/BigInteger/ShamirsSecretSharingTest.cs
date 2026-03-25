@@ -329,9 +329,10 @@ public class SecretSplitterTest
             var s = Convert.ToBase64String(message);
             var secret = new Secret<BigInteger>(s);
             var shares = secretSplitter.MakeShares((n + 1) / 2, n, secret);
+            using var reconstructedBase64 = secretReconstructor.Reconstruction(shares.Take((n + 1) / 2).ToArray())
+                .ToBase64CharArray();
             var reconstructed =
-                Convert.FromBase64String(secretReconstructor.Reconstruction(shares.Take((n + 1) / 2).ToArray())
-                    .ToBase64());
+                Convert.FromBase64String(new string(reconstructedBase64.PoolArray, 0, reconstructedBase64.Length));
             if (message.SequenceEqual(reconstructed))
                 ok++;
         }

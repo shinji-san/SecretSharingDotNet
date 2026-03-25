@@ -458,7 +458,7 @@ public class SecretTest
     }
 
     /// <summary>
-    /// Tests the ToBase64 method of the <see cref="Secret{TNumber}"/> class.
+    /// Tests the ToBase64String method of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
     /// <param name="base64Secret">Secret as base64 string</param>
     [Theory]
@@ -466,16 +466,64 @@ public class SecretTest
     [InlineData("TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu")]
     [InlineData("bGlnaHQgd29yaw==")]
     [InlineData("bGlnaHQgd29yay4=")]
-    public void ToBase64_FromValidSecret_ReturnsSecretAsBase64String(string base64Secret)
+    public void ToBase64String_FromValidSecret_ReturnsSecretAsBase64String(string base64Secret)
     {
         // Arrange
         using var secret = new Secret<BigInteger>(base64Secret);
 
         // Act
-        string actualBase64Secret = secret.ToBase64();
+#if DEBUG
+        string actualBase64Secret = secret.ToBase64String();
 
         // Assert
         Assert.Equal(base64Secret, actualBase64Secret);
+#else
+        // Assert
+        Assert.Equal("*** Secured Value ***", secret.ToBase64String());
+#endif
+    }
+
+    /// <summary>
+    /// Tests the ToBase64CharArray method of the <see cref="Secret{TNumber}"/> class.
+    /// </summary>
+    /// <param name="base64Secret">Secret as base64 string</param>
+    [Theory]
+    [InlineData("UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=")]
+    [InlineData("TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu")]
+    [InlineData("bGlnaHQgd29yaw==")]
+    [InlineData("bGlnaHQgd29yay4=")]
+    public void ToBase64CharArray_FromValidSecret_ReturnsSecretAsBase64CharArray(string base64Secret)
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>(base64Secret);
+        char[] expectedChars = base64Secret.ToCharArray();
+
+        // Act
+        using var charArray = secret.ToBase64CharArray();
+
+        // Assert
+        Assert.Equal(expectedChars.Length, charArray.Length);
+        for (int i = 0; i < expectedChars.Length; i++)
+        {
+            Assert.Equal(expectedChars[i], charArray[i]);
+        }
+    }
+
+    /// <summary>
+    /// Tests the ToBase64CharArray method of the <see cref="Secret{TNumber}"/> class with an uninitialized (default) secret.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Fact]
+    public void ToBase64CharArray_FromDefaultSecret_ReturnsEmptyCharArray()
+    {
+        // Arrange
+        Secret<BigInteger> emptySecret = default;
+
+        // Act
+        using var charArray = emptySecret.ToBase64CharArray();
+
+        // Assert
+        Assert.Equal(0, charArray.Length);
     }
 
     /// <summary>
