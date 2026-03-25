@@ -434,7 +434,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     {
         if (this.secretNumber is not { Length: > MarkByteCount })
         {
-            return new PinnedPoolArray<char>(1);
+            return new PinnedPoolArray<char>(0);
         }
 
         int byteCount = this.secretNumber.Length - MarkByteCount;

@@ -429,31 +429,32 @@ public class SecretTest
 
         // Act
         using Secret<BigInteger> secret = secretText;
-        using PinnedPoolArray<char> charArray = secret.ToCharArray();
+        using var charArray = secret.ToCharArray();
 
         // Assert
         Assert.Equal(expectedChars.Length, charArray.Length);
         for (int i = 0; i < expectedChars.Length; i++)
         {
-            Assert.Equal(expectedChars[i], charArray.PoolArray[i]);
+            Assert.Equal(expectedChars[i], charArray[i]);
         }
     }
 
     /// <summary>
-    /// Tests the ToCharArray method of the <see cref="Secret{TNumber}"/> class with an empty secret.
+    /// Tests the ToCharArray method of the <see cref="Secret{TNumber}"/> class with an uninitialized (default) secret.
+    /// The guard in ToCharArray() triggers when secretNumber is null, i.e. for a default struct value.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Fact]
-    public void ToCharArray_FromEmptySecret_ReturnsEmptyCharArray()
+    public void ToCharArray_FromDefaultSecret_ReturnsEmptyCharArray()
     {
         // Arrange
-        using var emptySecret = new Secret<BigInteger>(new byte[] { 0x00 }, 1);
+        Secret<BigInteger> emptySecret = default;
 
         // Act
-        using PinnedPoolArray<char> charArray = emptySecret.ToCharArray();
+        using var charArray = emptySecret.ToCharArray();
 
         // Assert
-        Assert.True(charArray.Length <= 1);
+        Assert.Equal(0, charArray.Length);
     }
 
     /// <summary>
