@@ -4,6 +4,7 @@ using System;
 
 namespace SecretSharingDotNetTest.Cryptography;
 
+using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.BigInteger;
 using System.Numerics;
 
@@ -18,12 +19,16 @@ public class ShareTest
     [InlineData(12345678901234567890, 987654321098765430)]
     public void Constructor_ValidInputs_ShouldInitializeCorrectly(BigInteger index, BigInteger value)
     {
-        // Arrange & Act
+        // Arrange
+        using Calculator<BigInteger> expectedIndex = index;
+        using Calculator<BigInteger> expectedValue = value;
+
+        // Act
         var share = new Share<BigInteger>(index, value);
 
         // Assert
-        Assert.Equal(new BigIntCalculator(index), share.Index);
-        Assert.Equal(new BigIntCalculator(value), share.Value);
+        Assert.Equal(expectedIndex, share.Index);
+        Assert.Equal(expectedValue, share.Value);
     }
 
     [Theory]
@@ -33,7 +38,7 @@ public class ShareTest
     public void Constructor_NegativeIndex_ShouldThrowArgumentOutOfRangeException(BigInteger index)
     {
         // Arrange
-        var value = new BigIntCalculator(10);
+        using Calculator<BigInteger> value = (BigInteger)10;
 
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => new Share<BigInteger>(index, value));
@@ -43,11 +48,86 @@ public class ShareTest
     public void Constructor_DefaultIndexValue_ShouldThrowArgumentOutOfRangeException()
     {
         // Arrange
-        var index = BigIntCalculator.Zero;
-        var value = new BigIntCalculator(10);
+        using var index = BigIntCalculator.Zero;
+        using Calculator<BigInteger> value = (BigInteger)10;
 
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => new Share<BigInteger>(index, value));
+    }
+
+    [Fact]
+    public void Constructor_NullIndex_ThrowsArgumentNullException()
+    {
+        // Arrange
+        Calculator<BigInteger> index = null;
+        using Calculator<BigInteger> value = (BigInteger)10;
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => new Share<BigInteger>(index, value));
+        Assert.Equal("index", ex.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_NullValue_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using Calculator<BigInteger> index = (BigInteger)5;
+        Calculator<BigInteger> value = null;
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => new Share<BigInteger>(index, value));
+        Assert.Equal("value", ex.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_ByteArrays_NullIndexBytes_ThrowsArgumentNullException()
+    {
+        // Arrange
+        byte[] indexBytes = null;
+        var valueBytes = new byte[] { 10 };
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => new Share<BigInteger>(indexBytes, valueBytes));
+        Assert.Equal("indexBytes", ex.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_ByteArrays_NullValueBytes_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var indexBytes = new byte[] { 5 };
+        byte[] valueBytes = null;
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => new Share<BigInteger>(indexBytes, valueBytes));
+        Assert.Equal("valueBytes", ex.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_ByteArrays_ZeroIndex_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        var indexBytes = new byte[] { 0 };
+        var valueBytes = new byte[] { 10 };
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Share<BigInteger>(indexBytes, valueBytes));
+        Assert.Equal("indexBytes", ex.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_ByteArrays_ValidInputs_InitializesCorrectly()
+    {
+        // Arrange
+        var indexBytes = new byte[] { 5, 0 };
+        var valueBytes = new byte[] { 10, 0 };
+
+        // Act
+        var share = new Share<BigInteger>(indexBytes, valueBytes);
+
+        // Assert
+        Assert.Equal(new BigIntCalculator(5), share.Index);
+        Assert.Equal(new BigIntCalculator(10), share.Value);
     }
 
     [Fact]
@@ -97,34 +177,21 @@ public class ShareTest
         var share = new Share<BigInteger>(index, value);
 
         // Act & Assert
+#if DEBUG
         Assert.Equal(expected, share.ToString());
-    }
-
-    [Theory]
-    [InlineData(5, 10, "05-0a")]
-    [InlineData(255, 255, "ff00-ff00")]
-    [InlineData(16, 32, "10-20")]
-    [InlineData(11, -86, "0b-aa")]
-    [InlineData(1, 1, "01-01")]
-    [InlineData(1000, 4096, "e803-0010")]
-    public void ToString_WithFormatSpecifier_ShouldReturnFormattedString(BigInteger index, BigInteger value,
-        string expected)
-    {
-        // Arrange
-        var share = new Share<BigInteger>(index, value);
-
-        // Act & Assert
-        Assert.Equal(expected, share.ToString("x"));
+#else
+        Assert.Equal("*** Secured Value ***", share.ToString());
+#endif
     }
 
     [Fact]
-    public void Parse_ValidString_ShouldParseCorrectly()
+    public void Constructor_ValidPinnedInput_ShouldParseCorrectly()
     {
         // Arrange
-        const string shareString = "B-AA";
+        using var pinned = PinnedTestHelper.ToPinned("B-AA");
 
         // Act
-        var share = Share<BigInteger>.Parse(shareString);
+        var share = new Share<BigInteger>(pinned);
 
         // Assert
         Assert.Equal(new BigIntCalculator(11), share.Index);
@@ -137,46 +204,236 @@ public class ShareTest
     public void ToString_FromValidShare_ReturnsCoordinatesSeparatedWithMinus(string input, string expected)
     {
         // Arrange
-        var shareUnderTest = new Share<BigInteger>(input);
+        using var pinned = PinnedTestHelper.ToPinned(input);
+        var shareUnderTest = new Share<BigInteger>(pinned);
 
         // Act
         string actual = shareUnderTest.ToString();
 
         // Assert
+#if DEBUG
         Assert.Equal(expected, actual);
+#else
+        Assert.Equal("*** Secured Value ***", actual);
+#endif
     }
 
     [Fact]
-    public void Parse_InvalidString_ShouldThrowFormatException()
+    public void Constructor_InvalidPinnedInput_ShouldThrowArgumentException()
     {
         // Arrange
-        const string shareString = "invalid-input";
+        using var pinned = PinnedTestHelper.ToPinned("invalid-input");
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => Share<BigInteger>.Parse(shareString));
+        Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
+    }
+
+    [Theory]
+    [InlineData(5, 10, true, false, "05-0A")]
+    [InlineData(5, 10, false, false, "05-0a")]
+    [InlineData(16, 32, true, true, "0x10-0x20")]
+    [InlineData(16, 32, false, true, "0x10-0x20")]
+    [InlineData(11, -86, true, true, "0x0B-0xAA")]
+    [InlineData(11, -86, false, true, "0x0b-0xaa")]
+    [InlineData(1, 1, true, false, "01-01")]
+    [InlineData(1000, 4096, false, false, "e803-0010")]
+    public void ToCharArray_WithParameters_ShouldReturnFormattedChars(
+        BigInteger index, BigInteger value, bool uppercase, bool withPrefix, string expected)
+    {
+        // Arrange
+        var share = new Share<BigInteger>(index, value);
+
+        // Act
+        using var result = share.ToCharArray(uppercase, withPrefix);
+
+        // Assert
+        Assert.Equal(expected, new string(result.PoolArray, 0, result.Length));
     }
 
     [Fact]
-    public void TryParse_ValidString_ShouldReturnTrueAndOutputParsedShare()
+    public void ToCharArray_NoArgs_ShouldReturnUppercaseWithoutPrefix()
     {
         // Arrange
-        const string shareString = "05-10";
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
 
-        // Act & Assert
-        Assert.True(Share<BigInteger>.TryParse(shareString, out var share));
-        Assert.Equal(new BigIntCalculator(5), share.Index);
-        Assert.Equal(new BigIntCalculator(16), share.Value);
+        // Act
+        using var result = share.ToCharArray();
+
+        // Assert
+        Assert.Equal("05-0A", new string(result.PoolArray, 0, result.Length));
     }
 
     [Fact]
-    public void TryParse_InvalidString_ShouldReturnFalse()
+    public void ToCharArray_EmptyShare_ShouldReturnZeroLength()
     {
         // Arrange
-        const string shareString = "invalid-input";
+        var share = new Share<BigInteger>();
 
-        // Act & Assert
-        Assert.False(Share<BigInteger>.TryParse(shareString, out var share));
-        Assert.True(share.IsEmpty);
+        // Act
+        using var result = share.ToCharArray(uppercase: true, withPrefix: true);
+
+        // Assert
+        Assert.Equal(0, result.Length);
+    }
+
+    [Theory]
+    [InlineData("0x05-0x0A", 5, 10)]
+    [InlineData("0x0B-0xAA", 11, -86)]
+    [InlineData("0x01-0x01", 1, 1)]
+    public void Constructor_WithLowerHexPrefix_ShouldParse(string shareString, int expectedIndex, int expectedValue)
+    {
+        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        var share = new Share<BigInteger>(pinned);
+
+        Assert.Equal(new BigIntCalculator(expectedIndex), share.Index);
+        Assert.Equal(new BigIntCalculator(expectedValue), share.Value);
+    }
+
+    [Theory]
+    [InlineData("0x05-0A", 5, 10)]
+    [InlineData("05-0x0A", 5, 10)]
+    public void Constructor_WithPartialPrefix_ShouldParse(string shareString, int expectedIndex, int expectedValue)
+    {
+        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        var share = new Share<BigInteger>(pinned);
+
+        Assert.Equal(new BigIntCalculator(expectedIndex), share.Index);
+        Assert.Equal(new BigIntCalculator(expectedValue), share.Value);
+    }
+
+    [Theory]
+    [InlineData("0X05-0X0A")]
+    [InlineData("0X05-0x0A")]
+    [InlineData("0x05-0X0A")]
+    public void Constructor_WithUpperHexPrefix_ShouldThrow(string shareString)
+    {
+        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
+    }
+
+    [Theory]
+    [InlineData("0xZZ-01")]
+    [InlineData("0x01-0xGG")]
+    public void Constructor_WithInvalidHexAfterPrefix_ShouldThrow(string shareString)
+    {
+        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
+    }
+
+    [Theory]
+    [InlineData("0x-01")]
+    [InlineData("01-0x")]
+    [InlineData("0x-0x")]
+    public void Constructor_WithEmptyCoordinateAfterPrefix_ShouldThrow(string shareString)
+    {
+        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        Assert.Throws<FormatException>(() => new Share<BigInteger>(pinned));
+    }
+
+    [Theory]
+    [InlineData(5, 10)]
+    [InlineData(11, 170)]
+    [InlineData(1000, 4096)]
+    public void RoundTrip_ToCharArrayWithPrefix_ShouldParseBack(BigInteger index, BigInteger value)
+    {
+        var original = new Share<BigInteger>(index, value);
+
+        using var chars = original.ToCharArray(uppercase: true, withPrefix: true);
+        var parsed = new Share<BigInteger>(chars);
+
+        Assert.Equal(original.Index, parsed.Index);
+        Assert.Equal(original.Value, parsed.Value);
+    }
+
+    [Fact]
+    public void GetCharCount_EmptyShare_ReturnsZero()
+    {
+        var share = new Share<BigInteger>();
+
+        Assert.Equal(0, share.GetCharCount(withPrefix: false));
+        Assert.Equal(0, share.GetCharCount(withPrefix: true));
+    }
+
+    [Theory]
+    [InlineData(5, 10, false, 5)]
+    [InlineData(5, 10, true, 9)]
+    [InlineData(255, 255, false, 9)]
+    [InlineData(255, 255, true, 13)]
+    [InlineData(1000, 4096, false, 9)]
+    [InlineData(1000, 4096, true, 13)]
+    [InlineData(5, -86, false, 5)]
+    [InlineData(5, -86, true, 9)]
+    [InlineData(5, 128, false, 7)]
+    [InlineData(5, 128, true, 11)]
+    public void GetCharCount_MatchesToCharArrayLength(BigInteger index, BigInteger value, bool withPrefix, int expected)
+    {
+        var share = new Share<BigInteger>(index, value);
+
+        var count = share.GetCharCount(withPrefix);
+        using var chars = share.ToCharArray(uppercase: true, withPrefix);
+
+        Assert.Equal(expected, count);
+        Assert.Equal(chars.Length, count);
+    }
+
+    [Theory]
+    [InlineData(5, 10, true, false, "05-0A")]
+    [InlineData(16, 32, true, true, "0x10-0x20")]
+    [InlineData(11, -86, false, true, "0x0b-0xaa")]
+    [InlineData(1000, 4096, false, false, "e803-0010")]
+    public void WriteCharsTo_WithParameters_WritesExpectedChars(
+        BigInteger index, BigInteger value, bool uppercase, bool withPrefix, string expected)
+    {
+        var share = new Share<BigInteger>(index, value);
+        var buffer = new char[expected.Length + 4];
+        var written = share.WriteCharsTo(buffer, offset: 2, uppercase, withPrefix);
+
+        Assert.Equal(expected.Length, written);
+        Assert.Equal(expected, new string(buffer, 2, written));
+        Assert.Equal('\0', buffer[0]);
+        Assert.Equal('\0', buffer[1]);
+    }
+
+    [Fact]
+    public void WriteCharsTo_EmptyShare_ReturnsZero()
+    {
+        var share = new Share<BigInteger>();
+        var buffer = new char[16];
+
+        var written = share.WriteCharsTo(buffer, 0, uppercase: true, withPrefix: false);
+
+        Assert.Equal(0, written);
+    }
+
+    [Fact]
+    public void WriteCharsTo_NullDest_ThrowsArgumentNullException()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+
+        Assert.Throws<ArgumentNullException>(() => share.WriteCharsTo(null, 0, uppercase: true, withPrefix: false));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(17)]
+    public void WriteCharsTo_InvalidOffset_ThrowsArgumentOutOfRangeException(int offset)
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        var buffer = new char[16];
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => share.WriteCharsTo(buffer, offset, uppercase: true, withPrefix: false));
+    }
+
+    [Fact]
+    public void WriteCharsTo_InsufficientSpace_ThrowsArgumentException()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        var buffer = new char[16];
+
+        // share "05-0A" needs 5 chars; offset 14 leaves only 2.
+        Assert.Throws<ArgumentException>(
+            () => share.WriteCharsTo(buffer, offset: 14, uppercase: true, withPrefix: false));
     }
 
     [Fact]

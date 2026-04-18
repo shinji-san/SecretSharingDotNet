@@ -1,4 +1,4 @@
-﻿// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // <copyright file="SharesTest.cs" company="Private">
 // Copyright (c) 2019 All Rights Reserved
 // </copyright>
@@ -56,11 +56,12 @@ public class SharesTest
     public void Contains_ShareExists_ReturnsTrue(int index)
     {
         // Arrange
-        var stringArray = TestData.GetPredefinedShares();
-        Shares<BigInteger> sharesCollection = stringArray;
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> sharesCollection = blob;
+        using var sharePinned = PinnedTestHelper.ToPinned(TestData.GetPredefinedShares()[index]);
 
         // Act & Assert
-        Assert.Contains(new Share<BigInteger>(TestData.GetPredefinedShares()[index]), sharesCollection);
+        Assert.Contains(new Share<BigInteger>(sharePinned), sharesCollection);
     }
 
     /// <summary>
@@ -72,9 +73,10 @@ public class SharesTest
     public void Contains_ShareDoesNotExist_ReturnsFalse()
     {
         // Arrange
-        var stringArray = TestData.GetPredefinedShares();
-        Shares<BigInteger> sharesCollection = stringArray;
-        var nonExistingShare = new Share<BigInteger>("4-9999999999999999999999");
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> sharesCollection = blob;
+        using var nonExistingPinned = PinnedTestHelper.ToPinned("4-9999999999999999999999");
+        var nonExistingShare = new Share<BigInteger>(nonExistingPinned);
 
         // Act & Assert
         Assert.DoesNotContain(nonExistingShare, sharesCollection);
@@ -91,11 +93,17 @@ public class SharesTest
     public void ExplicitCastToStringArray_ReturnsExpectedArray()
     {
         // Arrange
-        var stringArray = TestData.GetPredefinedShares();
-        Shares<BigInteger> shares = stringArray;
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
 
         // Act & Assert
+#if DEBUG
         Assert.Equal(TestData.GetPredefinedShares(), (string[])shares);
+#else
+        var redacted = (string[])shares;
+        Assert.Equal(TestData.GetPredefinedShares().Length, redacted.Length);
+        Assert.All(redacted, s => Assert.Equal("*** Secured Value ***", s));
+#endif
     }
 
     /// <summary>
@@ -107,10 +115,15 @@ public class SharesTest
     {
         // Arrange
         var text = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
-        Shares<BigInteger> shares = text;
+        using var blob = PinnedTestHelper.ToPinned(text);
+        Shares<BigInteger> shares = blob;
 
         // Act & Assert
+#if DEBUG
         Assert.Equal(text, shares.ToString());
+#else
+        Assert.Equal("*** Secured Value ***", shares.ToString());
+#endif
     }
 
     /// <summary>
@@ -122,9 +135,15 @@ public class SharesTest
     public void GetEnumerator_ReturnsExpectedEnumerator()
     {
         // Arrange
-        Shares<BigInteger> shares = TestData.GetPredefinedShares();
-        var testDataSequence = TestData.GetPredefinedShares().Select(entry => new Share<BigInteger>(entry));
-        var testDataArray = testDataSequence as Share<BigInteger>[] ?? testDataSequence.ToArray();
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
+        var testDataArray = TestData.GetPredefinedShares()
+            .Select(entry =>
+            {
+                using var p = PinnedTestHelper.ToPinned(entry);
+                return new Share<BigInteger>(p);
+            })
+            .ToArray();
 
         // Act
         var actual = ((IEnumerable)shares).GetEnumerator();
@@ -140,12 +159,13 @@ public class SharesTest
 
         Assert.True(shares.SequenceEqual(testDataArray));
     }
-    
+
     [Fact]
     public void Count_ReturnsExpectedCount()
     {
         // Arrange
-        Shares<BigInteger> shares = TestData.GetPredefinedShares();
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
         var expectedCount = TestData.GetPredefinedShares().Length;
 
         // Act
@@ -159,9 +179,14 @@ public class SharesTest
     public void Indexer_ReturnsExpectedShare()
     {
         // Arrange
-        Shares<BigInteger> shares = TestData.GetPredefinedShares();
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
         var expectedShares = TestData.GetPredefinedShares()
-            .Select(entry => new Share<BigInteger>(entry))
+            .Select(entry =>
+            {
+                using var p = PinnedTestHelper.ToPinned(entry);
+                return new Share<BigInteger>(p);
+            })
             .ToArray();
 
         // Act & Assert
@@ -170,17 +195,18 @@ public class SharesTest
             Assert.Equal(expectedShares[i], shares[i]);
         }
     }
-    
+
     [Fact]
     public void CopyTo_CopiesSharesToArray()
     {
         // Arrange
-        Shares<BigInteger> shares = TestData.GetPredefinedShares();
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
         var sharesArray = new Share<BigInteger>[shares.Count];
-        
+
         // Act
         shares.CopyTo(sharesArray, 0);
-        
+
         // Assert
         for (int i = 0; i < shares.Count; i++)
         {
@@ -192,7 +218,8 @@ public class SharesTest
     public void IsReadOnly_ReturnsTrue()
     {
         // Arrange
-        Shares<BigInteger> shares = TestData.GetPredefinedShares();
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
 
         // Act
         var isReadOnly = shares.IsReadOnly;
@@ -200,26 +227,28 @@ public class SharesTest
         // Assert
         Assert.True(isReadOnly);
     }
-    
+
     [Fact]
-    public void Constructor_WithStringArray_InitializesShares()
+    public void Constructor_WithPinnedBuffer_InitializesShares()
     {
         // Arrange
         var stringArray = TestData.GetPredefinedShares();
+        using var blob = PinnedTestHelper.ToPinnedLines(stringArray);
 
         // Act
-        Shares<BigInteger> shares = stringArray;
+        Shares<BigInteger> shares = blob;
 
         // Assert
         Assert.Equal(stringArray.Length, shares.Count);
         for (int i = 0; i < stringArray.Length; i++)
         {
-            Assert.Equal(new Share<BigInteger>(stringArray[i]), shares[i]);
+            using var p = PinnedTestHelper.ToPinned(stringArray[i]);
+            Assert.Equal(new Share<BigInteger>(p), shares[i]);
         }
     }
-    
+
     [Fact]
-    public void AscendingOrder_WithStringArray_SortsSharesByIndex()
+    public void AscendingOrder_WithPinnedLines_SortsSharesByIndex()
     {
         // Arrange
         var stringArray = new[]
@@ -228,31 +257,146 @@ public class SharesTest
             "1-100",
             "2-200"
         };
+        using var blob = PinnedTestHelper.ToPinnedLines(stringArray);
 
         // Act
-        Shares<BigInteger> sortedShares = stringArray;
+        Shares<BigInteger> sortedShares = blob;
 
         // Assert
-        Assert.Equal(new Share<BigInteger>("1-100"), sortedShares[0]);
-        Assert.Equal(new Share<BigInteger>("2-200"), sortedShares[1]);
-        Assert.Equal(new Share<BigInteger>("3-300"), sortedShares[2]);
+        using var p1 = PinnedTestHelper.ToPinned("1-100");
+        using var p2 = PinnedTestHelper.ToPinned("2-200");
+        using var p3 = PinnedTestHelper.ToPinned("3-300");
+        Assert.Equal(new Share<BigInteger>(p1), sortedShares[0]);
+        Assert.Equal(new Share<BigInteger>(p2), sortedShares[1]);
+        Assert.Equal(new Share<BigInteger>(p3), sortedShares[2]);
     }
-    
+
     [Fact]
-    public void AscendingOrder_WithStringInput_SortsSharesByIndex()
+    public void AscendingOrder_WithPinnedText_SortsSharesByIndex()
     {
         // Arrange
         var input =
             "3-300" + Environment.NewLine +
             "1-100" + Environment.NewLine +
             "2-200";
+        using var blob = PinnedTestHelper.ToPinned(input);
 
         // Act
-        Shares<BigInteger> sortedShares = input;
+        Shares<BigInteger> sortedShares = blob;
 
         // Assert
-        Assert.Equal(new Share<BigInteger>("1-100"), sortedShares[0]);
-        Assert.Equal(new Share<BigInteger>("2-200"), sortedShares[1]);
-        Assert.Equal(new Share<BigInteger>("3-300"), sortedShares[2]);
+        using var p1 = PinnedTestHelper.ToPinned("1-100");
+        using var p2 = PinnedTestHelper.ToPinned("2-200");
+        using var p3 = PinnedTestHelper.ToPinned("3-300");
+        Assert.Equal(new Share<BigInteger>(p1), sortedShares[0]);
+        Assert.Equal(new Share<BigInteger>(p2), sortedShares[1]);
+        Assert.Equal(new Share<BigInteger>(p3), sortedShares[2]);
+    }
+
+    /// <summary>
+    /// <see cref="Shares{TNumber}.ToCharArray()"/> emits uppercase hex without prefix, one share per line,
+    /// separated and terminated by <see cref="Environment.NewLine"/>, regardless of build configuration.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_NoArgs_ReturnsPinnedUppercaseWithoutPrefix()
+    {
+        // Arrange
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares(), Environment.NewLine);
+        Shares<BigInteger> shares = blob;
+        var expected = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
+
+        // Act
+        using var result = shares.ToCharArray();
+
+        // Assert
+        Assert.Equal(expected, new string(result.PoolArray, 0, result.Length));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public void ToCharArray_WithParameters_MatchesPerShareFormatting(bool uppercase, bool withPrefix)
+    {
+        // Arrange
+        var stringArray = new[] { "03-0A", "01-FF", "02-10" };
+        using var blob = PinnedTestHelper.ToPinnedLines(stringArray, Environment.NewLine);
+        Shares<BigInteger> shares = blob;
+
+        // Act
+        using var result = shares.ToCharArray(uppercase, withPrefix);
+
+        // Assert — build expected output per share, honoring sort-by-index
+        var lines = new string[shares.Count];
+        for (int i = 0; i < shares.Count; i++)
+        {
+            using var chars = shares[i].ToCharArray(uppercase, withPrefix);
+            lines[i] = new string(chars.PoolArray, 0, chars.Length);
+        }
+        var expected = string.Join(Environment.NewLine, lines) + Environment.NewLine;
+        Assert.Equal(expected, new string(result.PoolArray, 0, result.Length));
+    }
+
+    [Fact]
+    public void ToCharArray_EmptyCollection_ReturnsZeroLength()
+    {
+        // Arrange
+        Shares<BigInteger> empty = Array.Empty<Share<BigInteger>>();
+
+        // Act
+        using var result = empty.ToCharArray();
+
+        // Assert
+        Assert.Equal(0, result.Length);
+    }
+
+    /// <summary>
+    /// The new implicit <see cref="PinnedPoolArray{Char}"/> operator emits real share material, not the
+    /// redacted <c>"*** Secured Value ***"</c> marker. This is the secure serialization path.
+    /// </summary>
+    [Fact]
+    public void ImplicitCastToPinnedPoolArray_EmitsRealContentIncludingRelease()
+    {
+        // Arrange
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares(), Environment.NewLine);
+        Shares<BigInteger> shares = blob;
+        var expected = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
+
+        // Act
+        using SecretSharingDotNet.Cryptography.SecureArray.PinnedPoolArray<char> serialized = shares;
+
+        // Assert
+        Assert.Equal(expected, new string(serialized.PoolArray, 0, serialized.Length));
+    }
+
+    [Fact]
+    public void ImplicitCastToPinnedPoolArray_NullShares_ThrowsArgumentNullException()
+    {
+        Shares<BigInteger> shares = null;
+
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            SecretSharingDotNet.Cryptography.SecureArray.PinnedPoolArray<char> _ = shares;
+        });
+    }
+
+    [Fact]
+    public void RoundTrip_ImplicitPinnedPoolArrayBothDirections_PreservesShares()
+    {
+        // Arrange
+        using var input = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares(), Environment.NewLine);
+        Shares<BigInteger> original = input;
+
+        // Act — collection → pinned chars → collection
+        using SecretSharingDotNet.Cryptography.SecureArray.PinnedPoolArray<char> serialized = original;
+        Shares<BigInteger> reparsed = serialized;
+
+        // Assert
+        Assert.Equal(original.Count, reparsed.Count);
+        for (int i = 0; i < original.Count; i++)
+        {
+            Assert.Equal(original[i], reparsed[i]);
+        }
     }
 }

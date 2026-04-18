@@ -275,9 +275,11 @@ public class SecretSplitterTest
     {
         // Arrange
         var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
 
         // Act
-        var secret = secretReconstructor.Reconstruction(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
+        var secret = secretReconstructor.Reconstruction(shares);
 
         // Assert
         Assert.Equal(TestData.DefaultTestPassword, secret);
@@ -298,9 +300,11 @@ public class SecretSplitterTest
         }
 
         var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var blob = PinnedTestHelper.ToPinned(sharesChunk.ToString());
 
         // Act
-        var secret = secretReconstructor.Reconstruction(sharesChunk.ToString());
+        Shares<BigInteger> shares = blob;
+        var secret = secretReconstructor.Reconstruction(shares);
 
         // Assert
         Assert.Equal(TestData.DefaultTestPassword, secret);

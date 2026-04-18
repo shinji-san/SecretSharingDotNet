@@ -1,4 +1,4 @@
-﻿// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // <copyright file="Shares.cs" company="Private">
 // Copyright (c) 2019 All Rights Reserved
 // </copyright>
@@ -31,10 +31,12 @@
 
 namespace SecretSharingDotNet.Cryptography;
 
+using SecureArray;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -43,6 +45,11 @@ using System.Threading;
 /// Represents a set of shares
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
+#if DEBUG
+[DebuggerDisplay("{ToString()}")]
+#else
+[DebuggerDisplay("*** Secured Value ***")]
+#endif
 [Serializable]
 public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
 {
@@ -85,37 +92,68 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     public static implicit operator string[](Shares<TNumber> shares) => shares?.Select(s => s.ToString()).ToArray();
 
     /// <summary>
-    ///  Casts a <see cref="Shares{TNumber}"/> object to a <see cref="string"/> object.
+    /// Casts a <see cref="Shares{TNumber}"/> object to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/>
+    /// containing the uppercase hex-encoded shares, one per line, separated by <see cref="Environment.NewLine"/>.
     /// </summary>
     /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
-    public static implicit operator string(Shares<TNumber> shares) => shares?.ToString();
-
-    /// <summary>
-    /// Casts a <see cref="string"/> object to a <see cref="Shares{TNumber}"/> object.
-    /// </summary>
-    /// <param name="s">A <see cref="string"/> object representing two or more finite points separated by newline.</param>
-    public static implicit operator Shares<TNumber>(string s)
+    /// <remarks>
+    /// Unlike <see cref="ToString"/>, this operator is not redacted in Release builds. It is the
+    /// secure serialization path intended for round-tripping shares into pinned storage. The returned
+    /// <see cref="PinnedPoolArray{T}"/> is owned by the caller and must be disposed; until then the share
+    /// material is only present in pinned, securely cleared memory.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="shares"/> is <see langword="null"/>.</exception>
+    public static implicit operator PinnedPoolArray<char>(Shares<TNumber> shares)
     {
-        var shares = s
-            .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => line.Trim())
-            .Where(line => !string.IsNullOrEmpty(line))
-            .Select(line => new Share<TNumber>(line))
-            .ToArray();
-        return new Shares<TNumber>(shares);
+        return shares is null ? throw new ArgumentNullException(nameof(shares)) : shares.ToCharArray();
     }
 
     /// <summary>
-    /// Casts an array of <see cref="string"/> (representing two or more finite points) to a <see cref="Shares{TNumber}"/> object.
+    /// Casts a pinned multi-line character buffer to a <see cref="Shares{TNumber}"/> object.
     /// </summary>
-    /// <param name="s">An array of <see cref="string"/> representing two or more finite points.</param>
-    public static implicit operator Shares<TNumber>(string[] s)
+    /// <param name="buffer">
+    /// A <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing two or more
+    /// <c>INDEX-VALUE</c> share lines separated by line feed (<c>\n</c>) or carriage return (<c>\r</c>).
+    /// Blank lines are skipped. The caller retains ownership of <paramref name="buffer"/>.
+    /// </param>
+    /// <remarks>
+    /// Each non-empty line is copied into its own short-lived pinned sub-buffer for the duration
+    /// of the share construction, then securely cleared on dispose. No unpinned heap copy of
+    /// the share material is created.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="buffer"/> is <see langword="null"/>.
+    /// </exception>
+    public static implicit operator Shares<TNumber>(PinnedPoolArray<char> buffer)
     {
-        var shares = s
-            .Select(line => line.Trim())
-            .Where(line => !string.IsNullOrEmpty(line))
-            .Select(line => new Share<TNumber>(line))
-            .ToArray();
+        if (buffer is null)
+        {
+            throw new ArgumentNullException(nameof(buffer));
+        }
+
+        var buf = buffer.PoolArray;
+        var end = buffer.Length;
+        var shares = new List<Share<TNumber>>();
+        var lineStart = 0;
+
+        for (var i = 0; i <= end; i++)
+        {
+            if (i != end && buf[i] != '\n' && buf[i] != '\r')
+            {
+                continue;
+            }
+
+            if (lineStart < i)
+            {
+                var lineLen = i - lineStart;
+                using var linePinned = new PinnedPoolArray<char>(lineLen);
+                Array.Copy(buf, lineStart, linePinned.PoolArray, 0, lineLen);
+                shares.Add(new Share<TNumber>(linePinned));
+            }
+
+            lineStart = i + 1;
+        }
+
         return new Shares<TNumber>(shares);
     }
 
@@ -133,11 +171,82 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     public static implicit operator Shares<TNumber>(Share<TNumber>[] shares) => new Shares<TNumber>(shares);
 
     /// <summary>
+    /// Converts the collection to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing
+    /// the uppercase hex-encoded shares without coordinate prefixes, one per line, separated and
+    /// terminated by <see cref="Environment.NewLine"/>.
+    /// </summary>
+    /// <returns>
+    /// A pinned character buffer with the serialized shares. The caller is responsible for disposing
+    /// the returned instance. Returns a buffer of length zero if the collection is empty.
+    /// </returns>
+    public PinnedPoolArray<char> ToCharArray() => this.ToCharArray(uppercase: true, withPrefix: false);
+
+    /// <summary>
+    /// Converts the collection to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing
+    /// the hex-encoded shares, one per line, separated and terminated by <see cref="Environment.NewLine"/>.
+    /// </summary>
+    /// <param name="uppercase">
+    /// <see langword="true"/> to use uppercase hex digits (0A–0F); <see langword="false"/> for lowercase (0a–0f).
+    /// </param>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to prepend <c>"0x"</c> before each coordinate; <see langword="false"/> for no prefix.
+    /// </param>
+    /// <returns>
+    /// A pinned character buffer with the serialized shares. The caller is responsible for disposing
+    /// the returned instance. Returns a buffer of length zero if the collection is empty.
+    /// </returns>
+    /// <remarks>
+    /// The share material is written directly into the final pinned buffer in a single pass, without any
+    /// intermediate unpinned <see cref="string"/> or <see cref="System.Text.StringBuilder"/> allocation.
+    /// </remarks>
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
+    {
+        if (this.shareList.Count == 0)
+        {
+            return new PinnedPoolArray<char>(0);
+        }
+
+        var newline = Environment.NewLine;
+        var newlineLen = newline.Length;
+        var total = 0;
+        for (int i = 0; i < this.shareList.Count; i++)
+        {
+            total += this.shareList[i].GetCharCount(withPrefix) + newlineLen;
+        }
+
+        var result = new PinnedPoolArray<char>(total);
+        var pos = 0;
+        for (int i = 0; i < this.shareList.Count; i++)
+        {
+            pos += this.shareList[i].WriteCharsTo(result.PoolArray, pos, uppercase, withPrefix);
+            newline.CopyTo(0, result.PoolArray, pos, newlineLen);
+            pos += newlineLen;
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Returns the string representation of the <see cref="Shares{TNumber}"/> instance.
     /// </summary>
-    /// <returns>A human-readable list of shares separated by newlines</returns>
+    /// <returns>
+    /// In Debug builds: a human-readable list of shares separated by newlines.
+    /// In Release builds: always returns <c>"*** Secured Value ***"</c> to prevent accidental exposure
+    /// in logs, exception messages, or other output. Use <see cref="ToCharArray()"/> for explicit serialization.
+    /// </returns>
+    /// <remarks>
+    /// <b>Security warning:</b> DEBUG builds expose share material on the unpinned managed heap — both
+    /// via the intermediate <see cref="StringBuilder"/> buffer and the returned <see cref="string"/>.
+    /// Neither can be securely cleared: the <see cref="string"/> is immutable, and the
+    /// <see cref="StringBuilder"/> internal buffer lives on the GC heap without pinning. Contents remain
+    /// recoverable from process memory until collected (and may persist in swap files or crash dumps).
+    /// Do not log, serialize, or otherwise persist <see cref="ToString"/> output in any build that
+    /// handles real secrets. For secure serialization use <see cref="ToCharArray()"/>, which returns
+    /// share material in pinned memory that is securely cleared on <see cref="IDisposable.Dispose"/>.
+    /// </remarks>
     public override string ToString()
     {
+#if DEBUG
         var stringBuilder = new StringBuilder();
         var shares = this.shareList as Share<TNumber>[] ?? this.shareList.ToArray();
         foreach (var share in shares)
@@ -146,6 +255,9 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
         }
 
         return stringBuilder.ToString();
+#else
+        return "*** Secured Value ***";
+#endif
     }
 
     /// <summary>

@@ -140,9 +140,10 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
     /// <param name="secretSource">Secret as <see cref="Calculator"/> or <see cref="Calculator{TNumber}"/> value.</param>
-    public Secret(Calculator secretSource) : this(secretSource.ByteRepresentation.PoolArray,
-        secretSource.ByteRepresentation.Length)
+    public Secret(Calculator secretSource)
     {
+        using var bytes = secretSource.ByteRepresentation;
+        this = new Secret<TNumber>(bytes.PoolArray, bytes.Length);
     }
 
     /// <summary>
@@ -173,7 +174,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     public static implicit operator Secret<TNumber>(TNumber number)
     {
-        var secretCalculator = (Calculator<TNumber>)number;
+        using var secretCalculator = (Calculator<TNumber>)number;
         using var secretBytes = secretCalculator.ByteRepresentation;
         return new Secret<TNumber>(secretBytes.PoolArray, secretCalculator.ByteCount);
     }
@@ -188,7 +189,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
             return default;
         }
 
-        return ((Calculator<TNumber>)secret).Value;
+        using var calc = (Calculator<TNumber>)secret;
+        return calc.Value;
     }
 
     /// <summary>
@@ -559,10 +561,11 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         while (i > 0)
         {
             randomSecretBytes.PoolArray[i] = i == 1 ? MinMarkByte : MaxMarkByte;
-            var randomSecretNumber =
+            using var randomSecretNumber =
                 Calculator.Create(randomSecretBytes.PoolArray, randomSecretBytes.Length, typeof(TNumberStatic)) as
                     Calculator<TNumberStatic>;
-            var a0 = randomSecretNumber?.Abs() % prime;
+            using var absValue = randomSecretNumber?.Abs();
+            using var a0 = absValue % prime;
             if (a0 == randomSecretNumber)
             {
                 break;
