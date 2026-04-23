@@ -507,4 +507,34 @@ public class ShareTest
 
         Assert.Equal(1, share.CompareTo(null));
     }
+
+    [Fact]
+    public void PostDispose_IndexGetter_ThrowsObjectDisposedException()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        share.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => _ = share.Index);
+    }
+
+    [Fact]
+    public void PostDispose_ValueGetter_ThrowsObjectDisposedException()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        share.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => _ = share.Value);
+    }
+
+    [Fact]
+    public void PostDispose_Deconstruct_ThrowsObjectDisposedException()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        share.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            var (_, _) = share;
+        });
+    }
 }

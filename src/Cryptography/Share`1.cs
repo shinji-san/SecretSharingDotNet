@@ -66,12 +66,22 @@ using System.Runtime.CompilerServices;
 #else
 [DebuggerDisplay("*** Secured Value ***")]
 #endif
-public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
+public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 {
     /// <summary>
     /// The separator between the X and Y coordinate.
     /// </summary>
     private const char CoordinateSeparator = '-';
+
+    /// <summary>
+    /// Backing field for <see cref="Index"/>.
+    /// </summary>
+    private readonly Calculator<TNumber> index;
+
+    /// <summary>
+    /// Backing field for <see cref="Value"/>.
+    /// </summary>
+    private readonly Calculator<TNumber> value;
 
     /// <summary>
     /// Indicates whether the share has been disposed.
@@ -82,12 +92,28 @@ public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDispos
     /// The index (X coordinate) of this share. In Shamir's Secret Sharing, each share is a point
     /// on a polynomial; the index is the X coordinate of that point.
     /// </summary>
-    public Calculator<TNumber> Index { get; }
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public Calculator<TNumber> Index
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.index;
+        }
+    }
 
     /// <summary>
     /// The value (Y coordinate) of this share — the polynomial evaluated at <see cref="Index"/>.
     /// </summary>
-    public Calculator<TNumber> Value { get; }
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public Calculator<TNumber> Value
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.value;
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether the share index is even.
@@ -98,7 +124,7 @@ public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDispos
         get
         {
             this.ThrowIfDisposed();
-            return this.Index.IsEven;
+            return this.index.IsEven;
         }
     }
 
@@ -111,12 +137,12 @@ public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDispos
         get
         {
             this.ThrowIfDisposed();
-            return !this.Index.IsEven;
+            return !this.index.IsEven;
         }
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="Share{TNumber}"/> struct with the specified index and value.
+    /// Initializes a new instance of the <see cref="Share{TNumber}"/> record with the specified index and value.
     /// </summary>
     /// <param name="index">The index (X coordinate) of the share. Must be positive.</param>
     /// <param name="value">The value (Y coordinate) of the share.</param>
@@ -146,12 +172,12 @@ public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDispos
             throw new ArgumentNullException(nameof(value));
         }
 
-        this.Index = index;
-        this.Value = value;
+        this.index = index;
+        this.value = value;
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="Share{TNumber}"/> struct by parsing a pinned character buffer.
+    /// Initializes a new instance of the <see cref="Share{TNumber}"/> record by parsing a pinned character buffer.
     /// </summary>
     /// <param name="shareString">
     /// A <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing the share in the format
@@ -175,9 +201,9 @@ public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDispos
     /// </exception>
     public Share(PinnedPoolArray<char> shareString)
     {
-        var (index, value) = ParseCore(shareString);
-        this.Index = index;
-        this.Value = value;
+        var (parsedIndex, parsedValue) = ParseCore(shareString);
+        this.index = parsedIndex;
+        this.value = parsedValue;
     }
 
     /// <summary>
@@ -207,9 +233,9 @@ public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDispos
             throw new ArgumentNullException(nameof(valueBytes));
         }
 
-        var (index, value) = DecodeFromBytes(indexBytes, valueBytes);
-        this.Index = index;
-        this.Value = value;
+        var (decodedIndex, decodedValue) = DecodeFromBytes(indexBytes, valueBytes);
+        this.index = decodedIndex;
+        this.value = decodedValue;
     }
 
     /// <summary>
@@ -266,7 +292,7 @@ public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDispos
     /// </summary>
     /// <returns>
     /// A <see cref="PinnedPoolArray{Char}"/> with the hex-encoded share.
-    /// The caller is responsible for disposing the returned instance.
+    /// The caller is responsible for disposing of the returned instance.
     /// </returns>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     public PinnedPoolArray<char> ToCharArray() => this.ToCharArray(uppercase: true, withPrefix: false);
@@ -283,7 +309,7 @@ public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDispos
     /// </param>
     /// <returns>
     /// A <see cref="PinnedPoolArray{Char}"/> with the hex-encoded share.
-    /// The caller is responsible for disposing the returned instance.
+    /// The caller is responsible for disposing of the returned instance.
     /// </returns>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
