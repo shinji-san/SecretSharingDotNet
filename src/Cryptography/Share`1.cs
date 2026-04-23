@@ -449,7 +449,6 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         this.Index?.Dispose();
         this.Value?.Dispose();
         this.disposed = true;
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>

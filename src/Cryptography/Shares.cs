@@ -441,6 +441,5 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
         }
 
         this.disposed = true;
-        GC.SuppressFinalize(this);
     }
 }
