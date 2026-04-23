@@ -315,19 +315,9 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
     {
         this.ThrowIfDisposed();
-        using var indexBytes = this.Index.ByteRepresentation;
-        using var valueBytes = this.Value.ByteRepresentation;
-        var prefixLength = withPrefix ? 2 : 0;
-        var totalLength = 2 * prefixLength + indexBytes.Length * 2 + 1 + valueBytes.Length * 2;
-        var result = new PinnedPoolArray<char>(totalLength);
-        var pos = 0;
-        pos = WritePrefix(result.PoolArray, pos, withPrefix);
-        WriteHexChars(indexBytes, result.PoolArray, pos, uppercase);
-        pos += indexBytes.Length * 2;
-        result.PoolArray[pos++] = CoordinateSeparator;
-        pos = WritePrefix(result.PoolArray, pos, withPrefix);
-        WriteHexChars(valueBytes, result.PoolArray, pos, uppercase);
-
+        var total = this.GetCharCount(withPrefix);
+        var result = new PinnedPoolArray<char>(total);
+        this.WriteCharsTo(result.PoolArray, 0, uppercase, withPrefix);
         return result;
     }
 
