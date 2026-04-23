@@ -297,6 +297,29 @@ public class ShareTest
         Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
     }
 
+    [Fact]
+    public void Constructor_InvalidHexMessage_ContainsPosition()
+    {
+        // "01-ZX" — the 'Z' at position 3 is the first invalid hex character.
+        using var pinned = PinnedTestHelper.ToPinned("01-ZX");
+
+        var ex = Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
+
+        Assert.Contains("3", ex.Message);
+    }
+
+    [Fact]
+    public void Constructor_OddLengthWithInvalidChar_ThrowsArgumentException()
+    {
+        // Single-char (odd-length) index with a non-hex character exercises the
+        // odd-length branch in DecodeHexToCalculator.
+        using var pinned = PinnedTestHelper.ToPinned("Z-01");
+
+        var ex = Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
+
+        Assert.Contains("0", ex.Message);
+    }
+
     [Theory]
     [InlineData("0x-01")]
     [InlineData("01-0x")]

@@ -193,8 +193,9 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// Thrown when <paramref name="shareString"/> is <see langword="null"/>.
     /// </exception>
     /// <exception cref="ArgumentException">
-    /// Thrown when <paramref name="shareString"/> does not contain the coordinate separator
-    /// or contains non-hexadecimal characters.
+    /// Thrown when <paramref name="shareString"/> does not contain the coordinate separator,
+    /// or contains non-hexadecimal characters. In the latter case, the exception message
+    /// identifies the zero-based position of the first invalid character.
     /// </exception>
     /// <exception cref="FormatException">
     /// Thrown when either coordinate is empty after prefix stripping, or when the index is not positive.
@@ -468,14 +469,21 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </summary>
     /// <param name="serialized">The serialized representation of the share, stored in a secured character array.</param>
     /// <returns>A tuple containing the parsed index and value as instances of <see cref="Calculator{TNumber}"/>.</returns>
+    /// <remarks>
+    /// Validation and decoding run in a single pass: <see cref="DecodeHexToCalculator"/> emits an
+    /// <see cref="ArgumentException"/> at the first non-hexadecimal character it encounters, with
+    /// the character's position included in the message.
+    /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="serialized"/> is <see langword="null"/>.
     /// </exception>
     /// <exception cref="ArgumentException">
-    /// Thrown when the provided <paramref name="serialized"/> does not contain a valid coordinate separator or the format is invalid.
+    /// Thrown when the provided <paramref name="serialized"/> does not contain a coordinate separator
+    /// or contains non-hexadecimal characters (a message includes the zero-based position of the first
+    /// invalid character).
     /// </exception>
     /// <exception cref="FormatException">
-    /// Thrown when either the share index or value is empty or improperly formatted.
+    /// Thrown when either the share index or value is empty, or when the index is not positive.
     /// </exception>
     private static (Calculator<TNumber> Index, Calculator<TNumber> Value) ParseCore(PinnedPoolArray<char> serialized)
     {
@@ -501,11 +509,6 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         if (indexLen == 0 || valueLen == 0)
         {
             throw new FormatException(ErrorMessages.ShareIndexAndValueMustBeNonEmpty);
-        }
-
-        if (!IsHexOnly(buf, indexStart, indexLen) || !IsHexOnly(buf, valueStart, valueLen))
-        {
-            throw new ArgumentException(string.Format(ErrorMessages.InvalidShareFormat, CoordinateSeparator));
         }
 
         var numberType = typeof(TNumber);
@@ -582,12 +585,18 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
     /// <summary>
     /// Decodes a hex substring at <c>buf[offset..offset+length]</c> into a <see cref="Calculator{TNumber}"/>.
+    /// Validates and decodes in a single pass — the first non-hexadecimal character triggers an
+    /// <see cref="ArgumentException"/> whose message contains the offending character's position.
     /// </summary>
     /// <remarks>
     /// Intermediate byte material is held in a <see cref="PinnedPoolArray{T}"/>, which is securely
-    /// cleared on dispose. Odd-length input is left-padded with <c>'0'</c> in a temporary pinned
-    /// character buffer to preserve the pinning invariant.
+    /// cleared on dispose. Odd-length input is left-padded by writing the single high nibble into the
+    /// first output byte.
     /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when a non-hexadecimal character is encountered. The message identifies the zero-based
+    /// position of the invalid character within <paramref name="buf"/>.
+    /// </exception>
     private static Calculator<TNumber> DecodeHexToCalculator(char[] buf, int offset, int length, Type numberType)
     {
         var byteCount = (length + 1) >> 1;
@@ -601,7 +610,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             var low = GetHexValue(buf[offset]);
             if (low < 0)
             {
-                throw new FormatException(string.Format(ErrorMessages.InvalidHexCharacter, offset));
+                throw new ArgumentException(string.Format(ErrorMessages.InvalidHexCharacter, offset));
             }
 
             bytesArray[writeIndex++] = (byte)low;
@@ -614,7 +623,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             var low = GetHexValue(buf[offset + readIndex + 1]);
             if (high < 0 || low < 0)
             {
-                throw new FormatException(
+                throw new ArgumentException(
                     string.Format(ErrorMessages.InvalidHexCharacter, high < 0 ? offset + readIndex : offset + readIndex + 1));
             }
 
@@ -691,29 +700,6 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     }
 
     /// <summary>
-    /// Determines if the specified range within a character array contains only hexadecimal characters ('0'-'9', 'A'-'F', 'a'-'f').
-    /// </summary>
-    /// <param name="buf">The character array to inspect.</param>
-    /// <param name="offset">The starting index of the range to check.</param>
-    /// <param name="length">The number of characters in the range to check.</param>
-    /// <returns>
-    /// <see langword="true"/> if the specified range contains only hexadecimal characters; otherwise, <see langword="false"/>.
-    /// </returns>
-    private static bool IsHexOnly(char[] buf, int offset, int length)
-    {
-        for (var i = 0; i < length; i++)
-        {
-            var c = buf[offset + i];
-            if (c is not (>= '0' and <= '9' or >= 'A' and <= 'F' or >= 'a' and <= 'f'))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
     /// Converts a hexadecimal character to its integer value.
     /// </summary>
     /// <param name="c">The character to convert. Must be a valid hexadecimal character ('0'-'9', 'A'-'F', or 'a'-'f').</param>
@@ -784,7 +770,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// <remarks>
     /// <b>Security warning:</b> The <c>new string(...)</c> allocation copies share material onto the
     /// unpinned managed heap. The resulting <see cref="string"/> is immutable and cannot be securely
-    /// cleared — its contents remain recoverable from process memory until GC collection (and even then
+    /// cleared — its contents remain recoverable from process memory until a GC collection (and even then
     /// may persist in swap files or crash dumps). This method is gated by <c>#if DEBUG</c> precisely
     /// for this reason: it exists to support <see cref="ToString"/> and <see cref="DebuggerDisplayAttribute"/>
     /// during development. Never add a Release-build caller; use <see cref="ToCharArray()"/> instead,
