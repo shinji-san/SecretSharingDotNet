@@ -92,12 +92,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     public Share<TNumber> this[int i] => this.shareList[i];
 
     /// <summary>
-    /// Casts a <see cref="Shares{TNumber}"/> object to an array of <see cref="string"/>s.
-    /// </summary>
-    /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
-    public static implicit operator string[](Shares<TNumber> shares) => shares?.Select(s => s.ToString()).ToArray();
-
-    /// <summary>
     /// Casts a <see cref="Shares{TNumber}"/> object to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/>
     /// containing the uppercase hex-encoded shares, one per line, separated by <see cref="Environment.NewLine"/>.
     /// </summary>
@@ -134,7 +128,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     {
         if (buffer is null)
         {
-            throw new ArgumentNullException(nameof(buffer));
+            return new Shares<TNumber>([]);
         }
 
         var buf = buffer.PoolArray;
@@ -312,7 +306,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     {
         if (this.IsReadOnly)
         {
-            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<TNumber>)));
+            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
         }
 
         this.shareList.Clear();
@@ -329,7 +323,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     {
         if (this.IsReadOnly)
         {
-            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<TNumber>)));
+            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
         }
 
         if (!this.Contains(item))
@@ -341,7 +335,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <summary>
     /// Removes the first occurrence of a specific <see cref="Share{TNumber}"/> from the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
-    /// <param name="item">The <see cref="FinitePoint{TNumber}"/> to remove from the <see cref="Shares{TNumber}"/> collection.</param>
+    /// <param name="item">The <see cref="Share{TNumber}"/> to remove from the <see cref="Shares{TNumber}"/> collection.</param>
     /// <returns></returns>
     /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
     /// set to <see langword="true"/>.</remarks>
@@ -350,7 +344,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     {
         if (this.IsReadOnly)
         {
-            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<TNumber>)));
+            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
         }
 
         return this.shareList.Remove(item);

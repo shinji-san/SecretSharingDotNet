@@ -449,19 +449,19 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     {
         if (this.disposed)
         {
-            throw new ObjectDisposedException(nameof(Share<TNumber>));
+            throw new ObjectDisposedException(nameof(Share<>));
         }
     }
 
     /// <summary>
-    /// Deconstructs this share into its index and value components.
+    /// Deconstructs this share into its x and y coordinate.
     /// </summary>
-    /// <param name="index">The index (X coordinate) of the share.</param>
-    /// <param name="value">The value (Y coordinate) of the share.</param>
-    public void Deconstruct(out Calculator<TNumber> index, out Calculator<TNumber> value)
+    /// <param name="x">The index (X coordinate) of the share.</param>
+    /// <param name="y">The value (Y coordinate) of the share.</param>
+    public void Deconstruct(out Calculator<TNumber> x, out Calculator<TNumber> y)
     {
-        index = this.Index;
-        value = this.Value;
+        x = this.Index;
+        y = this.Value;
     }
 
     /// <summary>

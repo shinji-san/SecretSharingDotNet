@@ -1,12 +1,11 @@
-using Xunit;
-using SecretSharingDotNet.Cryptography;
-using System;
-
 namespace SecretSharingDotNetTest.Cryptography;
 
+using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.BigInteger;
+using System;
 using System.Numerics;
+using Xunit;
 
 public class ShareTest
 {
@@ -464,7 +463,7 @@ public class ShareTest
 
         // Post-dispose access to the underlying calculators via a public Share property path
         // should throw; we verify the Share-level guard.
-        Assert.Throws<ObjectDisposedException>(() => share.ToCharArray());
+        Assert.Throws<ObjectDisposedException>(share.ToCharArray);
     }
 
     [Fact]
@@ -475,7 +474,7 @@ public class ShareTest
 
 #if DEBUG
         // DEBUG ToString reads state → guarded by ThrowIfDisposed
-        Assert.Throws<ObjectDisposedException>(() => share.ToString());
+        Assert.Throws<ObjectDisposedException>(share.ToString);
 #else
         // Release ToString returns literal, no state access
         Assert.Equal("*** Secured Value ***", share.ToString());

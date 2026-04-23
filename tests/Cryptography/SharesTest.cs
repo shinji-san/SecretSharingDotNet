@@ -84,30 +84,6 @@ public class SharesTest
     }
 
     /// <summary>
-    /// Validates the explicit cast operation from the <see cref="Shares{TNumber}"/> class to a string array.
-    /// </summary>
-    /// <remarks>
-    /// Ensures that the explicit cast produces the expected array of shares in string format,
-    /// verifying correctness in transformation.
-    /// </remarks>
-    [Fact]
-    public void ExplicitCastToStringArray_ReturnsExpectedArray()
-    {
-        // Arrange
-        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
-        Shares<BigInteger> shares = blob;
-
-        // Act & Assert
-#if DEBUG
-        Assert.Equal(TestData.GetPredefinedShares(), (string[])shares);
-#else
-        var redacted = (string[])shares;
-        Assert.Equal(TestData.GetPredefinedShares().Length, redacted.Length);
-        Assert.All(redacted, s => Assert.Equal("*** Secured Value ***", s));
-#endif
-    }
-
-    /// <summary>
     /// Verifies that the <see cref="Shares{TNumber}.ToString"/> method returns a string representation
     /// that accurately reflects the expected format and content of the shares.
     /// </summary>
