@@ -125,9 +125,9 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         generatedSecret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime);
         var polynomial = this.CreatePolynomial(numberOfMinimumShares);
         polynomial[0] = generatedSecret.ToCoefficient;
-        var points = this.CreateFinitePoints(numberOfShares, polynomial);
+        var shares = this.CreateShares(numberOfShares, polynomial);
         polynomial.DisposeAll();
-        return new Shares<TNumber>(points.ToShares());
+        return new Shares<TNumber>(shares);
     }
 
     /// <summary>
@@ -185,9 +185,9 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
 
         var polynomial = this.CreatePolynomial(numberOfMinimumShares);
         polynomial[0] = secret.ToCoefficient;
-        var points = this.CreateFinitePoints(numberOfShares, polynomial);
+        var shares = this.CreateShares(numberOfShares, polynomial);
         polynomial.DisposeAll();
-        return new Shares<TNumber>(points.ToShares());
+        return new Shares<TNumber>(shares);
     }
 
     /// <summary>
@@ -219,23 +219,27 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     }
 
     /// <summary>
-    /// Creates finite points representing the shared secrets
+    /// Creates shares representing points on the secret polynomial.
     /// </summary>
-    /// <param name="numberOfShares">Maximum number of shared secrets</param>
+    /// <param name="numberOfShares">Maximum number of shares</param>
     /// <param name="polynomial">The polynomial coefficients</param>
-    /// <returns>Finite points representing the shared secrets</returns>
-    private FinitePoint<TNumber>[] CreateFinitePoints(int numberOfShares, ICollection<Calculator<TNumber>> polynomial)
+    /// <returns>Shares representing points on the secret polynomial. The caller owns each share
+    /// and is responsible for disposal (typically by handing them to a <see cref="Shares{TNumber}"/>).</returns>
+    private Share<TNumber>[] CreateShares(int numberOfShares, ICollection<Calculator<TNumber>> polynomial)
     {
         var size = numberOfShares + 1;
-        var points = new FinitePoint<TNumber>[numberOfShares];
+        var shares = new Share<TNumber>[numberOfShares];
+        var prime = this.securityLevelManager.MersennePrime;
 
         for (var i = 1; i < size; i++)
         {
             var bytes = BitConverter.GetBytes(i);
-            var x = Calculator.Create(bytes, bytes.Length, typeof(TNumber)) as Calculator<TNumber>;
-            points[i - 1] = new FinitePoint<TNumber>(x, polynomial, this.securityLevelManager.MersennePrime);
+            var x = Calculator.Create(bytes, bytes.Length, typeof(TNumber)) as Calculator<TNumber>
+                    ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
+            var y = Polynomial.EvaluateAt(x, polynomial, prime);
+            shares[i - 1] = new Share<TNumber>(x, y);
         }
 
-        return points;
+        return shares;
     }
 }

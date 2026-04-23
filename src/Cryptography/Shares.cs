@@ -51,7 +51,7 @@ using System.Threading;
 [DebuggerDisplay("*** Secured Value ***")]
 #endif
 [Serializable]
-public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
+public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, IDisposable
 {
     /// <summary>
     /// Saves a collection of shares.
@@ -63,6 +63,12 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// </summary>
     [NonSerialized]
     private object syncRoot;
+
+    /// <summary>
+    /// Indicates whether the collection and its contained shares have been disposed.
+    /// </summary>
+    [NonSerialized]
+    private bool disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Shares{TNumber}"/> class.
@@ -412,4 +418,29 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// Gets a value indicating whether access to the <see cref="Shares{TNumber}"/> collection is synchronized (thread safe).
     /// </summary>
     bool ICollection.IsSynchronized => false;
+
+    /// <summary>
+    /// Disposes every <see cref="Share{TNumber}"/> in the collection. Idempotent — subsequent calls
+    /// are no-ops.
+    /// </summary>
+    /// <remarks>
+    /// <b>Ownership:</b> a <see cref="Shares{TNumber}"/> collection owns every share it contains.
+    /// Disposing the collection disposes all contained shares. Shares removed via
+    /// <see cref="Remove"/> are returned to the caller, who then owns disposal.
+    /// </remarks>
+    public void Dispose()
+    {
+        if (this.disposed)
+        {
+            return;
+        }
+
+        foreach (var share in this.shareList)
+        {
+            share?.Dispose();
+        }
+
+        this.disposed = true;
+        GC.SuppressFinalize(this);
+    }
 }

@@ -38,59 +38,82 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 /// <summary>
-/// Represents an immutable share in a secret sharing scheme.
-/// A share consists of an index (X coordinate) and a value (Y coordinate).
+/// Represents a single share in a secret-sharing scheme.
+/// A share is an <c>(index, value)</c> pair representing a point on the secret polynomial —
+/// the index is the X coordinate (also known as the polynomial abscissa), the value is the
+/// evaluation of the polynomial at that index.
 /// </summary>
 /// <remarks>
-/// This type provides a simplified, type-safe wrapper for secret sharing operations.
-/// It supports parsing from and formatting to the standard share format "X-Y" where
-/// X is the hexadecimal index and Y is the hexadecimal share value.
+/// <b>Ownership:</b> <see cref="Share{TNumber}"/> owns the <see cref="Calculator{TNumber}"/>
+/// instances passed to it as <see cref="Index"/> and <see cref="Value"/>. Call <see cref="Dispose"/>
+/// exactly once to release them; after disposal every member except <see cref="Dispose"/> throws
+/// <see cref="ObjectDisposedException"/>. A <see cref="Share{TNumber}"/> stored inside a
+/// <see cref="Shares{TNumber}"/> collection is owned by that collection — the collection's
+/// <see cref="Shares{TNumber}.Dispose"/> disposes every contained share.
+/// <para>
+/// Do not call <see cref="IDisposable.Dispose"/> on the <see cref="Index"/> or <see cref="Value"/>
+/// properties directly; that breaks the share's invariants. Use <see cref="Dispose"/> on the share
+/// itself (or on the containing <see cref="Shares{TNumber}"/>) instead.
+/// </para>
+/// <para>
+/// The type supports parsing from and formatting to the standard share format <c>"INDEX-VALUE"</c>
+/// where <c>INDEX</c> and <c>VALUE</c> are hexadecimal. Value-based equality (via record semantics)
+/// is derived from <see cref="Index"/> and <see cref="Value"/>.
+/// </para>
 /// </remarks>
 #if DEBUG
 [DebuggerDisplay("{ToString()}")]
 #else
 [DebuggerDisplay("*** Secured Value ***")]
 #endif
-public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
+public sealed record class Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 {
     /// <summary>
-    /// The separator between the X and Y coordinate
+    /// The separator between the X and Y coordinate.
     /// </summary>
-    /// <remarks>Todo: Make private and configure via options in future versions.</remarks>
     private const char CoordinateSeparator = '-';
 
     /// <summary>
-    /// The index (X coordinate) of this share.
+    /// Indicates whether the share has been disposed.
     /// </summary>
-    /// <remarks>
-    /// In Shamir's Secret Sharing, each share is a point on a polynomial.
-    /// The index represents the X coordinate of this point.
-    /// </remarks>
+    private bool disposed;
+
+    /// <summary>
+    /// The index (X coordinate) of this share. In Shamir's Secret Sharing, each share is a point
+    /// on a polynomial; the index is the X coordinate of that point.
+    /// </summary>
     public Calculator<TNumber> Index { get; }
 
     /// <summary>
-    /// The value (Y coordinate) of this share.
+    /// The value (Y coordinate) of this share — the polynomial evaluated at <see cref="Index"/>.
     /// </summary>
-    /// <remarks>
-    /// In Shamir's Secret Sharing, this represents the Y coordinate of the point
-    /// on the polynomial at the given index.
-    /// </remarks>
     public Calculator<TNumber> Value { get; }
 
     /// <summary>
     /// Gets a value indicating whether the share index is even.
     /// </summary>
-    public bool IsIndexEven => this.Index is not null && this.Index.IsEven;
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public bool IsIndexEven
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.Index.IsEven;
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether the share index is odd.
     /// </summary>
-    public bool IsIndexOdd => this.Index is not null && !this.Index.IsEven;
-
-    /// <summary>
-    /// Gets a value indicating whether this share is empty (default/uninitialized).
-    /// </summary>
-    public bool IsEmpty => (this.Index is null || this.Index.IsZero) && (this.Value is null || this.Value.IsZero);
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public bool IsIndexOdd
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return !this.Index.IsEven;
+        }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Share{TNumber}"/> struct with the specified index and value.
@@ -192,24 +215,17 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
     /// <summary>
     /// Compares this share to another share by their indices.
     /// </summary>
-    /// <param name="other">The other share to compare to.</param>
+    /// <param name="other">The other share to compare to. May be <see langword="null"/>.</param>
     /// <returns>
     /// A negative value if this share's index is less than the other's,
     /// zero if they are equal, or a positive value if this share's index is greater.
+    /// Any non-null share compares greater than <see langword="null"/>.
     /// </returns>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     public int CompareTo(Share<TNumber> other)
     {
-        if (this.Index is null && other.Index is null)
-        {
-            return 0;
-        }
-
-        if (this.Index is null)
-        {
-            return -1;
-        }
-
-        if (other.Index is null)
+        this.ThrowIfDisposed();
+        if (other is null)
         {
             return 1;
         }
@@ -237,7 +253,8 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
     public override string ToString()
     {
 #if DEBUG
-        return this.IsEmpty ? string.Empty : this.FormatHex(uppercase: true);
+        this.ThrowIfDisposed();
+        return this.FormatHex(uppercase: true);
 #else
         return "*** Secured Value ***";
 #endif
@@ -250,8 +267,8 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
     /// <returns>
     /// A <see cref="PinnedPoolArray{Char}"/> with the hex-encoded share.
     /// The caller is responsible for disposing the returned instance.
-    /// Returns a <see cref="PinnedPoolArray{Char}"/> with length zero if the share is empty or uninitialized.
     /// </returns>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     public PinnedPoolArray<char> ToCharArray() => this.ToCharArray(uppercase: true, withPrefix: false);
 
     /// <summary>
@@ -267,15 +284,11 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
     /// <returns>
     /// A <see cref="PinnedPoolArray{Char}"/> with the hex-encoded share.
     /// The caller is responsible for disposing the returned instance.
-    /// Returns a <see cref="PinnedPoolArray{Char}"/> with length zero if the share is empty or uninitialized.
     /// </returns>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
     {
-        if (this.IsEmpty)
-        {
-            return new PinnedPoolArray<char>(0);
-        }
-
+        this.ThrowIfDisposed();
         using var indexBytes = this.Index.ByteRepresentation;
         using var valueBytes = this.Value.ByteRepresentation;
         var prefixLength = withPrefix ? 2 : 0;
@@ -301,7 +314,7 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
     /// otherwise <see langword="false"/>.
     /// </param>
     /// <returns>
-    /// The number of characters required, or <c>0</c> if the share is empty.
+    /// The number of characters required.
     /// </returns>
     /// <remarks>
     /// Computes the length without materializing the underlying byte representation. Relies on
@@ -310,13 +323,10 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
     /// performed. The invariant <c>ByteCount == ByteRepresentation.Length</c> is assumed; it is
     /// asserted in unit tests.
     /// </remarks>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     public int GetCharCount(bool withPrefix)
     {
-        if (this.IsEmpty)
-        {
-            return 0;
-        }
-
+        this.ThrowIfDisposed();
         var prefixLength = withPrefix ? 2 : 0;
         return 2 * prefixLength + this.Index.ByteCount * 2 + 1 + this.Value.ByteCount * 2;
     }
@@ -334,13 +344,15 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
     /// <see langword="true"/> to prepend <c>"0x"</c> before each coordinate; <see langword="false"/> for no prefix.
     /// </param>
     /// <returns>
-    /// The number of characters written. Returns <c>0</c> if the share is empty.
+    /// The number of characters written.
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="dest"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="offset"/> is negative or greater than <c>dest.Length</c>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="dest"/> has insufficient remaining space.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     public int WriteCharsTo(char[] dest, int offset, bool uppercase, bool withPrefix)
     {
+        this.ThrowIfDisposed();
         if (dest is null)
         {
             throw new ArgumentNullException(nameof(dest));
@@ -349,11 +361,6 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
         if (offset < 0 || offset > dest.Length)
         {
             throw new ArgumentOutOfRangeException(nameof(offset));
-        }
-
-        if (this.IsEmpty)
-        {
-            return 0;
         }
 
         using var indexBytes = this.Index.ByteRepresentation;
@@ -379,22 +386,56 @@ public readonly record struct Share<TNumber> : IComparable<Share<TNumber>>
     /// <summary>
     /// Determines whether one share is less than another based on their indices.
     /// </summary>
-    public static bool operator <(Share<TNumber> left, Share<TNumber> right) => left.CompareTo(right) < 0;
+    public static bool operator <(Share<TNumber> left, Share<TNumber> right)
+        => left is not null && left.CompareTo(right) < 0;
 
     /// <summary>
     /// Determines whether one share is greater than another based on their indices.
     /// </summary>
-    public static bool operator >(Share<TNumber> left, Share<TNumber> right) => left.CompareTo(right) > 0;
+    public static bool operator >(Share<TNumber> left, Share<TNumber> right)
+        => left is not null ? left.CompareTo(right) > 0 : right is not null;
 
     /// <summary>
     /// Determines whether one share is less than or equal to another based on their indices.
     /// </summary>
-    public static bool operator <=(Share<TNumber> left, Share<TNumber> right) => left.CompareTo(right) <= 0;
+    public static bool operator <=(Share<TNumber> left, Share<TNumber> right)
+        => left is null || left.CompareTo(right) <= 0;
 
     /// <summary>
     /// Determines whether one share is greater than or equal to another based on their indices.
     /// </summary>
-    public static bool operator >=(Share<TNumber> left, Share<TNumber> right) => left.CompareTo(right) >= 0;
+    public static bool operator >=(Share<TNumber> left, Share<TNumber> right)
+        => left is not null ? left.CompareTo(right) >= 0 : right is null;
+
+    /// <summary>
+    /// Releases the <see cref="Calculator{TNumber}"/> instances backing <see cref="Index"/> and
+    /// <see cref="Value"/>. Idempotent — safe to call multiple times; subsequent calls are no-ops.
+    /// After disposal, all members except <see cref="Dispose"/> throw
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
+    public void Dispose()
+    {
+        if (this.disposed)
+        {
+            return;
+        }
+
+        this.Index?.Dispose();
+        this.Value?.Dispose();
+        this.disposed = true;
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Throws <see cref="ObjectDisposedException"/> if the share has been disposed.
+    /// </summary>
+    private void ThrowIfDisposed()
+    {
+        if (this.disposed)
+        {
+            throw new ObjectDisposedException(nameof(Share<TNumber>));
+        }
+    }
 
     /// <summary>
     /// Deconstructs this share into its index and value components.

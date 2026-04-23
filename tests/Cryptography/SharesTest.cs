@@ -32,6 +32,7 @@
 namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Math.BigInteger;
 using System;
 using System.Collections;
 using System.Linq;
@@ -398,5 +399,32 @@ public class SharesTest
         {
             Assert.Equal(original[i], reparsed[i]);
         }
+    }
+
+    [Fact]
+    public void Dispose_DisposesAllContainedShares()
+    {
+        // Arrange
+        var share1 = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        var share2 = new Share<BigInteger>(new BigIntCalculator(7), new BigIntCalculator(20));
+        Shares<BigInteger> shares = new[] { share1, share2 };
+
+        // Act
+        shares.Dispose();
+
+        // Assert: every share is disposed — subsequent Share-level operations throw.
+        Assert.Throws<ObjectDisposedException>(() => share1.GetCharCount(withPrefix: false));
+        Assert.Throws<ObjectDisposedException>(() => share2.GetCharCount(withPrefix: false));
+    }
+
+    [Fact]
+    public void Dispose_Idempotent_NoException()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        Shares<BigInteger> shares = new[] { share };
+
+        shares.Dispose();
+        shares.Dispose();
+        shares.Dispose();
     }
 }

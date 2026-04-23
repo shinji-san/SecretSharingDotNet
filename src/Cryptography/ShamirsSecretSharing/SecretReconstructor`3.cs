@@ -94,18 +94,23 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
 
     /// <summary>
     /// Find the y-value for the given x, given n (x, y) points;
-    /// k points will define a polynomial of up to kth order
+    /// k points will define a polynomial of up to kth order.
     /// </summary>
-    /// <param name="finitePoints">The shares represented by a set of <see cref="FinitePoint{TNumber}"/>.</param>
+    /// <param name="shares">The shares representing points on the polynomial.</param>
     /// <param name="prime">A prime number must be defined to avoid computation with real numbers. In fact, it is finite field arithmetic.
     /// The prime number must be the same as used for the construction of shares.</param>
     /// <exception cref="ArgumentException"></exception>
     /// <returns>The re-constructed secret.</returns>
-    private Secret<TNumber> LagrangeInterpolate(FinitePoint<TNumber>[] finitePoints, Calculator<TNumber> prime)
+    /// <remarks>
+    /// The <paramref name="shares"/> are borrowed — this method reads <see cref="Share{TNumber}.Index"/>
+    /// and <see cref="Share{TNumber}.Value"/> but never disposes them. Ownership of the shares remains
+    /// with the caller (typically a <see cref="Shares{TNumber}"/> collection).
+    /// </remarks>
+    private Secret<TNumber> LagrangeInterpolate(IReadOnlyList<Share<TNumber>> shares, Calculator<TNumber> prime)
     {
-        if (finitePoints is null)
+        if (shares is null)
         {
-            throw new ArgumentNullException(nameof(finitePoints));
+            throw new ArgumentNullException(nameof(shares));
         }
 
         if (prime is null)
@@ -113,10 +118,10 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentNullException(nameof(prime));
         }
 
-        int numberOfPoints = finitePoints.Length;
-        if (finitePoints.Distinct().Count() != numberOfPoints)
+        int numberOfPoints = shares.Count;
+        if (shares.Distinct().Count() != numberOfPoints)
         {
-            throw new ArgumentException(ErrorMessages.FinitePointsNotDistinct, nameof(finitePoints));
+            throw new ArgumentException(ErrorMessages.FinitePointsNotDistinct, nameof(shares));
         }
 
         using var zero = Calculator<TNumber>.Zero;
@@ -131,10 +136,10 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         {
             for (int j = 0; j < numberOfPoints; j++)
             {
-                if (finitePoints[i] != finitePoints[j])
+                if (shares[i] != shares[j])
                 {
-                    numeratorTerms[j] = zero - finitePoints[j].X;
-                    denominatorTerms[j] = finitePoints[i].X - finitePoints[j].X;
+                    numeratorTerms[j] = zero - shares[j].Index;
+                    denominatorTerms[j] = shares[i].Index - shares[j].Index;
                 }
                 else
                 {
@@ -153,7 +158,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         for (int i = 0; i < numberOfPoints; i++)
         {
             using var weightedNumerator = numeratorProducts[i] * denominator;
-            using var normalizedYCoordinate = finitePoints[i].Y.MathematicalModulo(prime);
+            using var normalizedYCoordinate = shares[i].Value.MathematicalModulo(prime);
             using var currentNumerator = weightedNumerator * normalizedYCoordinate;
             using var modInversePerPoint = this.DivMod(currentNumerator, denominatorProducts[i], prime);
             var numeratorTemp = numerator;
@@ -168,7 +173,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
 
         // Disposes all used calculators, but not prime.
         // Prime is provided from Mersenne prime provider and should not be disposed here.
-        // Finite points are provided from outside and should not be disposed here.
+        // Shares are provided from outside and should not be disposed here.
         numerator.Dispose();
         denominator.Dispose();
         numeratorProducts.DisposeAll();
@@ -196,15 +201,15 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentOutOfRangeException(nameof(shares), ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
 
-        var finitePoints = shares.ToFinitePoints();
-        var maximumY = finitePoints.Select(point => point.Y).Max();
+        var shareList = shares.ToArray();
+        var maximumY = shareList.Select(share => share.Value).Max();
         if (maximumY is null)
         {
             throw new ArgumentException(ErrorMessages.NoMaximumY, nameof(shares));
         }
 
         this.securityLevelManager.AdjustSecurityLevel(maximumY);
-        return this.LagrangeInterpolate(finitePoints, this.securityLevelManager.MersennePrime);
+        return this.LagrangeInterpolate(shareList, this.securityLevelManager.MersennePrime);
     }
 
     /// <summary>

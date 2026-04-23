@@ -154,16 +154,6 @@ public class ShareTest
         Assert.True(share.IsIndexOdd);
     }
 
-    [Fact]
-    public void IsEmpty_ShouldReturnTrueIfShareIsDefault()
-    {
-        // Arrange
-        var share = new Share<BigInteger>();
-
-        // Act & Assert
-        Assert.True(share.IsEmpty);
-    }
-
     [Theory]
     [InlineData(5, 10, "05-0A")]
     [InlineData(255, 255, "FF00-FF00")]
@@ -263,19 +253,6 @@ public class ShareTest
         Assert.Equal("05-0A", new string(result.PoolArray, 0, result.Length));
     }
 
-    [Fact]
-    public void ToCharArray_EmptyShare_ShouldReturnZeroLength()
-    {
-        // Arrange
-        var share = new Share<BigInteger>();
-
-        // Act
-        using var result = share.ToCharArray(uppercase: true, withPrefix: true);
-
-        // Assert
-        Assert.Equal(0, result.Length);
-    }
-
     [Theory]
     [InlineData("0x05-0x0A", 5, 10)]
     [InlineData("0x0B-0xAA", 11, -86)]
@@ -345,15 +322,6 @@ public class ShareTest
         Assert.Equal(original.Value, parsed.Value);
     }
 
-    [Fact]
-    public void GetCharCount_EmptyShare_ReturnsZero()
-    {
-        var share = new Share<BigInteger>();
-
-        Assert.Equal(0, share.GetCharCount(withPrefix: false));
-        Assert.Equal(0, share.GetCharCount(withPrefix: true));
-    }
-
     [Theory]
     [InlineData(5, 10, false, 5)]
     [InlineData(5, 10, true, 9)]
@@ -392,17 +360,6 @@ public class ShareTest
         Assert.Equal(expected, new string(buffer, 2, written));
         Assert.Equal('\0', buffer[0]);
         Assert.Equal('\0', buffer[1]);
-    }
-
-    [Fact]
-    public void WriteCharsTo_EmptyShare_ReturnsZero()
-    {
-        var share = new Share<BigInteger>();
-        var buffer = new char[16];
-
-        var written = share.WriteCharsTo(buffer, 0, uppercase: true, withPrefix: false);
-
-        Assert.Equal(0, written);
     }
 
     [Fact]
@@ -461,5 +418,93 @@ public class ShareTest
         Assert.False(share1 > share2);
         Assert.True(share1 <= share2);
         Assert.True(share2 >= share1);
+    }
+
+    [Fact]
+    public void Dispose_Idempotent_NoException()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+
+        share.Dispose();
+        share.Dispose();
+        share.Dispose();
+    }
+
+    [Fact]
+    public void Dispose_ReleasesIndexAndValue()
+    {
+        var index = new BigIntCalculator(5);
+        var value = new BigIntCalculator(10);
+        var share = new Share<BigInteger>(index, value);
+
+        share.Dispose();
+
+        // Post-dispose access to the underlying calculators via a public Share property path
+        // should throw; we verify the Share-level guard.
+        Assert.Throws<ObjectDisposedException>(() => share.ToCharArray());
+    }
+
+    [Fact]
+    public void PostDispose_ToString_DoesNotThrowInDebug()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        share.Dispose();
+
+#if DEBUG
+        // DEBUG ToString reads state → guarded by ThrowIfDisposed
+        Assert.Throws<ObjectDisposedException>(() => share.ToString());
+#else
+        // Release ToString returns literal, no state access
+        Assert.Equal("*** Secured Value ***", share.ToString());
+#endif
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PostDispose_GetCharCount_ThrowsObjectDisposedException(bool withPrefix)
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        share.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => share.GetCharCount(withPrefix));
+    }
+
+    [Fact]
+    public void PostDispose_WriteCharsTo_ThrowsObjectDisposedException()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        share.Dispose();
+        var buffer = new char[16];
+
+        Assert.Throws<ObjectDisposedException>(
+            () => share.WriteCharsTo(buffer, 0, uppercase: true, withPrefix: false));
+    }
+
+    [Fact]
+    public void PostDispose_IsIndexEven_ThrowsObjectDisposedException()
+    {
+        var share = new Share<BigInteger>(new BigIntCalculator(4), new BigIntCalculator(10));
+        share.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => _ = share.IsIndexEven);
+    }
+
+    [Fact]
+    public void PostDispose_CompareTo_ThrowsObjectDisposedException()
+    {
+        var share1 = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        using var share2 = new Share<BigInteger>(new BigIntCalculator(7), new BigIntCalculator(20));
+        share1.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => share1.CompareTo(share2));
+    }
+
+    [Fact]
+    public void CompareTo_NullOther_ReturnsPositive()
+    {
+        using var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+
+        Assert.Equal(1, share.CompareTo(null));
     }
 }
