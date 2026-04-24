@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set data type of `numberOfMinimumShares` and `numberOfShares` parameters from `TNumber` to `int` in `MakeShares` method.
 
 ### Removed
+- Removed support for .NET Framework 4.7
 - Removed `OriginalSecret` property from `Shares` class.
 - Removed `OriginalSecretExists` property from `Shares` class.
 - Removed `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)` method.
