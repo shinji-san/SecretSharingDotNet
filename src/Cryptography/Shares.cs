@@ -385,7 +385,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
             throw new ArgumentOutOfRangeException(nameof(arrayIndex), ErrorMessages.StartArrayIndexNegative);
         }
 
-        if (this.Count > array.Length - arrayIndex + 1)
+        if (this.Count > array.Length - arrayIndex)
         {
             throw new ArgumentException(ErrorMessages.DestinationArrayHasFewerElements, nameof(array));
         }

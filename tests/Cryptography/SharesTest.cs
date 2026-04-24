@@ -192,6 +192,52 @@ public class SharesTest
     }
 
     [Fact]
+    public void CopyTo_ExactFitWithOffset_Succeeds()
+    {
+        // Arrange — array is sized Count + 2 with 2-slot prefix padding.
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
+        var target = new Share<BigInteger>[shares.Count + 2];
+
+        // Act — fills target[2 .. Count+1] exactly.
+        shares.CopyTo(target, arrayIndex: 2);
+
+        // Assert
+        Assert.Null(target[0]);
+        Assert.Null(target[1]);
+        for (int i = 0; i < shares.Count; i++)
+        {
+            Assert.Equal(shares[i], target[i + 2]);
+        }
+    }
+
+    [Fact]
+    public void CopyTo_OffsetLeavesTooFewSlots_ThrowsArgumentException()
+    {
+        // Arrange — target has Count+2 slots, but offset leaves only Count-1 remaining.
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
+        var target = new Share<BigInteger>[shares.Count + 2];
+        var offset = target.Length - shares.Count + 1;
+
+        // Act & Assert — previously hidden behind an off-by-one that let this pass the guard
+        // and crash at array[i + arrayIndex] with IndexOutOfRangeException.
+        Assert.Throws<ArgumentException>(() => shares.CopyTo(target, offset));
+    }
+
+    [Fact]
+    public void CopyTo_NegativeArrayIndex_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        Shares<BigInteger> shares = blob;
+        var target = new Share<BigInteger>[shares.Count];
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() => shares.CopyTo(target, -1));
+    }
+
+    [Fact]
     public void IsReadOnly_ReturnsTrue()
     {
         // Arrange
