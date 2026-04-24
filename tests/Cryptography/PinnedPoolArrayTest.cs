@@ -95,6 +95,56 @@ public class PinnedPoolArrayTest
     }
 
     [Fact]
+    public void SecureClear_ClearsBytesBeyondLogicalLength()
+    {
+        // Arrange — write to every Capacity byte via the PoolArray escape hatch.
+        var pinnedArray = new PinnedPoolArray<byte>(8);
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            pinnedArray.PoolArray[i] = 0x55;
+        }
+
+        // Shrink the logical length so that [Length..Capacity) is "outside the view".
+        pinnedArray.Length = 4;
+
+        // Act
+        pinnedArray.SecureClear();
+
+        // Assert — the full capacity, not just [0..Length), must be zero.
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            Assert.Equal(0, pinnedArray.PoolArray[i]);
+        }
+
+        pinnedArray.Dispose();
+    }
+
+    [Fact]
+    public void SecureClear_AfterLengthSetToZero_StillClearsCapacity()
+    {
+        // Arrange — regression guard: a caller setting Length = 0 before disposal
+        // must not be able to bypass the secure-clear pass.
+        var pinnedArray = new PinnedPoolArray<byte>(16);
+        for (int i = 0; i < pinnedArray.Length; i++)
+        {
+            pinnedArray.PoolArray[i] = 0x42;
+        }
+
+        pinnedArray.Length = 0;
+
+        // Act
+        pinnedArray.SecureClear();
+
+        // Assert — every Capacity byte must be zero despite Length == 0.
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            Assert.Equal(0, pinnedArray.PoolArray[i]);
+        }
+
+        pinnedArray.Dispose();
+    }
+
+    [Fact]
     public void Dispose_ShouldReleasePinnedMemory()
     {
         // Arrange
@@ -115,8 +165,8 @@ public class PinnedPoolArrayTest
         var pinnedArray = new PinnedPoolArray<byte>(50);
 
         // Act: Calling Dispose multiple times should not throw exceptions
-        var exception1 = Record.Exception(() => pinnedArray.Dispose());
-        var exception2 = Record.Exception(() => pinnedArray.Dispose());
+        var exception1 = Record.Exception(pinnedArray.Dispose);
+        var exception2 = Record.Exception(pinnedArray.Dispose);
 
         // Assert
         Assert.Null(exception1);

@@ -96,8 +96,17 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     }
 
     /// <summary>
-    /// Gets or sets the length of the pinned byte array.
+    /// Gets or sets the logical length of the pinned buffer. Must be in <c>[0, Capacity]</c>.
     /// </summary>
+    /// <remarks>
+    /// Length defines the range exposed to consumers via the indexer and the subset of bytes
+    /// copied/interpreted by callers. It does <b>not</b> affect <see cref="SecureClear"/>, which
+    /// always wipes the full <see cref="Capacity"/> — so shrinking <see cref="Length"/> before
+    /// disposal cannot be used to bypass secure clearing.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when the assigned value is negative or greater than <see cref="Capacity"/>.
+    /// </exception>
     public int Length
     {
         get => this.length;
@@ -346,10 +355,17 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     }
 
     /// <summary>
-    /// Overwrites the contents of the specified byte array with multiple passes of different patterns
-    /// to securely clear its data, ensuring sensitive information is not left in memory.
+    /// Overwrites the entire rented backing buffer (full <see cref="Capacity"/>, not just
+    /// <see cref="Length"/>) with multiple passes of different patterns, then zeros it, so that
+    /// no secret data remains in pooled memory after the array is returned to the pool.
     /// </summary>
-    /// <remarks>3-Pass Overwrite (DOD 5220.22-M)</remarks>
+    /// <remarks>
+    /// 3-Pass Overwrite (DOD 5220.22-M) with patterns 0xFF → 0x00 → 0xAA, followed by a final
+    /// zeroization pass. Clearing the full capacity — not just the logical length — is essential:
+    /// callers may have written past <see cref="Length"/> via the <see cref="PoolArray"/> escape
+    /// hatch, and the pool reuses backing buffers across tenants. Because of this, the value of
+    /// <see cref="Length"/> at the time of this call has no effect on how many bytes are wiped.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     public void SecureClear()
     {
@@ -357,9 +373,9 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         {
             return;
         }
-        
+
 #if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-        var data = MemoryMarshal.AsBytes(this.poolArray.AsSpan(0, this.Length));
+        var data = MemoryMarshal.AsBytes(this.poolArray.AsSpan());
         for (int pass = 0; pass < 3; pass++)
         {
             byte pattern = (byte)(pass == 0 ? 0xFF : pass == 1 ? 0x00 : 0xAA);
