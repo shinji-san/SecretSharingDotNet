@@ -13,16 +13,13 @@ A C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=9><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/dotnetall.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/dotnetall.yml/badge.svg?branch=main" alt="Build status"/></a></td>
-          <td rowspan=9><code>SecretSharingDotNet.slnx</code></td>
-          <td rowspan=9>SDK</td>
+          <td rowspan=8><a href ="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/dotnetall.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/dotnetall.yml/badge.svg?branch=main" alt="Build status"/></a></td>
+          <td rowspan=8><code>SecretSharingDotNet.slnx</code></td>
+          <td rowspan=8>SDK</td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
           <td>Standard 2.1</td>
-      </tr>
-      <tr>
-          <td>FX 4.7</td>
       </tr>
       <tr>
           <td>FX 4.7.1</td>
@@ -58,16 +55,13 @@ A C# implementation of Shamir's Secret Sharing.
   </thead>
   <tbody>
       <tr>
-          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml/badge.svg" alt="SecretSharingDotNet - NuGet Publishing"/></a></td>
-          <td rowspan=9><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.14.0"/></a></td>
-          <td rowspan=9><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.14.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.14.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml/badge.svg" alt="SecretSharingDotNet - NuGet Publishing"/></a></td>
+          <td rowspan=8><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.14.0"/></a></td>
+          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.14.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.14.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
           <td>Standard 2.1</td>
-      </tr>
-      <tr>
-          <td>FX 4.7</td>
       </tr>
       <tr>
           <td>FX 4.7.1</td>
@@ -92,7 +86,7 @@ A C# implementation of Shamir's Secret Sharing.
 
 ## Install SecretSharingDotNet package 📥
 
-1. Open a console and switch to the directory, containing your project file.
+1. Open a console and switch to the directory containing your project file.
 
 2. Use the following command to install version 0.14.0 of the SecretSharingDotNet package:
 
@@ -111,7 +105,7 @@ A C# implementation of Shamir's Secret Sharing.
     ```
 ## Remove SecretSharingDotNet package 📤
 
-1. Open a console and switch to the directory, containing your project file.
+1. Open a console and switch to the directory containing your project file.
 
 2. Use the following command to remove the SecretSharingDotNet package:
 
@@ -440,7 +434,7 @@ For the following instructions, please make sure that you are connected to the i
 If you start the unit tests on Linux, you must install the `mono-complete` package in case of the .NET Frameworks 4.7, 4.7.1, 4.7.2, 4.8 and 4.8.1.
 You can find the Mono installation instructions [here](https://www.mono-project.com/download/stable/#download-lin).
 
-The .NET Frameworks 4.7, 4.7.1, 4.7.2, 4.8 and 4.8.1 can be found [here](https://dotnet.microsoft.com/download/dotnet-framework).
+The .NET Frameworks 4.7.1, 4.7.2, 4.8 and 4.8.1 can be found [here](https://dotnet.microsoft.com/download/dotnet-framework).
 
 The .NET SDKs 8.0, 9.0 and 10.0 can be found [here](https://dotnet.microsoft.com/download/dotnet).
 
