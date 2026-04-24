@@ -33,7 +33,6 @@
 
 namespace SecretSharingDotNet.Extension;
 
-using Cryptography;
 using Cryptography.SecureArray;
 using System;
 using System.Runtime.CompilerServices;
@@ -46,7 +45,7 @@ internal static class PinnedPoolArrayExtensions
     /// <typeparam name="TArray">Data type of the array</typeparam>
     /// <param name="array">source array</param>
     /// <param name="index">start index</param>
-    /// <param name="count">number of elements to copy to new subset array</param>
+    /// <param name="count">number of elements to copy to a new subset array</param>
     /// <returns>An array that contains the specified number of elements from the <paramref name="index"/> of the <paramref name="array"/>.</returns>
     internal static PinnedPoolArray<TArray> Subset<TArray>(this PinnedPoolArray<TArray> array, int index, int count)
         where TArray : struct

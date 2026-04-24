@@ -31,25 +31,21 @@
 
 #endregion
 
-namespace SecretSharingDotNet.Math.SecureBigInteger;
+namespace SecretSharingDotNet.Math.Numerics;
 
 #if (!NET8_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER)
 using Extension;
 #endif
 using Cryptography.SecureArray;
 using System;
-using System.Buffers;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
 using System.Security.Cryptography;
 #endif
-using System.Text;
 using System.Threading;
+
 
 /// <summary>
 /// Represents a secure arbitrary-precision integer with support for basic arithmetic operations.
@@ -2268,7 +2264,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 #if DEBUG
         using var pinnedCharArray = this.ToPinnedCharArray();
         var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
-        return $"{this.GetType().Name}({s})";
+        return $"{nameof(SecureBigInteger)}({s})";
 #else
         return "*** Secured Value ***";
 #endif

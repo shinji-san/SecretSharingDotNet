@@ -29,12 +29,12 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNet.Math.BigInteger;
+namespace SecretSharingDotNet.Math.Numerics;
 
+using Cryptography.SecureArray;
 #if (!NET8_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER)
 using Extension;
 #endif
-using Cryptography.SecureArray;
 using System;
 using System.Numerics;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)

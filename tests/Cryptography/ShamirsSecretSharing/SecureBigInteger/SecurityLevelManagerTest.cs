@@ -34,12 +34,12 @@
 
 namespace SecretSharingDotNetTest.Cryptography.ShamirsSecretSharing.SecureBigInteger;
 
+using Moq;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
-using SecretSharingDotNet.Math.SecureBigInteger;
+using SecretSharingDotNet.Math.Numerics;
 using System;
 using Xunit;
-using Moq;
 
 public class SecurityLevelManagerTest
 {

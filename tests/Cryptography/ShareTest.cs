@@ -2,7 +2,7 @@ namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Math;
-using SecretSharingDotNet.Math.BigInteger;
+using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Numerics;
 using Xunit;

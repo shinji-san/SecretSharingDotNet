@@ -31,9 +31,9 @@
 
 #endregion
 
-namespace SecretSharingDotNetTest.Math.SecureBigInteger;
+namespace SecretSharingDotNetTest.Math.Numerics;
 
-using SecretSharingDotNet.Math.SecureBigInteger;
+using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Numerics;
 using Xunit;

@@ -29,13 +29,13 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNetTest.Math.BigInteger;
+namespace SecretSharingDotNetTest.Math.Numerics;
 
 using System;
 using System.Linq;
 using System.Numerics;
 using SecretSharingDotNet.Math;
-using SecretSharingDotNet.Math.BigInteger;
+using SecretSharingDotNet.Math.Numerics;
 using Xunit;
 
 public class BigIntCalculatorTest

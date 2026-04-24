@@ -28,13 +28,13 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNetTest.MathTests;
+namespace SecretSharingDotNetTest.Math.BigInteger;
 
 using SecretSharingDotNet.Math;
-using SecretSharingDotNet.Math.BigInteger;
+using SecretSharingDotNet.Math.Numerics;
 using System;
+using System.Numerics;
 using Xunit;
-using BigInteger = System.Numerics.BigInteger;
 
 public class PolynomialTest
 {
@@ -115,7 +115,7 @@ public class PolynomialTest
 
         try
         {
-            Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt<BigInteger>(null, coeffs, primeCalc));
+            Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(null, coeffs, primeCalc));
         }
         finally
         {
@@ -129,7 +129,7 @@ public class PolynomialTest
         using var xCalc = new BigIntCalculator(1);
         using var primeCalc = new BigIntCalculator(17);
 
-        Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt<BigInteger>(xCalc, null, primeCalc));
+        Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(xCalc, null, primeCalc));
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class PolynomialTest
 
         try
         {
-            Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt<BigInteger>(xCalc, coeffs, null));
+            Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(xCalc, coeffs, null));
         }
         finally
         {

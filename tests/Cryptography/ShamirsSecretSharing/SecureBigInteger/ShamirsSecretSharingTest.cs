@@ -34,10 +34,9 @@ namespace SecretSharingDotNetTest.Cryptography.ShamirsSecretSharing.SecureBigInt
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
-using SecretSharingDotNet.Math.SecureBigInteger;
+using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Linq;
-using System.Text;
 using Xunit;
 
 /// <summary>
@@ -266,22 +265,25 @@ public class SecretSplitterTest
         Assert.Equal(longSecret, recoveredSecret2);
     }
     
-    // /// <summary>
-    // /// Tests the secret reconstruction from an array of shares represented by strings
-    // /// </summary>
-    // [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-    // [Fact]
-    // public void TestReconstructFromStringArray()
-    // {
-    //     // Arrange
-    //     var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-    //
-    //     // Act
-    //     var secret = secretReconstructor.Reconstruction(TestData.GetPredefinedShares());
-    //
-    //     // Assert
-    //     Assert.Equal(TestData.DefaultTestPassword, secret);
-    // }
+    /// <summary>
+    /// Tests the secret reconstruction from an array of shares represented by strings
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Fact]
+    public void TestReconstructFromStringArray()
+    {
+        // Arrange
+        var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+
+        // Act
+        using Shares<SecureBigInteger> shares = blob;
+        var secret = secretReconstructor.Reconstruction(shares);
+
+        // Assert
+        Assert.Equal(TestData.DefaultTestPassword, secret);
+    }
+
     //
     // /// <summary>
     // /// Tests the secret reconstruction from shares represented by a single string (separated by newline)

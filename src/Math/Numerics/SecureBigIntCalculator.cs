@@ -29,7 +29,7 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNet.Math.SecureBigInteger;
+namespace SecretSharingDotNet.Math.Numerics;
 
 using Cryptography.SecureArray;
 using System;

@@ -32,7 +32,8 @@
 namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
-using SecretSharingDotNet.Math.BigInteger;
+using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Collections;
 using System.Linq;
@@ -387,7 +388,7 @@ public class SharesTest
         var expected = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
 
         // Act
-        using SecretSharingDotNet.Cryptography.SecureArray.PinnedPoolArray<char> serialized = shares;
+        using PinnedPoolArray<char> serialized = shares;
 
         // Assert
         Assert.Equal(expected, new string(serialized.PoolArray, 0, serialized.Length));
@@ -400,7 +401,7 @@ public class SharesTest
 
         Assert.Throws<ArgumentNullException>(() =>
         {
-            SecretSharingDotNet.Cryptography.SecureArray.PinnedPoolArray<char> _ = shares;
+            PinnedPoolArray<char> _ = shares;
         });
     }
 
@@ -412,7 +413,7 @@ public class SharesTest
         Shares<BigInteger> original = input;
 
         // Act — collection → pinned chars → collection
-        using SecretSharingDotNet.Cryptography.SecureArray.PinnedPoolArray<char> serialized = original;
+        using PinnedPoolArray<char> serialized = original;
         Shares<BigInteger> reparsed = serialized;
 
         // Assert

@@ -29,12 +29,12 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNetTest.Math.SecureBigInteger;
+namespace SecretSharingDotNetTest.Math.Numerics;
 
 using System;
-using System.Linq;
 using SecretSharingDotNet.Math;
-using SecretSharingDotNet.Math.SecureBigInteger;
+using SecretSharingDotNet.Math.Numerics;
+using System.Linq;
 using Xunit;
 
 public class SecureBigIntCalculatorTest

@@ -32,7 +32,7 @@
 namespace SecretSharingDotNetTest.Math.SecureBigInteger;
 
 using SecretSharingDotNet.Math;
-using SecretSharingDotNet.Math.SecureBigInteger;
+using SecretSharingDotNet.Math.Numerics;
 using Xunit;
 
 public class ExtendedEuclideanAlgorithmTest
