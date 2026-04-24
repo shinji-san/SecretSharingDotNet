@@ -5,9 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
 ### Changed
 - Set `FinitePoint` struct internal instead public to reduce the public API surface.
 - Set data type of `numberOfMinimumShares` and `numberOfShares` parameters from `TNumber` to `int` in `MakeShares` method.
+
+### Fixed
+- Fix `README.md`: Added support for .NET Framework 4.8.1
 
 ### Removed
 - Removed support for .NET Framework 4.7.1
