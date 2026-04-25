@@ -3,6 +3,8 @@ namespace SecretSharingDotNetTest.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureArray;
 using Xunit;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Threading;
 
 public class PinnedPoolArrayTest
@@ -246,6 +248,56 @@ public class PinnedPoolArrayTest
 
             Assert.Null(observedFromClearer);
         }
+    }
+
+    [Fact]
+    public void Length_Getter_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var arr = new PinnedPoolArray<byte>(50);
+        arr.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => { _ = arr.Length; });
+    }
+
+    [Fact]
+    public void Length_Setter_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var arr = new PinnedPoolArray<byte>(50);
+        arr.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => { arr.Length = 10; });
+    }
+
+    [Fact]
+    public void Equals_WithCountedComparer_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var arr = new PinnedPoolArray<byte>(50);
+        using var other = new PinnedPoolArray<byte>(50);
+        arr.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(
+            () => arr.Equals(other, new CountedEqualityComparer<byte>(50)));
+    }
+
+    [Fact]
+    public void GetHashCode_WithCountedComparer_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var arr = new PinnedPoolArray<byte>(50);
+        arr.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(
+            () => arr.GetHashCode(new CountedEqualityComparer<byte>(50)));
+    }
+
+    [Fact]
+    public void StructuralCompareTo_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var arr = new PinnedPoolArray<byte>(50);
+        using var other = new PinnedPoolArray<byte>(50);
+        arr.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(
+            () => ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default));
     }
 
     [Fact]

@@ -120,11 +120,19 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <exception cref="ArgumentOutOfRangeException">
     /// Thrown when the assigned value is negative or greater than <see cref="Capacity"/>.
     /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when the instance has already been disposed.
+    /// </exception>
     public int Length
     {
-        get => this.length;
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.length;
+        }
         set
         {
+            this.ThrowIfDisposed();
             if (value < 0 || value > this.poolArray.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(value), "Length must be non-negative and less than or equal to the capacity of the array.");
@@ -211,8 +219,12 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// Thrown if the `other` object is not a <see cref="PinnedPoolArray{T}"/>,
     /// or if the lengths of the arrays differ.
     /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when the instance has already been disposed.
+    /// </exception>
     int IStructuralComparable.CompareTo(object other, IComparer comparer)
     {
+        this.ThrowIfDisposed();
         if (other == null)
         {
             return 1;
@@ -254,8 +266,12 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <exception cref="ArgumentOutOfRangeException">
     /// Thrown when the count specified by the comparer exceeds the length of one of the arrays.
     /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when the instance has already been disposed.
+    /// </exception>
     public bool Equals(object other, IEqualityComparer comparer)
     {
+        this.ThrowIfDisposed();
         if (ReferenceEquals(this, other))
         {
             return true;
@@ -322,8 +338,12 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <exception cref="ArgumentOutOfRangeException">
     /// Thrown when the number of elements specified by the comparer exceeds the length of the array.
     /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when the instance has already been disposed.
+    /// </exception>
     public int GetHashCode(IEqualityComparer comparer)
     {
+        this.ThrowIfDisposed();
         if (comparer is not ICountedEqualityComparer<T> countedComparer)
         {
             throw new ArgumentException(
