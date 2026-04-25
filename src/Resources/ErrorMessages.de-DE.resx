@@ -78,4 +78,28 @@
     <data name="InvalidShareFormat" xml:space="preserve">
         <value>Ungültiges Share-Format. Erwartetes Format: 'X{0}Y', wobei X und Y hexadezimale Werte sind.</value>
     </data>
+    <data name="LengthOutOfRangeForCapacity" xml:space="preserve">
+        <value>Die Länge darf nicht negativ und nicht größer als die Kapazität des Arrays sein.</value>
+    </data>
+    <data name="IndexOutOfRangeForLength" xml:space="preserve">
+        <value>Der Index darf nicht negativ und muss kleiner als die Länge des Arrays sein.</value>
+    </data>
+    <data name="ArgumentMustBeArrayButWasX" xml:space="preserve">
+        <value>Das Argument muss ein Array sein, war aber {0}.</value>
+    </data>
+    <data name="ArgumentArrayLengthMismatch" xml:space="preserve">
+        <value>Das Argument muss ein Array gleicher Länge sein, war aber {0} statt {1}.</value>
+    </data>
+    <data name="CountedComparerRequiredForCompare" xml:space="preserve">
+        <value>Ein gezählter Comparer ist erforderlich. Verwenden Sie '{0}', um die Anzahl der zu vergleichenden Elemente anzugeben.</value>
+    </data>
+    <data name="CountedComparerRequiredForHash" xml:space="preserve">
+        <value>Ein gezählter Comparer ist erforderlich. Verwenden Sie '{0}', um die Anzahl der zu hashenden Elemente anzugeben.</value>
+    </data>
+    <data name="CountExceedsBothArrayLengths" xml:space="preserve">
+        <value>Anzahl '{0}' übersteigt eine der Array-Längen ({1}, {2}).</value>
+    </data>
+    <data name="CountExceedsArrayLength" xml:space="preserve">
+        <value>Anzahl '{0}' übersteigt die Array-Länge ({1}).</value>
+    </data>
 </root>

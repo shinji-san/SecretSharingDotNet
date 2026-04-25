@@ -85,4 +85,28 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="InvalidShareFormat" xml:space="preserve">
         <value>Invalid share format. Expected format: 'X{0}Y' where X and Y are hexadecimal values.</value>
     </data>
+    <data name="LengthOutOfRangeForCapacity" xml:space="preserve">
+        <value>Length must be non-negative and less than or equal to the capacity of the array.</value>
+    </data>
+    <data name="IndexOutOfRangeForLength" xml:space="preserve">
+        <value>Index must be non-negative and less than the length of the array.</value>
+    </data>
+    <data name="ArgumentMustBeArrayButWasX" xml:space="preserve">
+        <value>Argument must be an Array, but was {0}.</value>
+    </data>
+    <data name="ArgumentArrayLengthMismatch" xml:space="preserve">
+        <value>Argument must be an Array of the same length, but was {0} instead of {1}.</value>
+    </data>
+    <data name="CountedComparerRequiredForCompare" xml:space="preserve">
+        <value>A counted comparer is required. Use '{0}' to specify the number of elements to compare.</value>
+    </data>
+    <data name="CountedComparerRequiredForHash" xml:space="preserve">
+        <value>A counted comparer is required. Use '{0}' to specify the number of elements to hash.</value>
+    </data>
+    <data name="CountExceedsBothArrayLengths" xml:space="preserve">
+        <value>Count '{0}' exceeds one of the array lengths ({1}, {2}).</value>
+    </data>
+    <data name="CountExceedsArrayLength" xml:space="preserve">
+        <value>Count '{0}' exceeds the array length ({1}).</value>
+    </data>
 </root>

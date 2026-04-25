@@ -135,7 +135,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
             this.ThrowIfDisposed();
             if (value < 0 || value > this.poolArray.Length)
             {
-                throw new ArgumentOutOfRangeException(nameof(value), "Length must be non-negative and less than or equal to the capacity of the array.");
+                throw new ArgumentOutOfRangeException(nameof(value), ErrorMessages.LengthOutOfRangeForCapacity);
             }
 
             this.length = value;
@@ -157,7 +157,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
             this.ThrowIfDisposed();
             if (index < 0 || index >= this.length)
             {
-                throw new ArgumentOutOfRangeException(nameof(index), "Index must be non-negative and less than the length of the array.");
+                throw new ArgumentOutOfRangeException(nameof(index), ErrorMessages.IndexOutOfRangeForLength);
             }
 
             return this.poolArray[index];
@@ -167,7 +167,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
             this.ThrowIfDisposed();
             if (index < 0 || index >= this.length)
             {
-                throw new ArgumentOutOfRangeException(nameof(index), "Index must be non-negative and less than the length of the array.");
+                throw new ArgumentOutOfRangeException(nameof(index), ErrorMessages.IndexOutOfRangeForLength);
             }
 
             this.poolArray[index] = value;
@@ -243,14 +243,14 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
 
         if (other is not PinnedPoolArray<T> otherArray)
         {
-            throw new ArgumentException($"Argument must be an Array, but was {other.GetType().Name}");
+            throw new ArgumentException(string.Format(ErrorMessages.ArgumentMustBeArrayButWasX, other.GetType().Name));
         }
 
         otherArray.ThrowIfDisposed();
 
         if (this.length != otherArray.length)
         {
-            throw new ArgumentException($"Argument must be an Array of the same length, but was {otherArray.length} instead of {this.length}");
+            throw new ArgumentException(string.Format(ErrorMessages.ArgumentArrayLengthMismatch, otherArray.length, this.length));
         }
 
         var index = 0;
@@ -321,8 +321,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         if (comparer is not ICountedEqualityComparer<T> countedComparer)
         {
             throw new ArgumentException(
-                $"A counted comparer is required. Use '{typeof(CountedEqualityComparer<T>).FullName}' " +
-                "to specify the number of elements to compare.",
+                string.Format(ErrorMessages.CountedComparerRequiredForCompare, typeof(CountedEqualityComparer<T>).FullName),
                 nameof(comparer));
         }
 
@@ -331,7 +330,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         {
             throw new ArgumentOutOfRangeException(
                 nameof(comparer),
-                $"Count '{count}' exceeds one of the array lengths ({this.length}, {otherLength}).");
+                string.Format(ErrorMessages.CountExceedsBothArrayLengths, count, this.length, otherLength));
         }
 
         for (int i = 0; i < count; i++)
@@ -380,17 +379,16 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         if (comparer is not ICountedEqualityComparer<T> countedComparer)
         {
             throw new ArgumentException(
-                $"A counted comparer is required. Use '{typeof(CountedEqualityComparer<T>).FullName}' " +
-                "to specify the number of elements to hash.",
+                string.Format(ErrorMessages.CountedComparerRequiredForHash, typeof(CountedEqualityComparer<T>).FullName),
                 nameof(comparer));
         }
 
         var count = countedComparer.Count;
-        if (count > this.Length)
+        if (count > this.length)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(countedComparer),
-                $"Count '{count}' exceeds the array length ({this.Length}).");
+                string.Format(ErrorMessages.CountExceedsArrayLength, count, this.length));
         }
 
 #if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
