@@ -58,6 +58,14 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     private int disposed;
 
     /// <summary>
+    /// Counts in-flight public <see cref="SecureClear"/> calls. Incremented on entry,
+    /// decremented in the corresponding <c>finally</c>. <see cref="Dispose(bool)"/>
+    /// drains this counter to zero before returning the buffer to the pool, ensuring
+    /// no thread is still writing to <see cref="poolArray"/> at return time.
+    /// </summary>
+    private int activeOperations;
+
+    /// <summary>
     /// Represents the array rented from a shared array pool, used as a memory buffer
     /// with enhanced performance and reduced allocations, and pinned in memory to
     /// ensure stable access for unmanaged code.
@@ -360,16 +368,50 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// no secret data remains in pooled memory after the array is returned to the pool.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 3-Pass Overwrite (DOD 5220.22-M) with patterns 0xFF → 0x00 → 0xAA, followed by a final
     /// zeroization pass. Clearing the full capacity — not just the logical length — is essential:
     /// callers may have written past <see cref="Length"/> via the <see cref="PoolArray"/> escape
     /// hatch, and the pool reuses backing buffers across tenants. Because of this, the value of
     /// <see cref="Length"/> at the time of this call has no effect on how many bytes are wiped.
+    /// </para>
+    /// <para>
+    /// This method is mutually exclusive with <see cref="Dispose()"/>: any in-flight call is
+    /// drained before the backing buffer is returned to the pool, and any call that races with
+    /// (or follows) disposal observes the disposed state and throws.
+    /// </para>
     /// </remarks>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when the instance has already been disposed.
+    /// </exception>
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     public void SecureClear()
     {
-        if (this.poolArray is null || this.poolArray.Length == 0)
+        Interlocked.Increment(ref this.activeOperations);
+        try
+        {
+            this.ThrowIfDisposed();
+            this.SecureClearCore();
+        }
+        finally
+        {
+            Interlocked.Decrement(ref this.activeOperations);
+        }
+    }
+
+    /// <summary>
+    /// Performs the actual 3-pass + zeroization wipe of <see cref="poolArray"/>, without
+    /// disposal or concurrency checks.
+    /// </summary>
+    /// <remarks>
+    /// Only called from <see cref="SecureClear"/> (after the disposal/counter guard) and
+    /// from <see cref="Dispose(bool)"/> (after the in-flight counter has been drained).
+    /// Direct callers must ensure no other thread is accessing the buffer.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+    private void SecureClearCore()
+    {
+        if (this.poolArray.Length == 0)
         {
             return;
         }
@@ -403,6 +445,12 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <summary>
     /// Releases the resources used by the <see cref="PinnedPoolArray{T}"/> instance.
     /// </summary>
+    /// <remarks>
+    /// Atomically transitions the instance to the disposed state, then waits until all
+    /// in-flight <see cref="SecureClear"/> callers have exited their critical section
+    /// before returning the rented buffer to the pool. New <see cref="SecureClear"/>
+    /// callers arriving after the flag is set throw <see cref="ObjectDisposedException"/>.
+    /// </remarks>
     /// <param name="disposing">A boolean value indicating whether to release managed resources (true) or
     /// only unmanaged resources (false).</param>
     private void Dispose(bool disposing)
@@ -410,6 +458,18 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         if (Interlocked.Exchange(ref this.disposed, 1) == 1)
         {
             return;
+        }
+
+        // Drain in-flight public SecureClear callers. Each such caller incremented
+        // activeOperations before reading disposed; once they observe disposed == 1
+        // they throw and decrement in the finally block. We must wait for that to
+        // finish before returning the backing buffer to the pool — otherwise a
+        // late-finishing SecureClear could write into a buffer already owned by
+        // another pool tenant.
+        SpinWait spin = default;
+        while (Interlocked.CompareExchange(ref this.activeOperations, 0, 0) != 0)
+        {
+            spin.SpinOnce();
         }
 
         if (disposing)
@@ -422,7 +482,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
             return;
         }
 
-        this.SecureClear();
+        this.SecureClearCore();
         if (this.poolArrayHandle.IsAllocated)
         {
             this.poolArrayHandle.Free();

@@ -3,6 +3,7 @@ namespace SecretSharingDotNetTest.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureArray;
 using Xunit;
 using System;
+using System.Threading;
 
 public class PinnedPoolArrayTest
 {
@@ -192,6 +193,90 @@ public class PinnedPoolArrayTest
         {
             var pinnedArray = new PinnedPoolArray<byte>(50);
             weakRef = new WeakReference(pinnedArray);
+        }
+    }
+
+    [Fact]
+    public void SecureClear_AfterDispose_ThrowsObjectDisposedException()
+    {
+        // Q1 regression guard: a SecureClear call that arrives after Dispose
+        // must NOT touch the pool-resident buffer (which may already be owned by
+        // another tenant). It must throw instead.
+        var pinnedArray = new PinnedPoolArray<byte>(50);
+        pinnedArray.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => pinnedArray.SecureClear());
+    }
+
+    [Fact]
+    public void Dispose_DrainsInFlightSecureClear()
+    {
+        // Q2 regression smoke-test: hammer SecureClear from one thread while
+        // disposing from another. Acceptable outcomes per iteration: clean
+        // completion, or ObjectDisposedException from the SecureClear thread.
+        // Anything else (AccessViolation, pool double-return, etc.) fails.
+        for (int iteration = 0; iteration < 100; iteration++)
+        {
+            var pinnedArray = new PinnedPoolArray<byte>(1024);
+            Exception observedFromClearer = null;
+
+            var clearer = new Thread(() =>
+            {
+                try
+                {
+                    for (int i = 0; i < 50; i++)
+                    {
+                        pinnedArray.SecureClear();
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Expected once Dispose has won the race.
+                }
+                catch (Exception ex)
+                {
+                    observedFromClearer = ex;
+                }
+            });
+
+            clearer.Start();
+            Thread.Yield();
+            pinnedArray.Dispose();
+            clearer.Join();
+
+            Assert.Null(observedFromClearer);
+        }
+    }
+
+    [Fact]
+    public void Dispose_TwiceFromMultipleThreads_DoesNotDoubleFree()
+    {
+        // Concurrent Dispose calls must not return the same array to the pool twice.
+        // ArrayPool surfaces double-return via InvalidOperationException on some TFMs.
+        for (int iteration = 0; iteration < 50; iteration++)
+        {
+            var pinnedArray = new PinnedPoolArray<byte>(64);
+
+            Exception ex1 = null;
+            Exception ex2 = null;
+            var t1 = new Thread(() =>
+            {
+                try { pinnedArray.Dispose(); }
+                catch (Exception ex) { ex1 = ex; }
+            });
+            var t2 = new Thread(() =>
+            {
+                try { pinnedArray.Dispose(); }
+                catch (Exception ex) { ex2 = ex; }
+            });
+
+            t1.Start();
+            t2.Start();
+            t1.Join();
+            t2.Join();
+
+            Assert.Null(ex1);
+            Assert.Null(ex2);
         }
     }
 }
