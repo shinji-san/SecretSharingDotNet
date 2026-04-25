@@ -64,7 +64,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
 
     /// <summary>
     /// Counts in-flight public <see cref="SecureClear"/> calls. Incremented on entry,
-    /// decremented in the corresponding <c>finally</c>. <see cref="Dispose(bool)"/>
+    /// decremented in the corresponding <c>finally</c>. <see cref="DisposeCore"/>
     /// drains this counter to zero before returning the buffer to the pool, ensuring
     /// no thread is still writing to <see cref="poolArray"/> at return time.
     /// </summary>
@@ -105,7 +105,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// </summary>
     ~PinnedPoolArray()
     {
-        this.Dispose(false);
+        this.DisposeCore();
     }
 
     /// <summary>
@@ -433,7 +433,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// </summary>
     /// <remarks>
     /// Only called from <see cref="SecureClear"/> (after the disposal/counter guard) and
-    /// from <see cref="Dispose(bool)"/> (after the in-flight counter has been drained).
+    /// from <see cref="DisposeCore"/> (after the in-flight counter has been drained).
     /// Direct callers must ensure no other thread is accessing the buffer.
     /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
@@ -464,45 +464,76 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <summary>
     /// Releases all resources used by the current instance of the <see cref="PinnedPoolArray{T}"/> class.
     /// </summary>
+    /// <remarks>
+    /// Suppresses finalization after a successful explicit dispose so the GC does not
+    /// queue the instance for the finalizer thread. Both this entry point and the
+    /// finalizer delegate to <see cref="DisposeCore"/>, which is idempotent.
+    /// </remarks>
     public void Dispose()
     {
-        this.Dispose(true);
+        this.DisposeCore();
         GC.SuppressFinalize(this);
     }
 
     /// <summary>
-    /// Releases the resources used by the <see cref="PinnedPoolArray{T}"/> instance.
+    /// Performs the actual cleanup work invoked by both <see cref="Dispose"/> and the
+    /// finalizer. Idempotent.
     /// </summary>
     /// <remarks>
-    /// Atomically transitions the instance to the disposed state, then waits until all
-    /// in-flight <see cref="SecureClear"/> callers have exited their critical section
-    /// before returning the rented buffer to the pool. New <see cref="SecureClear"/>
-    /// callers arriving after the flag is set throw <see cref="ObjectDisposedException"/>.
+    /// <para>
+    /// The class is <c>sealed</c> and holds only resources that are safe to touch in
+    /// either context, so the standard <c>Dispose(bool disposing)</c> pattern is not
+    /// needed: the rented array is a managed object with no finalizer of its own;
+    /// <see cref="ArrayPool{T}.Shared"/> is a static singleton that is always reachable;
+    /// <see cref="GCHandle"/> is a value type. Therefore the same release sequence is
+    /// correct from the public dispose path and from the finalizer thread.
+    /// </para>
+    /// <para>
+    /// Sequence:
+    /// </para>
+    /// <list type="number">
+    ///   <item><description>
+    ///   Atomically transition the disposed flag from <c>0</c> to <c>1</c> via
+    ///   <see cref="Interlocked.Exchange(ref int, int)"/>. If the flag was already
+    ///   <c>1</c>, return immediately — the instance has already been disposed.
+    ///   </description></item>
+    ///   <item><description>
+    ///   Drain in-flight <see cref="SecureClear"/> callers via <see cref="SpinWait"/>.
+    ///   Each such caller incremented <c>activeOperations</c> before reading the
+    ///   disposed flag; once they observe <c>disposed == 1</c> they throw
+    ///   <see cref="ObjectDisposedException"/> and decrement in their <c>finally</c>
+    ///   block. Returning the buffer before that drain completes would let a
+    ///   late-finishing <see cref="SecureClear"/> write into a buffer already owned by
+    ///   another pool tenant.
+    ///   </description></item>
+    ///   <item><description>
+    ///   Bail out if <see cref="poolArray"/> is <c>null</c> — this guards the case of a
+    ///   constructor failure prior to <c>ArrayPool&lt;T&gt;.Shared.Rent</c>
+    ///   succeeding, where the finalizer still runs on the partially-constructed object.
+    ///   </description></item>
+    ///   <item><description>
+    ///   Wipe the buffer via <see cref="SecureClearCore"/>.
+    ///   </description></item>
+    ///   <item><description>
+    ///   Free the GC pin if it was allocated (it may not be, if the pin call itself
+    ///   threw during construction).
+    ///   </description></item>
+    ///   <item><description>
+    ///   Return the rented array to <see cref="ArrayPool{T}.Shared"/>.
+    ///   </description></item>
+    /// </list>
     /// </remarks>
-    /// <param name="disposing">A boolean value indicating whether to release managed resources (true) or
-    /// only unmanaged resources (false).</param>
-    private void Dispose(bool disposing)
+    private void DisposeCore()
     {
         if (Interlocked.Exchange(ref this.disposed, 1) == 1)
         {
             return;
         }
 
-        // Drain in-flight public SecureClear callers. Each such caller incremented
-        // activeOperations before reading disposed; once they observe disposed == 1
-        // they throw and decrement in the finally block. We must wait for that to
-        // finish before returning the backing buffer to the pool — otherwise a
-        // late-finishing SecureClear could write into a buffer already owned by
-        // another pool tenant.
         SpinWait spin = default;
         while (Interlocked.CompareExchange(ref this.activeOperations, 0, 0) != 0)
         {
             spin.SpinOnce();
-        }
-
-        if (disposing)
-        {
-            // Release managed resources if any
         }
 
         if (this.poolArray is null)
