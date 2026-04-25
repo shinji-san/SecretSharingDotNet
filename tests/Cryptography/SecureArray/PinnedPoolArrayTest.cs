@@ -1,4 +1,4 @@
-namespace SecretSharingDotNetTest.Cryptography;
+namespace SecretSharingDotNetTest.Cryptography.SecureArray;
 
 using SecretSharingDotNet.Cryptography.SecureArray;
 using Xunit;
@@ -207,7 +207,7 @@ public class PinnedPoolArrayTest
         var pinnedArray = new PinnedPoolArray<byte>(50);
         pinnedArray.Dispose();
 
-        Assert.Throws<ObjectDisposedException>(() => pinnedArray.SecureClear());
+        Assert.Throws<ObjectDisposedException>(pinnedArray.SecureClear);
     }
 
     [Fact]
