@@ -48,9 +48,14 @@ using System.Threading;
 /// cryptographic operations that require secure and predictable memory access.
 /// </summary>
 /// <typeparam name="T">
-/// The type of data stored in the array. Must be a value type.
+/// The element type stored in the array. Must be an <c>unmanaged</c> type — a non-nullable
+/// value type containing no reference fields at any nesting level. This stricter constraint
+/// (over the more permissive <c>struct</c>) is required because the buffer is GC-pinned via
+/// <see cref="GCHandle.Alloc(object, GCHandleType)"/> with <see cref="GCHandleType.Pinned"/>
+/// and reinterpreted as raw bytes during <see cref="SecureClear"/>; both operations fail at
+/// runtime for value types containing references.
 /// </typeparam>
-public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquatable, IDisposable where T : struct
+public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquatable, IDisposable where T : unmanaged
 {
     /// <summary>
     /// Indicates whether the current instance has been disposed.

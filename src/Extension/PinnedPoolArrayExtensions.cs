@@ -48,7 +48,7 @@ internal static class PinnedPoolArrayExtensions
     /// <param name="count">number of elements to copy to a new subset array</param>
     /// <returns>An array that contains the specified number of elements from the <paramref name="index"/> of the <paramref name="array"/>.</returns>
     internal static PinnedPoolArray<TArray> Subset<TArray>(this PinnedPoolArray<TArray> array, int index, int count)
-        where TArray : struct
+        where TArray : unmanaged
     {
         if (array == null)
         {
