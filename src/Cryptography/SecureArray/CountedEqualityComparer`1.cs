@@ -89,6 +89,15 @@ public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
     /// the configured element comparer; <see langword="false"/> if exactly one is <see langword="null"/>
     /// or the elements differ.
     /// </returns>
+    /// <remarks>
+    /// Type-mismatched arguments are reported via <see cref="ArgumentException"/> rather than
+    /// silently returning <see langword="false"/>. This matches the strict-validation convention
+    /// used elsewhere in this project (null arguments throw <see cref="ArgumentNullException"/>;
+    /// disposed instances throw <see cref="ObjectDisposedException"/>) as well as the behavior of
+    /// <c>EqualityComparer&lt;T&gt;.Default</c> when accessed via the non-generic
+    /// <see cref="IEqualityComparer"/> interface — both throw on type-mismatch instead of
+    /// returning <see langword="false"/>.
+    /// </remarks>
     /// <exception cref="ArgumentException">
     /// Thrown when the type of <paramref name="x"/> or <paramref name="y"/> does not match
     /// the expected type <typeparamref name="T"/>. <see cref="ArgumentException.ParamName"/>
