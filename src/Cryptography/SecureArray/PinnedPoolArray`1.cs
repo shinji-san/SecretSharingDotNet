@@ -220,7 +220,8 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// or if the lengths of the arrays differ.
     /// </exception>
     /// <exception cref="ObjectDisposedException">
-    /// Thrown when the instance has already been disposed.
+    /// Thrown when this instance, or <paramref name="other"/> (when it is a
+    /// <see cref="PinnedPoolArray{T}"/>), has already been disposed.
     /// </exception>
     int IStructuralComparable.CompareTo(object other, IComparer comparer)
     {
@@ -235,17 +236,19 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
             throw new ArgumentException($"Argument must be an Array, but was {other.GetType().Name}");
         }
 
-        if (this.Length != otherArray.Length)
+        otherArray.ThrowIfDisposed();
+
+        if (this.length != otherArray.length)
         {
-            throw new ArgumentException($"Argument must be an Array of the same length, but was {otherArray.Length} instead of {this.Length}");
+            throw new ArgumentException($"Argument must be an Array of the same length, but was {otherArray.length} instead of {this.length}");
         }
 
         var index = 0;
         var result = 0;
 
-        while (index < otherArray.Length && result == 0)
+        while (index < otherArray.length && result == 0)
         {
-            result = comparer.Compare(this[index], otherArray[index]);
+            result = comparer.Compare(this.poolArray[index], otherArray.poolArray[index]);
             index++;
         }
 

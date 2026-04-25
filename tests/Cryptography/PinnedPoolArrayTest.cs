@@ -301,6 +301,17 @@ public class PinnedPoolArrayTest
     }
 
     [Fact]
+    public void StructuralCompareTo_OtherDisposed_ThrowsObjectDisposedException()
+    {
+        using var arr = new PinnedPoolArray<byte>(50);
+        var other = new PinnedPoolArray<byte>(50);
+        other.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(
+            () => ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default));
+    }
+
+    [Fact]
     public void Dispose_TwiceFromMultipleThreads_DoesNotDoubleFree()
     {
         // Concurrent Dispose calls must not return the same array to the pool twice.
