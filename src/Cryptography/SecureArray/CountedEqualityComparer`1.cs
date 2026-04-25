@@ -82,9 +82,15 @@ public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
     /// </summary>
     /// <param name="x">The first object to compare.</param>
     /// <param name="y">The second object to compare.</param>
-    /// <returns><see langword="true"/> if the specified objects are equal; otherwise, <see langword="false"/>.</returns>
+    /// <returns>
+    /// <see langword="true"/> if both arguments are <see langword="null"/> or compare equal under
+    /// the configured element comparer; <see langword="false"/> if exactly one is <see langword="null"/>
+    /// or the elements differ.
+    /// </returns>
     /// <exception cref="ArgumentException">
-    /// Thrown when the types of <paramref name="x"/> or <paramref name="y"/> do not match the expected type.
+    /// Thrown when the type of <paramref name="x"/> or <paramref name="y"/> does not match
+    /// the expected type <typeparamref name="T"/>. <see cref="ArgumentException.ParamName"/>
+    /// identifies which argument is at fault.
     /// </exception>
     bool IEqualityComparer.Equals(object x, object y)
     {
@@ -93,9 +99,14 @@ public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
             return x is null && y is null;
         }
 
-        if (x is not T firstElement || y is not T secondElement)
+        if (x is not T firstElement)
         {
-            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName));
+            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName), nameof(x));
+        }
+
+        if (y is not T secondElement)
+        {
+            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName), nameof(y));
         }
 
         return this.Equals(firstElement, secondElement);
@@ -106,14 +117,22 @@ public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
     /// </summary>
     /// <param name="obj">The object for which the hash code is to be computed.</param>
     /// <returns>The hash code of the specified object.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="obj"/> is <see langword="null"/>.
+    /// </exception>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="obj"/> is not of the expected type <typeparamref name="T"/>.
     /// </exception>
     int IEqualityComparer.GetHashCode(object obj)
     {
+        if (obj is null)
+        {
+            throw new ArgumentNullException(nameof(obj));
+        }
+
         if (obj is not T value)
         {
-            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName));
+            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName), nameof(obj));
         }
 
         return this.GetHashCode(value);
