@@ -109,4 +109,7 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="CountExceedsArrayLength" xml:space="preserve">
         <value>Count '{0}' exceeds the array length ({1}).</value>
     </data>
+    <data name="ComparerExpectedTypeX" xml:space="preserve">
+        <value>Comparer expected elements of type '{0}'.</value>
+    </data>
 </root>

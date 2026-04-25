@@ -61,7 +61,7 @@ public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
     {
         if (count < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(count), "Count must be non-negative.");
+            throw new ArgumentOutOfRangeException(nameof(count), string.Format(ErrorMessages.ValueLowerThanX, 0));
         }
 
         this.Count = count;
@@ -95,7 +95,7 @@ public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
 
         if (x is not T firstElement || y is not T secondElement)
         {
-            throw new ArgumentException($"Comparer expected elements of type '{typeof(T).FullName}'.");
+            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName));
         }
 
         return this.Equals(firstElement, secondElement);
@@ -113,7 +113,7 @@ public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
     {
         if (obj is not T value)
         {
-            throw new ArgumentException($"Comparer expected elements of type '{typeof(T).FullName}'.");
+            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName));
         }
 
         return this.GetHashCode(value);

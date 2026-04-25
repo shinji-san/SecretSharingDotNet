@@ -227,5 +227,11 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("CountExceedsArrayLength", resourceCulture);
             }
         }
+
+        internal static string ComparerExpectedTypeX {
+            get {
+                return ResourceManager.GetString("ComparerExpectedTypeX", resourceCulture);
+            }
+        }
     }
 }

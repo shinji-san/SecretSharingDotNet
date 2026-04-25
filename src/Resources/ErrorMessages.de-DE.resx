@@ -102,4 +102,7 @@
     <data name="CountExceedsArrayLength" xml:space="preserve">
         <value>Anzahl '{0}' übersteigt die Array-Länge ({1}).</value>
     </data>
+    <data name="ComparerExpectedTypeX" xml:space="preserve">
+        <value>Der Comparer hat Elemente vom Typ '{0}' erwartet.</value>
+    </data>
 </root>
