@@ -215,6 +215,11 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// 0 if the current instance is equal to the `other`.
     /// 1 if the current instance is greater than the `other`.
     /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="comparer"/> is <see langword="null"/>. The check
+    /// runs before the <c>null</c>-<paramref name="other"/> shortcut, so a call with
+    /// both arguments <c>null</c> throws rather than returning <c>1</c>.
+    /// </exception>
     /// <exception cref="ArgumentException">
     /// Thrown if the `other` object is not a <see cref="PinnedPoolArray{T}"/>,
     /// or if the lengths of the arrays differ.
@@ -226,6 +231,11 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     int IStructuralComparable.CompareTo(object other, IComparer comparer)
     {
         this.ThrowIfDisposed();
+        if (comparer is null)
+        {
+            throw new ArgumentNullException(nameof(comparer));
+        }
+
         if (other == null)
         {
             return 1;
@@ -263,6 +273,11 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <returns>
     /// <see langword="true"/> if the current instance and the specified object are equal; otherwise, <see langword="false"/>
     /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="comparer"/> is <see langword="null"/>. The check
+    /// runs before the <c>ReferenceEquals</c> fast path, so passing <c>null</c>
+    /// always throws — even when comparing the instance against itself.
+    /// </exception>
     /// <exception cref="ArgumentException">
     /// Thrown when the specified comparer is not an instance of a counted comparer.
     /// </exception>
@@ -275,6 +290,11 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     public bool Equals(object other, IEqualityComparer comparer)
     {
         this.ThrowIfDisposed();
+        if (comparer is null)
+        {
+            throw new ArgumentNullException(nameof(comparer));
+        }
+
         if (ReferenceEquals(this, other))
         {
             return true;
@@ -335,6 +355,9 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <returns>
     /// An <see cref="int"/> hash code calculated based on the specified number of array elements.
     /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="comparer"/> is <see langword="null"/>.
+    /// </exception>
     /// <exception cref="ArgumentException">
     /// Thrown when the provided comparer is not an instance of <see cref="ICountedEqualityComparer{T}"/>.
     /// </exception>
@@ -347,6 +370,11 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     public int GetHashCode(IEqualityComparer comparer)
     {
         this.ThrowIfDisposed();
+        if (comparer is null)
+        {
+            throw new ArgumentNullException(nameof(comparer));
+        }
+
         if (comparer is not ICountedEqualityComparer<T> countedComparer)
         {
             throw new ArgumentException(

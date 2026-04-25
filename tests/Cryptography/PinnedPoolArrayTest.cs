@@ -312,6 +312,46 @@ public class PinnedPoolArrayTest
     }
 
     [Fact]
+    public void StructuralCompareTo_NullComparer_ThrowsArgumentNullException()
+    {
+        using var arr = new PinnedPoolArray<byte>(50);
+        using var other = new PinnedPoolArray<byte>(50);
+
+        Assert.Throws<ArgumentNullException>(
+            () => ((IStructuralComparable)arr).CompareTo(other, null));
+    }
+
+    [Fact]
+    public void StructuralCompareTo_NullOther_NullComparer_PrefersArgumentNullException()
+    {
+        using var arr = new PinnedPoolArray<byte>(50);
+
+        // Argument validation precedes the IStructuralComparable.CompareTo
+        // "null is less than anything" shortcut.
+        Assert.Throws<ArgumentNullException>(
+            () => ((IStructuralComparable)arr).CompareTo(null, null));
+    }
+
+    [Fact]
+    public void Equals_NullComparer_ThrowsArgumentNullException()
+    {
+        using var arr = new PinnedPoolArray<byte>(50);
+        using var other = new PinnedPoolArray<byte>(50);
+
+        Assert.Throws<ArgumentNullException>(
+            () => arr.Equals(other, null));
+    }
+
+    [Fact]
+    public void GetHashCode_NullComparer_ThrowsArgumentNullException()
+    {
+        using var arr = new PinnedPoolArray<byte>(50);
+
+        Assert.Throws<ArgumentNullException>(
+            () => arr.GetHashCode(null));
+    }
+
+    [Fact]
     public void Dispose_TwiceFromMultipleThreads_DoesNotDoubleFree()
     {
         // Concurrent Dispose calls must not return the same array to the pool twice.
