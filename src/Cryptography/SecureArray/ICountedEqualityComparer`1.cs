@@ -40,7 +40,7 @@ using System.Collections.Generic;
 /// Marks an element comparer that also provides the number of elements to compare.
 /// </summary>
 /// <typeparam name="T">Element type.</typeparam>
-public interface ICountedEqualityComparer<in T> : IEqualityComparer, IEqualityComparer<T>
+public interface ICountedEqualityComparer<T> : IEqualityComparer, IEqualityComparer<T>
 {
     /// <summary>
     /// Gets the number of elements that must be compared.
