@@ -88,4 +88,15 @@ public class CountedEqualityComparerTest
         var hash = comparer.GetHashCode((byte)42);
         Assert.Equal(((byte)42).GetHashCode(), hash);
     }
+
+    [Fact]
+    public void ToString_IncludesCountAndElementType()
+    {
+        var comparer = new CountedEqualityComparer<byte>(50);
+        var representation = comparer.ToString();
+
+        Assert.Contains("Byte", representation);
+        Assert.Contains("Count=50", representation);
+        Assert.Contains("Element=", representation);
+    }
 }

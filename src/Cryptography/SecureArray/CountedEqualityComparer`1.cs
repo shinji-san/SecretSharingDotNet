@@ -36,12 +36,14 @@ namespace SecretSharingDotNet.Cryptography.SecureArray;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 /// <summary>
 /// An element comparer that additionally carries the number of elements to compare.
 /// Pass this instance into <see cref="IStructuralEquatable.Equals(object, IEqualityComparer)"/>.
 /// </summary>
 /// <typeparam name="T">Element type.</typeparam>
+[DebuggerDisplay("{ToString(),nq}")]
 public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
 {
     /// <summary>
@@ -137,4 +139,14 @@ public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
 
         return this.GetHashCode(value);
     }
+
+    /// <summary>
+    /// Returns a diagnostic representation of this comparer including the element type,
+    /// the configured <see cref="Count"/>, and the runtime type of the element comparer
+    /// in use. Intended for debugging, log output, and assertion diagnostics — the exact
+    /// format is not part of the public contract and may change.
+    /// </summary>
+    /// <returns>A diagnostic string describing this comparer.</returns>
+    public override string ToString() =>
+        $"CountedEqualityComparer<{typeof(T).Name}>(Count={this.Count}, Element={this.elementComparer.GetType().Name})";
 }
