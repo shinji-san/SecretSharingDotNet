@@ -343,6 +343,17 @@ public class PinnedPoolArrayTest
     }
 
     [Fact]
+    public void Equals_OtherPinnedArrayDisposed_ThrowsObjectDisposedException()
+    {
+        using var arr = new PinnedPoolArray<byte>(50);
+        var other = new PinnedPoolArray<byte>(50);
+        other.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(
+            () => arr.Equals(other, new CountedEqualityComparer<byte>(50)));
+    }
+
+    [Fact]
     public void GetHashCode_NullComparer_ThrowsArgumentNullException()
     {
         using var arr = new PinnedPoolArray<byte>(50);

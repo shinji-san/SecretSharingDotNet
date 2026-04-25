@@ -155,7 +155,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         get
         {
             this.ThrowIfDisposed();
-            if (index < 0 || index >= this.Length)
+            if (index < 0 || index >= this.length)
             {
                 throw new ArgumentOutOfRangeException(nameof(index), "Index must be non-negative and less than the length of the array.");
             }
@@ -165,7 +165,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         set
         {
             this.ThrowIfDisposed();
-            if (index < 0 || index >= this.Length)
+            if (index < 0 || index >= this.length)
             {
                 throw new ArgumentOutOfRangeException(nameof(index), "Index must be non-negative and less than the length of the array.");
             }
@@ -285,7 +285,8 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// Thrown when the count specified by the comparer exceeds the length of one of the arrays.
     /// </exception>
     /// <exception cref="ObjectDisposedException">
-    /// Thrown when the instance has already been disposed.
+    /// Thrown when this instance, or <paramref name="other"/> (when it is a
+    /// <see cref="PinnedPoolArray{T}"/>), has already been disposed.
     /// </exception>
     public bool Equals(object other, IEqualityComparer comparer)
     {
@@ -308,8 +309,9 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
                 return false;
             }
 
+            otherPinnedArray.ThrowIfDisposed();
             otherArray = otherPinnedArray.poolArray;
-            otherLength = otherPinnedArray.Length;
+            otherLength = otherPinnedArray.length;
         }
         else
         {
@@ -325,11 +327,11 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         }
 
         var count = countedComparer.Count;
-        if (count > this.Length || count > otherLength)
+        if (count > this.length || count > otherLength)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(comparer),
-                $"Count '{count}' exceeds one of the array lengths ({this.Length}, {otherLength}).");
+                $"Count '{count}' exceeds one of the array lengths ({this.length}, {otherLength}).");
         }
 
         for (int i = 0; i < count; i++)
