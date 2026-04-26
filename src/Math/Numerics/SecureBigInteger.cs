@@ -351,10 +351,10 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
     /// <summary>
     /// The character offset used to convert between numeric digits and their character representations.
-    /// This value is typically set to '0' to align with ASCII encoding, where the character '0' has
-    /// the numeric code 48. It is used internally for parsing and formatting numeric values.
+    /// Aligns with ASCII encoding, where the character '0' has the numeric code 48. Used internally
+    /// for parsing and formatting numeric values.
     /// </summary>
-    private static char DigitOffset => '0';
+    private const char DigitOffset = '0';
 
     /// <summary>
     /// Gets the number of bytes used to represent the internal data of the SecureBigInteger.
