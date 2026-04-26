@@ -40,7 +40,6 @@ using Cryptography.SecureArray;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
 using System.Security.Cryptography;
 #endif
@@ -58,9 +57,9 @@ using System.Threading;
 #endif
 public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>, IComparable<SecureBigInteger>
 {
-    // Todo: Data is Little-Endian Byte-Array
     /// <summary>
-    /// The byte array representing the absolute value of the integer.
+    /// The byte array representing the absolute value of the integer in little-endian
+    /// order — <c>data[0]</c> is the least-significant byte.
     /// </summary>
     private PinnedPoolArray<byte> data;
 
@@ -271,7 +270,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// the serialized representation.
     /// </summary>
     /// <param name="data">The byte array containing the serialized representation.</param>
-    /// <exception cref="EndOfStreamException">Thrown if the byte array is incomplete or corrupted.</exception>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="data"/> is <see langword="null"/>.</exception>
     public SecureBigInteger(byte[] data) : this(data ?? throw new ArgumentNullException(nameof(data)), data.Length)
     {
@@ -590,7 +588,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <returns>quotient</returns>
     /// <exception cref="ArgumentNullException"><paramref name="dividend"/> or
     /// <paramref name="divisor"/> is null.</exception>
-    /// <exception cref="DivideByZeroException"></exception>
+    /// <exception cref="DivideByZeroException">Thrown if <paramref name="divisor"/> is zero.</exception>
     public static SecureBigInteger Divide(SecureBigInteger dividend, SecureBigInteger divisor)
     {
         if (dividend is null)
@@ -630,7 +628,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <returns>remainder</returns>
     /// <exception cref="ArgumentNullException"><paramref name="dividend"/> or
     /// <paramref name="divisor"/> is null.</exception>
-    /// <exception cref="DivideByZeroException"></exception>
+    /// <exception cref="DivideByZeroException">Thrown if <paramref name="divisor"/> is zero.</exception>
     public static SecureBigInteger Remainder(SecureBigInteger dividend, SecureBigInteger divisor)
     {
         if (dividend is null)
@@ -664,7 +662,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Computes the square of the current <see cref="SecureBigInteger"/> instance.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A new <see cref="SecureBigInteger"/> representing <c>this * this</c>.</returns>
     public SecureBigInteger Square()
     {
         this.ThrowIfDisposed();
@@ -672,10 +670,11 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Computes the square root of the current <see cref="SecureBigInteger"/> instance.
+    /// Computes the integer square root of the current <see cref="SecureBigInteger"/> instance
+    /// using Newton-Raphson iteration.
     /// </summary>
-    /// <returns></returns>
-    /// <exception cref="InvalidOperationException"></exception>
+    /// <returns>The largest <see cref="SecureBigInteger"/> <c>r</c> such that <c>r * r &lt;= this</c>.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the current instance is negative.</exception>
     public SecureBigInteger Sqrt()
     {
         this.ThrowIfDisposed();
@@ -722,12 +721,15 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Computes the n-th root of the current <see cref="SecureBigInteger"/> instance.
+    /// Computes the integer n-th root of the current <see cref="SecureBigInteger"/> instance
+    /// using Newton-Raphson iteration.
     /// </summary>
-    /// <param name="n"></param>
-    /// <returns></returns>
-    /// <exception cref="ArgumentException"></exception>
-    /// <exception cref="InvalidOperationException"></exception>
+    /// <param name="n">The root exponent. Must be positive.</param>
+    /// <returns>The largest <see cref="SecureBigInteger"/> <c>r</c> such that <c>r^n &lt;= |this|</c>,
+    /// signed according to the input when <paramref name="n"/> is odd.</returns>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="n"/> is not positive.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if <paramref name="n"/> is even and
+    /// the current instance is negative.</exception>
     public SecureBigInteger NthRoot(int n)
     {
         this.ThrowIfDisposed();
@@ -816,7 +818,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Computes the absolute value of the current <see cref="SecureBigInteger"/> instance.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A new non-negative <see cref="SecureBigInteger"/> with the same magnitude as
+    /// the current instance.</returns>
     public SecureBigInteger Abs()
     {
         this.ThrowIfDisposed();
@@ -845,9 +848,9 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Computes the power of the current <see cref="SecureBigInteger"/> instance raised to the specified exponent.
     /// </summary>
-    /// <param name="exponent">The exponent to raise the current instance to.</param>
-    /// <returns></returns>
-    /// <exception cref="ArgumentException">Thrown if the exponent is negative.</exception>
+    /// <param name="exponent">The exponent to raise the current instance to. Must be non-negative.</param>
+    /// <returns>A new <see cref="SecureBigInteger"/> representing <c>this^exponent</c>.</returns>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="exponent"/> is negative.</exception>
     public SecureBigInteger Pow(int exponent)
     {
         this.ThrowIfDisposed();
@@ -1508,9 +1511,9 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Inequality operator for <see cref="SecureBigInteger"/>.
     /// </summary>
-    /// <param name="left"></param>
-    /// <param name="right"></param>
-    /// <returns>><see langword="true"/> if the <paramref name="left"/> instance is not equal to the
+    /// <param name="left">first object to compare</param>
+    /// <param name="right">second object to compare</param>
+    /// <returns><see langword="true"/> if the <paramref name="left"/> instance is not equal to the
     /// <paramref name="right"/> instance; otherwise, <see langword="false"/>.</returns>
     public static bool operator !=(SecureBigInteger left, SecureBigInteger right) => !(left == right);
 
@@ -1569,19 +1572,27 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// 
+    /// Less-than-or-equal operator for <see cref="SecureBigInteger"/>.
     /// </summary>
-    /// <param name="left"></param>
-    /// <param name="right"></param>
-    /// <returns></returns>
+    /// <param name="left">The first <see cref="SecureBigInteger"/> to compare.</param>
+    /// <param name="right">The second <see cref="SecureBigInteger"/> to compare.</param>
+    /// <returns><see langword="true"/> if <paramref name="left"/> is less than or equal to
+    /// <paramref name="right"/>; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="left"/> is
+    /// <see langword="null"/>; the equality branch tolerates a <see langword="null"/>
+    /// <paramref name="right"/> and returns <see langword="false"/>.</exception>
     public static bool operator <=(SecureBigInteger left, SecureBigInteger right) => left < right || left == right;
 
     /// <summary>
-    /// 
+    /// Greater-than-or-equal operator for <see cref="SecureBigInteger"/>.
     /// </summary>
-    /// <param name="left"></param>
-    /// <param name="right"></param>
-    /// <returns></returns>
+    /// <param name="left">The first <see cref="SecureBigInteger"/> to compare.</param>
+    /// <param name="right">The second <see cref="SecureBigInteger"/> to compare.</param>
+    /// <returns><see langword="true"/> if <paramref name="left"/> is greater than or equal to
+    /// <paramref name="right"/>; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="left"/> is
+    /// <see langword="null"/>; the equality branch tolerates a <see langword="null"/>
+    /// <paramref name="right"/> and returns <see langword="false"/>.</exception>
     public static bool operator >=(SecureBigInteger left, SecureBigInteger right) => left > right || left == right;
 
     /// <summary>
