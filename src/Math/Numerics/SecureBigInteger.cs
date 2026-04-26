@@ -229,14 +229,31 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// Initializes a new instance of the <see cref="SecureBigInteger"/> class from a byte array and a sign flag.
     /// </summary>
     /// <param name="data">The byte array representing the absolute value.</param>
-    /// <param name="length">The length of the data to consider from the byte array.</param>
+    /// <param name="length">The length of the data to consider from the byte array. Must be in the range <c>[0, data.Length]</c>.</param>
     /// <param name="isNegative">Indicates whether the value is negative.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="data"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="length"/> is negative or greater than <c>data.Length</c>.</exception>
     public SecureBigInteger(byte[] data, int length, bool isNegative)
     {
         if (data is null)
         {
             throw new ArgumentNullException(nameof(data));
+        }
+
+        if (length < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), string.Format(ErrorMessages.ValueLowerThanX, 0));
+        }
+
+        if (length > data.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), string.Format(ErrorMessages.CountExceedsArrayLength, length, data.Length));
+        }
+
+        if (length == 0)
+        {
+            this.data = new PinnedPoolArray<byte>(1);
+            return;
         }
 
         this.data = new PinnedPoolArray<byte>(length);
@@ -265,14 +282,30 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// the serialized representation.
     /// </summary>
     /// <param name="data">The byte array containing the serialized representation.</param>
-    /// <param name="length">The length of the byte array containing the serialized representation.</param>
-    /// <exception cref="EndOfStreamException">Thrown if the byte array is incomplete or corrupted.</exception>
+    /// <param name="length">The length of the byte array containing the serialized representation. Must be in the range <c>[0, data.Length]</c>.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="data"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="length"/> is negative or greater than <c>data.Length</c>.</exception>
     public SecureBigInteger(byte[] data, int length)
     {
         if (data is null)
         {
             throw new ArgumentNullException(nameof(data));
+        }
+
+        if (length < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), string.Format(ErrorMessages.ValueLowerThanX, 0));
+        }
+
+        if (length > data.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), string.Format(ErrorMessages.CountExceedsArrayLength, length, data.Length));
+        }
+
+        if (length == 0)
+        {
+            this.data = new PinnedPoolArray<byte>(1);
+            return;
         }
 
         var isNegativeRepresentation = IsNegativeRepresentation(data, length);

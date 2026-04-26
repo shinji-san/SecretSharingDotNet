@@ -1705,6 +1705,78 @@ public class SecureBigIntegerTests
         Assert.True(abs.IsOne);
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(int.MinValue)]
+    public void Constructor_FromByteArrayLengthSign_NegativeLength_ThrowsWithParamNameLength(int length)
+    {
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            using var _ = new SecureBigInteger(new byte[] { 0x01 }, length, false);
+        });
+        Assert.Equal("length", ex.ParamName);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(int.MinValue)]
+    public void Constructor_FromByteArrayLength_NegativeLength_ThrowsWithParamNameLength(int length)
+    {
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            using var _ = new SecureBigInteger(new byte[] { 0x01 }, length);
+        });
+        Assert.Equal("length", ex.ParamName);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(100)]
+    public void Constructor_FromByteArrayLengthSign_LengthExceedsArray_ThrowsWithParamNameLength(int length)
+    {
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            using var _ = new SecureBigInteger(new byte[] { 0x01 }, length, false);
+        });
+        Assert.Equal("length", ex.ParamName);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(100)]
+    public void Constructor_FromByteArrayLength_LengthExceedsArray_ThrowsWithParamNameLength(int length)
+    {
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            using var _ = new SecureBigInteger(new byte[] { 0x01 }, length);
+        });
+        Assert.Equal("length", ex.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_FromByteArrayLengthSign_ZeroLength_IsZero()
+    {
+        using var num = new SecureBigInteger(new byte[] { 0xFF, 0xFF }, 0, false);
+        Assert.True(num.IsZero);
+        Assert.Equal(0, num.Sign);
+    }
+
+    [Fact]
+    public void Constructor_FromByteArrayLengthSign_ZeroLengthAndIsNegative_IsZeroWithoutSign()
+    {
+        using var num = new SecureBigInteger(new byte[] { 0xFF, 0xFF }, 0, true);
+        Assert.True(num.IsZero);
+        Assert.Equal(0, num.Sign);
+    }
+
+    [Fact]
+    public void Constructor_FromByteArrayLength_ZeroLength_IsZero()
+    {
+        using var num = new SecureBigInteger(new byte[] { 0xFF, 0xFF }, 0);
+        Assert.True(num.IsZero);
+        Assert.Equal(0, num.Sign);
+    }
+
     [Fact]
     public void Constructor_FromString_InvalidChar_RepeatedFailures_DoNotCrash()
     {
