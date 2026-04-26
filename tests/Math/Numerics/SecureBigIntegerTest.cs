@@ -138,6 +138,36 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length));
     }
 
+    [Theory]
+    [InlineData("+5", 5)]
+    [InlineData("+0", 0)]
+    [InlineData("-0", 0)]
+    [InlineData("00000", 0)]
+    [InlineData("  5  ", 5)]
+    [InlineData("\t-42\t", -42)]
+    public void Constructor_FromString_ValidSignAndWhitespace_Parses(string value, int expected)
+    {
+        // Arrange & Act
+        using var num = new SecureBigInteger(value);
+
+        // Assert
+        Assert.Equal(expected, (int)num);
+    }
+
+    [Theory]
+    [InlineData("-")]
+    [InlineData("+")]
+    [InlineData(" - ")]
+    [InlineData(" + ")]
+    [InlineData("\t-\t")]
+    public void Constructor_FromString_OnlySign_ThrowsFormatException(string value)
+    {
+        Assert.Throws<FormatException>(() =>
+        {
+            using var _ = new SecureBigInteger(value);
+        });
+    }
+
     [Fact]
     public void IsZero_WithZero_ReturnsTrue()
     {

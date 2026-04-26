@@ -326,6 +326,10 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 #else
             value = value.Substring(1);
 #endif
+            if (value.Length == 0)
+            {
+                throw new FormatException("Ungültiges Zahlenformat. Vorzeichen ohne Ziffern.");
+            }
         }
 
         var result = new SecureBigInteger(0);
