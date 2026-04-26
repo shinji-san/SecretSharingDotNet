@@ -1196,17 +1196,24 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Converts the first bytes of a given byte array into a 64-bit unsigned integer (ulong) in a Little-Endian manner.
+    /// Converts the first <paramref name="length"/> little-endian bytes of <paramref name="data"/>
+    /// into a 64-bit unsigned integer.
     /// </summary>
-    /// <param name="data">The byte array to be converted. Only the first 8 bytes (or fewer if the array is smaller) will be considered.</param>
-    /// <param name="length">The number of bytes to consider from the start of the array.</param>
-    /// <returns>A 64-bit unsigned integer (ulong) representation of the first bytes of the provided array.</returns>
+    /// <param name="data">The little-endian byte array.</param>
+    /// <param name="length">The number of bytes to consume. Must be in <c>[0, 8]</c>; callers
+    /// holding wider values must extract the desired 8-byte window themselves.</param>
+    /// <returns>The little-endian interpretation of <c>data[0..length]</c>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="length"/>
+    /// is negative or greater than 8.</exception>
     private static ulong BytesToULong(byte[] data, int length)
     {
-        var result = 0UL;
-        var len = Math.Min(length, 8);
+        if (length < 0 || length > 8)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), "Length must be in [0, 8].");
+        }
 
-        for (int i = len - 1; i >= 0; i--)
+        var result = 0UL;
+        for (int i = length - 1; i >= 0; i--)
         {
             result = result << 8 | data[i];
         }
@@ -1226,15 +1233,17 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         var actualLen = GetActualLength(secureBigInteger);
         if (totalBits <= bitsToExtract)
         {
-            // The entire number fits into the mantissa
-            return BytesToULong(secureBigInteger.data.PoolArray, actualLen);
+            // The entire number fits into the mantissa; for bitsToExtract == 53 that's at most 7 bytes.
+            return BytesToULong(secureBigInteger.data.PoolArray, Math.Min(actualLen, 8));
         }
 
         using var tempData = new PinnedPoolArray<byte>(actualLen);
         Array.Copy(secureBigInteger.data.PoolArray, tempData.PoolArray, actualLen);
         var bitsToShift = totalBits - bitsToExtract;
         ShiftRightInPlaceInternal(tempData.PoolArray, actualLen, bitsToShift);
-        return BytesToULong(tempData.PoolArray, actualLen);
+        // After the right shift the mantissa lives in the lowest ceil(bitsToExtract / 8) bytes;
+        // higher bytes are zero. Cap at 8 to satisfy BytesToULong's contract.
+        return BytesToULong(tempData.PoolArray, Math.Min(actualLen, 8));
     }
 
     /// <summary>
