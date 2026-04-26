@@ -288,6 +288,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         {
             Array.Copy(data, this.data.PoolArray, this.Length);
         }
+
+        this.TrimLeadingZerosInPlace();
+        if (this.IsZeroInternal())
+        {
+            this.isNegative = false;
+        }
     }
 
     /// <summary>

@@ -1644,4 +1644,34 @@ public class SecureBigIntegerTests
         Assert.True(num.IsZero);
         Assert.Equal(0, num.Sign);
     }
+
+    [Theory]
+    [InlineData(new byte[] { 0xFF, 0xFF }, -1, 1)]
+    [InlineData(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF }, -1, 1)]
+    [InlineData(new byte[] { 0x00, 0xFF }, -256, 2)]
+    public void Constructor_TwosComplement_NegativeMultiByte_TrimsToCanonicalMagnitude(
+        byte[] data,
+        int expected,
+        int expectedByteCount)
+    {
+        // Arrange & Act
+        using var fromBytes = new SecureBigInteger(data);
+        using var fromInt = new SecureBigInteger(expected);
+
+        // Assert
+        Assert.Equal(fromInt, fromBytes);
+        Assert.Equal(expectedByteCount, fromBytes.ByteCount);
+    }
+
+    [Fact]
+    public void Constructor_TwosComplement_NegativeOne_AbsIsOne()
+    {
+        // Arrange & Act
+        using var minusOne = new SecureBigInteger(new byte[] { 0xFF, 0xFF, 0xFF });
+        using var abs = minusOne.Abs();
+
+        // Assert
+        Assert.False(minusOne.IsOne);
+        Assert.True(abs.IsOne);
+    }
 }
