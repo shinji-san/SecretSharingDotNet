@@ -656,6 +656,17 @@ public class SecureBigIntegerTests
         Assert.Equal("-42", s);
     }
 
+    [Fact]
+    public void NegateOperator_NullInput_ThrowsArgumentNullException()
+    {
+        SecureBigInteger value = null;
+        var ex = Assert.Throws<ArgumentNullException>(() =>
+        {
+            using var _ = -value;
+        });
+        Assert.Equal("value", ex.ParamName);
+    }
+
     [Theory]
     [InlineData(2, 0, 1)]
     [InlineData(2, 1, 2)]

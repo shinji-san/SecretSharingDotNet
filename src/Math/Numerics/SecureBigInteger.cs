@@ -1460,7 +1460,16 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// </summary>
     /// <param name="value">Value to negate</param>
     /// <returns>Negated value</returns>
-    public static SecureBigInteger operator -(SecureBigInteger value) => value?.Negate();
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is <see langword="null"/>.</exception>
+    public static SecureBigInteger operator -(SecureBigInteger value)
+    {
+        if (value is null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        return value.Negate();
+    }
 
     /// <summary>
     /// Defines the behavior of the increment operator (++) for the <see cref="SecureBigInteger"/> class,
@@ -1529,6 +1538,11 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <exception cref="ArgumentNullException">
     /// Thrown if <paramref name="left"/> or <paramref name="right"/> is <see langword="null"/>.
     /// </exception>
+    [SuppressMessage("SonarQube", "S3877",
+        Justification = "Throwing ArgumentNullException on null is the documented contract across " +
+                        "all operators of this class. The class implements IComparable<T> where " +
+                        "null arguments have no defined order, so a 'null = smallest value' fallback " +
+                        "would silently mask programmer error in a cryptographic context.")]
     public static bool operator <(SecureBigInteger left, SecureBigInteger right)
     {
         if (left is null)
@@ -1556,6 +1570,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <exception cref="ArgumentNullException">
     /// Thrown if either <paramref name="left"/> or <paramref name="right"/> is <see langword="null"/>.
     /// </exception>
+    [SuppressMessage("SonarQube", "S3877", Justification = "See operator <(SecureBigInteger, SecureBigInteger).")]
     public static bool operator >(SecureBigInteger left, SecureBigInteger right)
     {
         if (left is null)
