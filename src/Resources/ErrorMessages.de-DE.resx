@@ -105,4 +105,40 @@
     <data name="ComparerExpectedTypeX" xml:space="preserve">
         <value>Der Comparer hat Elemente vom Typ '{0}' erwartet.</value>
     </data>
+    <data name="ValueCannotBeEmpty" xml:space="preserve">
+        <value>Der Wert darf nicht leer sein.</value>
+    </data>
+    <data name="NumberFormatSignWithoutDigits" xml:space="preserve">
+        <value>Ungültiges Zahlenformat. Vorzeichen ohne Ziffern.</value>
+    </data>
+    <data name="NumberFormatInvalidChar" xml:space="preserve">
+        <value>Ungültiges Zeichen in Zahl: '{0}'.</value>
+    </data>
+    <data name="DivisionByZero" xml:space="preserve">
+        <value>Division durch null ist nicht zulässig.</value>
+    </data>
+    <data name="SqrtOfNegativeUndefined" xml:space="preserve">
+        <value>Die Quadratwurzel negativer Zahlen ist nicht definiert.</value>
+    </data>
+    <data name="RootExponentMustBePositive" xml:space="preserve">
+        <value>Der Wurzelexponent muss positiv sein.</value>
+    </data>
+    <data name="EvenRootOfNegativeUndefined" xml:space="preserve">
+        <value>Eine gerade Wurzel negativer Zahlen ist nicht definiert.</value>
+    </data>
+    <data name="ExponentMustBeNonNegative" xml:space="preserve">
+        <value>Der Exponent darf nicht negativ sein.</value>
+    </data>
+    <data name="LengthOutOfRangeForUlong" xml:space="preserve">
+        <value>Die Länge muss im Bereich [0, 8] liegen.</value>
+    </data>
+    <data name="ModulusMustNotBeZero" xml:space="preserve">
+        <value>Der Modul darf nicht null sein.</value>
+    </data>
+    <data name="ValueTooLargeForInt" xml:space="preserve">
+        <value>Der Wert ist zu groß für 'int'.</value>
+    </data>
+    <data name="ValueTooLargeForLong" xml:space="preserve">
+        <value>Der Wert ist zu groß für 'long'.</value>
+    </data>
 </root>

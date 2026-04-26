@@ -112,4 +112,40 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="ComparerExpectedTypeX" xml:space="preserve">
         <value>Comparer expected elements of type '{0}'.</value>
     </data>
+    <data name="ValueCannotBeEmpty" xml:space="preserve">
+        <value>Value cannot be empty.</value>
+    </data>
+    <data name="NumberFormatSignWithoutDigits" xml:space="preserve">
+        <value>Invalid number format. Sign without digits.</value>
+    </data>
+    <data name="NumberFormatInvalidChar" xml:space="preserve">
+        <value>Invalid character in number: '{0}'.</value>
+    </data>
+    <data name="DivisionByZero" xml:space="preserve">
+        <value>Division by zero is not allowed.</value>
+    </data>
+    <data name="SqrtOfNegativeUndefined" xml:space="preserve">
+        <value>Square root of negative numbers is not defined.</value>
+    </data>
+    <data name="RootExponentMustBePositive" xml:space="preserve">
+        <value>The root exponent must be positive.</value>
+    </data>
+    <data name="EvenRootOfNegativeUndefined" xml:space="preserve">
+        <value>Even root of negative numbers is not defined.</value>
+    </data>
+    <data name="ExponentMustBeNonNegative" xml:space="preserve">
+        <value>Exponent must be non-negative.</value>
+    </data>
+    <data name="LengthOutOfRangeForUlong" xml:space="preserve">
+        <value>Length must be in [0, 8].</value>
+    </data>
+    <data name="ModulusMustNotBeZero" xml:space="preserve">
+        <value>Modulus must not be zero.</value>
+    </data>
+    <data name="ValueTooLargeForInt" xml:space="preserve">
+        <value>Value is too large for 'int'.</value>
+    </data>
+    <data name="ValueTooLargeForLong" xml:space="preserve">
+        <value>Value is too large for 'long'.</value>
+    </data>
 </root>

@@ -233,5 +233,77 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("ComparerExpectedTypeX", resourceCulture);
             }
         }
+
+        internal static string ValueCannotBeEmpty {
+            get {
+                return ResourceManager.GetString("ValueCannotBeEmpty", resourceCulture);
+            }
+        }
+
+        internal static string NumberFormatSignWithoutDigits {
+            get {
+                return ResourceManager.GetString("NumberFormatSignWithoutDigits", resourceCulture);
+            }
+        }
+
+        internal static string NumberFormatInvalidChar {
+            get {
+                return ResourceManager.GetString("NumberFormatInvalidChar", resourceCulture);
+            }
+        }
+
+        internal static string DivisionByZero {
+            get {
+                return ResourceManager.GetString("DivisionByZero", resourceCulture);
+            }
+        }
+
+        internal static string SqrtOfNegativeUndefined {
+            get {
+                return ResourceManager.GetString("SqrtOfNegativeUndefined", resourceCulture);
+            }
+        }
+
+        internal static string RootExponentMustBePositive {
+            get {
+                return ResourceManager.GetString("RootExponentMustBePositive", resourceCulture);
+            }
+        }
+
+        internal static string EvenRootOfNegativeUndefined {
+            get {
+                return ResourceManager.GetString("EvenRootOfNegativeUndefined", resourceCulture);
+            }
+        }
+
+        internal static string ExponentMustBeNonNegative {
+            get {
+                return ResourceManager.GetString("ExponentMustBeNonNegative", resourceCulture);
+            }
+        }
+
+        internal static string LengthOutOfRangeForUlong {
+            get {
+                return ResourceManager.GetString("LengthOutOfRangeForUlong", resourceCulture);
+            }
+        }
+
+        internal static string ModulusMustNotBeZero {
+            get {
+                return ResourceManager.GetString("ModulusMustNotBeZero", resourceCulture);
+            }
+        }
+
+        internal static string ValueTooLargeForInt {
+            get {
+                return ResourceManager.GetString("ValueTooLargeForInt", resourceCulture);
+            }
+        }
+
+        internal static string ValueTooLargeForLong {
+            get {
+                return ResourceManager.GetString("ValueTooLargeForLong", resourceCulture);
+            }
+        }
     }
 }

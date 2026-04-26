@@ -338,14 +338,14 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     {
         if (value.IsEmpty || value.IsWhiteSpace())
         {
-            throw new ArgumentException("Der Wert darf nicht leer sein", nameof(value));
+            throw new ArgumentException(ErrorMessages.ValueCannotBeEmpty, nameof(value));
         }
 #else
     public SecureBigInteger(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Der Wert darf nicht leer sein", nameof(value));
+            throw new ArgumentException(ErrorMessages.ValueCannotBeEmpty, nameof(value));
         }
 #endif
         value = value.Trim();
@@ -359,7 +359,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 #endif
             if (value.Length == 0)
             {
-                throw new FormatException("Ungültiges Zahlenformat. Vorzeichen ohne Ziffern.");
+                throw new FormatException(ErrorMessages.NumberFormatSignWithoutDigits);
             }
         }
 
@@ -377,7 +377,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             {
                 if (!char.IsDigit(c))
                 {
-                    throw new FormatException($"Ungültiges Zeichen in Zahl: {c}");
+                    throw new FormatException(string.Format(ErrorMessages.NumberFormatInvalidChar, c));
                 }
 
                 int digit = c - DigitOffset;
@@ -606,7 +606,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (divisor.IsZeroInternal())
         {
-            throw new DivideByZeroException("Division by zero is not allowed");
+            throw new DivideByZeroException(ErrorMessages.DivisionByZero);
         }
 
         if (dividend.IsZeroInternal())
@@ -646,7 +646,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (divisor.IsZeroInternal())
         {
-            throw new DivideByZeroException("Division by zero is not allowed");
+            throw new DivideByZeroException(ErrorMessages.DivisionByZero);
         }
 
         if (dividend.IsZeroInternal())
@@ -681,7 +681,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (this.isNegative)
         {
-            throw new InvalidOperationException("Square root of negative numbers is not defined");
+            throw new InvalidOperationException(ErrorMessages.SqrtOfNegativeUndefined);
         }
 
         if (this.IsZeroInternal() || this.IsOne)
@@ -736,12 +736,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (n <= 0)
         {
-            throw new ArgumentException("The root exponent must be positive", nameof(n));
+            throw new ArgumentException(ErrorMessages.RootExponentMustBePositive, nameof(n));
         }
 
         if (n % 2 == 0 && this.isNegative)
         {
-            throw new InvalidOperationException("Even root of negative numbers is not defined.");
+            throw new InvalidOperationException(ErrorMessages.EvenRootOfNegativeUndefined);
         }
 
         if (this.IsZeroInternal())
@@ -858,7 +858,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         switch (exponent)
         {
             case < 0:
-                throw new ArgumentException("Exponent must be non-negative", nameof(exponent));
+                throw new ArgumentException(ErrorMessages.ExponentMustBeNonNegative, nameof(exponent));
             case 0:
                 return new SecureBigInteger(1);
             case 1:
@@ -1209,7 +1209,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     {
         if (length < 0 || length > 8)
         {
-            throw new ArgumentOutOfRangeException(nameof(length), "Length must be in [0, 8].");
+            throw new ArgumentOutOfRangeException(nameof(length), ErrorMessages.LengthOutOfRangeForUlong);
         }
 
         var result = 0UL;
@@ -1376,12 +1376,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (modulus.IsZeroInternal())
         {
-            throw new DivideByZeroException("Modulus must not be zero");
+            throw new DivideByZeroException(ErrorMessages.ModulusMustNotBeZero);
         }
 
         if (exponent.isNegative)
         {
-            throw new ArgumentException("Exponent must be non-negative", nameof(exponent));
+            throw new ArgumentException(ErrorMessages.ExponentMustBeNonNegative, nameof(exponent));
         }
 
         var result = new SecureBigInteger(1);
@@ -1651,7 +1651,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (value.Length > 4)
         {
-            throw new OverflowException("Value is too large for int");
+            throw new OverflowException(ErrorMessages.ValueTooLargeForInt);
         }
 
         uint result = 0;
@@ -1662,7 +1662,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (result > int.MaxValue && !(value.isNegative && result == (uint)int.MaxValue + 1))
         {
-            throw new OverflowException("Value is too large for int");
+            throw new OverflowException(ErrorMessages.ValueTooLargeForInt);
         }
 
         return value.isNegative ? -(int)result : (int)result;
@@ -1686,7 +1686,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (value.Length > 8)
         {
-            throw new OverflowException("The value is too large for long");
+            throw new OverflowException(ErrorMessages.ValueTooLargeForLong);
         }
 
         var result = 0UL;
@@ -1697,7 +1697,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (result > long.MaxValue && !(value.isNegative && result == (ulong)long.MaxValue + 1))
         {
-            throw new OverflowException("The value is too large for long");
+            throw new OverflowException(ErrorMessages.ValueTooLargeForLong);
         }
 
         return value.isNegative ? -(long)result : (long)result;
