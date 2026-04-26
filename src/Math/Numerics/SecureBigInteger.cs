@@ -95,50 +95,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// Initializes a new instance of the <see cref="SecureBigInteger"/> class from an <see cref="int"/> value.
     /// </summary>
     /// <param name="value">The <see cref="int"/> value to initialize from.</param>
-    public SecureBigInteger(int value)
+    public SecureBigInteger(int value) : this((long)value)
     {
-        switch (value)
-        {
-            case 0:
-                this.data = new PinnedPoolArray<byte>(1);
-                this.data[0] = 0;
-                break;
-            case int.MinValue:
-                this.isNegative = true;
-                var intSize = sizeof(int);
-                this.data = new PinnedPoolArray<byte>(intSize);
-                this.data[0] = 0;
-                this.data[1] = 0;
-                this.data[2] = 0;
-                this.data[3] = 128;
-                break;
-            default:
-                this.isNegative = value < 0;
-                var absoluteValue = (uint)(this.isNegative ? -(long)value : value);
-                if (absoluteValue == 0)
-                {
-                    this.data = new PinnedPoolArray<byte>(1);
-                    this.data[0] = 0;
-                    break;
-                }
-
-                int byteCount = 0;
-                uint temp = absoluteValue;
-                while (temp > 0)
-                {
-                    byteCount++;
-                    temp >>= 8;
-                }
-
-                this.data = new PinnedPoolArray<byte>(byteCount);
-                for (int i = 0; i < byteCount; i++)
-                {
-                    this.data[i] = (byte)(absoluteValue & 0xFF);
-                    absoluteValue >>= 8;
-                }
-
-                break;
-        }
     }
 
     /// <summary>
@@ -147,51 +105,30 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="value">The <see cref="long"/> value to initialize from.</param>
     public SecureBigInteger(long value)
     {
-        switch (value)
+        if (value == 0)
         {
-            case 0:
-                this.data = new PinnedPoolArray<byte>(1);
-                this.data[0] = 0;
-                break;
-            case long.MinValue:
-                this.isNegative = true;
-                var longSize = sizeof(long);
-                this.data = new PinnedPoolArray<byte>(longSize);
-                this.data[0] = 0;
-                this.data[1] = 0;
-                this.data[2] = 0;
-                this.data[3] = 0;
-                this.data[4] = 0;
-                this.data[5] = 0;
-                this.data[6] = 0;
-                this.data[7] = 128;
-                break;
-            default:
-                this.isNegative = value < 0;
-                ulong absoluteValue = (ulong)(this.isNegative ? -value : value);
-                if (absoluteValue == 0)
-                {
-                    this.data = new PinnedPoolArray<byte>(1);
-                    this.data[0] = 0;
-                    break;
-                }
+            this.data = new PinnedPoolArray<byte>(1);
+            return;
+        }
 
-                int byteCount = 0;
-                ulong temp = absoluteValue;
-                while (temp > 0)
-                {
-                    byteCount++;
-                    temp >>= 8;
-                }
+        this.isNegative = value < 0;
+        // unchecked: -long.MinValue overflows back to long.MinValue, whose ulong
+        // reinterpretation is 0x8000_0000_0000_0000 — exactly the magnitude we want.
+        ulong absoluteValue = unchecked((ulong)(this.isNegative ? -value : value));
 
-                this.data = new PinnedPoolArray<byte>(byteCount);
-                for (int i = 0; i < byteCount; i++)
-                {
-                    this.data[i] = (byte)(absoluteValue & 0xFF);
-                    absoluteValue >>= 8;
-                }
+        int byteCount = 0;
+        ulong temp = absoluteValue;
+        while (temp > 0)
+        {
+            byteCount++;
+            temp >>= 8;
+        }
 
-                break;
+        this.data = new PinnedPoolArray<byte>(byteCount);
+        for (int i = 0; i < byteCount; i++)
+        {
+            this.data[i] = (byte)(absoluteValue & 0xFF);
+            absoluteValue >>= 8;
         }
     }
 
