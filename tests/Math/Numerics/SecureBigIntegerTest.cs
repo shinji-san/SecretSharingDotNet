@@ -1704,4 +1704,51 @@ public class SecureBigIntegerTests
         Assert.False(minusOne.IsOne);
         Assert.True(abs.IsOne);
     }
+
+    [Fact]
+    public void Constructor_FromString_InvalidChar_RepeatedFailures_DoNotCrash()
+    {
+        for (int i = 0; i < 100; i++)
+        {
+            Assert.Throws<FormatException>(() =>
+            {
+                using var _ = new SecureBigInteger("12abc");
+            });
+        }
+    }
+
+    [Fact]
+    public void Sqrt_RepeatedCalls_ReturnsConsistentResult()
+    {
+        using var value = new SecureBigInteger(123456789);
+        for (int i = 0; i < 100; i++)
+        {
+            using var root = value.Sqrt();
+            Assert.Equal(11111, (int)root);
+        }
+    }
+
+    [Fact]
+    public void Gcd_RepeatedCalls_ReturnsConsistentResult()
+    {
+        using var a = new SecureBigInteger(48);
+        using var b = new SecureBigInteger(18);
+        for (int i = 0; i < 100; i++)
+        {
+            using var g = SecureBigInteger.Gcd(a, b);
+            Assert.Equal(6, (int)g);
+        }
+    }
+
+    [Fact]
+    public void ToPinnedCharArray_RepeatedCalls_ReturnsConsistentString()
+    {
+        using var value = new SecureBigInteger(-12345);
+        for (int i = 0; i < 100; i++)
+        {
+            using var arr = value.ToPinnedCharArray();
+            var s = new string(arr.PoolArray, 0, arr.Length);
+            Assert.Equal("-12345", s);
+        }
+    }
 }

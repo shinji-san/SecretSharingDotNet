@@ -332,31 +332,40 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             }
         }
 
-        var result = new SecureBigInteger(0);
-        using var ten = new SecureBigInteger(10);
-
-        foreach (char c in value)
+        // Exception-safety pattern (cf. ModPow): all heap-allocated temporaries that
+        // outlive a single statement are tracked via locals + try/finally so that a
+        // mid-loop throw (FormatException, OutOfMemoryException) cannot leak pinned
+        // pool buffers.
+        SecureBigInteger result = null;
+        try
         {
-            if (!char.IsDigit(c))
+            result = new SecureBigInteger(0);
+            using var ten = new SecureBigInteger(10);
+
+            foreach (char c in value)
             {
-                throw new FormatException($"Ungültiges Zeichen in Zahl: {c}");
+                if (!char.IsDigit(c))
+                {
+                    throw new FormatException($"Ungültiges Zeichen in Zahl: {c}");
+                }
+
+                int digit = c - DigitOffset;
+
+                // result = result * 10 + digit
+                using var temp1 = MultiplyUnsigned(result, ten);
+                using var digitBytes = new SecureBigInteger(digit);
+                var newResult = AddUnsigned(temp1, digitBytes);
+                result.Dispose();
+                result = newResult;
             }
 
-            int digit = c - DigitOffset;
-
-            // result = result * 10 + digit
-            var temp1 = MultiplyUnsigned(result, ten);
-            result.Dispose();
-
-            var digitBytes = new SecureBigInteger(digit);
-            result = AddUnsigned(temp1, digitBytes);
-            temp1.Dispose();
-            digitBytes.Dispose();
+            this.data = new PinnedPoolArray<byte>(result.Length);
+            Array.Copy(result.data.PoolArray, this.data.PoolArray, result.Length);
         }
-
-        this.data = new PinnedPoolArray<byte>(result.Length);
-        Array.Copy(result.data.PoolArray, this.data.PoolArray, result.Length);
-        result.Dispose();
+        finally
+        {
+            result?.Dispose();
+        }
 
         if (this.IsZeroInternal())
         {
@@ -651,22 +660,32 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         // Newton-Raphson: x_{n+1} = (x_n + a/x_n) / 2
         var bitLength = GetBitLength(this);
         var next = ShiftRight(this, (bitLength - 1) / 2);
-        using var two = new SecureBigInteger(2);
-        while (true)
+        // Ownership of `next` is transferred to the caller on success; on exception
+        // the catch disposes it. Pattern parallels the constructor / ModPow.
+        try
         {
-            using var temp1 = Divide(this, next);
-            using var temp2 = Add(next, temp1);
-            using var newNext = Divide(temp2, two);
-            if (newNext >= next)
+            using var two = new SecureBigInteger(2);
+            while (true)
             {
-                break;
+                using var temp1 = Divide(this, next);
+                using var temp2 = Add(next, temp1);
+                using var newNext = Divide(temp2, two);
+                if (newNext >= next)
+                {
+                    break;
+                }
+
+                next.Dispose();
+                next = new SecureBigInteger(newNext);
             }
 
-            next.Dispose();
-            next = new SecureBigInteger(newNext);
+            return next;
         }
-
-        return next;
+        catch
+        {
+            next.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
@@ -724,31 +743,41 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         SetBit(initialGuessData, targetBit);
 
         var next = new SecureBigInteger(initialGuessData, false);
-        using var nValue = new SecureBigInteger(n);
-        using var nMinus1 = new SecureBigInteger(n - 1);
-
-        while (true)
+        // Ownership of `next` transfers to the caller on success; catch disposes it
+        // on exception. Pattern parallels the constructor / ModPow / Sqrt.
+        try
         {
-            using var powered = next.Pow(n - 1);
-            using var divided = Divide(absThis, powered);
-            using var temp1 = Multiply(next, nMinus1);
-            using var temp2 = Add(temp1, divided);
-            using var newNext = Divide(temp2, nValue);
-            if (newNext >= next)
+            using var nValue = new SecureBigInteger(n);
+            using var nMinus1 = new SecureBigInteger(n - 1);
+
+            while (true)
             {
-                break;
+                using var powered = next.Pow(n - 1);
+                using var divided = Divide(absThis, powered);
+                using var temp1 = Multiply(next, nMinus1);
+                using var temp2 = Add(temp1, divided);
+                using var newNext = Divide(temp2, nValue);
+                if (newNext >= next)
+                {
+                    break;
+                }
+
+                next.Dispose();
+                next = new SecureBigInteger(newNext);
             }
 
-            next.Dispose();
-            next = new SecureBigInteger(newNext);
-        }
+            if (this.isNegative && n % 2 == 1)
+            {
+                next.isNegative = true;
+            }
 
-        if (this.isNegative && n % 2 == 1)
+            return next;
+        }
+        catch
         {
-            next.isNegative = true;
+            next.Dispose();
+            throw;
         }
-
-        return next;
     }
 
     /// <summary>
@@ -1239,21 +1268,34 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         left.ThrowIfDisposed();
         right.ThrowIfDisposed();
 
-        var a = left.Abs();
-        var b = right.Abs();
-        while (!b.IsZeroInternal())
+        // Both `a` and `b` are heap-allocated and live across multiple iterations;
+        // catch on exception releases whichever is still live. Pattern parallels the
+        // constructor / ModPow / Sqrt / NthRoot.
+        SecureBigInteger a = null;
+        SecureBigInteger b = null;
+        try
         {
-            using var temp = Remainder(a, b);
-            a.Dispose();
-            a = new SecureBigInteger(b);
+            a = left.Abs();
+            b = right.Abs();
+            while (!b.IsZeroInternal())
+            {
+                using var temp = Remainder(a, b);
+                a.Dispose();
+                a = new SecureBigInteger(b);
+
+                b.Dispose();
+                b = new SecureBigInteger(temp);
+            }
 
             b.Dispose();
-            b = new SecureBigInteger(temp);
+            return a;
         }
-
-        b.Dispose();
-
-        return a;
+        catch
+        {
+            a?.Dispose();
+            b?.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
@@ -2226,35 +2268,58 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         }
 
         using var negatedValue = this.Negate();
-        var digitCount = (int)(Log10(this.isNegative ? negatedValue: this) + 1);
-
+        var digitCount = (int)(Log10(this.isNegative ? negatedValue : this) + 1);
         var totalLength = this.isNegative ? digitCount + 1 : digitCount;
-        var result = new PinnedPoolArray<char>(totalLength);
-        var index = totalLength - 1;
 
-        var temp = new SecureBigInteger(this);
-        // Work with absolute value
-        temp.isNegative = false;
-        using var zero = new SecureBigInteger(0);
-        using var ten = new SecureBigInteger(10);
-
-        while (CompareUnsigned(temp.data.PoolArray, temp.Length, zero.data.PoolArray, 1) > 0)
+        // `result` ownership transfers to caller on success; catch disposes it on
+        // exception. `temp` is always disposed in finally. Pattern parallels the
+        // constructor / ModPow.
+        PinnedPoolArray<char> result = null;
+        SecureBigInteger temp = null;
+        try
         {
-            using var quotient = DivideUnsigned(temp, ten, out var rem);
-            result[index--] = (char)(DigitOffset + rem.data[0]);
-            rem.Dispose();
-            temp.Dispose();
-            temp = new SecureBigInteger(quotient);
+            result = new PinnedPoolArray<char>(totalLength);
+            var index = totalLength - 1;
+
+            temp = new SecureBigInteger(this);
+            temp.isNegative = false;
+            using var zero = new SecureBigInteger(0);
+            using var ten = new SecureBigInteger(10);
+
+            while (CompareUnsigned(temp.data.PoolArray, temp.Length, zero.data.PoolArray, 1) > 0)
+            {
+                var quotient = DivideUnsigned(temp, ten, out var rem);
+                try
+                {
+                    result[index--] = (char)(DigitOffset + rem.data[0]);
+                    temp.Dispose();
+                    temp = new SecureBigInteger(quotient);
+                }
+                finally
+                {
+                    quotient.Dispose();
+                    rem.Dispose();
+                }
+            }
+
+            if (this.isNegative)
+            {
+                result[0] = '-';
+            }
+
+            var ret = result;
+            result = null;
+            return ret;
         }
-
-        temp.Dispose();
-
-        if (this.isNegative)
+        catch
         {
-            result[0] = '-';
+            result?.Dispose();
+            throw;
         }
-
-        return result;
+        finally
+        {
+            temp?.Dispose();
+        }
     }
 
     /// <summary>
