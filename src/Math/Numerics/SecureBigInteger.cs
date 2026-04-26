@@ -51,7 +51,7 @@ using System.Threading;
 /// The internal data is securely cleared from memory when the instance is disposed.
 /// </summary>
 #if DEBUG
-[DebuggerDisplay("{ToString()}")]
+[DebuggerDisplay("{ToString(),nq}")]
 #else
 [DebuggerDisplay("*** Secured Value ***")]
 #endif
@@ -2257,8 +2257,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// Returns the hash code for the current instance of the <see cref="SecureBigInteger"/> class.
     /// </summary>
     /// <returns>An integer representing the hash code of the current instance.</returns>
-    [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode", Justification = "Fields are not externally mutable. Fields are inernally mutable only for creation purposes.")]
-    [SuppressMessage("SonarQube", "S2328", Justification = "Fields are not externally mutable. Fields are inernally mutable only for creation purposes.")]
+    [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode", Justification = "Fields are not externally mutable. Fields are internally mutable only for creation purposes.")]
+    [SuppressMessage("SonarQube", "S2328", Justification = "Fields are not externally mutable. Fields are internally mutable only for creation purposes.")]
     public override int GetHashCode()
     {
         this.ThrowIfDisposed();
