@@ -1566,7 +1566,7 @@ public class SecureBigIntegerTests
         // Arrange & Act
         using var fromInteger = new SecureBigInteger(value);
         using var data = fromInteger.ToByteArray();
-        using var fromByteArray = new SecureBigInteger(data.PoolArray);
+        using var fromByteArray = new SecureBigInteger(data.PoolArray, data.Length);
 
         // Assert
         Assert.Equal(fromInteger, fromByteArray);
@@ -1590,10 +1590,58 @@ public class SecureBigIntegerTests
         // Arrange & Act
         using var fromInteger = new SecureBigInteger(value);
         using var data = fromInteger.ToByteArray();
-        using var fromByteArray = new SecureBigInteger(data.PoolArray);
+        using var fromByteArray = new SecureBigInteger(data.PoolArray, data.Length);
 
         // Assert
         Assert.Equal(fromInteger, fromByteArray);
         Assert.Equal(value, (long)fromByteArray);
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0x7F }, 127)]
+    [InlineData(new byte[] { 0x80, 0x00 }, 128)]
+    [InlineData(new byte[] { 0xFF, 0x00 }, 255)]
+    [InlineData(new byte[] { 0x00, 0x01 }, 256)]
+    [InlineData(new byte[] { 0xFF, 0x7F }, 32767)]
+    [InlineData(new byte[] { 0x00, 0x80, 0x00 }, 32768)]
+    public void Constructor_TwosComplement_PositiveBoundary_PreservesValue(byte[] data, int expected)
+    {
+        // Arrange & Act
+        using var num = new SecureBigInteger(data);
+
+        // Assert
+        Assert.Equal(1, num.Sign);
+        Assert.Equal(expected, (int)num);
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0xFF }, -1)]
+    [InlineData(new byte[] { 0x80 }, -128)]
+    [InlineData(new byte[] { 0x7F, 0xFF }, -129)]
+    [InlineData(new byte[] { 0x00, 0xFF }, -256)]
+    [InlineData(new byte[] { 0x00, 0x80 }, -32768)]
+    [InlineData(new byte[] { 0xFF, 0xFF }, -1)]
+    public void Constructor_TwosComplement_NegativeBoundary_PreservesValue(byte[] data, int expected)
+    {
+        // Arrange & Act
+        using var num = new SecureBigInteger(data);
+
+        // Assert
+        Assert.Equal(-1, num.Sign);
+        Assert.Equal(expected, (int)num);
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0x00 })]
+    [InlineData(new byte[] { 0x00, 0x00 })]
+    [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00 })]
+    public void Constructor_TwosComplement_AllZero_IsZero(byte[] data)
+    {
+        // Arrange & Act
+        using var num = new SecureBigInteger(data);
+
+        // Assert
+        Assert.True(num.IsZero);
+        Assert.Equal(0, num.Sign);
     }
 }

@@ -849,33 +849,30 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Determines if the given byte array represents a negative number in two's complement representation.
+    /// Determines whether the given little-endian byte array represents a negative
+    /// number in two's-complement form.
     /// </summary>
-    /// <param name="data">The byte array containing the data to evaluate.</param>
-    /// <param name="length">The length of the byte array to process.</param>
+    /// <param name="data">The little-endian byte array to evaluate.</param>
+    /// <param name="length">The number of bytes from <paramref name="data"/> that make up the value.</param>
     /// <returns>
-    /// A boolean value indicating whether the byte array represents a negative number.
-    /// Returns <see langword="true"/> if the data represents a negative number; otherwise, <see langword="false"/>.
+    /// <see langword="true"/> if the high bit of the most-significant byte
+    /// (<c>data[length - 1]</c>) is set; otherwise, <see langword="false"/>.
     /// </returns>
+    /// <remarks>
+    /// The caller-supplied <paramref name="length"/> is authoritative — trailing high-order
+    /// zero bytes must <b>not</b> be trimmed before the sign-bit check, because in
+    /// two's-complement encoding such a zero byte is the disambiguator that distinguishes
+    /// e.g. <c>[0x80]</c> (= -128) from <c>[0x80, 0x00]</c> (= +128). This matches the
+    /// convention used by <c>System.Numerics.BigInteger.ToByteArray()</c>.
+    /// </remarks>
     private static bool IsNegativeRepresentation(byte[] data, int length)
     {
-        if (length == 0 || data is null || (length == 1 && data[0] == 0))
+        if (data is null || length <= 0)
         {
             return false;
         }
 
-        var msbIndex = length - 1;
-        while (msbIndex > 0 && data[msbIndex] == 0)
-        {
-            msbIndex--;
-        }
-
-        if (msbIndex == 0 && data[0] == 0)
-        {
-            return false;
-        }
-
-        return (data[msbIndex] & 0x80) != 0;
+        return (data[length - 1] & 0x80) != 0;
     }
 
     /// <summary>
