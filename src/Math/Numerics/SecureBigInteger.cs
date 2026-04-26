@@ -1672,24 +1672,25 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
     /// <summary>
     /// Subtracts two unsigned <see cref="SecureBigInteger"/> instances and returns the result.
+    /// Requires <c>|minuend| &gt;= |subtrahend|</c>; the result is undefined otherwise.
     /// </summary>
-    /// <param name="left">The minuend <see cref="SecureBigInteger"/> instance.</param>
-    /// <param name="right">The subtrahend <see cref="SecureBigInteger"/> instance.</param>
+    /// <param name="minuend">The <see cref="SecureBigInteger"/> instance to subtract from.</param>
+    /// <param name="subtrahend">The <see cref="SecureBigInteger"/> instance to subtract.</param>
     /// <returns>A new <see cref="SecureBigInteger"/> instance representing the unsigned subtraction result.</returns>
-    private static SecureBigInteger SubtractUnsigned(SecureBigInteger left, SecureBigInteger right)
+    private static SecureBigInteger SubtractUnsigned(SecureBigInteger minuend, SecureBigInteger subtrahend)
     {
-        var leftLen = GetActualLength(left);
-        var rightLen = GetActualLength(right);
-        using var result = new PinnedPoolArray<byte>(leftLen);
+        var minuendLen = GetActualLength(minuend);
+        var subtrahendLen = GetActualLength(subtrahend);
+        using var result = new PinnedPoolArray<byte>(minuendLen);
 
         var borrow = 0;
         var i = 0;
-        for (; i < leftLen; i++)
+        for (; i < minuendLen; i++)
         {
-            int diff = left.data[i] - borrow;
-            if (i < rightLen)
+            int diff = minuend.data[i] - borrow;
+            if (i < subtrahendLen)
             {
-                diff -= right.data[i];
+                diff -= subtrahend.data[i];
             }
 
             if (diff < 0)
