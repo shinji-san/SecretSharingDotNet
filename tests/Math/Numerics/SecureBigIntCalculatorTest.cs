@@ -301,6 +301,21 @@ public class SecureBigIntCalculatorTest
         Assert.False(oddCalculator.IsEven);
     }
 
+    [Theory]
+    [InlineData(0L, true)]
+    [InlineData(-2L, true)]
+    [InlineData(-3L, false)]
+    [InlineData(int.MaxValue, false)]
+    [InlineData(int.MinValue, true)]
+    [InlineData(long.MaxValue, false)]
+    [InlineData(long.MinValue, true)]
+    public void IsEven_HandlesBoundaryValues(long value, bool expectedEven)
+    {
+        using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(value));
+
+        Assert.Equal(expectedEven, calculator.IsEven);
+    }
+
     [Fact]
     public void Sqrt_ShouldReturnCorrectResultForPerfectSquare()
     {

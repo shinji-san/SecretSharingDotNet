@@ -241,7 +241,7 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <summary>
     /// Gets a value indicating whether the current <see cref="SecureBigIntCalculator"/> object is an even number.
     /// </summary>
-    public override bool IsEven => this.Value % 2 == 0;
+    public override bool IsEven => this.Value.IsEven;
 
     /// <summary>
     /// Gets a number that indicates the sign (negative, positive, or zero) of the current <see cref="SecureBigIntCalculator"/> object.
