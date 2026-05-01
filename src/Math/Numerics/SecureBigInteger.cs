@@ -2266,6 +2266,13 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// avoid here by feeding both arrays at the same length.
     /// </para>
     /// </remarks>
+    [SuppressMessage("SonarQube", "S2178",
+        Justification = "Non-short-circuit AND is intentional in this constant-time context. " +
+                        "Using && would emit a conditional branch on `bytesEqual` to skip the " +
+                        "second operand; while both operands here are pre-computed bool values " +
+                        "so today the branch carries no secret data, the `&` form documents the " +
+                        "CT-design intent and is resilient to future refactors that inline " +
+                        "expressions into either side.")]
     public bool Equals(SecureBigInteger other)
     {
         if (other is null)
