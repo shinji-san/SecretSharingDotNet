@@ -99,4 +99,42 @@ public class CountedEqualityComparerTest
         Assert.Contains("Count=50", representation);
         Assert.Contains("Element=", representation);
     }
+
+    [Fact]
+    public void Constructor_CustomElementComparer_IsUsedInsteadOfDefault()
+    {
+        var customComparer = StringComparer.OrdinalIgnoreCase;
+        var comparer = new CountedEqualityComparer<string>(10, customComparer);
+
+        Assert.True(comparer.Equals("Hello", "HELLO"));
+        Assert.False(comparer.Equals("Hello", "World"));
+    }
+
+    [Fact]
+    public void Constructor_NullElementComparer_FallsBackToDefault()
+    {
+        var comparer = new CountedEqualityComparer<byte>(10, null);
+
+        Assert.True(comparer.Equals((byte)42, (byte)42));
+        Assert.False(comparer.Equals((byte)42, (byte)43));
+    }
+
+    [Fact]
+    public void NonGenericEquals_BothMatchingType_DelegatesToGenericEquals()
+    {
+        IEqualityComparer comparer = new CountedEqualityComparer<byte>(10);
+
+        Assert.True(comparer.Equals((byte)42, (byte)42));
+        Assert.False(comparer.Equals((byte)42, (byte)43));
+    }
+
+    [Fact]
+    public void GenericGetHashCode_DelegatesToElementComparer()
+    {
+        var comparer = new CountedEqualityComparer<byte>(10);
+
+        var hash = comparer.GetHashCode((byte)42);
+
+        Assert.Equal(((byte)42).GetHashCode(), hash);
+    }
 }
