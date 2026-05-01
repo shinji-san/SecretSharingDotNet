@@ -254,16 +254,15 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <exception cref="T:System.ArithmeticException" accessor="get">NaN (value is lower than zero)</exception>
     public override Calculator<SecureBigInteger> Sqrt()
     {
-        if (this.Value == Zero.Value)
-        {
-            return Zero;
-        }
-
-        if (this.Value < Zero.Value)
+        if (this.Value.Sign < 0)
         {
             throw new ArithmeticException("NaN");
         }
-        
+
+        // SecureBigInteger.Sqrt handles both zero and one internally and the
+        // Newton-Raphson loop for the general case; delegating saves the
+        // throwaway Calculator/SecureBigInteger allocations that the previous
+        // `Zero.Value` comparisons produced on every call.
         return this.Value.Sqrt();
     }
 

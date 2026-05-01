@@ -316,6 +316,16 @@ public class SecureBigIntCalculatorTest
     }
 
     [Fact]
+    public void Sqrt_OfZero_ReturnsZero()
+    {
+        using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(0));
+
+        using var result = calculator.Sqrt();
+
+        Assert.True(result.Value.IsZero);
+    }
+
+    [Fact]
     public void Sqrt_ShouldThrowExceptionForNegativeValue()
     {
         // Arrange
