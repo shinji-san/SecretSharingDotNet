@@ -155,6 +155,20 @@ public class SecureBigIntegerTests
     }
 
     [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("   ")]
+    [InlineData("\t")]
+    [InlineData("\t\n ")]
+    public void Constructor_FromString_EmptyOrWhitespace_ThrowsArgumentException(string value)
+    {
+        Assert.Throws<ArgumentException>(() =>
+        {
+            using var _ = new SecureBigInteger(value);
+        });
+    }
+
+    [Theory]
     [InlineData("-")]
     [InlineData("+")]
     [InlineData(" - ")]
