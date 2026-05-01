@@ -47,7 +47,14 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <summary>
     /// Initializes a new instance of the <see cref="SecureBigIntCalculator"/> class.
     /// </summary>
-    /// <param name="val">Numeric value</param>
+    /// <param name="val">
+    /// Numeric value. <see langword="null"/> is interpreted as zero — this fallback
+    /// is required to support <see cref="Calculator{TNumber}.Zero"/> for the
+    /// reference-type <see cref="SecureBigInteger"/> backend, where
+    /// <c>default(TNumber)</c> evaluates to <see langword="null"/> and the implicit
+    /// <see cref="SecureBigInteger"/>-to-<see cref="Calculator{TNumber}"/> conversion
+    /// routes through this constructor.
+    /// </param>
     public SecureBigIntCalculator(SecureBigInteger val) : base(val ?? 0)
     {
     }

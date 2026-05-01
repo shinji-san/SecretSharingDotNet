@@ -53,6 +53,29 @@ public class SecureBigIntCalculatorTest
     }
 
     [Fact]
+    public void Constructor_NullValue_FallsBackToZero()
+    {
+        // The single-argument constructor accepts null and substitutes zero.
+        // This contract exists to support `Calculator<SecureBigInteger>.Zero`
+        // on the reference-type backend (where `default(TNumber) == null`).
+        using var calculator = new SecureBigIntCalculator(null);
+
+        Assert.True(calculator.Value.IsZero);
+    }
+
+    [Fact]
+    public void Calculator_Zero_ReliesOnNullFallback_AndReturnsZero()
+    {
+        // Regression guard: removing the null fallback in the SecureBigInteger
+        // constructor would break Calculator<SecureBigInteger>.Zero (and the
+        // chains that depend on it: One, Two, every Sqrt pre-check that
+        // compares against Zero).
+        using var zero = Calculator<SecureBigInteger>.Zero;
+
+        Assert.True(zero.Value.IsZero);
+    }
+
+    [Fact]
     public void Constructor_WithByteArray_ShouldInitializeValue()
     {
         // Arrange
