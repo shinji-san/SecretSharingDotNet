@@ -363,6 +363,89 @@ public class PinnedPoolArrayTest
     }
 
     [Fact]
+    public void Indexer_Get_ValidIndex_ReturnsStoredValue()
+    {
+        using var arr = new PinnedPoolArray<byte>(8);
+        arr.PoolArray[3] = 0x42;
+
+        Assert.Equal(0x42, arr[3]);
+    }
+
+    [Fact]
+    public void Indexer_Get_NegativeIndex_ThrowsArgumentOutOfRangeException()
+    {
+        using var arr = new PinnedPoolArray<byte>(8);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => arr[-1]);
+    }
+
+    [Fact]
+    public void Indexer_Get_IndexAtOrBeyondLength_ThrowsArgumentOutOfRangeException()
+    {
+        using var arr = new PinnedPoolArray<byte>(8);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => arr[8]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => arr[100]);
+    }
+
+    [Fact]
+    public void Indexer_Get_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var arr = new PinnedPoolArray<byte>(8);
+        arr.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => arr[0]);
+    }
+
+    [Fact]
+    public void Indexer_Set_ValidIndex_StoresValue()
+    {
+        using var arr = new PinnedPoolArray<byte>(8);
+
+        arr[3] = 0x42;
+
+        Assert.Equal((byte)0x42, arr.PoolArray[3]);
+    }
+
+    [Fact]
+    public void Indexer_Set_NegativeIndex_ThrowsArgumentOutOfRangeException()
+    {
+        using var arr = new PinnedPoolArray<byte>(8);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => arr[-1] = 0);
+    }
+
+    [Fact]
+    public void Indexer_Set_IndexAtOrBeyondLength_ThrowsArgumentOutOfRangeException()
+    {
+        using var arr = new PinnedPoolArray<byte>(8);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => arr[8] = 0);
+        Assert.Throws<ArgumentOutOfRangeException>(() => arr[100] = 0);
+    }
+
+    [Fact]
+    public void Indexer_Set_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var arr = new PinnedPoolArray<byte>(8);
+        arr.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => arr[0] = 1);
+    }
+
+    [Fact]
+    public void Indexer_RespectsLengthNotCapacity()
+    {
+        // After shrinking Length, indices in [Length..Capacity) must throw — the
+        // PoolArray escape hatch is the only way to touch those bytes.
+        using var arr = new PinnedPoolArray<byte>(16);
+        arr.Length = 4;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => arr[4]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => arr[4] = 1);
+    }
+
+    [Fact]
     public void Dispose_TwiceFromMultipleThreads_DoesNotDoubleFree()
     {
         // Concurrent Dispose calls must not return the same array to the pool twice.
