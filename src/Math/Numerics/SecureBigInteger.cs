@@ -1213,7 +1213,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// is negative or greater than 8.</exception>
     private static ulong BytesToULong(byte[] data, int length)
     {
-        if (length < 0 || length > 8)
+        if (length is < 0 or > 8)
         {
             throw new ArgumentOutOfRangeException(nameof(length), ErrorMessages.LengthOutOfRangeForUlong);
         }
@@ -1253,7 +1253,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Shift method for byte array.
+    /// Shift-method for a byte array.
     /// </summary>
     private static void ShiftRightInPlaceInternal(byte[] data, int length, int bits)
     {
