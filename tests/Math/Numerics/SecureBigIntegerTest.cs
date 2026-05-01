@@ -1505,12 +1505,16 @@ public class SecureBigIntegerTests
     {
         // Arrange
         var num = new SecureBigInteger(-42);
+        using var live = new SecureBigInteger(7);
         num.Dispose();
 
-        // Act & Assert
+        // Act & Assert — properties
         Assert.Throws<ObjectDisposedException>(() => num.IsZero);
         Assert.Throws<ObjectDisposedException>(() => num.IsOne);
         Assert.Throws<ObjectDisposedException>(() => num.Sign);
+        Assert.Throws<ObjectDisposedException>(() => num.ByteCount);
+
+        // Unary math
         Assert.Throws<ObjectDisposedException>(() =>
         {
             using var _ = num.Abs();
@@ -1519,11 +1523,43 @@ public class SecureBigIntegerTests
         {
             using var _ = num.Negate();
         });
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = num.Square();
+        });
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = num.Sqrt();
+        });
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = num.NthRoot(3);
+        });
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = num.Pow(2);
+        });
+
+        // Serialisation
         Assert.Throws<ObjectDisposedException>(() => num.ToString());
         Assert.Throws<ObjectDisposedException>(() =>
         {
             using var _ = num.ToPinnedCharArray();
         });
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = num.ToByteArray();
+        });
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = num.ToHexadecimal();
+        });
+
+        // Equality / ordering / hashing
+        Assert.Throws<ObjectDisposedException>(() => num.Equals(live));
+        Assert.Throws<ObjectDisposedException>(() => num.Equals((object)live));
+        Assert.Throws<ObjectDisposedException>(() => num.GetHashCode());
+        Assert.Throws<ObjectDisposedException>(() => num.CompareTo(live));
     }
 
     [Fact]
