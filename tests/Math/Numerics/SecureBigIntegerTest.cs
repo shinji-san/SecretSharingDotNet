@@ -1250,6 +1250,42 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, num1 <= num2);
     }
 
+    [Fact]
+    public void LessThanOrEqualOperator_NullLeft_ThrowsArgumentNullException()
+    {
+        SecureBigInteger left = null;
+        using var right = new SecureBigInteger(5);
+        var ex = Assert.Throws<ArgumentNullException>(() => left <= right);
+        Assert.Equal("left", ex.ParamName);
+    }
+
+    [Fact]
+    public void LessThanOrEqualOperator_NullRight_ThrowsArgumentNullException()
+    {
+        using var left = new SecureBigInteger(5);
+        SecureBigInteger right = null;
+        var ex = Assert.Throws<ArgumentNullException>(() => left <= right);
+        Assert.Equal("right", ex.ParamName);
+    }
+
+    [Fact]
+    public void GreaterThanOrEqualOperator_NullLeft_ThrowsArgumentNullException()
+    {
+        SecureBigInteger left = null;
+        using var right = new SecureBigInteger(5);
+        var ex = Assert.Throws<ArgumentNullException>(() => left >= right);
+        Assert.Equal("left", ex.ParamName);
+    }
+
+    [Fact]
+    public void GreaterThanOrEqualOperator_NullRight_ThrowsArgumentNullException()
+    {
+        using var left = new SecureBigInteger(5);
+        SecureBigInteger right = null;
+        var ex = Assert.Throws<ArgumentNullException>(() => left >= right);
+        Assert.Equal("right", ex.ParamName);
+    }
+
     [Theory]
     [InlineData(5, 3, true)]
     [InlineData(3, 5, false)]

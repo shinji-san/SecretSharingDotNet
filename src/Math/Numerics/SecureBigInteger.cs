@@ -1539,10 +1539,23 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="right">The second <see cref="SecureBigInteger"/> to compare.</param>
     /// <returns><see langword="true"/> if <paramref name="left"/> is less than or equal to
     /// <paramref name="right"/>; otherwise, <see langword="false"/>.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="left"/> is
-    /// <see langword="null"/>; the equality branch tolerates a <see langword="null"/>
-    /// <paramref name="right"/> and returns <see langword="false"/>.</exception>
-    public static bool operator <=(SecureBigInteger left, SecureBigInteger right) => left < right || left == right;
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="left"/> or
+    /// <paramref name="right"/> is <see langword="null"/>.</exception>
+    [SuppressMessage("SonarQube", "S3877", Justification = "See operator <(SecureBigInteger, SecureBigInteger).")]
+    public static bool operator <=(SecureBigInteger left, SecureBigInteger right)
+    {
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        return left.CompareTo(right) <= 0;
+    }
 
     /// <summary>
     /// Greater-than-or-equal operator for <see cref="SecureBigInteger"/>.
@@ -1551,10 +1564,23 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="right">The second <see cref="SecureBigInteger"/> to compare.</param>
     /// <returns><see langword="true"/> if <paramref name="left"/> is greater than or equal to
     /// <paramref name="right"/>; otherwise, <see langword="false"/>.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="left"/> is
-    /// <see langword="null"/>; the equality branch tolerates a <see langword="null"/>
-    /// <paramref name="right"/> and returns <see langword="false"/>.</exception>
-    public static bool operator >=(SecureBigInteger left, SecureBigInteger right) => left > right || left == right;
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="left"/> or
+    /// <paramref name="right"/> is <see langword="null"/>.</exception>
+    [SuppressMessage("SonarQube", "S3877", Justification = "See operator <(SecureBigInteger, SecureBigInteger).")]
+    public static bool operator >=(SecureBigInteger left, SecureBigInteger right)
+    {
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        return left.CompareTo(right) >= 0;
+    }
 
     /// <summary>
     /// Implicit conversion from <see cref="int"/> to <see cref="SecureBigInteger"/>.
