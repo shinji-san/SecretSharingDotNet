@@ -1631,6 +1631,43 @@ public class SecureBigIntegerTests
     }
 
     [Fact]
+    public void EqualsObject_MatchingSecureBigInteger_ReturnsTrue()
+    {
+        using var num = new SecureBigInteger(42);
+        using var same = new SecureBigInteger(42);
+
+        Assert.True(num.Equals((object)same));
+    }
+
+    [Fact]
+    public void EqualsObject_DifferingSecureBigInteger_ReturnsFalse()
+    {
+        using var num = new SecureBigInteger(42);
+        using var different = new SecureBigInteger(43);
+
+        Assert.False(num.Equals((object)different));
+    }
+
+    [Fact]
+    public void EqualsObject_Null_ReturnsFalse()
+    {
+        using var num = new SecureBigInteger(42);
+
+        Assert.False(num.Equals((object)null));
+    }
+
+    [Fact]
+    public void EqualsObject_NonSecureBigIntegerType_ReturnsFalse()
+    {
+        using var num = new SecureBigInteger(42);
+
+        // Cast to object to defeat the implicit `int → SecureBigInteger` conversion
+        // that would otherwise pick the `Equals(SecureBigInteger)` overload.
+        Assert.False(num.Equals("not a SecureBigInteger"));
+        Assert.False(num.Equals((object)42));
+    }
+
+    [Fact]
     public void AllArithmeticOperations_WithNullOperand_ThrowArgumentNullException()
     {
         // Aggregate guard: every static math/comparison/conversion API rejects null
