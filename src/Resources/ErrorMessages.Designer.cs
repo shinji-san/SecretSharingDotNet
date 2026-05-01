@@ -305,5 +305,11 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("ValueTooLargeForLong", resourceCulture);
             }
         }
+
+        internal static string SqrtOfNegativeIsNaN {
+            get {
+                return ResourceManager.GetString("SqrtOfNegativeIsNaN", resourceCulture);
+            }
+        }
     }
 }

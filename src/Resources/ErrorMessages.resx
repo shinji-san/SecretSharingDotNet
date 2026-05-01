@@ -148,4 +148,7 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="ValueTooLargeForLong" xml:space="preserve">
         <value>Value is too large for 'long'.</value>
     </data>
+    <data name="SqrtOfNegativeIsNaN" xml:space="preserve">
+        <value>Result is NaN: square root of a negative value is undefined.</value>
+    </data>
 </root>

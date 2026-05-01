@@ -141,4 +141,7 @@
     <data name="ValueTooLargeForLong" xml:space="preserve">
         <value>Der Wert ist zu groß für 'long'.</value>
     </data>
+    <data name="SqrtOfNegativeIsNaN" xml:space="preserve">
+        <value>Das Ergebnis ist NaN: Die Quadratwurzel eines negativen Werts ist nicht definiert.</value>
+    </data>
 </root>
