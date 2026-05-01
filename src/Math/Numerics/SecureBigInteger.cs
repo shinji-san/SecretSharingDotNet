@@ -2244,7 +2244,28 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="other">The <see cref="SecureBigInteger"/> instance to compare with the current instance.</param>
     /// <returns><see langword="true"/> if the current instance is equal to the <paramref name="other"/> instance;
     /// otherwise, <see langword="false"/>.</returns>
-    /// <remarks>The equality comparison is performed in constant time to prevent timing attacks. </remarks>
+    /// <remarks>
+    /// <para>
+    /// The byte-by-byte comparison is constant-time per the operands' configured byte lengths.
+    /// Both magnitudes are first zero-padded into pinned pool buffers of size
+    /// <c>max(this.Length, other.Length)</c>, then compared with a fixed-time primitive that
+    /// runs the full padded length on every call — there is no early exit on the first
+    /// differing byte and no length-mismatch fast path.
+    /// </para>
+    /// <para>
+    /// The sign flag is folded into the result via a non-short-circuiting bitwise AND, so the
+    /// runtime does not branch on whether the signs match before the byte compare. The
+    /// remaining length-only observable (the loop runs <c>max(this.Length, other.Length)</c>
+    /// iterations) reflects already-public buffer sizing, not byte content.
+    /// </para>
+    /// <para>
+    /// Pre-padding to equal length is what makes this strict CT on every target framework.
+    /// On legacy targets <see cref="Extension.ArrayExtensions.FixedTimeEquals(byte[], byte[], int, int)"/>
+    /// would tolerate unequal lengths via internal zero-padding, but that introduces
+    /// length-dependent ternaries and memory-access asymmetries inside its hot loop that we
+    /// avoid here by feeding both arrays at the same length.
+    /// </para>
+    /// </remarks>
     public bool Equals(SecureBigInteger other)
     {
         if (other is null)
@@ -2260,22 +2281,25 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         this.ThrowIfDisposed();
         other.ThrowIfDisposed();
 
-        if (this.isNegative != other.isNegative)
-        {
-            return false;
-        }
+        bool signsEqual = this.isNegative == other.isNegative;
 
-        if (this.Length != other.Length)
-        {
-            return false;
-        }
+        int maxLen = Math.Max(this.Length, other.Length);
+        using var leftBuf = new PinnedPoolArray<byte>(maxLen);
+        using var rightBuf = new PinnedPoolArray<byte>(maxLen);
+        Array.Clear(leftBuf.PoolArray, 0, maxLen);
+        Array.Clear(rightBuf.PoolArray, 0, maxLen);
+        Array.Copy(this.data.PoolArray, leftBuf.PoolArray, this.Length);
+        Array.Copy(other.data.PoolArray, rightBuf.PoolArray, other.Length);
 
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
-        return CryptographicOperations.FixedTimeEquals(this.data.PoolArray.AsSpan(0, this.Length),
-            other.data.PoolArray.AsSpan(0, other.Length));
+        bool bytesEqual = CryptographicOperations.FixedTimeEquals(
+            leftBuf.PoolArray.AsSpan(0, maxLen),
+            rightBuf.PoolArray.AsSpan(0, maxLen));
 #else
-        return this.data.FixedTimeEquals(other.data);
+        bool bytesEqual = leftBuf.PoolArray.FixedTimeEquals(rightBuf.PoolArray, maxLen, maxLen);
 #endif
+
+        return bytesEqual & signsEqual;
     }
 
     /// <summary>
