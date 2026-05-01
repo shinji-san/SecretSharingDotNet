@@ -36,6 +36,7 @@ using SecretSharingDotNet;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System.Linq;
+using System.Threading;
 using Xunit;
 
 public class SecureBigIntCalculatorTest
@@ -379,5 +380,38 @@ public class SecureBigIntCalculatorTest
 
         // Act & Assert
         Assert.Equal(value.ByteCount, calculator.ByteCount);
+    }
+
+    [Fact]
+    public void Dispose_TwiceFromMultipleThreads_DoesNotDoubleFree()
+    {
+        // Concurrent Dispose calls must not let both threads reach
+        // `this.Value.Dispose()`. The atomic Interlocked.Exchange guard ensures a
+        // single winner; the loser observes `disposed == 1` and returns.
+        for (int iteration = 0; iteration < 50; iteration++)
+        {
+            var calculator = new SecureBigIntCalculator(new SecureBigInteger(42));
+
+            Exception ex1 = null;
+            Exception ex2 = null;
+            var t1 = new Thread(() =>
+            {
+                try { calculator.Dispose(); }
+                catch (Exception ex) { ex1 = ex; }
+            });
+            var t2 = new Thread(() =>
+            {
+                try { calculator.Dispose(); }
+                catch (Exception ex) { ex2 = ex; }
+            });
+
+            t1.Start();
+            t2.Start();
+            t1.Join();
+            t2.Join();
+
+            Assert.Null(ex1);
+            Assert.Null(ex2);
+        }
     }
 }

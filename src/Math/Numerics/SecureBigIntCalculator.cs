@@ -33,6 +33,7 @@ namespace SecretSharingDotNet.Math.Numerics;
 
 using Cryptography.SecureArray;
 using System;
+using System.Threading;
 
 /// <summary>
 /// <see cref="Calculator"/> implementation of <see cref="SecureBigInteger"/>.
@@ -40,9 +41,12 @@ using System;
 public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
 {
     /// <summary>
-    /// Indicates whether the instance has been disposed.
+    /// Indicates whether the instance has been disposed (<c>0</c> = live, <c>1</c> = disposed).
+    /// Updated atomically via <see cref="Interlocked.Exchange(ref int, int)"/> so that
+    /// concurrent <see cref="Dispose(bool)"/> calls cannot both reach the
+    /// <c>this.Value.Dispose()</c> branch.
     /// </summary>
-    private bool disposed;
+    private int disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecureBigIntCalculator"/> class.
@@ -281,7 +285,7 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// </param>
     protected override void Dispose(bool disposing)
     {
-        if (this.disposed)
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
         {
             return;
         }
@@ -290,9 +294,8 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
         {
             this.Value.Dispose();
         }
-        
+
         // Release unmanaged resources here
-        this.disposed = true;
         base.Dispose(disposing);
     }
 }
