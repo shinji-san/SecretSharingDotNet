@@ -35,7 +35,7 @@ using Cryptography.SecureArray;
 using System;
 
 /// <summary>
-/// <see cref="Calculator"/> implementation of <see cref="System.Numerics.BigInteger"/>
+/// <see cref="Calculator"/> implementation of <see cref="SecureBigInteger"/>.
 /// </summary>
 public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
 {
@@ -83,9 +83,9 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     public override Calculator<SecureBigInteger> Clone() => new SecureBigIntCalculator(new SecureBigInteger(this.Value));
 
     /// <summary>
-    /// Determines whether this instance and an <paramref name="other"/> specified <see cref="Calculator{BigInteger}"/> instance are equal.
+    /// Determines whether this instance and an <paramref name="other"/> specified <see cref="Calculator{SecureBigInteger}"/> instance are equal.
     /// </summary>
-    /// <param name="other">The <see cref="Calculator{BigInteger}"/> instance to compare</param>
+    /// <param name="other">The <see cref="Calculator{SecureBigInteger}"/> instance to compare</param>
     /// <returns><see langword="true"/> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <see langword="false"/>.
     /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
     /// <remarks>
@@ -127,7 +127,7 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     protected override bool EqualOrLowerThan(SecureBigInteger right) => this.Value <= right;
 
     /// <summary>
-    /// Compares this instance to a second <see cref="Calculator{BigInteger}"/> and returns an integer that
+    /// Compares this instance to a second <see cref="Calculator{SecureBigInteger}"/> and returns an integer that
     /// indicates whether the value of this instance is less than, equal to, or greater than the value of the specified object.
     /// </summary>
     /// <param name="other">The object to compare</param>
