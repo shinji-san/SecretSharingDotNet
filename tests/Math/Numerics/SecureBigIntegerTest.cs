@@ -863,6 +863,14 @@ public class SecureBigIntegerTests
     }
 
     [Fact]
+    public void Log_OfOneWithZeroBase_ReturnsZero()
+    {
+        using var num = new SecureBigInteger(1);
+        double result = SecureBigInteger.Log(num, 0.0);
+        Assert.Equal(0.0, result);
+    }
+
+    [Fact]
     public void Log_OfOne_ReturnsZero()
     {
         using var num = new SecureBigInteger(1);

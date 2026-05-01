@@ -962,32 +962,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         }
 
         value.ThrowIfDisposed();
-        if (double.IsNaN(baseValue))
+
+        if (TryGetSpecialLogResult(value, baseValue, out double special))
         {
-            return double.NaN;
+            return special;
         }
 
-        if (baseValue == 1.0)
-        {
-            return double.NaN;
-        }
-
-        if (double.IsPositiveInfinity(baseValue))
-        {
-            return value.IsOne ? 0.0 : double.NaN;
-        }
-
-        if (baseValue == 0.0 && !value.IsOne)
-        {
-            return double.NaN;
-        }
-
-        if (baseValue < 0.0)
-        {
-            return double.NaN;
-        }
-
-        // Special cases for the value
         if (value.Sign <= 0)
         {
             return value.Sign == 0
@@ -1159,6 +1139,47 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         // log2(x) = (bitLength - mantissaBits) + log2(mantissa)
         return (bitLength - mantissaBits) + Math.Log(mantissa, 2.0);
+    }
+
+    /// <summary>
+    /// Returns a special-case logarithm result when the base alone (or base together with
+    /// <paramref name="value"/> being one or an infinite base) determines the answer.
+    /// Extracted to keep <see cref="Log(SecureBigInteger, double)"/> below SonarQube's
+    /// cognitive-complexity threshold.
+    /// </summary>
+    [SuppressMessage("SonarQube", "S1244",
+        Justification = "Exact equality is intentional for these IEEE 754 magic-value checks. " +
+                        "A tolerance would erroneously classify near-1 or near-0 bases as " +
+                        "undefined; only the exact bit pattern represents the mathematically " +
+                        "degenerate cases.")]
+    private static bool TryGetSpecialLogResult(SecureBigInteger value, double baseValue, out double result)
+    {
+        if (double.IsNaN(baseValue) || baseValue < 0.0)
+        {
+            result = double.NaN;
+            return true;
+        }
+
+        if (baseValue == 1.0)
+        {
+            result = double.NaN;
+            return true;
+        }
+
+        if (double.IsPositiveInfinity(baseValue))
+        {
+            result = value.IsOne ? 0.0 : double.NaN;
+            return true;
+        }
+
+        if (baseValue == 0.0 && !value.IsOne)
+        {
+            result = double.NaN;
+            return true;
+        }
+
+        result = default;
+        return false;
     }
 
     /// <summary>
