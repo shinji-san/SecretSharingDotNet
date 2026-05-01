@@ -316,7 +316,7 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
 
         if (this.Value < BigInteger.Zero)
         {
-            throw new ArithmeticException("NaN");
+            throw new ArithmeticException(ErrorMessages.SqrtOfNegativeIsNaN);
         }
 
         int bitLength = Convert.ToInt32(Math.Ceiling(BigInteger.Log(this.Value, 2)));

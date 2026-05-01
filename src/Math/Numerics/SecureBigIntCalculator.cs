@@ -256,7 +256,7 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     {
         if (this.Value.Sign < 0)
         {
-            throw new ArithmeticException("NaN");
+            throw new ArithmeticException(ErrorMessages.SqrtOfNegativeIsNaN);
         }
 
         // SecureBigInteger.Sqrt handles both zero and one internally and the

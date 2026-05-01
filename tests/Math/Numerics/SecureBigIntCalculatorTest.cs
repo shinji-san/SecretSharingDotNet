@@ -32,6 +32,7 @@
 namespace SecretSharingDotNetTest.Math.Numerics;
 
 using System;
+using SecretSharingDotNet;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System.Linq;
@@ -348,7 +349,7 @@ public class SecureBigIntCalculatorTest
 
         // Act & Assert
         var arithmeticException = Assert.Throws<ArithmeticException>(() => calculator.Sqrt());
-        Assert.Equal("NaN", arithmeticException.Message);
+        Assert.Equal(ErrorMessages.SqrtOfNegativeIsNaN, arithmeticException.Message);
     }
 
     [Fact]
