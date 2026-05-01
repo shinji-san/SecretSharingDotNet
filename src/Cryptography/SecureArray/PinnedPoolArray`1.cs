@@ -228,6 +228,14 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// Thrown when this instance, or <paramref name="other"/> (when it is a
     /// <see cref="PinnedPoolArray{T}"/>), has already been disposed.
     /// </exception>
+    /// <remarks>
+    /// This ordering short-circuits at the first differing element and is therefore
+    /// <b>not constant-time</b>. It must not be used to order secret material where
+    /// timing side-channels matter — that case has no safe ordering API in this
+    /// container; for equality use
+    /// <see cref="Extension.PinnedPoolArrayExtensions.FixedTimeEquals(PinnedPoolArray{byte}, PinnedPoolArray{byte})"/>
+    /// instead.
+    /// </remarks>
     int IStructuralComparable.CompareTo(object other, IComparer comparer)
     {
         this.ThrowIfDisposed();
@@ -288,6 +296,13 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// Thrown when this instance, or <paramref name="other"/> (when it is a
     /// <see cref="PinnedPoolArray{T}"/>), has already been disposed.
     /// </exception>
+    /// <remarks>
+    /// This comparison short-circuits at the first differing element and is therefore
+    /// <b>not constant-time</b>. It must not be used to compare secret material where
+    /// timing side-channels matter — use
+    /// <see cref="Extension.PinnedPoolArrayExtensions.FixedTimeEquals(PinnedPoolArray{byte}, PinnedPoolArray{byte})"/>
+    /// for that.
+    /// </remarks>
     public bool Equals(object other, IEqualityComparer comparer)
     {
         this.ThrowIfDisposed();
@@ -460,9 +475,22 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// disposal or concurrency checks.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Only called from <see cref="SecureClear"/> (after the disposal/counter guard) and
     /// from <see cref="DisposeCore"/> (after the in-flight counter has been drained).
     /// Direct callers must ensure no other thread is accessing the buffer.
+    /// </para>
+    /// <para>
+    /// The TFM split is intentional. On modern targets the three scrambling passes
+    /// (0xFF, 0x00, 0xAA) use regular writes; the
+    /// <c>[MethodImpl(NoInlining | NoOptimization)]</c> attribute on this method
+    /// together with the trailing <c>CryptographicOperations.ZeroMemory</c> call
+    /// (which the BCL guarantees is not optimised away) ensure the buffer is
+    /// observably zeroed. On legacy targets where <c>ZeroMemory</c> is unavailable,
+    /// <c>LegacySecureClear</c> uses <see cref="Volatile.Write{T}(ref T, T)"/> per
+    /// byte plus a final <see cref="Thread.MemoryBarrier"/> as a defensive
+    /// substitute. The two paths are functionally equivalent.
+    /// </para>
     /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     private void SecureClearCore()
@@ -616,6 +644,14 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <param name="byteLength">
     /// The length of the memory region, in bytes, to clear.
     /// </param>
+    /// <remarks>
+    /// <see cref="Volatile.Write{T}(ref T, T)"/> is used for every byte of every pass —
+    /// not just the final zero-fill — and the trailing <see cref="Thread.MemoryBarrier"/>
+    /// is intentionally belt-and-suspenders. <c>[MethodImpl(NoOptimization)]</c> alone
+    /// would technically suffice, but on the legacy targets that route here the BCL
+    /// offers no <c>CryptographicOperations.ZeroMemory</c> equivalent, so the explicit
+    /// volatile writes remove any reliance on JIT behaviour.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     private static unsafe void LegacySecureClear(IntPtr pointer, int byteLength)
     {
