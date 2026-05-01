@@ -1762,6 +1762,21 @@ public class SecureBigIntegerTests
     }
 
     [Fact]
+    public void Constructor_Copy_WithDisposedSource_ThrowsObjectDisposedException()
+    {
+        // The copy constructor must reject a disposed source — copying it would
+        // either dereference the freed pool buffer or silently produce a corrupted
+        // duplicate, both unacceptable for a secret container.
+        var source = new SecureBigInteger(42);
+        source.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            using var _ = new SecureBigInteger(source);
+        });
+    }
+
+    [Fact]
     public void Constructor_Copy_WithNull_ThrowsArgumentNullException()
     {
         // Arrange, Act & Assert
