@@ -393,6 +393,23 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
+    /// Gets a value indicating whether the current <see cref="SecureBigInteger"/> instance represents an even number.
+    /// </summary>
+    /// <remarks>
+    /// Constant-time bit-test on the magnitude's least-significant byte. The sign flag is
+    /// irrelevant: the parity of <c>-x</c> matches the parity of <c>x</c>, and the magnitude
+    /// stored here is always non-negative regardless of <c>isNegative</c>.
+    /// </remarks>
+    public bool IsEven
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return (this.data[0] & 0x01) == 0;
+        }
+    }
+
+    /// <summary>
     /// Gets the sign of the current <see cref="SecureBigInteger"/> instance.
     /// </summary>
     public int Sign

@@ -237,6 +237,33 @@ public class SecureBigIntegerTests
     }
 
     [Theory]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    [InlineData(-2, true)]
+    [InlineData(-3, false)]
+    [InlineData(int.MaxValue, false)]
+    [InlineData(int.MinValue, true)]
+    [InlineData(long.MaxValue, false)]
+    [InlineData(long.MinValue, true)]
+    public void IsEven_ReturnsCorrectResult(long value, bool expectedEven)
+    {
+        using var num = new SecureBigInteger(value);
+
+        Assert.Equal(expectedEven, num.IsEven);
+    }
+
+    [Fact]
+    public void IsEven_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var num = new SecureBigInteger(42);
+        num.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => num.IsEven);
+    }
+
+    [Theory]
     [InlineData(0, 0)]
     [InlineData(1, 1)]
     [InlineData(-1, -1)]
@@ -1525,6 +1552,7 @@ public class SecureBigIntegerTests
         // Act & Assert — properties
         Assert.Throws<ObjectDisposedException>(() => num.IsZero);
         Assert.Throws<ObjectDisposedException>(() => num.IsOne);
+        Assert.Throws<ObjectDisposedException>(() => num.IsEven);
         Assert.Throws<ObjectDisposedException>(() => num.Sign);
         Assert.Throws<ObjectDisposedException>(() => num.ByteCount);
 
