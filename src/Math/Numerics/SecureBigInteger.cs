@@ -464,6 +464,10 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="subtrahend">subtrahend</param>
     /// <returns>difference</returns>
     /// <exception cref="ArgumentNullException"><paramref name="minuend"/> or <paramref name="subtrahend"/> is null.</exception>
+    [SuppressMessage("SonarQube", "S2234",
+        Justification = "The same-sign branch intentionally swaps minuend/subtrahend when " +
+                        "|minuend| < |subtrahend| to satisfy SubtractUnsigned's |minuend| >= |subtrahend| " +
+                        "precondition. The swapped argument order is intended, not a copy-paste bug.")]
     public static SecureBigInteger Subtract(SecureBigInteger minuend, SecureBigInteger subtrahend)
     {
         if (minuend is null)
@@ -479,8 +483,33 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         minuend.ThrowIfDisposed();
         subtrahend.ThrowIfDisposed();
 
-        using var negRight = subtrahend.Negate();
-        return Add(minuend, negRight);
+        SecureBigInteger result;
+        if (minuend.isNegative != subtrahend.isNegative)
+        {
+            // a - (-b) = a + b   |   (-a) - b = -(a + b)
+            result = AddUnsigned(minuend, subtrahend);
+            result.isNegative = minuend.isNegative;
+            return result;
+        }
+
+        // Same sign: the magnitudes determine direction; the result inherits the
+        // minuend's sign when |minuend| >= |subtrahend|, and the inverted sign otherwise.
+        var comparison = CompareUnsigned(minuend, subtrahend);
+        switch (comparison)
+        {
+            case 0:
+                return new SecureBigInteger(0);
+            case > 0:
+                result = SubtractUnsigned(minuend, subtrahend);
+                result.isNegative = minuend.isNegative;
+                break;
+            default:
+                result = SubtractUnsigned(subtrahend, minuend);
+                result.isNegative = !minuend.isNegative;
+                break;
+        }
+
+        return result;
     }
 
     /// <summary>

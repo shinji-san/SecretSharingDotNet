@@ -282,8 +282,14 @@ public class SecureBigIntegerTests
     [InlineData(5, 3, 2)]
     [InlineData(3, 5, -2)]
     [InlineData(-5, -3, -2)]
+    [InlineData(-3, -5, 2)]
     [InlineData(5, -3, 8)]
     [InlineData(-5, 3, -8)]
+    [InlineData(0, 5, -5)]
+    [InlineData(5, 0, 5)]
+    [InlineData(0, -5, 5)]
+    [InlineData(int.MaxValue, 1, int.MaxValue - 1)]
+    [InlineData(1, int.MaxValue, 1 - int.MaxValue)]
     public void Subtract_ReturnsCorrectDifference(int a, int b, int expected)
     {
         // Arrange
