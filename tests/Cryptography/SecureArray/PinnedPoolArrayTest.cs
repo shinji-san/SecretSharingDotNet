@@ -363,6 +363,79 @@ public class PinnedPoolArrayTest
     }
 
     [Fact]
+    public void StructuralCompareTo_EqualArrays_ReturnsZero()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+        using var other = new PinnedPoolArray<byte>(4);
+        for (int i = 0; i < 4; i++)
+        {
+            arr[i] = (byte)i;
+            other[i] = (byte)i;
+        }
+
+        var result = ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default);
+
+        Assert.Equal(0, result);
+    }
+
+    [Fact]
+    public void StructuralCompareTo_ThisLessThanOther_ReturnsNegative()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+        using var other = new PinnedPoolArray<byte>(4);
+        arr[0] = 1;
+        arr[1] = 2;
+        other[0] = 1;
+        other[1] = 3;
+
+        var result = ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default);
+
+        Assert.True(result < 0);
+    }
+
+    [Fact]
+    public void StructuralCompareTo_ThisGreaterThanOther_ReturnsPositive()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+        using var other = new PinnedPoolArray<byte>(4);
+        arr[0] = 5;
+        other[0] = 1;
+
+        var result = ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default);
+
+        Assert.True(result > 0);
+    }
+
+    [Fact]
+    public void StructuralCompareTo_NullOther_ReturnsOne()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+
+        var result = ((IStructuralComparable)arr).CompareTo(null, Comparer<object>.Default);
+
+        Assert.Equal(1, result);
+    }
+
+    [Fact]
+    public void StructuralCompareTo_OtherNotPinnedPoolArray_ThrowsArgumentException()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+
+        Assert.Throws<ArgumentException>(
+            () => ((IStructuralComparable)arr).CompareTo(new byte[] { 1, 2, 3, 4 }, Comparer<object>.Default));
+    }
+
+    [Fact]
+    public void StructuralCompareTo_LengthMismatch_ThrowsArgumentException()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+        using var other = new PinnedPoolArray<byte>(8);
+
+        Assert.Throws<ArgumentException>(
+            () => ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default));
+    }
+
+    [Fact]
     public void Indexer_Get_ValidIndex_ReturnsStoredValue()
     {
         using var arr = new PinnedPoolArray<byte>(8);
