@@ -1631,6 +1631,15 @@ public class SecureBigIntegerTests
     }
 
     [Fact]
+    public void CompareTo_NullOther_ReturnsOne()
+    {
+        // IComparable<T> convention: a non-null instance is greater than null.
+        using var num = new SecureBigInteger(42);
+
+        Assert.Equal(1, num.CompareTo(null));
+    }
+
+    [Fact]
     public void EqualsObject_MatchingSecureBigInteger_ReturnsTrue()
     {
         using var num = new SecureBigInteger(42);
