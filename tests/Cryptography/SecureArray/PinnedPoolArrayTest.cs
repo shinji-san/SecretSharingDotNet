@@ -363,6 +363,59 @@ public class PinnedPoolArrayTest
     }
 
     [Fact]
+    public void GetHashCode_EqualArraysWithSameComparer_ProduceSameHash()
+    {
+        using var arr1 = new PinnedPoolArray<byte>(4);
+        using var arr2 = new PinnedPoolArray<byte>(4);
+        for (int i = 0; i < 4; i++)
+        {
+            arr1[i] = (byte)(i + 10);
+            arr2[i] = (byte)(i + 10);
+        }
+
+        var hash1 = arr1.GetHashCode(new CountedEqualityComparer<byte>(4));
+        var hash2 = arr2.GetHashCode(new CountedEqualityComparer<byte>(4));
+
+        Assert.Equal(hash1, hash2);
+    }
+
+    [Fact]
+    public void GetHashCode_DifferentBytes_ProduceDifferentHash()
+    {
+        using var arr1 = new PinnedPoolArray<byte>(4);
+        using var arr2 = new PinnedPoolArray<byte>(4);
+        for (int i = 0; i < 4; i++)
+        {
+            arr1[i] = (byte)(i + 10);
+            arr2[i] = (byte)(i + 10);
+        }
+
+        arr2[2] = 0xFF;
+        var hash1 = arr1.GetHashCode(new CountedEqualityComparer<byte>(4));
+        var hash2 = arr2.GetHashCode(new CountedEqualityComparer<byte>(4));
+
+        Assert.NotEqual(hash1, hash2);
+    }
+
+    [Fact]
+    public void GetHashCode_ComparerNotCounted_ThrowsArgumentException()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+
+        Assert.Throws<ArgumentException>(
+            () => arr.GetHashCode(EqualityComparer<byte>.Default));
+    }
+
+    [Fact]
+    public void GetHashCode_CountExceedsLength_ThrowsArgumentOutOfRangeException()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => arr.GetHashCode(new CountedEqualityComparer<byte>(8)));
+    }
+
+    [Fact]
     public void Equals_ReferenceEqualsSelf_ReturnsTrue()
     {
         using var arr = new PinnedPoolArray<byte>(4);
