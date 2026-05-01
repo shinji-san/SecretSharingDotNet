@@ -1815,39 +1815,42 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="left">The first <see cref="SecureBigInteger"/> operand in the multiplication.</param>
     /// <param name="right">The second <see cref="SecureBigInteger"/> operand in the multiplication.</param>
     /// <returns>A new <see cref="SecureBigInteger"/> instance representing the product of the two inputs.</returns>
+    /// <remarks>
+    /// The schoolbook iteration runs <c>left.Length * right.Length</c> inner steps unconditionally
+    /// and follows them with a fixed-bound carry-propagation pass that always touches every higher
+    /// byte of the result buffer. There is no zero-byte fast-path on either operand and no
+    /// data-dependent loop termination, so the running time depends only on the lengths of the
+    /// operands — not on their byte values.
+    /// </remarks>
     private static SecureBigInteger MultiplyUnsigned(SecureBigInteger left, SecureBigInteger right)
     {
-        var leftLen = GetActualLength(left);
-        var rightLen = GetActualLength(right);
+        var leftLen = left.Length;
+        var rightLen = right.Length;
+        var totalLen = leftLen + rightLen;
+        using var result = new PinnedPoolArray<byte>(totalLen);
 
-        if (leftLen == 1 && left.data[0] == 0 || rightLen == 1 && right.data[0] == 0)
-        {
-            return new SecureBigInteger(0);
-        }
-
-        using var result = new PinnedPoolArray<byte>(leftLen + rightLen);
         for (int i = 0; i < leftLen; i++)
         {
-            if (left.data[i] == 0)
-            {
-                continue;
-            }
-
             ulong carry = 0;
-            for (int j = 0; j < rightLen || carry > 0; j++)
+            for (int j = 0; j < rightLen; j++)
             {
-                ulong product = result[i + j] + carry;
-                if (j < rightLen)
-                {
-                    product += (ulong)left.data[i] * right.data[j];
-                }
-
+                ulong product = result[i + j] + carry + (ulong)left.data[i] * right.data[j];
                 result[i + j] = (byte)(product & 0xFF);
                 carry = product >> 8;
             }
+
+            // Fixed-bound carry-propagation: touch every remaining byte of the result buffer
+            // regardless of whether the carry is already zero. This keeps the loop's iteration
+            // count independent of secret data.
+            for (int k = i + rightLen; k < totalLen; k++)
+            {
+                ulong sum = result[k] + carry;
+                result[k] = (byte)(sum & 0xFF);
+                carry = sum >> 8;
+            }
         }
 
-        return new SecureBigInteger(result.PoolArray, GetActualLength(result.PoolArray, leftLen + rightLen), false);
+        return new SecureBigInteger(result.PoolArray, totalLen, false);
     }
 
     /// <summary>
