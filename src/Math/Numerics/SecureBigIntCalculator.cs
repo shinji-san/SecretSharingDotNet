@@ -174,16 +174,26 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     protected override Calculator<SecureBigInteger> Modulo(SecureBigInteger right) => this.Value % right;
 
     /// <summary>
-    /// The unary increment method increments this instance by 1.
+    /// Returns a new <see cref="SecureBigIntCalculator"/> instance whose value is one greater
+    /// than this instance. Does not mutate the current instance.
     /// </summary>
-    /// <returns>This <see cref="SecureBigIntCalculator"/> instance plus <see cref="Calculator{BigInteger}.One"/></returns>
-    protected override Calculator<SecureBigInteger> Increment() => ++this.Clone().Value;
+    /// <returns>A new instance equal to <c>this + 1</c>.</returns>
+    protected override Calculator<SecureBigInteger> Increment()
+    {
+        using var one = new SecureBigInteger(1);
+        return this.Value + one;
+    }
 
     /// <summary>
-    /// The unary decrement method decrements this instance by 1.
+    /// Returns a new <see cref="SecureBigIntCalculator"/> instance whose value is one less
+    /// than this instance. Does not mutate the current instance.
     /// </summary>
-    /// <returns>This <see cref="SecureBigIntCalculator"/> instance minus <see cref="Calculator{BigInteger}.One"/></returns>
-    protected override Calculator<SecureBigInteger> Decrement() => --this.Clone().Value;
+    /// <returns>A new instance equal to <c>this - 1</c>.</returns>
+    protected override Calculator<SecureBigInteger> Decrement()
+    {
+        using var one = new SecureBigInteger(1);
+        return this.Value - one;
+    }
 
     /// <summary>
     /// Returns the absolute value of the current <see cref="SecureBigIntCalculator"/> object.

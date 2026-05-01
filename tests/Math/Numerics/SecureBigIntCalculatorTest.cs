@@ -166,29 +166,56 @@ public class SecureBigIntCalculatorTest
     [Fact]
     public void Increment_ShouldIncreaseValueByOne()
     {
-        // Arrange
-        Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(10));
+        // Keep a separate reference to the source object so that we can verify it
+        // remains untouched: ++ reassigns the local `working` to point at the
+        // freshly-allocated incremented Calculator, but the original object that
+        // `source` still references must not have been mutated.
+        using var source = new SecureBigIntCalculator(new SecureBigInteger(10));
+        Calculator<SecureBigInteger> working = source;
 
-        // Act
-        using var incrementedCalculator = ++calculator;
+        using var incrementedCalculator = ++working;
 
-        // Assert
         Assert.Equal(new SecureBigInteger(11), incrementedCalculator.Value);
-        calculator.Dispose();
+        Assert.Equal(new SecureBigInteger(10), source.Value);
     }
 
     [Fact]
     public void Decrement_ShouldDecreaseValueByOne()
     {
-        // Arrange
-        Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(10));
+        using var source = new SecureBigIntCalculator(new SecureBigInteger(10));
+        Calculator<SecureBigInteger> working = source;
 
-        // Act
-        using var decrementedCalculator = --calculator;
+        using var decrementedCalculator = --working;
 
-        // Assert
         Assert.Equal(new SecureBigInteger(9), decrementedCalculator.Value);
-        calculator.Dispose();
+        Assert.Equal(new SecureBigInteger(10), source.Value);
+    }
+
+    [Fact]
+    public void IncrementDecrement_RepeatedCalls_NoCrashOrLeak()
+    {
+        // Smoke test: 100 iterations of ++ / -- against a single source must not
+        // crash, double-dispose, or otherwise corrupt pinned-pool state. Each
+        // iteration aliases the source into a local and pre-increments/decrements
+        // the alias — `++` reassigns the local to a fresh wrapper without
+        // touching `source`, and the result is captured and disposed on the spot.
+        using var source = new SecureBigIntCalculator(new SecureBigInteger(50));
+        for (int i = 0; i < 100; i++)
+        {
+            Calculator<SecureBigInteger> working = source;
+            using (var incremented = ++working)
+            {
+                Assert.Equal(new SecureBigInteger(51), incremented.Value);
+            }
+
+            working = source;
+            using (var decremented = --working)
+            {
+                Assert.Equal(new SecureBigInteger(49), decremented.Value);
+            }
+
+            Assert.Equal(new SecureBigInteger(50), source.Value);
+        }
     }
 
     [Fact]
