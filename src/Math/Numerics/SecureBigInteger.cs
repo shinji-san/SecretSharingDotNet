@@ -699,7 +699,28 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public SecureBigInteger NthRoot(int n)
     {
         this.ThrowIfDisposed();
+        this.ValidateNthRootArguments(n);
 
+        if (this.IsZeroInternal())
+        {
+            return new SecureBigInteger(0);
+        }
+
+        return n switch
+        {
+            1 => new SecureBigInteger(this),
+            2 => this.Sqrt(),
+            _ => this.ComputeNthRootNewton(n)
+        };
+    }
+
+    /// <summary>
+    /// Validates the exponent of <see cref="NthRoot(int)"/>: rejects non-positive exponents and
+    /// even-root requests on negative values. Extracted from the main dispatch to keep it under
+    /// SonarQube's cognitive-complexity threshold.
+    /// </summary>
+    private void ValidateNthRootArguments(int n)
+    {
         if (n <= 0)
         {
             throw new ArgumentException(ErrorMessages.RootExponentMustBePositive, nameof(n));
@@ -709,20 +730,18 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         {
             throw new InvalidOperationException(ErrorMessages.EvenRootOfNegativeUndefined);
         }
+    }
 
-        if (this.IsZeroInternal())
-        {
-            return new SecureBigInteger(0);
-        }
-
-        switch (n)
-        {
-            case 1:
-                return new SecureBigInteger(this);
-            case 2:
-                return this.Sqrt();
-        }
-
+    /// <summary>
+    /// Computes the integer n-th root for <c>n &gt;= 3</c> via Newton-Raphson. The trivial cases
+    /// (zero base, n == 1, n == 2) are handled by the caller; this routine is private and assumes
+    /// pre-validated input.
+    /// </summary>
+    /// <param name="n">The root exponent (already validated to be &gt;= 3).</param>
+    /// <returns>The largest <see cref="SecureBigInteger"/> <c>r</c> with <c>r^n &lt;= |this|</c>,
+    /// signed when <paramref name="n"/> is odd and <c>this</c> is negative.</returns>
+    private SecureBigInteger ComputeNthRootNewton(int n)
+    {
         // Newton-Raphson: x_{n+1} = ((k-1)*x_n + a/x_n^(k-1)) / k
         using var absThis = this.Abs();
         var bitLength = GetBitLength(absThis);
@@ -1178,7 +1197,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             return true;
         }
 
-        result = default;
+        result = 0;
         return false;
     }
 
