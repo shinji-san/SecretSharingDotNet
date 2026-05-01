@@ -363,6 +363,94 @@ public class PinnedPoolArrayTest
     }
 
     [Fact]
+    public void Equals_ReferenceEqualsSelf_ReturnsTrue()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+
+        var result = arr.Equals(arr, new CountedEqualityComparer<byte>(4));
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Equals_OtherIsRawArrayWithMatchingBytes_ReturnsTrue()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+        for (int i = 0; i < 4; i++)
+        {
+            arr[i] = (byte)(i + 1);
+        }
+
+        var rawOther = new byte[] { 1, 2, 3, 4 };
+        var result = arr.Equals(rawOther, new CountedEqualityComparer<byte>(4));
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Equals_OtherIsPinnedPoolArrayWithMatchingBytes_ReturnsTrue()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+        using var other = new PinnedPoolArray<byte>(4);
+        for (int i = 0; i < 4; i++)
+        {
+            arr[i] = (byte)(i + 1);
+            other[i] = (byte)(i + 1);
+        }
+
+        var result = arr.Equals(other, new CountedEqualityComparer<byte>(4));
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Equals_OtherIsPinnedPoolArrayWithDifferingByte_ReturnsFalse()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+        using var other = new PinnedPoolArray<byte>(4);
+        for (int i = 0; i < 4; i++)
+        {
+            arr[i] = (byte)(i + 1);
+            other[i] = (byte)(i + 1);
+        }
+
+        other[2] = 99;
+        var result = arr.Equals(other, new CountedEqualityComparer<byte>(4));
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void Equals_OtherIsUnsupportedType_ReturnsFalse()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+
+        var result = arr.Equals("not an array", new CountedEqualityComparer<byte>(4));
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void Equals_ComparerNotCounted_ThrowsArgumentException()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+        using var other = new PinnedPoolArray<byte>(4);
+
+        Assert.Throws<ArgumentException>(
+            () => arr.Equals(other, EqualityComparer<byte>.Default));
+    }
+
+    [Fact]
+    public void Equals_CountExceedsLength_ThrowsArgumentOutOfRangeException()
+    {
+        using var arr = new PinnedPoolArray<byte>(4);
+        using var other = new PinnedPoolArray<byte>(4);
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => arr.Equals(other, new CountedEqualityComparer<byte>(8)));
+    }
+
+    [Fact]
     public void StructuralCompareTo_EqualArrays_ReturnsZero()
     {
         using var arr = new PinnedPoolArray<byte>(4);
