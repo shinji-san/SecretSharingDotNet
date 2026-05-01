@@ -1631,6 +1631,51 @@ public class SecureBigIntegerTests
     }
 
     [Fact]
+    public void AllArithmeticOperations_WithNullOperand_ThrowArgumentNullException()
+    {
+        // Aggregate guard: every static math/comparison/conversion API rejects null
+        // operands with ArgumentNullException. The dedicated Add_WithNull*,
+        // LessThanOrEqualOperator_Null*, GreaterThanOrEqualOperator_Null* and
+        // NegateOperator_NullInput_* tests below assert ParamName per case; this
+        // aggregate covers the full surface symmetrically so that a regression that
+        // drops the guard on any single operation is caught.
+        using var live = new SecureBigInteger(7);
+
+        // Binary arithmetic
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Add(null, live));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Add(live, null));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Subtract(null, live));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Subtract(live, null));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Multiply(null, live));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Multiply(live, null));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Divide(null, live));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Divide(live, null));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Remainder(null, live));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Remainder(live, null));
+
+        // Number-theoretic
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Gcd(null, live));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Gcd(live, null));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.ModPow(null, live, live));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.ModPow(live, null, live));
+        Assert.Throws<ArgumentNullException>(() => SecureBigInteger.ModPow(live, live, null));
+
+        // Comparison operators
+        Assert.Throws<ArgumentNullException>(() => { _ = (SecureBigInteger)null < live; });
+        Assert.Throws<ArgumentNullException>(() => { _ = live < (SecureBigInteger)null; });
+        Assert.Throws<ArgumentNullException>(() => { _ = (SecureBigInteger)null > live; });
+        Assert.Throws<ArgumentNullException>(() => { _ = live > (SecureBigInteger)null; });
+        Assert.Throws<ArgumentNullException>(() => { _ = (SecureBigInteger)null <= live; });
+        Assert.Throws<ArgumentNullException>(() => { _ = live <= (SecureBigInteger)null; });
+        Assert.Throws<ArgumentNullException>(() => { _ = (SecureBigInteger)null >= live; });
+        Assert.Throws<ArgumentNullException>(() => { _ = live >= (SecureBigInteger)null; });
+
+        // Explicit conversion operators
+        Assert.Throws<ArgumentNullException>(() => (int)(SecureBigInteger)null);
+        Assert.Throws<ArgumentNullException>(() => (long)(SecureBigInteger)null);
+    }
+
+    [Fact]
     public void Add_WithNullLeft_ThrowsArgumentNullException()
     {
         // Arrange
