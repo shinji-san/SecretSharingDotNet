@@ -160,13 +160,14 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
 #endif
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="Secret{TNumber}"/> struct from a pinned
-    /// character buffer, using UTF-8 to encode the characters.
+    /// Creates a new <see cref="Secret{TNumber}"/> by encoding the characters of a pinned
+    /// character buffer to UTF-8.
     /// </summary>
     /// <param name="text">
     /// A <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing the secret text.
     /// The caller retains ownership and is responsible for disposing <paramref name="text"/>.
     /// </param>
+    /// <returns>A new <see cref="Secret{TNumber}"/> whose byte content is the UTF-8 encoding of <paramref name="text"/>.</returns>
     /// <remarks>
     /// The character data is encoded directly into a pinned byte buffer; no intermediate
     /// unpinned heap allocation (such as a <see cref="string"/>, <see cref="System.Text.StringBuilder"/>,
@@ -181,23 +182,22 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <exception cref="ObjectDisposedException">
     /// Thrown when <paramref name="text"/> has already been disposed.
     /// </exception>
-    public Secret(PinnedPoolArray<char> text) : this(text, Encoding.UTF8)
-    {
-    }
+    public static Secret<TNumber> FromText(PinnedPoolArray<char> text) => FromText(text, Encoding.UTF8);
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="Secret{TNumber}"/> struct from a pinned
-    /// character buffer, using the specified <see cref="Encoding"/>.
+    /// Creates a new <see cref="Secret{TNumber}"/> by encoding the characters of a pinned
+    /// character buffer using the specified <see cref="Encoding"/>.
     /// </summary>
     /// <param name="text">
     /// A <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing the secret text.
     /// The caller retains ownership and is responsible for disposing <paramref name="text"/>.
     /// </param>
     /// <param name="encoding">The <see cref="Encoding"/> used to convert characters to bytes.</param>
+    /// <returns>A new <see cref="Secret{TNumber}"/> whose byte content is the encoding of <paramref name="text"/>.</returns>
     /// <remarks>
     /// The character data is encoded directly into a pinned byte buffer; no intermediate
     /// unpinned heap allocation is created. The intermediate pinned byte buffer is securely
-    /// cleared on dispose before this constructor returns.
+    /// cleared on dispose before this method returns.
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="text"/> or <paramref name="encoding"/> is <see langword="null"/>.
@@ -208,7 +208,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <exception cref="ObjectDisposedException">
     /// Thrown when <paramref name="text"/> has already been disposed.
     /// </exception>
-    public Secret(PinnedPoolArray<char> text, Encoding encoding)
+    public static Secret<TNumber> FromText(PinnedPoolArray<char> text, Encoding encoding)
     {
         if (text is null)
         {
@@ -228,7 +228,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         int byteCount = encoding.GetByteCount(text.PoolArray, 0, text.Length);
         using var bytes = new PinnedPoolArray<byte>(byteCount);
         encoding.GetBytes(text.PoolArray, 0, text.Length, bytes.PoolArray, 0);
-        this = new Secret<TNumber>(bytes.PoolArray, byteCount);
+        return new Secret<TNumber>(bytes.PoolArray, byteCount);
     }
 
     /// <summary>
