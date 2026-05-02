@@ -121,8 +121,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         generatedSecret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime);
-        var polynomial = this.CreatePolynomial(numberOfMinimumShares);
-        polynomial[0] = generatedSecret.ToCoefficient;
+        var polynomial = this.CreatePolynomial(numberOfMinimumShares, generatedSecret.ToCoefficient);
         var shares = this.CreateShares(numberOfShares, polynomial);
         polynomial.DisposeAll();
         return new Shares<TNumber>(shares);
@@ -181,22 +180,24 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
             this.SecurityLevel = newSecurityLevel;
         }
 
-        var polynomial = this.CreatePolynomial(numberOfMinimumShares);
-        polynomial[0] = secret.ToCoefficient;
+        var polynomial = this.CreatePolynomial(numberOfMinimumShares, secret.ToCoefficient);
         var shares = this.CreateShares(numberOfShares, polynomial);
         polynomial.DisposeAll();
         return new Shares<TNumber>(shares);
     }
 
     /// <summary>
-    /// Creates a polynomial
+    /// Creates a polynomial of degree <c>numberOfMinimumShares - 1</c> whose constant term is
+    /// <paramref name="a0"/> and whose remaining coefficients are independently random elements
+    /// modulo the configured Mersenne prime.
     /// </summary>
-    /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
-    /// <returns></returns>
-    private Calculator<TNumber>[] CreatePolynomial(int numberOfMinimumShares)
+    /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction.</param>
+    /// <param name="a0">The constant-term (a₀) coefficient. Stored at index 0 of the returned array; the caller transfers ownership.</param>
+    /// <returns>A pre-populated coefficient array; element [0] is <paramref name="a0"/>, elements [1..k-1] are freshly allocated random calculators.</returns>
+    private Calculator<TNumber>[] CreatePolynomial(int numberOfMinimumShares, Calculator<TNumber> a0)
     {
         var polynomial = new Calculator<TNumber>[numberOfMinimumShares];
-        polynomial[0] = Calculator<TNumber>.Zero;
+        polynomial[0] = a0;
         var mersennePrimeByteCount = this.securityLevelManager.MersennePrime.ByteCount;
         using var randomBytePool = new PinnedPoolArray<byte>(mersennePrimeByteCount);
         using var rng = RandomNumberGenerator.Create();
