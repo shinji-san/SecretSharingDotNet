@@ -650,21 +650,68 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// Converts the secret to a byte array.
     /// </summary>
     /// <returns>Array of type <see cref="byte"/></returns>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when the underlying buffer has been disposed.
+    /// </exception>
     public PinnedPoolArray<byte> ToByteArray()
     {
         return this.secretNumber.Subset(0, this.secretNumber.Length - MarkByteCount);
     }
 
     /// <summary>
-    /// Converts the secret bytes to a <see cref="PinnedPoolArray{Char}"/> containing the UTF-16 characters.
+    /// Converts the secret bytes to a <see cref="PinnedPoolArray{Char}"/> containing the
+    /// UTF-8-decoded characters of the secret, excluding the termination byte.
     /// </summary>
     /// <returns>
-    /// A <see cref="PinnedPoolArray{Char}"/> with the decoded characters of the secret, excluding the termination byte.
-    /// The caller is responsible for disposing the returned instance.
-    /// Returns a <see cref="PinnedPoolArray{Char}"/> with length zero if the secret is empty or uninitialized.
+    /// A <see cref="PinnedPoolArray{Char}"/> with the decoded characters. The caller is responsible
+    /// for disposing the returned instance. Returns a buffer of length zero if the secret is empty
+    /// or uninitialized.
     /// </returns>
-    public PinnedPoolArray<char> ToCharArray()
+    /// <remarks>
+    /// This overload is the inverse of <see cref="FromText(PinnedPoolArray{char})"/> and uses the
+    /// same UTF-8 default. For any other encoding use the
+    /// <see cref="ToCharArray(Encoding)"/> overload.
+    /// </remarks>
+    /// <exception cref="System.Text.DecoderFallbackException">
+    /// Thrown when the secret bytes are not a valid UTF-8 sequence.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when the underlying buffer has been disposed.
+    /// </exception>
+    public PinnedPoolArray<char> ToCharArray() => this.ToCharArray(Encoding.UTF8);
+
+    /// <summary>
+    /// Converts the secret bytes to a <see cref="PinnedPoolArray{Char}"/> containing the
+    /// characters decoded with the specified <paramref name="encoding"/>, excluding the
+    /// termination byte.
+    /// </summary>
+    /// <param name="encoding">The <see cref="Encoding"/> used to decode the secret bytes.</param>
+    /// <returns>
+    /// A <see cref="PinnedPoolArray{Char}"/> with the decoded characters. The caller is responsible
+    /// for disposing the returned instance. Returns a buffer of length zero if the secret is empty
+    /// or uninitialized.
+    /// </returns>
+    /// <remarks>
+    /// Inverse of <see cref="FromText(PinnedPoolArray{char}, Encoding)"/>. The decoded characters
+    /// are written directly into a pinned buffer; no intermediate <see cref="string"/> or other
+    /// unpinned heap allocation is created.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="encoding"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="System.Text.DecoderFallbackException">
+    /// Thrown when the secret bytes are not a valid sequence in <paramref name="encoding"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when the underlying buffer has been disposed.
+    /// </exception>
+    public PinnedPoolArray<char> ToCharArray(Encoding encoding)
     {
+        if (encoding is null)
+        {
+            throw new ArgumentNullException(nameof(encoding));
+        }
+
         if (this.secretNumber is not { Length: > MarkByteCount })
         {
             return new PinnedPoolArray<char>(0);
@@ -673,14 +720,14 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         int byteCount = this.secretNumber.Length - MarkByteCount;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
         ReadOnlySpan<byte> sourceSpan = this.secretNumber.PoolArray.AsSpan(0, byteCount);
-        int charCount = Encoding.UTF8.GetCharCount(sourceSpan);
+        int charCount = encoding.GetCharCount(sourceSpan);
         var result = new PinnedPoolArray<char>(charCount);
-        Encoding.UTF8.GetChars(sourceSpan, result.PoolArray.AsSpan(0, charCount));
+        encoding.GetChars(sourceSpan, result.PoolArray.AsSpan(0, charCount));
         return result;
 #else
-        int charCount = Encoding.UTF8.GetCharCount(this.secretNumber.PoolArray, 0, byteCount);
+        int charCount = encoding.GetCharCount(this.secretNumber.PoolArray, 0, byteCount);
         var result = new PinnedPoolArray<char>(charCount);
-        Encoding.UTF8.GetChars(this.secretNumber.PoolArray, 0, byteCount, result.PoolArray, 0);
+        encoding.GetChars(this.secretNumber.PoolArray, 0, byteCount, result.PoolArray, 0);
         return result;
 #endif
     }
@@ -705,6 +752,9 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// In Release builds: always returns <c>"*** Secured Value ***"</c> to prevent accidental exposure
     /// in logs, exception messages or other output.
     /// </returns>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown in Debug builds when the underlying buffer has been disposed.
+    /// </exception>
     public string ToBase64String()
     {
 #if DEBUG
@@ -727,6 +777,9 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// excluding the termination byte. The caller is responsible for disposing the returned instance.
     /// Returns a <see cref="PinnedPoolArray{Char}"/> with length zero if the secret is empty or uninitialized.
     /// </returns>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when the underlying buffer has been disposed.
+    /// </exception>
     public PinnedPoolArray<char> ToBase64CharArray()
     {
         if (this.secretNumber is not { Length: > MarkByteCount })

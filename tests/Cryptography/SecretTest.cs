@@ -460,6 +460,62 @@ public class SecretTest
     }
 
     /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.ToCharArray"/> throws
+    /// <see cref="ObjectDisposedException"/> after the secret has been disposed.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_AfterDispose_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        const string secretText = "P&ssw0rd!";
+        using var pinnedText = secretText.ToPinnedSecure();
+        var secret = Secret<BigInteger>.FromText(pinnedText);
+        secret.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => secret.ToCharArray());
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.ToCharArray(Encoding)"/> rejects a
+    /// <see langword="null"/> encoding.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_WithNullEncoding_ThrowsArgumentNullException()
+    {
+        // Arrange
+        const string secretText = "P&ssw0rd!";
+        using var pinnedText = secretText.ToPinnedSecure();
+        using var secret = Secret<BigInteger>.FromText(pinnedText);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => secret.ToCharArray(null));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.ToCharArray(Encoding)"/> roundtrips a non-default
+    /// encoding (UTF-16 LE) when the secret was constructed with the matching encoding.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_WithCallerEncoding_RoundTripsThroughFromText()
+    {
+        // Arrange
+        const string secretText = "Roundtrip via UTF-16 LE: Mäxchens Vögel.";
+        using var pinnedText = secretText.ToPinnedSecure();
+        using var secret = Secret<BigInteger>.FromText(pinnedText, Encoding.Unicode);
+
+        // Act
+        using var roundTrip = secret.ToCharArray(Encoding.Unicode);
+
+        // Assert
+        Assert.Equal(secretText.Length, roundTrip.Length);
+        for (int i = 0; i < secretText.Length; i++)
+        {
+            Assert.Equal(secretText[i], roundTrip[i]);
+        }
+    }
+
+    /// <summary>
     /// Tests the ToBase64String method of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
     /// <param name="base64Secret">Secret as base64 string</param>
