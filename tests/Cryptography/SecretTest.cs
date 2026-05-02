@@ -34,11 +34,10 @@ namespace SecretSharingDotNetTest.Cryptography;
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureArray;
 using SecretSharingDotNet.Math;
-#if NET8_0_OR_GREATER
 using System;
-#endif
 using System.Collections.Generic;
 using System.Numerics;
+using System.Text;
 using Xunit;
 
 public class SecretTest
@@ -566,6 +565,148 @@ public class SecretTest
         {
             secret.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}(PinnedPoolArray{char})"/> roundtrips a UTF-8
+    /// secret correctly via <see cref="Secret{TNumber}.ToCharArray"/>.
+    /// </summary>
+    [Fact]
+    public void Constructor_PinnedPoolArrayChar_RoundTripsViaToCharArray()
+    {
+        // Arrange
+        const string secretText = "P&ssw0rd!";
+        using var pinnedText = new PinnedPoolArray<char>(secretText.Length);
+        secretText.CopyTo(0, pinnedText.PoolArray, 0, secretText.Length);
+
+        // Act
+        using var secret = new Secret<BigInteger>(pinnedText);
+        using var roundTrip = secret.ToCharArray();
+
+        // Assert
+        Assert.Equal(secretText.Length, roundTrip.Length);
+        for (int i = 0; i < secretText.Length; i++)
+        {
+            Assert.Equal(secretText[i], roundTrip[i]);
+        }
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}(PinnedPoolArray{char})"/> roundtrips non-ASCII
+    /// characters (multi-byte UTF-8) without corruption.
+    /// </summary>
+    [Fact]
+    public void Constructor_PinnedPoolArrayChar_NonAscii_RoundTrips()
+    {
+        // Arrange
+        const string secretText = "Polyfön zwitschernd aßen Mäxchens Vögel Rüben.";
+        using var pinnedText = new PinnedPoolArray<char>(secretText.Length);
+        secretText.CopyTo(0, pinnedText.PoolArray, 0, secretText.Length);
+
+        // Act
+        using var secret = new Secret<BigInteger>(pinnedText);
+        using var roundTrip = secret.ToCharArray();
+
+        // Assert
+        Assert.Equal(secretText.Length, roundTrip.Length);
+        for (int i = 0; i < secretText.Length; i++)
+        {
+            Assert.Equal(secretText[i], roundTrip[i]);
+        }
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}(PinnedPoolArray{char}, Encoding)"/> uses the
+    /// caller-supplied encoding (here UTF-16 little-endian, distinct from the UTF-8 default).
+    /// </summary>
+    [Fact]
+    public void Constructor_PinnedPoolArrayCharEncoding_UsesCallerEncoding()
+    {
+        // Arrange
+        const string secretText = "Encoding!";
+        using var pinnedText = new PinnedPoolArray<char>(secretText.Length);
+        secretText.CopyTo(0, pinnedText.PoolArray, 0, secretText.Length);
+        var encoding = Encoding.Unicode; // UTF-16 LE
+
+        // Act
+        using var secret = new Secret<BigInteger>(pinnedText, encoding);
+        using var rawBytes = secret.ToByteArray();
+
+        // Assert — bytes must match UTF-16 encoding, not UTF-8.
+        byte[] expected = encoding.GetBytes(secretText);
+        Assert.Equal(expected.Length, rawBytes.Length);
+        for (int i = 0; i < expected.Length; i++)
+        {
+            Assert.Equal(expected[i], rawBytes[i]);
+        }
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}(PinnedPoolArray{char})"/> does not consume or
+    /// disturb the caller-owned input buffer.
+    /// </summary>
+    [Fact]
+    public void Constructor_PinnedPoolArrayChar_DoesNotConsumeInput()
+    {
+        // Arrange
+        const string secretText = "OwnedByCaller";
+        using var pinnedText = new PinnedPoolArray<char>(secretText.Length);
+        secretText.CopyTo(0, pinnedText.PoolArray, 0, secretText.Length);
+
+        // Act
+        using (new Secret<BigInteger>(pinnedText))
+        {
+        }
+
+        // Assert — input buffer remains intact and usable.
+        Assert.Equal(secretText.Length, pinnedText.Length);
+        for (int i = 0; i < secretText.Length; i++)
+        {
+            Assert.Equal(secretText[i], pinnedText[i]);
+        }
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}(PinnedPoolArray{char})"/> rejects <see langword="null"/> input.
+    /// </summary>
+    [Fact]
+    public void Constructor_PinnedPoolArrayChar_NullText_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new Secret<BigInteger>((PinnedPoolArray<char>)null));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}(PinnedPoolArray{char}, Encoding)"/> rejects a
+    /// <see langword="null"/> encoding.
+    /// </summary>
+    [Fact]
+    public void Constructor_PinnedPoolArrayCharEncoding_NullEncoding_ThrowsArgumentNullException()
+    {
+        using var pinnedText = new PinnedPoolArray<char>(1);
+        pinnedText.PoolArray[0] = 'X';
+        Assert.Throws<ArgumentNullException>(() => new Secret<BigInteger>(pinnedText, null));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}(PinnedPoolArray{char})"/> rejects a buffer of length zero.
+    /// </summary>
+    [Fact]
+    public void Constructor_PinnedPoolArrayChar_EmptyText_ThrowsArgumentException()
+    {
+        using var pinnedText = new PinnedPoolArray<char>(0);
+        Assert.Throws<ArgumentException>(() => new Secret<BigInteger>(pinnedText));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}(PinnedPoolArray{char})"/> propagates
+    /// <see cref="ObjectDisposedException"/> when the input buffer has already been disposed.
+    /// </summary>
+    [Fact]
+    public void Constructor_PinnedPoolArrayChar_DisposedText_ThrowsObjectDisposedException()
+    {
+        var pinnedText = new PinnedPoolArray<char>(4);
+        pinnedText.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => new Secret<BigInteger>(pinnedText));
     }
 
 #if NET8_0_OR_GREATER
