@@ -36,9 +36,6 @@ using Math;
 using SecureArray;
 using System;
 using System.Diagnostics;
-#if NET8_0_OR_GREATER
-using System.Buffers;
-#endif
 using System.Security.Cryptography;
 using System.Text;
 
@@ -145,19 +142,6 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         using var bytes = secretSource.ByteRepresentation;
         this = new Secret<TNumber>(bytes.PoolArray, bytes.Length);
     }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class. Use this ctor to deserialize a base64 string to
-    /// a <see cref="Secret{TNumber}"/> instance.
-    /// </summary>
-    /// <param name="encoded">Secret encoded as base-64</param>
-    /// <remarks>For normal text use the implicit cast from <see cref="string"/> to <see cref="Secret{TNumber}"/></remarks>
-    /// <exception cref="T:System.ArgumentNullException"><paramref name="encoded"/> is <see langword="null"/>, empty or consists exclusively of white-space characters</exception>
-#if NET8_0_OR_GREATER
-    public Secret(ReadOnlySpan<char> encoded) : this(FromBase64CharSpan(encoded) ){ }
-#else
-    public Secret(string encoded) : this(Convert.FromBase64String(encoded)) { }
-#endif
 
     /// <summary>
     /// Creates a new <see cref="Secret{TNumber}"/> by encoding the characters of a pinned
@@ -522,35 +506,6 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public static implicit operator ReadOnlySpan<byte>(Secret<TNumber> secret) => secret.AsReadOnlySpan();
 #endif
 
-#if NET8_0_OR_GREATER
-    /// <summary>
-    /// Casts the <see cref="String"/> instance to an <see cref="Secret{TNumber}"/> instance
-    /// </summary>
-    public static implicit operator Secret<TNumber>(string secretText) => secretText.AsSpan();
-        
-    /// <summary>
-    /// Casts the <see cref="ReadOnlySpan{Char}"/> instance to an <see cref="Secret{TNumber}"/> instance
-    /// </summary>
-    public static implicit operator Secret<TNumber>(ReadOnlySpan<char> secretText)
-    {
-        var arrayBufferWriter = new ArrayBufferWriter<byte>();
-        Encoding.UTF8.GetBytes(secretText, arrayBufferWriter);
-        var secretBytes = arrayBufferWriter.WrittenSpan;
-        var secret = new Secret<TNumber>(secretBytes, secretBytes.Length);
-        arrayBufferWriter.Clear();
-        return secret;
-    }
-#else
-    /// <summary>
-    /// Casts the <see cref="string"/> instance to an <see cref="Secret{TNumber}"/> instance
-    /// </summary>
-    public static implicit operator Secret<TNumber>(string secretText)
-    {
-        var secretBytes = Encoding.UTF8.GetBytes(secretText);
-        return new Secret<TNumber>(secretBytes, secretBytes.Length);
-    }
-#endif
-
     /// <summary>
     /// Equality operator
     /// </summary>
@@ -794,19 +749,6 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         return result;
 #endif
     }
-
-#if NET8_0_OR_GREATER
-    private static ReadOnlySpan<byte> FromBase64CharSpan(ReadOnlySpan<char> encoded)
-    {
-        if (encoded.IsEmpty || encoded.IsWhiteSpace())
-        {
-            throw new ArgumentException(ErrorMessages.EmptyCollection, nameof(encoded));
-        }
-
-        var bytes = new Span<byte>(new byte[(encoded.Length * 3 + 3) / 4]);
-        return Convert.TryFromBase64Chars(encoded, bytes, out int bytesWritten) ? bytes[..bytesWritten] : Span<byte>.Empty;
-    }
-#endif
 
     /// <summary>
     /// Create <see cref="Secret{TNumber}"/> from a0 coefficient
