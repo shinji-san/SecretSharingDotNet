@@ -341,5 +341,17 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("InvalidBase64Padding", resourceCulture);
             }
         }
+
+        internal static string SecurityLevelNotInitialized {
+            get {
+                return ResourceManager.GetString("SecurityLevelNotInitialized", resourceCulture);
+            }
+        }
+
+        internal static string RandomValueGenerationFailed {
+            get {
+                return ResourceManager.GetString("RandomValueGenerationFailed", resourceCulture);
+            }
+        }
     }
 }

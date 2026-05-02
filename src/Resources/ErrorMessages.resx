@@ -166,4 +166,10 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="InvalidBase64Padding" xml:space="preserve">
         <value>Base64 input contains invalid '=' padding.</value>
     </data>
+    <data name="SecurityLevelNotInitialized" xml:space="preserve">
+        <value>Security level is not initialized.</value>
+    </data>
+    <data name="RandomValueGenerationFailed" xml:space="preserve">
+        <value>Random value generation failed.</value>
+    </data>
 </root>

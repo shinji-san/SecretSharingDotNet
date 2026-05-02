@@ -117,7 +117,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
 
         if (this.securityLevelManager.MersennePrime == null)
         {
-            throw new InvalidOperationException("Security Level is not initialized!");
+            throw new InvalidOperationException(ErrorMessages.SecurityLevelNotInitialized);
         }
 
         generatedSecret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime);
@@ -221,7 +221,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
                 using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>;
                 if (randomValue == null)
                 {
-                    throw new InvalidOperationException("Random value generation failed!");
+                    throw new InvalidOperationException(ErrorMessages.RandomValueGenerationFailed);
                 }
 
                 using var abs = randomValue.Abs();
