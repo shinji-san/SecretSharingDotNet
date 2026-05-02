@@ -33,6 +33,7 @@ namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math;
 using System;
 using System.Collections.Generic;
@@ -720,7 +721,7 @@ public class SecretTest
     public void FromBase64_PinnedPoolArrayChar_RoundTripsViaToBase64CharArray(string base64)
     {
         // Arrange
-        using var pinnedBase64 = ToPinned(base64);
+        using var pinnedBase64 = base64.ToPinnedSecure();
 
         // Act
         using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
@@ -752,7 +753,7 @@ public class SecretTest
         }
         var padded = paddedBuilder.ToString();
         Assert.Equal(raw.Length, CountNonWhitespace(padded));
-        using var pinnedBase64 = ToPinned(padded);
+        using var pinnedBase64 = padded.ToPinnedSecure();
 
         // Act
         using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
@@ -773,7 +774,7 @@ public class SecretTest
         const string base64 = "UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=";
         byte[] expected = Convert.FromBase64String(base64);
 
-        using var pinnedBase64 = ToPinned(base64);
+        using var pinnedBase64 = base64.ToPinnedSecure();
         using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
         using var bytes = secret.ToByteArray();
 
@@ -789,7 +790,7 @@ public class SecretTest
     {
         // '!' at position 4 is not a Base64 alphabet character.
         const string bad = "ABCD!FGH";
-        using var pinnedBase64 = ToPinned(bad);
+        using var pinnedBase64 = bad.ToPinnedSecure();
 
         var ex = Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
         Assert.Contains("'!'", ex.Message);
@@ -799,14 +800,14 @@ public class SecretTest
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_NotMultipleOfFour_ThrowsFormatException()
     {
-        using var pinnedBase64 = ToPinned("ABC");
+        using var pinnedBase64 = "ABC".ToPinnedSecure();
         Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_TooManyPads_ThrowsFormatException()
     {
-        using var pinnedBase64 = ToPinned("A===");
+        using var pinnedBase64 = "A===".ToPinnedSecure();
         Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
@@ -814,14 +815,14 @@ public class SecretTest
     public void FromBase64_PinnedPoolArrayChar_NonPadAfterPad_ThrowsFormatException()
     {
         // 'B' appears after a '=' in the same group.
-        using var pinnedBase64 = ToPinned("A=B=");
+        using var pinnedBase64 = "A=B=".ToPinnedSecure();
         Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_OnlyWhitespace_ThrowsArgumentException()
     {
-        using var pinnedBase64 = ToPinned("   \t\r\n\f\v   ");
+        using var pinnedBase64 = "   \t\r\n\f\v   ".ToPinnedSecure();
         Assert.Throws<ArgumentException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
@@ -850,7 +851,7 @@ public class SecretTest
     public void FromBase64_PinnedPoolArrayChar_DoesNotConsumeInput()
     {
         const string base64 = "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu";
-        using var pinnedBase64 = ToPinned(base64);
+        using var pinnedBase64 = base64.ToPinnedSecure();
 
         using (Secret<BigInteger>.FromBase64(pinnedBase64))
         {
@@ -862,16 +863,6 @@ public class SecretTest
         {
             Assert.Equal(base64[i], pinnedBase64[i]);
         }
-    }
-
-    private static PinnedPoolArray<char> ToPinned(string s)
-    {
-        var pinned = new PinnedPoolArray<char>(s.Length);
-        if (s.Length > 0)
-        {
-            s.CopyTo(0, pinned.PoolArray, 0, s.Length);
-        }
-        return pinned;
     }
 
     private static int CountNonWhitespace(string s)

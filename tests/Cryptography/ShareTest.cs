@@ -1,6 +1,7 @@
 namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
@@ -177,7 +178,7 @@ public class ShareTest
     public void Constructor_ValidPinnedInput_ShouldParseCorrectly()
     {
         // Arrange
-        using var pinned = PinnedTestHelper.ToPinned("B-AA");
+        using var pinned = "B-AA".ToPinnedSecure();
 
         // Act
         var share = new Share<BigInteger>(pinned);
@@ -193,7 +194,7 @@ public class ShareTest
     public void ToString_FromValidShare_ReturnsCoordinatesSeparatedWithMinus(string input, string expected)
     {
         // Arrange
-        using var pinned = PinnedTestHelper.ToPinned(input);
+        using var pinned = input.ToPinnedSecure();
         var shareUnderTest = new Share<BigInteger>(pinned);
 
         // Act
@@ -211,7 +212,7 @@ public class ShareTest
     public void Constructor_InvalidPinnedInput_ShouldThrowArgumentException()
     {
         // Arrange
-        using var pinned = PinnedTestHelper.ToPinned("invalid-input");
+        using var pinned = "invalid-input".ToPinnedSecure();
 
         // Act & Assert
         Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
@@ -258,7 +259,7 @@ public class ShareTest
     [InlineData("0x01-0x01", 1, 1)]
     public void Constructor_WithLowerHexPrefix_ShouldParse(string shareString, int expectedIndex, int expectedValue)
     {
-        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        using var pinned = shareString.ToPinnedSecure();
         var share = new Share<BigInteger>(pinned);
 
         Assert.Equal(new BigIntCalculator(expectedIndex), share.Index);
@@ -270,7 +271,7 @@ public class ShareTest
     [InlineData("05-0x0A", 5, 10)]
     public void Constructor_WithPartialPrefix_ShouldParse(string shareString, int expectedIndex, int expectedValue)
     {
-        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        using var pinned = shareString.ToPinnedSecure();
         var share = new Share<BigInteger>(pinned);
 
         Assert.Equal(new BigIntCalculator(expectedIndex), share.Index);
@@ -283,7 +284,7 @@ public class ShareTest
     [InlineData("0x05-0X0A")]
     public void Constructor_WithUpperHexPrefix_ShouldThrow(string shareString)
     {
-        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        using var pinned = shareString.ToPinnedSecure();
         Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
     }
 
@@ -292,7 +293,7 @@ public class ShareTest
     [InlineData("0x01-0xGG")]
     public void Constructor_WithInvalidHexAfterPrefix_ShouldThrow(string shareString)
     {
-        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        using var pinned = shareString.ToPinnedSecure();
         Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
     }
 
@@ -300,7 +301,7 @@ public class ShareTest
     public void Constructor_InvalidHexMessage_ContainsPosition()
     {
         // "01-ZX" — the 'Z' at position 3 is the first invalid hex character.
-        using var pinned = PinnedTestHelper.ToPinned("01-ZX");
+        using var pinned = "01-ZX".ToPinnedSecure();
 
         var ex = Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
 
@@ -312,7 +313,7 @@ public class ShareTest
     {
         // Single-char (odd-length) index with a non-hex character exercises the
         // odd-length branch in DecodeHexToCalculator.
-        using var pinned = PinnedTestHelper.ToPinned("Z-01");
+        using var pinned = "Z-01".ToPinnedSecure();
 
         var ex = Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
 
@@ -325,7 +326,7 @@ public class ShareTest
     [InlineData("0x-0x")]
     public void Constructor_WithEmptyCoordinateAfterPrefix_ShouldThrow(string shareString)
     {
-        using var pinned = PinnedTestHelper.ToPinned(shareString);
+        using var pinned = shareString.ToPinnedSecure();
         Assert.Throws<FormatException>(() => new Share<BigInteger>(pinned));
     }
 

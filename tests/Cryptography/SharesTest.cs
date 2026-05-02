@@ -33,6 +33,7 @@ namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Collections;
@@ -60,7 +61,7 @@ public class SharesTest
         // Arrange
         using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
         Shares<BigInteger> sharesCollection = blob;
-        using var sharePinned = PinnedTestHelper.ToPinned(TestData.GetPredefinedShares()[index]);
+        using var sharePinned = TestData.GetPredefinedShares()[index].ToPinnedSecure();
 
         // Act & Assert
         Assert.Contains(new Share<BigInteger>(sharePinned), sharesCollection);
@@ -77,7 +78,7 @@ public class SharesTest
         // Arrange
         using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
         Shares<BigInteger> sharesCollection = blob;
-        using var nonExistingPinned = PinnedTestHelper.ToPinned("4-9999999999999999999999");
+        using var nonExistingPinned = "4-9999999999999999999999".ToPinnedSecure();
         var nonExistingShare = new Share<BigInteger>(nonExistingPinned);
 
         // Act & Assert
@@ -93,7 +94,7 @@ public class SharesTest
     {
         // Arrange
         var text = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
-        using var blob = PinnedTestHelper.ToPinned(text);
+        using var blob = text.ToPinnedSecure();
         Shares<BigInteger> shares = blob;
 
         // Act & Assert
@@ -118,7 +119,7 @@ public class SharesTest
         var testDataArray = TestData.GetPredefinedShares()
             .Select(entry =>
             {
-                using var p = PinnedTestHelper.ToPinned(entry);
+                using var p = entry.ToPinnedSecure();
                 return new Share<BigInteger>(p);
             })
             .ToArray();
@@ -162,7 +163,7 @@ public class SharesTest
         var expectedShares = TestData.GetPredefinedShares()
             .Select(entry =>
             {
-                using var p = PinnedTestHelper.ToPinned(entry);
+                using var p = entry.ToPinnedSecure();
                 return new Share<BigInteger>(p);
             })
             .ToArray();
@@ -266,7 +267,7 @@ public class SharesTest
         Assert.Equal(stringArray.Length, shares.Count);
         for (int i = 0; i < stringArray.Length; i++)
         {
-            using var p = PinnedTestHelper.ToPinned(stringArray[i]);
+            using var p = stringArray[i].ToPinnedSecure();
             Assert.Equal(new Share<BigInteger>(p), shares[i]);
         }
     }
@@ -287,9 +288,9 @@ public class SharesTest
         Shares<BigInteger> sortedShares = blob;
 
         // Assert
-        using var p1 = PinnedTestHelper.ToPinned("1-100");
-        using var p2 = PinnedTestHelper.ToPinned("2-200");
-        using var p3 = PinnedTestHelper.ToPinned("3-300");
+        using var p1 = "1-100".ToPinnedSecure();
+        using var p2 = "2-200".ToPinnedSecure();
+        using var p3 = "3-300".ToPinnedSecure();
         Assert.Equal(new Share<BigInteger>(p1), sortedShares[0]);
         Assert.Equal(new Share<BigInteger>(p2), sortedShares[1]);
         Assert.Equal(new Share<BigInteger>(p3), sortedShares[2]);
@@ -303,15 +304,15 @@ public class SharesTest
             "3-300" + Environment.NewLine +
             "1-100" + Environment.NewLine +
             "2-200";
-        using var blob = PinnedTestHelper.ToPinned(input);
+        using var blob = input.ToPinnedSecure();
 
         // Act
         Shares<BigInteger> sortedShares = blob;
 
         // Assert
-        using var p1 = PinnedTestHelper.ToPinned("1-100");
-        using var p2 = PinnedTestHelper.ToPinned("2-200");
-        using var p3 = PinnedTestHelper.ToPinned("3-300");
+        using var p1 = "1-100".ToPinnedSecure();
+        using var p2 = "2-200".ToPinnedSecure();
+        using var p3 = "3-300".ToPinnedSecure();
         Assert.Equal(new Share<BigInteger>(p1), sortedShares[0]);
         Assert.Equal(new Share<BigInteger>(p2), sortedShares[1]);
         Assert.Equal(new Share<BigInteger>(p3), sortedShares[2]);

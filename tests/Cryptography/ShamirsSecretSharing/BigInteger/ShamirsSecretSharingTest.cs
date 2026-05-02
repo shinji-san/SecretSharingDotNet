@@ -32,6 +32,7 @@
 namespace SecretSharingDotNetTest.Cryptography.ShamirsSecretSharing.BigInteger;
 
 using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
 using System;
@@ -300,7 +301,7 @@ public class SecretSplitterTest
         }
 
         var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-        using var blob = PinnedTestHelper.ToPinned(sharesChunk.ToString());
+        using var blob = sharesChunk.ToString().ToPinnedSecure();
 
         // Act
         Shares<BigInteger> shares = blob;

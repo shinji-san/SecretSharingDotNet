@@ -35,22 +35,6 @@ using System;
 
 internal static class PinnedTestHelper
 {
-    public static PinnedPoolArray<char> ToPinned(string text)
-    {
-        if (text is null)
-        {
-            throw new ArgumentNullException(nameof(text));
-        }
-
-        var result = new PinnedPoolArray<char>(text.Length);
-        if (text.Length > 0)
-        {
-            text.CopyTo(0, result.PoolArray, 0, text.Length);
-        }
-
-        return result;
-    }
-
     public static PinnedPoolArray<char> ToPinnedLines(string[] lines, string separator = "\n")
     {
         if (lines is null)
