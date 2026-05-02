@@ -122,9 +122,15 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
 
         generatedSecret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime);
         var polynomial = this.CreatePolynomial(numberOfMinimumShares, generatedSecret.ToCoefficient);
-        var shares = this.CreateShares(numberOfShares, polynomial);
-        polynomial.DisposeAll();
-        return new Shares<TNumber>(shares);
+        try
+        {
+            var shares = this.CreateShares(numberOfShares, polynomial);
+            return new Shares<TNumber>(shares);
+        }
+        finally
+        {
+            polynomial.DisposeAll();
+        }
     }
 
     /// <summary>
@@ -181,9 +187,15 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         var polynomial = this.CreatePolynomial(numberOfMinimumShares, secret.ToCoefficient);
-        var shares = this.CreateShares(numberOfShares, polynomial);
-        polynomial.DisposeAll();
-        return new Shares<TNumber>(shares);
+        try
+        {
+            var shares = this.CreateShares(numberOfShares, polynomial);
+            return new Shares<TNumber>(shares);
+        }
+        finally
+        {
+            polynomial.DisposeAll();
+        }
     }
 
     /// <summary>
@@ -238,13 +250,35 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         var shares = new Share<TNumber>[numberOfShares];
         var prime = this.securityLevelManager.MersennePrime;
 
-        for (var i = 1; i < size; i++)
+        try
         {
-            var bytes = BitConverter.GetBytes(i);
-            var x = Calculator.Create(bytes, bytes.Length, typeof(TNumber)) as Calculator<TNumber>
-                    ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
-            var y = Polynomial.EvaluateAt(x, polynomial, prime);
-            shares[i - 1] = new Share<TNumber>(x, y);
+            for (var i = 1; i < size; i++)
+            {
+                var bytes = BitConverter.GetBytes(i);
+                Calculator<TNumber> x = null;
+                Calculator<TNumber> y = null;
+                try
+                {
+                    x = Calculator.Create(bytes, bytes.Length, typeof(TNumber)) as Calculator<TNumber>
+                        ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
+                    y = Polynomial.EvaluateAt(x, polynomial, prime);
+                    shares[i - 1] = new Share<TNumber>(x, y);
+                    // Ownership transferred to Share -- null out so the catch does not double-dispose.
+                    x = null;
+                    y = null;
+                }
+                catch
+                {
+                    x?.Dispose();
+                    y?.Dispose();
+                    throw;
+                }
+            }
+        }
+        catch
+        {
+            shares.DisposeAll();
+            throw;
         }
 
         return shares;
