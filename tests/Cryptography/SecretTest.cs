@@ -406,7 +406,8 @@ public class SecretTest
         const string secretText = "P&ssw0rd!";
 
         // Act
-        using Secret<BigInteger> secret = secretText;
+        using var pinnedText = secretText.ToPinnedSecure();
+        using var secret = Secret<BigInteger>.FromText(pinnedText);
 
         // Assert
 #if DEBUG
@@ -428,7 +429,8 @@ public class SecretTest
         char[] expectedChars = secretText.ToCharArray();
 
         // Act
-        using Secret<BigInteger> secret = secretText;
+        using var pinnedText = secretText.ToPinnedSecure();
+        using var secret = Secret<BigInteger>.FromText(pinnedText);
         using var charArray = secret.ToCharArray();
 
         // Assert
@@ -469,7 +471,8 @@ public class SecretTest
     public void ToBase64String_FromValidSecret_ReturnsSecretAsBase64String(string base64Secret)
     {
         // Arrange
-        using var secret = new Secret<BigInteger>(base64Secret);
+        using var pinnedBase64 = base64Secret.ToPinnedSecure();
+        using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
 
         // Act
 #if DEBUG
@@ -495,7 +498,8 @@ public class SecretTest
     public void ToBase64CharArray_FromValidSecret_ReturnsSecretAsBase64CharArray(string base64Secret)
     {
         // Arrange
-        using var secret = new Secret<BigInteger>(base64Secret);
+        using var pinnedBase64 = base64Secret.ToPinnedSecure();
+        using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
         char[] expectedChars = base64Secret.ToCharArray();
 
         // Act
@@ -541,8 +545,11 @@ public class SecretTest
             switch (secretSource)
             {
                 case string password:
-                    secret = password;
-                    Assert.Equal(password, secret);
+                    using (var pinnedPassword = password.ToPinnedSecure())
+                    {
+                        secret = Secret<BigInteger>.FromText(pinnedPassword);
+                    }
+                    SecretAssertions.AssertSecretEqualsString(password, secret);
                     break;
                 case BigInteger bigNumber:
                     secret = bigNumber;
