@@ -311,5 +311,17 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("SqrtOfNegativeIsNaN", resourceCulture);
             }
         }
+
+        internal static string MaxLengthMustBePositive {
+            get {
+                return ResourceManager.GetString("MaxLengthMustBePositive", resourceCulture);
+            }
+        }
+
+        internal static string ConsoleInputRedirected {
+            get {
+                return ResourceManager.GetString("ConsoleInputRedirected", resourceCulture);
+            }
+        }
     }
 }

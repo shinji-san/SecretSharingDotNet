@@ -151,4 +151,10 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="SqrtOfNegativeIsNaN" xml:space="preserve">
         <value>Result is NaN: square root of a negative value is undefined.</value>
     </data>
+    <data name="MaxLengthMustBePositive" xml:space="preserve">
+        <value>Maximum length must be a positive integer greater than zero.</value>
+    </data>
+    <data name="ConsoleInputRedirected" xml:space="preserve">
+        <value>Standard input is redirected; interactive password reading is not available.</value>
+    </data>
 </root>

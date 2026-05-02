@@ -144,4 +144,10 @@
     <data name="SqrtOfNegativeIsNaN" xml:space="preserve">
         <value>Das Ergebnis ist NaN: Die Quadratwurzel eines negativen Werts ist nicht definiert.</value>
     </data>
+    <data name="MaxLengthMustBePositive" xml:space="preserve">
+        <value>Die maximale Länge muss eine positive ganze Zahl größer als null sein.</value>
+    </data>
+    <data name="ConsoleInputRedirected" xml:space="preserve">
+        <value>Die Standardeingabe ist umgeleitet; interaktives Lesen eines Passworts ist nicht möglich.</value>
+    </data>
 </root>
