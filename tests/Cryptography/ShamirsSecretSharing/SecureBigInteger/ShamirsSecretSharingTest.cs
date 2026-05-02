@@ -37,6 +37,7 @@ using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Linq;
+using System.Text;
 using Xunit;
 
 /// <summary>
@@ -142,11 +143,11 @@ public class SecretSplitterTest
     // [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     // [Theory]
     // [MemberData(nameof(TestData.TestNumberData), MemberType = typeof(TestData))]
-    // public void TestWithNumber(int splitSecurityLevel, int expectedSecurityLevel, BigInteger number)
+    // public void TestWithNumber(int splitSecurityLevel, int expectedSecurityLevel, SecureBigInteger number)
     // {
     //     // Arrange
-    //     var secretSplitter = new SecretSplitter<BigInteger>();
-    //     var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+    //     var secretSplitter = new SecretSplitter<SecureBigInteger>();
+    //     var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
     //
     //     // Act
     //     var shares = secretSplitter.MakeShares(3, 7, number, splitSecurityLevel);
@@ -156,8 +157,8 @@ public class SecretSplitterTest
     //     var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
     //
     //     // Assert
-    //     Assert.Equal(number, (BigInteger)recoveredSecret1);
-    //     Assert.Equal(number, (BigInteger)recoveredSecret2);
+    //     Assert.Equal(number, (SecureBigInteger)recoveredSecret1);
+    //     Assert.Equal(number, (SecureBigInteger)recoveredSecret2);
     //     Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
     // }
     
@@ -203,42 +204,42 @@ public class SecretSplitterTest
         Assert.Throws<ArgumentOutOfRangeException>(() => secretSplitter.MakeShares(1, 7, 5, out _));
     }
     
-    // /// <summary>
-    // /// Tests
-    // /// </summary>
-    // [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-    // [Fact]
-    // public void TestMinimumSharedSecretsReconstruction()
-    // {
-    //     // Arrange
-    //     var secretSplitter = new SecretSplitter<BigInteger>();
-    //     var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-    //
-    //     // Act & Assert
-    //     var shares = secretSplitter.MakeShares(2, 7, 13, out _);
-    //     var subSet = shares.Where(p => p.Index == Calculator<BigInteger>.One).ToArray();
-    //     Assert.Throws<ArgumentOutOfRangeException>(() => secretReconstructor.Reconstruction(subSet));
-    // }
-    //
-    // /// <summary>
-    // /// Tests
-    // /// </summary>
-    // [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-    // [Fact]
-    // public void TestShareThreshold()
-    // {
-    //     // Arrange
-    //     var secretSplitter = new SecretSplitter<BigInteger>();
-    //     var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-    //
-    //     // Act
-    //     var shares = secretSplitter.MakeShares(3, 7, 51, out var originalSecret);
-    //     var subSet = shares.Take(2).ToArray();
-    //     var secret = secretReconstructor.Reconstruction(subSet);
-    //
-    //     // Assert
-    //     Assert.NotEqual(originalSecret, secret);
-    // }
+    /// <summary>
+    /// Tests
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Fact]
+    public void TestMinimumSharedSecretsReconstruction()
+    {
+        // Arrange
+        var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+
+        // Act & Assert
+        var shares = secretSplitter.MakeShares(2, 7, 13, out _);
+        var subSet = shares.Where(p => p.Index == Calculator<SecureBigInteger>.One).ToArray();
+        Assert.Throws<ArgumentOutOfRangeException>(() => secretReconstructor.Reconstruction(subSet));
+    }
+
+    /// <summary>
+    /// Tests
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Fact]
+    public void TestShareThreshold()
+    {
+        // Arrange
+        var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+
+        // Act
+        var shares = secretSplitter.MakeShares(3, 7, 51, out var originalSecret);
+        var subSet = shares.Take(2).ToArray();
+        var secret = secretReconstructor.Reconstruction(subSet);
+
+        // Assert
+        Assert.NotEqual(originalSecret, secret);
+    }
     
     /// <summary>
     /// Tests whether or not bug #40 occurs [Maximum exceeded! (Parameter 'value') Actual value was 10912." #40].
@@ -284,7 +285,6 @@ public class SecretSplitterTest
         Assert.Equal(TestData.DefaultTestPassword, secret);
     }
 
-    //
     // /// <summary>
     // /// Tests the secret reconstruction from shares represented by a single string (separated by newline)
     // /// </summary>
@@ -299,7 +299,7 @@ public class SecretSplitterTest
     //         sharesChunk.AppendLine(share);
     //     }
     //
-    //     var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+    //     var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
     //
     //     // Act
     //     var secret = secretReconstructor.Reconstruction(sharesChunk.ToString());
@@ -318,8 +318,8 @@ public class SecretSplitterTest
     //     // Arrange
     //     int ok = 0;
     //     const int total = 1000;
-    //     var secretSplitter = new SecretSplitter<BigInteger>();
-    //     var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+    //     var secretSplitter = new SecretSplitter<SecureBigInteger>();
+    //     var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
     //     var rng = new Random();
     //
     //     // Act
@@ -329,7 +329,7 @@ public class SecretSplitterTest
     //         rng.NextBytes(message);
     //         const int n = 5;
     //         var s = Convert.ToBase64String(message);
-    //         var secret = new Secret<BigInteger>(s);
+    //         var secret = new Secret<SecureBigInteger>(s);
     //         var shares = secretSplitter.MakeShares((n + 1) / 2, n, secret);
     //         var reconstructed =
     //             Convert.FromBase64String(secretReconstructor.Reconstruction(shares.Take((n + 1) / 2).ToArray())
