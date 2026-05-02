@@ -40,7 +40,10 @@ using System.Runtime.CompilerServices;
 internal static class ArrayExtensions
 {
     /// <summary>
-    /// Disposes all elements in the array that implement <see cref="IDisposable"/>.
+    /// Disposes all non-<see langword="null"/> elements in the array that implement
+    /// <see cref="IDisposable"/>. Null slots are skipped, allowing safe cleanup of
+    /// partially populated arrays (for example, when a caller's allocation loop is
+    /// aborted by an exception before every slot has been filled).
     /// </summary>
     /// <typeparam name="TArray">The type of the elements in the array, which must implement <see cref="IDisposable"/>.</typeparam>
     /// <param name="array">The array whose elements will be disposed.</param>
@@ -48,7 +51,7 @@ internal static class ArrayExtensions
     {
         foreach (var disposable in array)
         {
-            disposable.Dispose();
+            disposable?.Dispose();
         }
     }
 

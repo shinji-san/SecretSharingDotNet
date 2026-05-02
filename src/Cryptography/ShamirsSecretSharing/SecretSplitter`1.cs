@@ -198,20 +198,28 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     {
         var polynomial = new Calculator<TNumber>[numberOfMinimumShares];
         polynomial[0] = a0;
-        var mersennePrimeByteCount = this.securityLevelManager.MersennePrime.ByteCount;
-        using var randomBytePool = new PinnedPoolArray<byte>(mersennePrimeByteCount);
-        using var rng = RandomNumberGenerator.Create();
-        for (int i = 1; i < numberOfMinimumShares; i++)
+        try
         {
-            rng.GetBytes(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
-            using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>;
-            if (randomValue == null)
+            var mersennePrimeByteCount = this.securityLevelManager.MersennePrime.ByteCount;
+            using var randomBytePool = new PinnedPoolArray<byte>(mersennePrimeByteCount);
+            using var rng = RandomNumberGenerator.Create();
+            for (int i = 1; i < numberOfMinimumShares; i++)
             {
-                throw new InvalidOperationException("Random value generation failed!");
-            }
+                rng.GetBytes(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
+                using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>;
+                if (randomValue == null)
+                {
+                    throw new InvalidOperationException("Random value generation failed!");
+                }
 
-            using var abs = randomValue.Abs();
-            polynomial[i] = abs % this.securityLevelManager.MersennePrime;
+                using var abs = randomValue.Abs();
+                polynomial[i] = abs % this.securityLevelManager.MersennePrime;
+            }
+        }
+        catch
+        {
+            polynomial.DisposeAll();
+            throw;
         }
 
         return polynomial;
