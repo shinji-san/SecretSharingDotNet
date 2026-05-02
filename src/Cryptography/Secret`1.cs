@@ -232,6 +232,210 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     }
 
     /// <summary>
+    /// Creates a new <see cref="Secret{TNumber}"/> by decoding standard Base64
+    /// (RFC&#160;4648 §4: alphabet <c>A–Z a–z 0–9 + /</c>, <c>=</c> padding) from a pinned
+    /// character buffer.
+    /// </summary>
+    /// <param name="base64">
+    /// A <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing standard
+    /// Base64-encoded data. Whitespace characters (space, tab, CR, LF, FF, VT) are ignored,
+    /// matching the behaviour of <see cref="Convert.FromBase64String(string)"/>. The caller
+    /// retains ownership and is responsible for disposing the buffer.
+    /// </param>
+    /// <returns>A new <see cref="Secret{TNumber}"/> whose byte content is the decoded payload.</returns>
+    /// <remarks>
+    /// Decoding goes directly from the input <see cref="PinnedPoolArray{T}"/> of
+    /// <see cref="char"/> into a pinned, securely cleared <see cref="PinnedPoolArray{T}"/>
+    /// of <see cref="byte"/> — no intermediate <see cref="string"/>, <see cref="byte"/>
+    /// array, or other unpinned managed-heap copy is allocated. The intermediate pinned
+    /// byte buffer is securely cleared on dispose before this method returns. URL-safe
+    /// Base64 (alphabet <c>- _</c>) is not accepted; encode with the standard alphabet
+    /// to interoperate.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="base64"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="base64"/> contains no non-whitespace characters.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown when <paramref name="base64"/> has already been disposed.
+    /// </exception>
+    /// <exception cref="FormatException">
+    /// Thrown when <paramref name="base64"/> contains an invalid character (with the
+    /// position of the offending character in the message), is not padded to a multiple
+    /// of four non-whitespace characters, or contains malformed <c>'='</c> padding.
+    /// </exception>
+    public static Secret<TNumber> FromBase64(PinnedPoolArray<char> base64)
+    {
+        using var decoded = DecodeBase64(base64);
+        return new Secret<TNumber>(decoded.PoolArray, decoded.Length);
+    }
+
+    /// <summary>
+    /// Decodes a pinned Base64 character buffer into a pinned byte buffer in two passes:
+    /// pass 1 validates the input and computes the output size; pass 2 performs the
+    /// actual decoding. No intermediate unpinned heap allocation is created.
+    /// </summary>
+    private static PinnedPoolArray<byte> DecodeBase64(PinnedPoolArray<char> base64)
+    {
+        if (base64 is null)
+        {
+            throw new ArgumentNullException(nameof(base64));
+        }
+
+        var src = base64.PoolArray;
+        int srcLen = base64.Length;
+
+        // Pass 1: validate and count.
+        int numNonWs = 0;
+        int paddingCount = 0;
+        bool seenPadding = false;
+        for (int i = 0; i < srcLen; i++)
+        {
+            char c = src[i];
+            int sextet = DecodeBase64Char(c);
+            if (sextet == WhitespaceSextet)
+            {
+                continue;
+            }
+
+            if (sextet == InvalidSextet)
+            {
+                throw new FormatException(string.Format(ErrorMessages.InvalidBase64CharAtPosition, c, i));
+            }
+
+            if (sextet == PaddingSextet)
+            {
+                seenPadding = true;
+                paddingCount++;
+                numNonWs++;
+                continue;
+            }
+
+            if (seenPadding)
+            {
+                throw new FormatException(ErrorMessages.InvalidBase64Padding);
+            }
+
+            numNonWs++;
+        }
+
+        if (numNonWs == 0)
+        {
+            throw new ArgumentException(ErrorMessages.EmptyCollection, nameof(base64));
+        }
+
+        if (numNonWs % 4 != 0)
+        {
+            throw new FormatException(ErrorMessages.InvalidBase64Length);
+        }
+
+        if (paddingCount > 2)
+        {
+            throw new FormatException(ErrorMessages.InvalidBase64Padding);
+        }
+
+        int totalQuads = numNonWs / 4;
+        int byteCount = totalQuads * 3 - paddingCount;
+        var result = new PinnedPoolArray<byte>(byteCount);
+
+        // Pass 2: decode.
+        int srcPos = 0;
+        int dstPos = 0;
+        for (int q = 0; q < totalQuads; q++)
+        {
+            int s0 = NextNonWsSextet(src, srcLen, ref srcPos);
+            int s1 = NextNonWsSextet(src, srcLen, ref srcPos);
+            int s2 = NextNonWsSextet(src, srcLen, ref srcPos);
+            int s3 = NextNonWsSextet(src, srcLen, ref srcPos);
+            int v2 = s2 == PaddingSextet ? 0 : s2;
+            int v3 = s3 == PaddingSextet ? 0 : s3;
+
+            result.PoolArray[dstPos++] = (byte)((s0 << 2) | (s1 >> 4));
+
+            bool isLastQuad = q == totalQuads - 1;
+            if (!isLastQuad || paddingCount < 2)
+            {
+                result.PoolArray[dstPos++] = (byte)(((s1 & 0xF) << 4) | (v2 >> 2));
+            }
+
+            if (!isLastQuad || paddingCount < 1)
+            {
+                result.PoolArray[dstPos++] = (byte)(((v2 & 0x3) << 6) | v3);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Advances <paramref name="pos"/> through <paramref name="src"/> until a non-whitespace
+    /// character is reached and returns its decoded sextet (0–63), <see cref="PaddingSextet"/>
+    /// for <c>'='</c>, or throws on out-of-range. Whitespace alone is skipped silently;
+    /// invalid characters are pre-rejected by pass 1 and therefore never seen here.
+    /// </summary>
+    private static int NextNonWsSextet(char[] src, int srcLen, ref int pos)
+    {
+        while (pos < srcLen)
+        {
+            int sextet = DecodeBase64Char(src[pos++]);
+            if (sextet != WhitespaceSextet)
+            {
+                return sextet;
+            }
+        }
+
+        throw new FormatException(ErrorMessages.InvalidBase64Length);
+    }
+
+    /// <summary>
+    /// Maps a single Base64 character to its sextet value (0–63), or to one of the
+    /// negative sentinel values <see cref="PaddingSextet"/>, <see cref="WhitespaceSextet"/>,
+    /// or <see cref="InvalidSextet"/>.
+    /// </summary>
+    private static int DecodeBase64Char(char c)
+    {
+        if (c >= 'A' && c <= 'Z')
+        {
+            return c - 'A';
+        }
+
+        if (c >= 'a' && c <= 'z')
+        {
+            return c - 'a' + 26;
+        }
+
+        if (c >= '0' && c <= '9')
+        {
+            return c - '0' + 52;
+        }
+
+        switch (c)
+        {
+            case '+':
+                return 62;
+            case '/':
+                return 63;
+            case '=':
+                return PaddingSextet;
+            case ' ':
+            case '\t':
+            case '\r':
+            case '\n':
+            case '\f':
+            case '\v':
+                return WhitespaceSextet;
+            default:
+                return InvalidSextet;
+        }
+    }
+
+    private const int InvalidSextet = -1;
+    private const int PaddingSextet = -2;
+    private const int WhitespaceSextet = -3;
+
+    /// <summary>
     /// Gets the <see cref="Secret{TNumber}"/> byte size.
     /// </summary>
     internal int SecretByteSize => this.secretNumber.Length;

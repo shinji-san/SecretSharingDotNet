@@ -150,4 +150,13 @@
     <data name="ConsoleInputRedirected" xml:space="preserve">
         <value>Die Standardeingabe ist umgeleitet; interaktives Lesen eines Passworts ist nicht möglich.</value>
     </data>
+    <data name="InvalidBase64CharAtPosition" xml:space="preserve">
+        <value>Ungültiges Base64-Zeichen '{0}' an Position {1}.</value>
+    </data>
+    <data name="InvalidBase64Length" xml:space="preserve">
+        <value>Die Länge der Base64-Eingabe (ohne Leerraum) muss ein Vielfaches von 4 sein.</value>
+    </data>
+    <data name="InvalidBase64Padding" xml:space="preserve">
+        <value>Die Base64-Eingabe enthält ungültiges '='-Padding.</value>
+    </data>
 </root>

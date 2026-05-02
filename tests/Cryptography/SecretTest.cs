@@ -712,6 +712,182 @@ public class SecretTest
         Assert.Throws<ObjectDisposedException>(() => Secret<BigInteger>.FromText(pinnedText));
     }
 
+    [Theory]
+    [InlineData("UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=")]
+    [InlineData("TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu")]
+    [InlineData("bGlnaHQgd29yaw==")]
+    [InlineData("bGlnaHQgd29yay4=")]
+    public void FromBase64_PinnedPoolArrayChar_RoundTripsViaToBase64CharArray(string base64)
+    {
+        // Arrange
+        using var pinnedBase64 = ToPinned(base64);
+
+        // Act
+        using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
+        using var roundTrip = secret.ToBase64CharArray();
+
+        // Assert
+        Assert.Equal(base64.Length, roundTrip.Length);
+        for (int i = 0; i < base64.Length; i++)
+        {
+            Assert.Equal(base64[i], roundTrip[i]);
+        }
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_IgnoresInteriorWhitespace()
+    {
+        // Arrange — same payload as the bare-string Theory case, but split across "lines"
+        // and with miscellaneous whitespace types (LF, CR, space, tab, FF, VT) injected.
+        const string raw = "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu";
+        var paddedBuilder = new StringBuilder();
+        var whitespaces = new[] { "\n", "\r", " ", "\t", "\f", "\v", "\r\n" };
+        for (int i = 0; i < raw.Length; i += 4)
+        {
+            if (i > 0)
+            {
+                paddedBuilder.Append(whitespaces[(i / 4) % whitespaces.Length]);
+            }
+            paddedBuilder.Append(raw, i, Math.Min(4, raw.Length - i));
+        }
+        var padded = paddedBuilder.ToString();
+        Assert.Equal(raw.Length, CountNonWhitespace(padded));
+        using var pinnedBase64 = ToPinned(padded);
+
+        // Act
+        using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
+        using var roundTrip = secret.ToBase64CharArray();
+
+        // Assert
+        Assert.Equal(raw.Length, roundTrip.Length);
+        for (int i = 0; i < raw.Length; i++)
+        {
+            Assert.Equal(raw[i], roundTrip[i]);
+        }
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_EquivalentToConvertFromBase64String()
+    {
+        // Independent oracle: bytes must match Convert.FromBase64String exactly.
+        const string base64 = "UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=";
+        byte[] expected = Convert.FromBase64String(base64);
+
+        using var pinnedBase64 = ToPinned(base64);
+        using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
+        using var bytes = secret.ToByteArray();
+
+        Assert.Equal(expected.Length, bytes.Length);
+        for (int i = 0; i < expected.Length; i++)
+        {
+            Assert.Equal(expected[i], bytes[i]);
+        }
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_InvalidChar_ThrowsFormatExceptionWithPosition()
+    {
+        // '!' at position 4 is not a Base64 alphabet character.
+        const string bad = "ABCD!FGH";
+        using var pinnedBase64 = ToPinned(bad);
+
+        var ex = Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
+        Assert.Contains("'!'", ex.Message);
+        Assert.Contains("4", ex.Message);
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_NotMultipleOfFour_ThrowsFormatException()
+    {
+        using var pinnedBase64 = ToPinned("ABC");
+        Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_TooManyPads_ThrowsFormatException()
+    {
+        using var pinnedBase64 = ToPinned("A===");
+        Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_NonPadAfterPad_ThrowsFormatException()
+    {
+        // 'B' appears after a '=' in the same group.
+        using var pinnedBase64 = ToPinned("A=B=");
+        Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_OnlyWhitespace_ThrowsArgumentException()
+    {
+        using var pinnedBase64 = ToPinned("   \t\r\n\f\v   ");
+        Assert.Throws<ArgumentException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_EmptyBuffer_ThrowsArgumentException()
+    {
+        using var pinnedBase64 = new PinnedPoolArray<char>(0);
+        Assert.Throws<ArgumentException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_NullBuffer_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => Secret<BigInteger>.FromBase64(null));
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_DisposedBuffer_ThrowsObjectDisposedException()
+    {
+        var pinnedBase64 = new PinnedPoolArray<char>(4);
+        pinnedBase64.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
+    }
+
+    [Fact]
+    public void FromBase64_PinnedPoolArrayChar_DoesNotConsumeInput()
+    {
+        const string base64 = "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu";
+        using var pinnedBase64 = ToPinned(base64);
+
+        using (Secret<BigInteger>.FromBase64(pinnedBase64))
+        {
+        }
+
+        // Input buffer must remain intact and usable.
+        Assert.Equal(base64.Length, pinnedBase64.Length);
+        for (int i = 0; i < base64.Length; i++)
+        {
+            Assert.Equal(base64[i], pinnedBase64[i]);
+        }
+    }
+
+    private static PinnedPoolArray<char> ToPinned(string s)
+    {
+        var pinned = new PinnedPoolArray<char>(s.Length);
+        if (s.Length > 0)
+        {
+            s.CopyTo(0, pinned.PoolArray, 0, s.Length);
+        }
+        return pinned;
+    }
+
+    private static int CountNonWhitespace(string s)
+    {
+        int n = 0;
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if (c != ' ' && c != '\t' && c != '\r' && c != '\n' && c != '\f' && c != '\v')
+            {
+                n++;
+            }
+        }
+        return n;
+    }
+
 #if NET8_0_OR_GREATER
     /// <summary>
     /// Tests ReadOnlySpan cast of the <see cref="Secret{TNumber}"/> class.

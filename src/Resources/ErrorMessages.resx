@@ -157,4 +157,13 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="ConsoleInputRedirected" xml:space="preserve">
         <value>Standard input is redirected; interactive password reading is not available.</value>
     </data>
+    <data name="InvalidBase64CharAtPosition" xml:space="preserve">
+        <value>Invalid Base64 character '{0}' at position {1}.</value>
+    </data>
+    <data name="InvalidBase64Length" xml:space="preserve">
+        <value>Base64 input length (excluding whitespace) must be a multiple of 4.</value>
+    </data>
+    <data name="InvalidBase64Padding" xml:space="preserve">
+        <value>Base64 input contains invalid '=' padding.</value>
+    </data>
 </root>

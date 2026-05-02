@@ -323,5 +323,23 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("ConsoleInputRedirected", resourceCulture);
             }
         }
+
+        internal static string InvalidBase64CharAtPosition {
+            get {
+                return ResourceManager.GetString("InvalidBase64CharAtPosition", resourceCulture);
+            }
+        }
+
+        internal static string InvalidBase64Length {
+            get {
+                return ResourceManager.GetString("InvalidBase64Length", resourceCulture);
+            }
+        }
+
+        internal static string InvalidBase64Padding {
+            get {
+                return ResourceManager.GetString("InvalidBase64Padding", resourceCulture);
+            }
+        }
     }
 }
