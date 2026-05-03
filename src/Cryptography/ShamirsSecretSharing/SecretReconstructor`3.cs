@@ -125,30 +125,33 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         using var zero = Calculator<TNumber>.Zero;
-        using var one = Calculator<TNumber>.One;
         var numeratorProducts = new Calculator<TNumber>[numberOfPoints];
         var denominatorProducts = new Calculator<TNumber>[numberOfPoints];
-        var numeratorTerms = new Calculator<TNumber>[numberOfPoints];
-        var denominatorTerms = new Calculator<TNumber>[numberOfPoints];
-        var denominator = one.Clone();
+        var denominator = Calculator<TNumber>.One;
 
         for (int i = 0; i < numberOfPoints; i++)
         {
+            var numeratorProduct = Calculator<TNumber>.One;
+            var denominatorProduct = Calculator<TNumber>.One;
             for (int j = 0; j < numberOfPoints; j++)
             {
-                if (shares[i] != shares[j])
+                if (i == j)
                 {
-                    numeratorTerms[j] = zero - shares[j].Index;
-                    denominatorTerms[j] = shares[i].Index - shares[j].Index;
+                    continue;
                 }
-                else
-                {
-                    numeratorTerms[j] = denominatorTerms[j] = one;
-                }
+
+                using var numeratorTerm = zero - shares[j].Index;
+                using var denominatorTerm = shares[i].Index - shares[j].Index;
+                var numeratorPrev = numeratorProduct;
+                numeratorProduct = numeratorProduct * numeratorTerm;
+                numeratorPrev.Dispose();
+                var denominatorPrev = denominatorProduct;
+                denominatorProduct = denominatorProduct * denominatorTerm;
+                denominatorPrev.Dispose();
             }
 
-            numeratorProducts[i] = Product(numeratorTerms);
-            denominatorProducts[i] = Product(denominatorTerms);
+            numeratorProducts[i] = numeratorProduct;
+            denominatorProducts[i] = denominatorProduct;
             var denominatorTemp = denominator;
             denominator *= denominatorProducts[i];
             denominatorTemp.Dispose();
@@ -178,8 +181,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         denominator.Dispose();
         numeratorProducts.DisposeAll();
         denominatorProducts.DisposeAll();
-        numeratorTerms.DisposeAll();
-        denominatorTerms.DisposeAll();
 
         return Secret<TNumber>.FromCoefficient(a0);
     }
@@ -278,24 +279,5 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     {
         using var r = x.MathematicalModulo(prime);
         return r.Sign < 0 ? r + prime : r.Clone();
-    }
-
-    /// <summary>
-    /// Computes the mathematical product of a series of <paramref name="values"/>
-    /// </summary>
-    /// <param name="values">The values to be multiplied</param>
-    /// <returns>The product of the <paramref name="values"/></returns>
-    /// <remarks>Helper method for LagrangeInterpolate</remarks>
-    private static Calculator<TNumber> Product(IReadOnlyList<Calculator<TNumber>> values)
-    {
-        var result = Calculator<TNumber>.One;
-        for (int i = 0; i < values.Count; i++)
-        {
-            var resultTemp = result;
-            result *= values[i];
-            resultTemp.Dispose();
-        }
-
-        return result;
     }
 }
