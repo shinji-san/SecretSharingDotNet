@@ -86,13 +86,22 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// Generates a random shamir pool and returns the share points.
     /// The generated random secret is provided via the <paramref name="generatedSecret"/> out parameter.
     /// </summary>
-    /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
-    /// <param name="numberOfShares">Maximum number of shared secrets</param>
+    /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction.</param>
+    /// <param name="numberOfShares">Maximum number of shared secrets.</param>
     /// <param name="securityLevel">Security level (in number of bits). The minimum is 13.</param>
-    /// <param name="generatedSecret">output parameter returning the generated secret as <see cref="Secret{TNumber}"/></param>
+    /// <param name="generatedSecret">
+    /// Output parameter receiving the generated random <see cref="Secret{TNumber}"/>. The caller
+    /// takes ownership and is responsible for disposing it when no longer needed.
+    /// </param>
     /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
-    /// <exception cref="T:System.ArgumentOutOfRangeException">
-    /// The <paramref name="securityLevel"/> parameter is lower than 13 or greater than 43.112.609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is lower than 13 or greater than 43,112,609, or
+    /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// The configured <see cref="ISecurityLevelManager{TNumber}"/> has no Mersenne prime
+    /// initialised, or the configured <typeparamref name="TNumber"/> backend's
+    /// <see cref="Calculator"/> factory rejected the random byte buffer.
     /// </exception>
     public Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, int securityLevel, out Secret<TNumber> generatedSecret)
     {
@@ -136,14 +145,29 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <summary>
     /// Generates a shamir pool using the provided <paramref name="secret"/> and returns the share points.
     /// </summary>
-    /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
-    /// <param name="numberOfShares">Maximum number of shared secrets</param>
-    /// <param name="secret">secret text as <see cref="Secret{TNumber}"/> or see cref="string"/></param>
-    /// <param name="securityLevel">Security level (in number of bits). The minimum is 13.</param>
+    /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction.</param>
+    /// <param name="numberOfShares">Maximum number of shared secrets.</param>
+    /// <param name="secret">The secret to split, as a <see cref="Secret{TNumber}"/>.</param>
+    /// <param name="securityLevel">
+    /// Lower bound for the security level (in number of bits). The minimum is 13. The
+    /// effective security level may be raised above this value when <paramref name="secret"/>
+    /// requires more bits than <paramref name="securityLevel"/> provides.
+    /// </param>
     /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
-    /// <remarks>This method can modify the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length.</remarks>
-    /// <exception cref="T:System.ArgumentOutOfRangeException">
-    /// The <paramref name="securityLevel"/> is lower than 13 or greater than 43.112.609. OR <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// <remarks>
+    /// This method may raise the <see cref="SecurityLevel"/> above <paramref name="securityLevel"/>
+    /// to fit the <paramref name="secret"/>'s byte length; it never lowers it.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is lower than 13 or greater than 43,112,609, or
+    /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// The configured <typeparamref name="TNumber"/> backend's <see cref="Calculator"/>
+    /// factory rejected the random byte buffer.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// <paramref name="secret"/> has already been disposed.
     /// </exception>
     public Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret, int securityLevel)
     {
@@ -162,12 +186,24 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <summary>
     /// Generates a shamir pool using the provided <paramref name="secret"/> and returns the share points.
     /// </summary>
-    /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction</param>
-    /// <param name="numberOfShares">Maximum number of shared secrets</param>
-    /// <param name="secret">secret text as <see cref="Secret{TNumber}"/> or see cref="string"/></param>
+    /// <param name="numberOfMinimumShares">Minimum number of shared secrets for reconstruction.</param>
+    /// <param name="numberOfShares">Maximum number of shared secrets.</param>
+    /// <param name="secret">The secret to split, as a <see cref="Secret{TNumber}"/>.</param>
     /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
-    /// <remarks>This method modifies the <see cref="SecurityLevel"/> based on the <paramref name="secret"/> length</remarks>
-    /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
+    /// <remarks>
+    /// This method may raise the <see cref="SecurityLevel"/> based on <paramref name="secret"/>'s
+    /// byte length; it never lowers it.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// The configured <typeparamref name="TNumber"/> backend's <see cref="Calculator"/>
+    /// factory rejected the random byte buffer.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// <paramref name="secret"/> has already been disposed.
+    /// </exception>
     public Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret)
     {
         if (numberOfMinimumShares < 2)
