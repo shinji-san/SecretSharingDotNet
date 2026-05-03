@@ -215,17 +215,32 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
             var mersennePrimeByteCount = this.securityLevelManager.MersennePrime.ByteCount;
             using var randomBytePool = new PinnedPoolArray<byte>(mersennePrimeByteCount);
             using var rng = RandomNumberGenerator.Create();
+            int topIndex = numberOfMinimumShares - 1;
             for (int i = 1; i < numberOfMinimumShares; i++)
             {
-                rng.GetBytes(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
-                using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>;
-                if (randomValue == null)
+                while (true)
                 {
-                    throw new InvalidOperationException(ErrorMessages.RandomValueGenerationFailed);
-                }
+                    rng.GetBytes(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
+                    using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>;
+                    if (randomValue == null)
+                    {
+                        throw new InvalidOperationException(ErrorMessages.RandomValueGenerationFailed);
+                    }
 
-                using var abs = randomValue.Abs();
-                polynomial[i] = abs % this.securityLevelManager.MersennePrime;
+                    using var abs = randomValue.Abs();
+                    var coefficient = abs % this.securityLevelManager.MersennePrime;
+                    // The leading coefficient must be non-zero to keep the polynomial at the
+                    // intended degree k-1. A zero leading coefficient would silently drop the
+                    // effective threshold from k to k-1. Reroll on a zero draw; lower-index
+                    // coefficients are accepted unconditionally.
+                    if (i != topIndex || !coefficient.IsZero)
+                    {
+                        polynomial[i] = coefficient;
+                        break;
+                    }
+
+                    coefficient.Dispose();
+                }
             }
         }
         catch
