@@ -52,7 +52,7 @@ public class SecretSplitterTest
     [Fact]
     public void TestDivMod()
     {
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         Calculator<BigInteger> d = (BigInteger)3000;
         Calculator<BigInteger> n = (BigInteger)3000;
         Calculator<BigInteger> p = Calculator<BigInteger>.Two.Pow(127) - Calculator<BigInteger>.One;
@@ -69,7 +69,7 @@ public class SecretSplitterTest
     {
         // Arrange
         var secretSplitter = new SecretSplitter<BigInteger>();
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act & Assert
         switch (secret)
@@ -127,7 +127,7 @@ public class SecretSplitterTest
     {
         // Arrange
         var secretSplitter = new SecretSplitter<BigInteger>();
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         using var pinnedPassword = password.ToPinnedSecure();
         using var passwordSecret = Secret<BigInteger>.FromText(pinnedPassword);
 
@@ -157,7 +157,7 @@ public class SecretSplitterTest
     {
         // Arrange
         var secretSplitter = new SecretSplitter<BigInteger>();
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act
         var shares = secretSplitter.MakeShares(3, 7, number, splitSecurityLevel);
@@ -184,7 +184,7 @@ public class SecretSplitterTest
     {
         // Arrange
         var secretSplitter = new SecretSplitter<BigInteger>();
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act
         var shares = secretSplitter.MakeShares(3, 7, splitSecurityLevel, out var originalSecret);
@@ -223,7 +223,7 @@ public class SecretSplitterTest
     {
         // Arrange
         var secretSplitter = new SecretSplitter<BigInteger>();
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act & Assert
         var shares = secretSplitter.MakeShares(2, 7, 13, out _);
@@ -240,7 +240,7 @@ public class SecretSplitterTest
     {
         // Arrange
         var secretSplitter = new SecretSplitter<BigInteger>();
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act
         var shares = secretSplitter.MakeShares(3, 7, 51, out var originalSecret);
@@ -262,7 +262,7 @@ public class SecretSplitterTest
         const string longSecret =
             "-----BEGIN EC PRIVATE KEY-----MIIBUQIBAQQgxq7AWG9L6uleuTB9q5FGqnHjXF+kD4y9154SLYYKMDqggeMwgeACAQEwLAYHKoZIzj0BAQIhAP////////////////////////////////////7///wvMEQEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwRBBHm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeYSDradyajxGVdpPv8DhEIqP0XtEimhVQZnEfQj/sQ1LgCIQD////////////////////+uq7c5q9IoDu/0l6M0DZBQQIBAaFEA0IABE0XO6I8lZYzXqRQnHP/knSwLex7q77g4J2AN0cVyrADicGlUr6QjVIlIu9NXCHxD2i++ToWjO1zLVdxgNJbUUc=-----END EC PRIVATE KEY-----";
         var secretSplitter = new SecretSplitter<BigInteger>();
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         using var pinnedLong = longSecret.ToPinnedSecure();
         using var longSecretValue = Secret<BigInteger>.FromText(pinnedLong);
 
@@ -286,7 +286,7 @@ public class SecretSplitterTest
     public void TestReconstructFromStringArray()
     {
         // Arrange
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
 
         // Act
@@ -311,7 +311,7 @@ public class SecretSplitterTest
             sharesChunk.AppendLine(share);
         }
 
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         using var blob = sharesChunk.ToString().ToPinnedSecure();
 
         // Act
@@ -333,7 +333,7 @@ public class SecretSplitterTest
         int ok = 0;
         const int total = 1000;
         var secretSplitter = new SecretSplitter<BigInteger>();
-        var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         var rng = new Random();
 
         // Act

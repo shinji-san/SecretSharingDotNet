@@ -36,6 +36,7 @@ using Math;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 /// <summary>
 /// Represents a class used for reconstructing secrets using Shamir's Secret Sharing scheme.
@@ -59,7 +60,22 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     private readonly ISecurityLevelManager<TNumber> securityLevelManager;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
+    /// Indicates whether this instance owns <see cref="securityLevelManager"/> and is therefore
+    /// responsible for disposing it. <see langword="true"/> when the manager was created internally
+    /// by the parameterless constructor; <see langword="false"/> when it was supplied by the caller.
+    /// </summary>
+    private readonly bool ownsSecurityLevelManager;
+
+    /// <summary>
+    /// Disposal flag manipulated atomically via <see cref="Interlocked.Exchange(ref int, int)"/>:
+    /// 0 = alive, 1 = disposed.
+    /// </summary>
+    private int disposed;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class
+    /// using a default <see cref="SecurityLevelManager{TNumber}"/>. The created manager is owned by this
+    /// instance and disposed together with it.
     /// </summary>
     /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
     /// <exception cref="T:System.ArgumentNullException">The <paramref name="extendedGcd"/> parameter is <see langword="null"/>.</exception>
@@ -67,18 +83,32 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     {
         this.extendedGcd = extendedGcd ?? throw new ArgumentNullException(nameof(extendedGcd));
         this.securityLevelManager = new SecurityLevelManager<TNumber>();
+        this.ownsSecurityLevelManager = true;
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdResult, TExtendedGcdResult}"/> class.
+    /// Initializes a new instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class
+    /// with a caller-supplied <see cref="ISecurityLevelManager{TNumber}"/>. Ownership of the manager
+    /// remains with the caller; this instance will not dispose it.
     /// </summary>
     /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
     /// <param name="securityLevelManager">Manages security level configuration</param>
-    /// <exception cref="T:System.ArgumentNullException">The <paramref name="extendedGcd"/> parameter is <see langword="null"/>.</exception>
+    /// <exception cref="T:System.ArgumentNullException">
+    /// The <paramref name="extendedGcd"/> or <paramref name="securityLevelManager"/> parameter is <see langword="null"/>.
+    /// </exception>
     public SecretReconstructor(TExtendedGcdAlgorithm extendedGcd, ISecurityLevelManager<TNumber> securityLevelManager)
     {
         this.extendedGcd = extendedGcd ?? throw new ArgumentNullException(nameof(extendedGcd));
         this.securityLevelManager = securityLevelManager ?? throw new ArgumentNullException(nameof(securityLevelManager));
+        this.ownsSecurityLevelManager = false;
+    }
+
+    /// <summary>
+    /// Finalizes an instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
+    /// </summary>
+    ~SecretReconstructor()
+    {
+        this.Dispose(false);
     }
 
     /// <summary>
@@ -86,10 +116,19 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </summary>
     /// <remarks>The value is lower than 13 or greater than 43.112.609.</remarks>
     /// <exception cref="T:System.ArgumentOutOfRangeException" accessor="set">The value is lower than 13 or greater than 43.112.609.</exception>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public int SecurityLevel
     {
-        get => this.securityLevelManager.SecurityLevel;
-        set => this.securityLevelManager.SecurityLevel = value;
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.securityLevelManager.SecurityLevel;
+        }
+        set
+        {
+            this.ThrowIfDisposed();
+            this.securityLevelManager.SecurityLevel = value;
+        }
     }
 
     /// <summary>
@@ -190,8 +229,10 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </summary>
     /// <param name="shares">For details <see cref="Shares{TNumber}"/></param>
     /// <returns>Re-constructed secret</returns>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public Secret<TNumber> Reconstruction(Shares<TNumber> shares)
     {
+        this.ThrowIfDisposed();
         if (shares is null)
         {
             throw new ArgumentNullException(nameof(shares));
@@ -227,11 +268,13 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// Thrown when the <paramref name="denominator"/> is zero (its modular inverse does not exist) or
     /// when the denominator is not invertible modulo the prime (gcd does not equal 1).
     /// </exception>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     internal Calculator<TNumber> DivMod(
         Calculator<TNumber> numerator,
         Calculator<TNumber> denominator,
         Calculator<TNumber> prime)
     {
+        this.ThrowIfDisposed();
         if (numerator is null)
         {
             throw new ArgumentNullException(nameof(numerator));
@@ -279,5 +322,54 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     {
         using var r = x.MathematicalModulo(prime);
         return r.Sign < 0 ? r + prime : r.Clone();
+    }
+
+    /// <summary>
+    /// Releases all resources used by the current instance of the
+    /// <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
+    /// </summary>
+    /// <remarks>
+    /// Idempotent and safe to call from multiple threads concurrently. The owned
+    /// <see cref="ISecurityLevelManager{TNumber}"/> (when present) is disposed exactly once.
+    /// </remarks>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
+        {
+            return;
+        }
+
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases the resources used by the
+    /// <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> instance.
+    /// </summary>
+    /// <param name="disposing">A boolean value indicating whether to release managed resources (<see langword="true"/>)
+    /// or only unmanaged resources (<see langword="false"/>).</param>
+    /// <remarks>
+    /// Disposes the contained <see cref="ISecurityLevelManager{TNumber}"/> only when this instance owns it
+    /// (i.e. when constructed via the parameterless-manager overload).
+    /// </remarks>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing && this.ownsSecurityLevelManager)
+        {
+            this.securityLevelManager.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Throws <see cref="ObjectDisposedException"/> if this instance has already been disposed.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref this.disposed) == 1)
+        {
+            throw new ObjectDisposedException(this.GetType().FullName);
+        }
     }
 }
