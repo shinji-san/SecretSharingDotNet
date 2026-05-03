@@ -104,10 +104,19 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     }
 
     /// <summary>
-    /// Gets or sets the security level
+    /// Gets or sets the security level (in bits) of the underlying
+    /// <see cref="ISecurityLevelManager{TNumber}"/>.
     /// </summary>
-    /// <remarks>The value is lower than 13 or greater than 43.112.609.</remarks>
-    /// <exception cref="T:System.ArgumentOutOfRangeException" accessor="set">The value is lower than 13 or greater than 43.112.609.</exception>
+    /// <remarks>
+    /// Acts as a lower bound on the level used by <see cref="MakeShares(int, int, Secret{TNumber})"/>
+    /// and its overloads: when the secret's bit length exceeds this value, the level is
+    /// automatically raised to fit the secret; it is never lowered. Valid range is the Mersenne
+    /// prime exponent range exposed by <see cref="ISecurityLevelManager{TNumber}"/>
+    /// (typically 13 through 43,112,609).
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException" accessor="set">
+    /// The supplied value is below the minimum or above the maximum supported Mersenne prime exponent.
+    /// </exception>
     /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public int SecurityLevel
     {

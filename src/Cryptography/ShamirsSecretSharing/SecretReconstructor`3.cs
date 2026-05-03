@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// <copyright file="ShamirsSecretSharing`3.cs" company="Private">
+// <copyright file="SecretReconstructor`3.cs" company="Private">
 // Copyright (c) 2025 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
@@ -134,14 +134,20 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     }
 
     /// <summary>
-    /// Find the y-value for the given x, given n (x, y) points;
-    /// k points will define a polynomial of up to kth order.
+    /// Reconstructs the secret (the constant term <c>a₀</c> of the original polynomial) from
+    /// <paramref name="shares"/> by Lagrange interpolation in the finite field defined by
+    /// <paramref name="prime"/>, evaluated at <c>x = 0</c>.
     /// </summary>
-    /// <param name="shares">The shares representing points on the polynomial.</param>
-    /// <param name="prime">A prime number must be defined to avoid computation with real numbers. In fact, it is finite field arithmetic.
-    /// The prime number must be the same as used for the construction of shares.</param>
-    /// <exception cref="ArgumentException"></exception>
-    /// <returns>The re-constructed secret.</returns>
+    /// <param name="shares">The k or more shares (distinct-index points) on the polynomial.</param>
+    /// <param name="prime">The Mersenne prime modulus that defines the finite field. Must be the
+    /// same prime used during share creation.</param>
+    /// <returns>The reconstructed secret.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="shares"/> or <paramref name="prime"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Two or more entries in <paramref name="shares"/> share the same <see cref="Share{TNumber}.Index"/>.
+    /// </exception>
     /// <remarks>
     /// The <paramref name="shares"/> are borrowed — this method reads <see cref="Share{TNumber}.Index"/>
     /// and <see cref="Share{TNumber}.Value"/> but never disposes them. Ownership of the shares remains
@@ -250,6 +256,14 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </summary>
     /// <param name="shares">For details <see cref="Shares{TNumber}"/></param>
     /// <returns>Re-constructed secret</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="shares"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="shares"/> contains fewer than two entries.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="shares"/> has no maximum y-value, or contains entries with duplicate
+    /// <see cref="Share{TNumber}.Index"/> values.
+    /// </exception>
     /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public Secret<TNumber> Reconstruction(Shares<TNumber> shares)
     {
