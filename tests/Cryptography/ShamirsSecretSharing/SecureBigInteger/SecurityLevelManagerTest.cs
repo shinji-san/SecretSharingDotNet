@@ -299,4 +299,68 @@ public class SecurityLevelManagerTest
         using var powerResult = value.Pow(initialSecurityLevel);
         Assert.Equal(powerResult - 1, mersennePrime.Value);
     }
+
+    [Fact]
+    public void Dispose_CalledMultipleTimes_IsIdempotent()
+    {
+        // Arrange
+        var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
+
+        // Act & Assert — must not throw on repeated dispose.
+        securityLevelManager.Dispose();
+        securityLevelManager.Dispose();
+        securityLevelManager.Dispose();
+    }
+
+    [Fact]
+    public void SecurityLevel_Get_AfterDispose_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
+        securityLevelManager.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => _ = securityLevelManager.SecurityLevel);
+    }
+
+    [Fact]
+    public void SecurityLevel_Set_AfterDispose_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
+        securityLevelManager.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => securityLevelManager.SecurityLevel = 31);
+    }
+
+    [Fact]
+    public void SecurityLevel_Set_DisposesPreviousMersennePrime()
+    {
+        // Arrange
+        using var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
+        var firstPrime = securityLevelManager.MersennePrime;
+
+        // Act — assigning a new level must dispose the previous prime atomically.
+        securityLevelManager.SecurityLevel = 31;
+
+        // Assert — same reference; underlying SecureBigInteger.Value has been disposed.
+        Assert.NotSame(firstPrime, securityLevelManager.MersennePrime);
+        Assert.Throws<ObjectDisposedException>(() => _ = firstPrime.Value.IsZero);
+    }
+
+    [Fact]
+    public void Dispose_AfterCtor_DisposesUnderlyingMersennePrime()
+    {
+        // Arrange
+        var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
+        var prime = securityLevelManager.MersennePrime;
+        Assert.NotNull(prime);
+
+        // Act
+        securityLevelManager.Dispose();
+
+        // Assert — the prime backing buffer is released as part of disposal.
+        Assert.Throws<ObjectDisposedException>(() => _ = prime.Value.IsZero);
+    }
 }

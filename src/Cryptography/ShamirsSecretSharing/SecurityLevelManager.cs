@@ -33,6 +33,7 @@ namespace SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 
 using Math;
 using System;
+using System.Threading;
 
 /// <summary>
 /// Default implementation of <see cref="ISecurityLevelManager{TNumber}"/>.
@@ -48,16 +49,23 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     private readonly IMersennePrimeProvider mersennePrimeProvider;
 
     /// <summary>
-    /// Represents the fixed security level used within the implementation of <see cref="SecurityLevelManager{TNumber}"/>.
-    /// This value determines the security level as a Mersenne prime exponent, ensuring constraints
-    /// are met based on the limits provided by the <see cref="IMersennePrimeProvider"/>.
+    /// Synchronizes mutations of <see cref="MersennePrime"/> and <see cref="fixedSecurityLevel"/> in
+    /// the <see cref="SecurityLevel"/> setter and final disposal, so concurrent setters and a
+    /// concurrent <see cref="Dispose"/> cannot interleave the field swap.
+    /// </summary>
+    private readonly object syncRoot = new();
+
+    /// <summary>
+    /// Holds the current security level (Mersenne prime exponent) backing
+    /// <see cref="SecurityLevel"/>. Mutated only inside <see cref="syncRoot"/>.
     /// </summary>
     private int fixedSecurityLevel;
 
     /// <summary>
-    /// Indicates whether the instance has been disposed.
+    /// Disposal flag manipulated atomically via <see cref="Interlocked.Exchange(ref int, int)"/>:
+    /// <c>0</c> = alive, <c>1</c> = disposed.
     /// </summary>
-    private bool disposed;
+    private int disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityLevelManager{TNumber}"/> class with the
@@ -81,20 +89,17 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
         this.SecurityLevel = this.mersennePrimeProvider.MinMersennePrimeExponent;
     }
 
-    /// <summary>
-    /// Finalizes an instance of the <see cref="SecurityLevelManager{TNumber}"/> class.
-    /// </summary>
-    ~SecurityLevelManager()
-    {
-        this.Dispose(false);
-    }
-
     /// <inheritdoc/>
     public int SecurityLevel
     {
-        get => this.fixedSecurityLevel;
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.fixedSecurityLevel;
+        }
         set
         {
+            this.ThrowIfDisposed();
             if (value < this.mersennePrimeProvider.MinMersennePrimeExponent)
             {
                 throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MinimumSecurityLevelExceeded);
@@ -105,16 +110,42 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
                 throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MaximumSecurityLevelExceeded);
             }
 
-            int validSecurityLevel = !this.mersennePrimeProvider.IsValidMersennePrimeExponent(value) 
-                ? this.mersennePrimeProvider.GetNextMersennePrimeExponent(value) 
+            int validSecurityLevel = !this.mersennePrimeProvider.IsValidMersennePrimeExponent(value)
+                ? this.mersennePrimeProvider.GetNextMersennePrimeExponent(value)
                 : value;
 
-            using var one = Calculator<TNumber>.One;
-            using var two = Calculator<TNumber>.Two;
-            var newPrime = two.Pow(validSecurityLevel) - one;
-            this.MersennePrime?.Dispose();
-            this.MersennePrime = newPrime;
-            this.fixedSecurityLevel = validSecurityLevel;
+            // Allocate the new prime outside the lock — Pow/Subtract may be costly,
+            // and we want to keep the critical section short.
+            Calculator<TNumber> newPrime;
+            using (var one = Calculator<TNumber>.One)
+            using (var two = Calculator<TNumber>.Two)
+            {
+                newPrime = two.Pow(validSecurityLevel) - one;
+            }
+
+            Calculator<TNumber> oldPrime;
+            try
+            {
+                lock (this.syncRoot)
+                {
+                    // Re-check disposed after acquiring the lock so a racing
+                    // Dispose cannot resurrect this instance with a fresh prime.
+                    this.ThrowIfDisposed();
+                    oldPrime = this.MersennePrime;
+                    this.MersennePrime = newPrime;
+                    this.fixedSecurityLevel = validSecurityLevel;
+                    newPrime = null; // ownership transferred to MersennePrime
+                }
+            }
+            catch
+            {
+                newPrime?.Dispose();
+                throw;
+            }
+
+            // Dispose outside the lock — Calculator.Dispose touches pinned-pool
+            // resources and we must not hold our own monitor across that.
+            oldPrime?.Dispose();
         }
     }
 
@@ -141,8 +172,17 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     /// <summary>
     /// Releases all resources used by the current instance of the <see cref="SecurityLevelManager{TNumber}"/> class.
     /// </summary>
+    /// <remarks>
+    /// Idempotent and safe to call from multiple threads concurrently. The owned
+    /// <see cref="MersennePrime"/> Calculator is disposed exactly once.
+    /// </remarks>
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
+        {
+            return;
+        }
+
         this.Dispose(true);
         GC.SuppressFinalize(this);
     }
@@ -150,22 +190,34 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     /// <summary>
     /// Releases the resources used by the <see cref="SecurityLevelManager{TNumber}"/> instance.
     /// </summary>
-    /// <param name="disposing">A boolean value indicating whether to release managed resources (true) or
-    /// only unmanaged resources (false).</param>
+    /// <param name="disposing">A boolean value indicating whether to release managed resources
+    /// (<see langword="true"/>) or only unmanaged resources (<see langword="false"/>).</param>
     protected virtual void Dispose(bool disposing)
     {
-        if (this.disposed)
+        if (!disposing)
         {
             return;
         }
 
-        if (disposing)
+        Calculator<TNumber> primeToDispose;
+        lock (this.syncRoot)
         {
-            this.MersennePrime.Dispose();
+            primeToDispose = this.MersennePrime;
+            this.MersennePrime = null;
         }
 
-        // Dispose unmanaged resources here if any
+        primeToDispose?.Dispose();
+    }
 
-        this.disposed = true;
+    /// <summary>
+    /// Throws <see cref="ObjectDisposedException"/> if this instance has already been disposed.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref this.disposed) == 1)
+        {
+            throw new ObjectDisposedException(this.GetType().FullName);
+        }
     }
 }
