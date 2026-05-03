@@ -31,6 +31,8 @@
 
 namespace SecretSharingDotNet.Math;
 
+using System;
+
 /// <summary>
 /// Extended Euclidean algorithm implementation
 /// </summary>
@@ -38,48 +40,96 @@ namespace SecretSharingDotNet.Math;
 public class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>
 {
     /// <summary>
-    /// Computes, in addition to the greatest common divisor of integers <paramref name="a"/> and <paramref name="b"/>, also the coefficients of Bézout's identity.
+    /// Computes, in addition to the greatest common divisor of <paramref name="a"/> and
+    /// <paramref name="b"/>, also the coefficients of Bézout's identity.
     /// </summary>
-    /// <param name="a">An integer</param>
-    /// <param name="b">An integer</param>
+    /// <param name="a">An element of type <see cref="Calculator{TNumber}"/></param>
+    /// <param name="b">An element of type <see cref="Calculator{TNumber}"/></param>
     /// <returns>For details: <see cref="ExtendedGcdResult{TNumber}"/></returns>
     /// <remarks>
-    /// https://en.wikipedia.org/wiki/Modular_multiplicative_inverse#Computation 
+    /// https://en.wikipedia.org/wiki/Modular_multiplicative_inverse#Computation
     /// https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Example
     /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="a"/> or <paramref name="b"/> is <see langword="null"/>.
+    /// </exception>
     public ExtendedGcdResult<TNumber> Compute(Calculator<TNumber> a, Calculator<TNumber> b)
     {
-        var x = Calculator<TNumber>.Zero;
-        var lastX = Calculator<TNumber>.One;
-        var y = Calculator<TNumber>.One;
-        var lastY = Calculator<TNumber>.Zero;
-        var r = b.Clone();
-        var lastR = a.Clone();
-        while (r != Calculator<TNumber>.Zero)
+        if (a is null)
         {
-            checked
-            {
-                using var quotient = lastR / r;
-
-                var tmpR = r;
-                r = lastR - quotient * r;
-                lastR.Dispose();
-                lastR = tmpR;
-
-                var tmpX = x;
-                x = lastX - quotient * x;
-                lastX.Dispose();
-                lastX = tmpX;
-
-                var tmpY = y;
-                y = lastY - quotient * y;
-                lastY.Dispose();
-                lastY = tmpY;
-            }
+            throw new ArgumentNullException(nameof(a));
         }
 
-        var coefficients = new[] {lastX, lastY};
-        var quotients = new[] {x, y};
-        return new ExtendedGcdResult<TNumber>(lastR, coefficients, quotients);
+        if (b is null)
+        {
+            throw new ArgumentNullException(nameof(b));
+        }
+
+        Calculator<TNumber> x = null;
+        Calculator<TNumber> lastX = null;
+        Calculator<TNumber> y = null;
+        Calculator<TNumber> lastY = null;
+        Calculator<TNumber> r = null;
+        Calculator<TNumber> lastR = null;
+        try
+        {
+            x = Calculator<TNumber>.Zero;
+            lastX = Calculator<TNumber>.One;
+            y = Calculator<TNumber>.One;
+            lastY = Calculator<TNumber>.Zero;
+            r = b.Clone();
+            lastR = a.Clone();
+
+            while (!r.IsZero)
+            {
+                checked
+                {
+                    using var quotient = lastR / r;
+                    using var quotientTimesR = quotient * r;
+                    using var quotientTimesX = quotient * x;
+                    using var quotientTimesY = quotient * y;
+
+                    var tmpR = r;
+                    r = lastR - quotientTimesR;
+                    lastR.Dispose();
+                    lastR = tmpR;
+
+                    var tmpX = x;
+                    x = lastX - quotientTimesX;
+                    lastX.Dispose();
+                    lastX = tmpX;
+
+                    var tmpY = y;
+                    y = lastY - quotientTimesY;
+                    lastY.Dispose();
+                    lastY = tmpY;
+                }
+            }
+
+            // r is zero at this point, still owned by us, and is not part of the
+            // result — release it explicitly to avoid leaking the final iteration's
+            // tail value.
+            r.Dispose();
+            r = null;
+
+            var coefficients = new[] { lastX, lastY };
+            var quotients = new[] { x, y };
+            var result = new ExtendedGcdResult<TNumber>(lastR, coefficients, quotients);
+
+            // Ownership of these calculators is now held by `result`. Null the locals
+            // so the catch block below does not double-dispose values the result owns.
+            lastR = lastX = lastY = x = y = null;
+            return result;
+        }
+        catch
+        {
+            x?.Dispose();
+            lastX?.Dispose();
+            y?.Dispose();
+            lastY?.Dispose();
+            r?.Dispose();
+            lastR?.Dispose();
+            throw;
+        }
     }
 }
