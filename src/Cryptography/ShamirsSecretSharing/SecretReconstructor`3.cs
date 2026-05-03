@@ -166,62 +166,81 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         using var zero = Calculator<TNumber>.Zero;
         var numeratorProducts = new Calculator<TNumber>[numberOfPoints];
         var denominatorProducts = new Calculator<TNumber>[numberOfPoints];
-        var denominator = Calculator<TNumber>.One;
-
-        for (int i = 0; i < numberOfPoints; i++)
+        Calculator<TNumber> denominator = null;
+        Calculator<TNumber> numerator = null;
+        try
         {
-            var numeratorProduct = Calculator<TNumber>.One;
-            var denominatorProduct = Calculator<TNumber>.One;
-            for (int j = 0; j < numberOfPoints; j++)
-            {
-                if (i == j)
-                {
-                    continue;
-                }
+            denominator = Calculator<TNumber>.One;
 
-                using var numeratorTerm = zero - shares[j].Index;
-                using var denominatorTerm = shares[i].Index - shares[j].Index;
-                var numeratorPrev = numeratorProduct;
-                numeratorProduct = numeratorProduct * numeratorTerm;
-                numeratorPrev.Dispose();
-                var denominatorPrev = denominatorProduct;
-                denominatorProduct = denominatorProduct * denominatorTerm;
-                denominatorPrev.Dispose();
+            for (int i = 0; i < numberOfPoints; i++)
+            {
+                var numeratorProduct = Calculator<TNumber>.One;
+                var denominatorProduct = Calculator<TNumber>.One;
+                try
+                {
+                    for (int j = 0; j < numberOfPoints; j++)
+                    {
+                        if (i == j)
+                        {
+                            continue;
+                        }
+
+                        using var numeratorTerm = zero - shares[j].Index;
+                        using var denominatorTerm = shares[i].Index - shares[j].Index;
+                        var numeratorPrev = numeratorProduct;
+                        numeratorProduct = numeratorProduct * numeratorTerm;
+                        numeratorPrev.Dispose();
+                        var denominatorPrev = denominatorProduct;
+                        denominatorProduct = denominatorProduct * denominatorTerm;
+                        denominatorPrev.Dispose();
+                    }
+
+                    numeratorProducts[i] = numeratorProduct;
+                    denominatorProducts[i] = denominatorProduct;
+                    // Ownership transferred to the *Products arrays; the outer finally
+                    // is now responsible. Null the locals so the catch below does not
+                    // double-dispose values already owned by the arrays.
+                    numeratorProduct = denominatorProduct = null;
+                    var denominatorTemp = denominator;
+                    denominator *= denominatorProducts[i];
+                    denominatorTemp.Dispose();
+                }
+                catch
+                {
+                    numeratorProduct?.Dispose();
+                    denominatorProduct?.Dispose();
+                    throw;
+                }
             }
 
-            numeratorProducts[i] = numeratorProduct;
-            denominatorProducts[i] = denominatorProduct;
-            var denominatorTemp = denominator;
-            denominator *= denominatorProducts[i];
-            denominatorTemp.Dispose();
-        }
+            numerator = zero.Clone();
+            for (int i = 0; i < numberOfPoints; i++)
+            {
+                using var weightedNumerator = numeratorProducts[i] * denominator;
+                using var normalizedYCoordinate = shares[i].Value.MathematicalModulo(prime);
+                using var currentNumerator = weightedNumerator * normalizedYCoordinate;
+                using var modInversePerPoint = this.DivMod(currentNumerator, denominatorProducts[i], prime);
+                var numeratorTemp = numerator;
+                numerator += modInversePerPoint;
+                numeratorTemp.Dispose();
+            }
 
-        var numerator = zero;
-        for (int i = 0; i < numberOfPoints; i++)
+            using var modInverse = this.DivMod(numerator, denominator, prime);
+            using var secretCoefficient = modInverse + prime;
+            // Normalized coefficient a0 is the secret
+            using var a0 = secretCoefficient.MathematicalModulo(prime);
+
+            return Secret<TNumber>.FromCoefficient(a0);
+        }
+        finally
         {
-            using var weightedNumerator = numeratorProducts[i] * denominator;
-            using var normalizedYCoordinate = shares[i].Value.MathematicalModulo(prime);
-            using var currentNumerator = weightedNumerator * normalizedYCoordinate;
-            using var modInversePerPoint = this.DivMod(currentNumerator, denominatorProducts[i], prime);
-            var numeratorTemp = numerator;
-            numerator += modInversePerPoint;
-            numeratorTemp.Dispose();
+            // prime is provided from Mersenne prime provider and is not disposed here.
+            // Shares are provided from outside and are not disposed here.
+            numerator?.Dispose();
+            denominator?.Dispose();
+            numeratorProducts.DisposeAll();
+            denominatorProducts.DisposeAll();
         }
-
-        using var modInverse = this.DivMod(numerator, denominator, prime);
-        using var secretCoefficient = modInverse + prime;
-        // Normalized coefficient a0 is the secret
-        using var a0 = secretCoefficient.MathematicalModulo(prime);
-
-        // Disposes all used calculators, but not prime.
-        // Prime is provided from Mersenne prime provider and should not be disposed here.
-        // Shares are provided from outside and should not be disposed here.
-        numerator.Dispose();
-        denominator.Dispose();
-        numeratorProducts.DisposeAll();
-        denominatorProducts.DisposeAll();
-
-        return Secret<TNumber>.FromCoefficient(a0);
     }
 
     /// <summary>
