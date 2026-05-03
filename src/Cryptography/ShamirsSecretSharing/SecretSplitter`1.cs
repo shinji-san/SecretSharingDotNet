@@ -37,6 +37,7 @@ using SecureArray;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using System.Threading;
 
 /// <summary>
 /// The <see cref="SecretSplitter{TNumber}"/> class implements Shamir's Secret Sharing algorithm to divide a secret
@@ -56,30 +57,70 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     private readonly ISecurityLevelManager<TNumber> securityLevelManager;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SecretSplitter{TNumber}"/> class.
+    /// Indicates whether this instance owns <see cref="securityLevelManager"/> and is therefore
+    /// responsible for disposing it. <see langword="true"/> when the manager was created internally
+    /// by the parameterless constructor; <see langword="false"/> when it was supplied by the caller.
+    /// </summary>
+    private readonly bool ownsSecurityLevelManager;
+
+    /// <summary>
+    /// Disposal flag manipulated atomically via <see cref="Interlocked.Exchange(ref int, int)"/>:
+    /// 0 = alive, 1 = disposed.
+    /// </summary>
+    private int disposed;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SecretSplitter{TNumber}"/> class using a default
+    /// <see cref="SecurityLevelManager{TNumber}"/>. The created manager is owned by this instance
+    /// and disposed together with it.
     /// </summary>
     public SecretSplitter()
     {
         this.securityLevelManager = new SecurityLevelManager<TNumber>();
+        this.ownsSecurityLevelManager = true;
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SecretSplitter{TNumber}"/> class.
+    /// Initializes a new instance of the <see cref="SecretSplitter{TNumber}"/> class with a
+    /// caller-supplied <see cref="ISecurityLevelManager{TNumber}"/>. Ownership of the manager
+    /// remains with the caller; this instance will not dispose it.
     /// </summary>
+    /// <param name="securityLevelManager">Manages security level configuration</param>
+    /// <exception cref="ArgumentNullException">
+    /// The <paramref name="securityLevelManager"/> parameter is <see langword="null"/>.
+    /// </exception>
     public SecretSplitter(ISecurityLevelManager<TNumber> securityLevelManager)
     {
         this.securityLevelManager = securityLevelManager ?? throw new ArgumentNullException(nameof(securityLevelManager));
+        this.ownsSecurityLevelManager = false;
     }
-    
+
+    /// <summary>
+    /// Finalizes an instance of the <see cref="SecretSplitter{TNumber}"/> class.
+    /// </summary>
+    ~SecretSplitter()
+    {
+        this.Dispose(false);
+    }
+
     /// <summary>
     /// Gets or sets the security level
     /// </summary>
     /// <remarks>The value is lower than 13 or greater than 43.112.609.</remarks>
     /// <exception cref="T:System.ArgumentOutOfRangeException" accessor="set">The value is lower than 13 or greater than 43.112.609.</exception>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public int SecurityLevel
     {
-        get => this.securityLevelManager.SecurityLevel;
-        set => this.securityLevelManager.SecurityLevel = value;
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.securityLevelManager.SecurityLevel;
+        }
+        set
+        {
+            this.ThrowIfDisposed();
+            this.securityLevelManager.SecurityLevel = value;
+        }
     }
 
     /// <summary>
@@ -103,8 +144,10 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// initialised, or the configured <typeparamref name="TNumber"/> backend's
     /// <see cref="Calculator"/> factory rejected the random byte buffer.
     /// </exception>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, int securityLevel, out Secret<TNumber> generatedSecret)
     {
+        this.ThrowIfDisposed();
         try
         {
             this.SecurityLevel = securityLevel;
@@ -167,10 +210,11 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// factory rejected the random byte buffer.
     /// </exception>
     /// <exception cref="ObjectDisposedException">
-    /// <paramref name="secret"/> has already been disposed.
+    /// This instance has been disposed, or <paramref name="secret"/> has already been disposed.
     /// </exception>
     public Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret, int securityLevel)
     {
+        this.ThrowIfDisposed();
         try
         {
             this.SecurityLevel = securityLevel;
@@ -202,10 +246,11 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// factory rejected the random byte buffer.
     /// </exception>
     /// <exception cref="ObjectDisposedException">
-    /// <paramref name="secret"/> has already been disposed.
+    /// This instance has been disposed, or <paramref name="secret"/> has already been disposed.
     /// </exception>
     public Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret)
     {
+        this.ThrowIfDisposed();
         if (numberOfMinimumShares < 2)
         {
             throw new ArgumentOutOfRangeException(nameof(numberOfMinimumShares), numberOfMinimumShares, ErrorMessages.MinNumberOfSharesLowerThanTwo);
@@ -333,5 +378,52 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         return shares;
+    }
+
+    /// <summary>
+    /// Releases all resources used by the current instance of the <see cref="SecretSplitter{TNumber}"/> class.
+    /// </summary>
+    /// <remarks>
+    /// Idempotent and safe to call from multiple threads concurrently. The owned
+    /// <see cref="ISecurityLevelManager{TNumber}"/> (when present) is disposed exactly once.
+    /// </remarks>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
+        {
+            return;
+        }
+
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases the resources used by the <see cref="SecretSplitter{TNumber}"/> instance.
+    /// </summary>
+    /// <param name="disposing">A boolean value indicating whether to release managed resources (<see langword="true"/>)
+    /// or only unmanaged resources (<see langword="false"/>).</param>
+    /// <remarks>
+    /// Disposes the contained <see cref="ISecurityLevelManager{TNumber}"/> only when this instance owns it
+    /// (i.e. when constructed via the parameterless-manager overload).
+    /// </remarks>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing && this.ownsSecurityLevelManager)
+        {
+            this.securityLevelManager.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Throws <see cref="ObjectDisposedException"/> if this instance has already been disposed.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref this.disposed) == 1)
+        {
+            throw new ObjectDisposedException(this.GetType().FullName);
+        }
     }
 }

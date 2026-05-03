@@ -42,9 +42,10 @@ using System.Text;
 using Xunit;
 
 /// <summary>
-/// Unit test of the <see cref="SecretSplitter{TNumber}"/> class.
+/// Roundtrip integration tests covering <see cref="SecretSplitter{TNumber}"/> together with
+/// <see cref="SecretReconstructor{TNumber}"/>.
 /// </summary>
-public class SecretSplitterTest
+public class ShamirsSecretSharingTest
 {
     /// <summary>
     /// Checks the following condition: denominator * DivMod(numerator, denominator, prime) % prime == numerator
@@ -119,7 +120,7 @@ public class SecretSplitterTest
     public void TestWithPassword(int splitSecurityLevel, int expectedSecurityLevel, string password)
     {
         // Arrange
-        var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
         using var pinnedPassword = password.ToPinnedSecure();
         using var passwordSecret = Secret<SecureBigInteger>.FromText(pinnedPassword);
@@ -176,7 +177,7 @@ public class SecretSplitterTest
     public void TestWithRandomSecret(int splitSecurityLevel, int expectedSecurityLevel)
     {
         // Arrange
-        var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
     
         // Act
@@ -201,7 +202,7 @@ public class SecretSplitterTest
     public void TestMinimumSharedSecretsMake()
     {
         // Arrange
-        var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
     
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => secretSplitter.MakeShares(1, 7, 5, out _));
@@ -215,7 +216,7 @@ public class SecretSplitterTest
     public void TestMinimumSharedSecretsReconstruction()
     {
         // Arrange
-        var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
 
         // Act & Assert
@@ -232,7 +233,7 @@ public class SecretSplitterTest
     public void TestShareThreshold()
     {
         // Arrange
-        var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
 
         // Act
@@ -254,7 +255,7 @@ public class SecretSplitterTest
         // Arrange
         const string longSecret =
             "-----BEGIN EC PRIVATE KEY-----MIIBUQIBAQQgxq7AWG9L6uleuTB9q5FGqnHjXF+kD4y9154SLYYKMDqggeMwgeACAQEwLAYHKoZIzj0BAQIhAP////////////////////////////////////7///wvMEQEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwRBBHm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeYSDradyajxGVdpPv8DhEIqP0XtEimhVQZnEfQj/sQ1LgCIQD////////////////////+uq7c5q9IoDu/0l6M0DZBQQIBAaFEA0IABE0XO6I8lZYzXqRQnHP/knSwLex7q77g4J2AN0cVyrADicGlUr6QjVIlIu9NXCHxD2i++ToWjO1zLVdxgNJbUUc=-----END EC PRIVATE KEY-----";
-        var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
         using var pinnedLong = longSecret.ToPinnedSecure();
         using var longSecretValue = Secret<SecureBigInteger>.FromText(pinnedLong);

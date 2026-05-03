@@ -1,10 +1,12 @@
 namespace SecretSharingDotNet.Cryptography;
 
+using System;
+
 /// <summary>
-/// Interface for the Shamir's Secret Sharing algorithm implementation for creating shared secrets. 
+/// Interface for the Shamir's Secret Sharing algorithm implementation for creating shared secrets.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
-public interface IMakeSharesUseCase<TNumber>
+public interface IMakeSharesUseCase<TNumber> : IDisposable
 {
     /// <summary>
     /// Generates a random shamir pool and returns the share points.
@@ -18,6 +20,7 @@ public interface IMakeSharesUseCase<TNumber>
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The <paramref name="securityLevel"/> parameter is lower than 13 or greater than 43.112.609. OR The <paramref name="numberOfMinimumShares"/> parameter is lower than 2 or greater than <paramref name="numberOfShares"/>.
     /// </exception>
+    /// <exception cref="ObjectDisposedException">The implementation has been disposed.</exception>
     Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, int securityLevel, out Secret<TNumber> generatedSecret);
 
     /// <summary>
@@ -31,6 +34,7 @@ public interface IMakeSharesUseCase<TNumber>
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The <paramref name="securityLevel"/> is lower than 13 or greater than 43.112.609. OR <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
     /// </exception>
+    /// <exception cref="ObjectDisposedException">The implementation has been disposed.</exception>
     Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret, int securityLevel);
 
     /// <summary>
@@ -41,5 +45,6 @@ public interface IMakeSharesUseCase<TNumber>
     /// <param name="secret">secret text as <see cref="Secret{TNumber}"/> or see cref="string"/></param>
     /// <returns>A <see cref="Shares{TNumber}"/> object</returns>
     /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.</exception>
+    /// <exception cref="ObjectDisposedException">The implementation has been disposed.</exception>
     Shares<TNumber> MakeShares(int numberOfMinimumShares, int numberOfShares, Secret<TNumber> secret);
 }
