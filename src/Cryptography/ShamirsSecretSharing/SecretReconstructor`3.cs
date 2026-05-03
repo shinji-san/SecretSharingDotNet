@@ -233,10 +233,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
                 numeratorTemp.Dispose();
             }
 
-            using var modInverse = this.DivMod(numerator, denominator, prime);
-            using var secretCoefficient = modInverse + prime;
-            // Normalized coefficient a0 is the secret
-            using var a0 = secretCoefficient.MathematicalModulo(prime);
+            // DivMod returns the result already reduced into [0, p-1], so it is the
+            // normalised secret coefficient a0 directly.
+            using var a0 = this.DivMod(numerator, denominator, prime);
 
             return Secret<TNumber>.FromCoefficient(a0);
         }
@@ -326,7 +325,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         // Normalize denominator into [0, p-1]
-        using var normalizedDenominator = ModReduce(denominator, prime);
+        using var normalizedDenominator = denominator.MathematicalModulo(prime);
         if (normalizedDenominator.IsZero)
         {
             throw new ArgumentException(ErrorMessages.InverseOfZeroDoesNotExist, nameof(denominator));
@@ -348,15 +347,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         // (numerator * inverse) mod prime
         using var modInverse = normalizedNumerator * inverse;
         return modInverse.MathematicalModulo(prime);
-    }
-
-    /// <summary>
-    /// Reduces <paramref name="x"/> into the canonical range [0, p-1].
-    /// </summary>
-    private static Calculator<TNumber> ModReduce(Calculator<TNumber> x, Calculator<TNumber> prime)
-    {
-        using var r = x.MathematicalModulo(prime);
-        return r.Sign < 0 ? r + prime : r.Clone();
     }
 
     /// <summary>
