@@ -59,6 +59,9 @@ public interface IExtendedGcdAlgorithm<TNumber, out TExtendedGcdResult> where TE
     /// https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Example
     /// </para>
     /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="a"/> or <paramref name="b"/> is <see langword="null"/>.
+    /// </exception>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "b")]
     TExtendedGcdResult Compute(Calculator<TNumber> a, Calculator<TNumber> b);

@@ -40,9 +40,6 @@ using System;
 public sealed class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>
 {
     /// <inheritdoc />
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="a"/> or <paramref name="b"/> is <see langword="null"/>.
-    /// </exception>
     public ExtendedGcdResult<TNumber> Compute(Calculator<TNumber> a, Calculator<TNumber> b)
     {
         if (a is null)
