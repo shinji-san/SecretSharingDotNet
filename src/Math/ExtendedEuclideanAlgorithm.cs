@@ -52,70 +52,77 @@ public sealed class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<
             throw new ArgumentNullException(nameof(b));
         }
 
-        Calculator<TNumber> x = null;
-        Calculator<TNumber> lastX = null;
-        Calculator<TNumber> y = null;
-        Calculator<TNumber> lastY = null;
-        Calculator<TNumber> r = null;
-        Calculator<TNumber> lastR = null;
+        // Loop state tracks the standard `(r_i, s_i, t_i)` triple of the extended
+        // Euclidean algorithm with the invariant a·s_i + b·t_i = r_i. `*Cur`
+        // carries the current iteration's value, `*Prev` the previous iteration's.
+        Calculator<TNumber> sCur = null;
+        Calculator<TNumber> sPrev = null;
+        Calculator<TNumber> tCur = null;
+        Calculator<TNumber> tPrev = null;
+        Calculator<TNumber> rCur = null;
+        Calculator<TNumber> rPrev = null;
         try
         {
-            x = Calculator<TNumber>.Zero;
-            lastX = Calculator<TNumber>.One;
-            y = Calculator<TNumber>.One;
-            lastY = Calculator<TNumber>.Zero;
-            r = b.Clone();
-            lastR = a.Clone();
+            sCur = Calculator<TNumber>.Zero;
+            sPrev = Calculator<TNumber>.One;
+            tCur = Calculator<TNumber>.One;
+            tPrev = Calculator<TNumber>.Zero;
+            rCur = b.Clone();
+            rPrev = a.Clone();
 
-            while (!r.IsZero)
+            while (!rCur.IsZero)
             {
                 checked
                 {
-                    using var quotient = lastR / r;
-                    using var quotientTimesR = quotient * r;
-                    using var quotientTimesX = quotient * x;
-                    using var quotientTimesY = quotient * y;
+                    using var quotient = rPrev / rCur;
+                    using var quotientTimesR = quotient * rCur;
+                    using var quotientTimesS = quotient * sCur;
+                    using var quotientTimesT = quotient * tCur;
 
-                    var tmpR = r;
-                    r = lastR - quotientTimesR;
-                    lastR.Dispose();
-                    lastR = tmpR;
+                    var tmpR = rCur;
+                    rCur = rPrev - quotientTimesR;
+                    rPrev.Dispose();
+                    rPrev = tmpR;
 
-                    var tmpX = x;
-                    x = lastX - quotientTimesX;
-                    lastX.Dispose();
-                    lastX = tmpX;
+                    var tmpS = sCur;
+                    sCur = sPrev - quotientTimesS;
+                    sPrev.Dispose();
+                    sPrev = tmpS;
 
-                    var tmpY = y;
-                    y = lastY - quotientTimesY;
-                    lastY.Dispose();
-                    lastY = tmpY;
+                    var tmpT = tCur;
+                    tCur = tPrev - quotientTimesT;
+                    tPrev.Dispose();
+                    tPrev = tmpT;
                 }
             }
 
-            // r is zero at this point, still owned by us, and is not part of the
+            // rCur is zero at this point, still owned by us, and is not part of the
             // result — release it explicitly to avoid leaking the final iteration's
             // tail value.
-            r.Dispose();
-            r = null;
+            rCur.Dispose();
+            rCur = null;
 
-            var coefficients = new[] { lastX, lastY };
-            var quotients = new[] { x, y };
-            var result = new ExtendedGcdResult<TNumber>(lastR, coefficients, quotients);
+            // Loop invariant at this point:
+            //   rPrev          = gcd(a, b)
+            //   (sPrev, tPrev) = Bézout pair satisfying a·s + b·t = gcd
+            //   (sCur,  tCur ) = trailing pair carried one iteration past gcd
+            var coefficients = new[] { sPrev, tPrev };
+            var quotients = new[] { sCur, tCur };
+            var result = new ExtendedGcdResult<TNumber>(rPrev, coefficients, quotients);
 
             // Ownership of these calculators is now held by `result`. Null the locals
             // so the catch block below does not double-dispose values the result owns.
-            lastR = lastX = lastY = x = y = null;
+            rPrev = sPrev = tPrev = sCur = tCur = null;
             return result;
         }
         catch
         {
-            x?.Dispose();
-            lastX?.Dispose();
-            y?.Dispose();
-            lastY?.Dispose();
-            r?.Dispose();
-            lastR?.Dispose();
+            sCur?.Dispose();
+            sPrev?.Dispose();
+            tCur?.Dispose();
+            tPrev?.Dispose();
+            rCur?.Dispose();
+            rPrev?.Dispose();
             throw;
         }
     }
