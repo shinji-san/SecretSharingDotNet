@@ -27,8 +27,8 @@
     <data name="MinNumberOfSharesLowerThanTwo" xml:space="preserve">
         <value>The minimum number of shares is lower than 2! Please set the minimum number of shares to 2 or higher.</value>
     </data>
-    <data name="FinitePointsNotDistinct" xml:space="preserve">
-        <value>Finite points (aka shares) are not distinct!</value>
+    <data name="ShareIndicesNotDistinct" xml:space="preserve">
+        <value>Share indices are not distinct.</value>
     </data>
     <data name="MaxSharesLowerThanMinShares" xml:space="preserve">
         <value>The pool secret would be irrecoverable, if you use these parameters, because the maximum number of shares is lower than the minimum number of shares.</value>

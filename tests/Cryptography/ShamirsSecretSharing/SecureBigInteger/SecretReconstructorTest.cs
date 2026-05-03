@@ -135,4 +135,58 @@ public class SecretReconstructorTest
 
         // Assert — implicit: no exception escaped.
     }
+
+    [Fact]
+    public void Reconstruction_WithDuplicateShareIndices_ThrowsArgumentException()
+    {
+        // Arrange — two shares carrying the same index but inconsistent values
+        // (e.g. mixed in from two different splits). Pre-fix this passed the
+        // structural Distinct() check on Share and only failed deep inside
+        // DivMod with the misleading "inverse of zero" message. Values are
+        // chosen large enough to clear the minimum-security-level adjustment
+        // in Reconstruction so the distinctness validation is the actual gate
+        // hit.
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        var idx1 = (Calculator<SecureBigInteger>)(SecureBigInteger)1;
+        var idx2 = (Calculator<SecureBigInteger>)(SecureBigInteger)1;
+        var v1 = (Calculator<SecureBigInteger>)(SecureBigInteger)1_000_000;
+        var v2 = (Calculator<SecureBigInteger>)(SecureBigInteger)2_000_000;
+        using Shares<SecureBigInteger> shares = new[]
+        {
+            new Share<SecureBigInteger>(idx1, v1),
+            new Share<SecureBigInteger>(idx2, v2),
+        };
+
+        // Act & Assert — fail at the input-validation layer, not in DivMod.
+        var ex = Assert.Throws<ArgumentException>(() => reconstructor.Reconstruction(shares));
+        Assert.Equal("shares", ex.ParamName);
+    }
+
+    [Fact]
+    public void Reconstruction_WithDistinctIndicesAndDuplicateValues_DoesNotThrowAtValidation()
+    {
+        // Arrange — two shares with distinct indices but identical values. Under
+        // the old Share-structural Distinct() check this would still pass; under
+        // the index-only check it must continue to pass. The reconstruction
+        // itself may legitimately fail later (these shares aren't on a real
+        // polynomial), but never with the share-distinctness ArgumentException.
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        var idx1 = (Calculator<SecureBigInteger>)(SecureBigInteger)1;
+        var idx2 = (Calculator<SecureBigInteger>)(SecureBigInteger)2;
+        var v1 = (Calculator<SecureBigInteger>)(SecureBigInteger)1_000_000;
+        var v2 = (Calculator<SecureBigInteger>)(SecureBigInteger)1_000_000;
+        using Shares<SecureBigInteger> shares = new[]
+        {
+            new Share<SecureBigInteger>(idx1, v1),
+            new Share<SecureBigInteger>(idx2, v2),
+        };
+
+        // Act & Assert — reconstruction completes (or fails later) but does not
+        // raise the share-distinctness validation.
+        var ex = Record.Exception(() => reconstructor.Reconstruction(shares));
+        if (ex is ArgumentException ae)
+        {
+            Assert.NotEqual("shares", ae.ParamName);
+        }
+    }
 }

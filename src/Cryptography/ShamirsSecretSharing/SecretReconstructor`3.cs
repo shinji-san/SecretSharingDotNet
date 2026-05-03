@@ -158,9 +158,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         int numberOfPoints = shares.Count;
-        if (shares.Distinct().Count() != numberOfPoints)
+        if (shares.Select(s => s.Index).Distinct().Count() != numberOfPoints)
         {
-            throw new ArgumentException(ErrorMessages.FinitePointsNotDistinct, nameof(shares));
+            throw new ArgumentException(ErrorMessages.ShareIndicesNotDistinct, nameof(shares));
         }
 
         using var zero = Calculator<TNumber>.Zero;

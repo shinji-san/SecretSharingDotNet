@@ -20,8 +20,8 @@
     <data name="MinNumberOfSharesLowerThanTwo" xml:space="preserve">
         <value>Die minimale Anzahl an Teilgeheimnissen ist kleiner als 2! Bitte setze die minimale Anzahl an Teilgeheimnissen auf 2 oder höher.</value>
     </data>
-    <data name="FinitePointsNotDistinct" xml:space="preserve">
-        <value>Die finiten Punkte (auch als Teilgeheimnis bekannt) sind nicht eindeutig!</value>
+    <data name="ShareIndicesNotDistinct" xml:space="preserve">
+        <value>Die Share-Indizes sind nicht eindeutig.</value>
     </data>
     <data name="MaxSharesLowerThanMinShares" xml:space="preserve">
         <value>Das Pool-Geheimnis wäre mit diesen Parametern unwiederbringlich, da die maximale Anzahl an Teilgeheimnissen kleiner ist als die minimale Anzahl an Teilgeheimnissen.</value>

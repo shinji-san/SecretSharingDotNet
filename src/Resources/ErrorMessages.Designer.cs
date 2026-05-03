@@ -66,9 +66,9 @@ namespace SecretSharingDotNet {
             }
         }
         
-        internal static string FinitePointsNotDistinct {
+        internal static string ShareIndicesNotDistinct {
             get {
-                return ResourceManager.GetString("FinitePointsNotDistinct", resourceCulture);
+                return ResourceManager.GetString("ShareIndicesNotDistinct", resourceCulture);
             }
         }
         
