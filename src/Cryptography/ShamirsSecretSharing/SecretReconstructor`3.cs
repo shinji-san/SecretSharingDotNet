@@ -145,6 +145,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <exception cref="ArgumentNullException">
     /// <paramref name="shares"/> or <paramref name="prime"/> is <see langword="null"/>.
     /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="shares"/> contains fewer than two entries.
+    /// </exception>
     /// <exception cref="ArgumentException">
     /// Two or more entries in <paramref name="shares"/> share the same <see cref="Share{TNumber}.Index"/>.
     /// </exception>
@@ -166,6 +169,11 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         int numberOfPoints = shares.Count;
+        if (numberOfPoints < 2)
+        {
+            throw new ArgumentOutOfRangeException(nameof(shares), numberOfPoints, ErrorMessages.MinNumberOfSharesLowerThanTwo);
+        }
+
         if (shares.Select(s => s.Index).Distinct().Count() != numberOfPoints)
         {
             throw new ArgumentException(ErrorMessages.ShareIndicesNotDistinct, nameof(shares));
