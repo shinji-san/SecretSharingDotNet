@@ -45,6 +45,20 @@ public interface IExtendedGcdAlgorithm<TNumber, out TExtendedGcdResult> where TE
     /// <param name="a">An element of type <see cref="Calculator{TNumber}"/></param>
     /// <param name="b">An element of type <see cref="Calculator{TNumber}"/></param>
     /// <returns>For details: <see cref="IExtendedGcdResult{TNumber}"/></returns>
+    /// <remarks>
+    /// <para>
+    /// The returned result owns the contained <see cref="Calculator{TNumber}"/> instances
+    /// (gcd, Bézout coefficients, quotients). The caller takes ownership of the result and
+    /// must dispose it (typically via <c>using var result = …</c>); otherwise the underlying
+    /// pinned buffers — particularly relevant when <typeparamref name="TNumber"/> is a
+    /// reference-type backend such as <c>SecureBigInteger</c> — leak.
+    /// </para>
+    /// <para>
+    /// References:
+    /// https://en.wikipedia.org/wiki/Modular_multiplicative_inverse#Computation,
+    /// https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Example
+    /// </para>
+    /// </remarks>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "b")]
     TExtendedGcdResult Compute(Calculator<TNumber> a, Calculator<TNumber> b);

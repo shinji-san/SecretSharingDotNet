@@ -38,6 +38,13 @@ using System.Collections.ObjectModel;
 /// Represents the result of the extended greatest common divisor computation.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type</typeparam>
+/// <remarks>
+/// Owns the <see cref="Calculator{TNumber}"/> instances exposed via
+/// <see cref="GreatestCommonDivisor"/>, <see cref="BezoutCoefficients"/>, and
+/// <see cref="Quotients"/>. The caller takes ownership of the result returned by
+/// <see cref="IExtendedGcdAlgorithm{TNumber, TExtendedGcdResult}.Compute"/> and must
+/// dispose it; the contained calculators are released as part of disposal.
+/// </remarks>
 public interface IExtendedGcdResult<TNumber> : IDisposable
 {
     /// <summary>

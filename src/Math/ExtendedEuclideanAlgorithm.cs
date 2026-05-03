@@ -39,17 +39,7 @@ using System;
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
 public class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>
 {
-    /// <summary>
-    /// Computes, in addition to the greatest common divisor of <paramref name="a"/> and
-    /// <paramref name="b"/>, also the coefficients of Bézout's identity.
-    /// </summary>
-    /// <param name="a">An element of type <see cref="Calculator{TNumber}"/></param>
-    /// <param name="b">An element of type <see cref="Calculator{TNumber}"/></param>
-    /// <returns>For details: <see cref="ExtendedGcdResult{TNumber}"/></returns>
-    /// <remarks>
-    /// https://en.wikipedia.org/wiki/Modular_multiplicative_inverse#Computation
-    /// https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Example
-    /// </remarks>
+    /// <inheritdoc />
     /// <exception cref="ArgumentNullException">
     /// <paramref name="a"/> or <paramref name="b"/> is <see langword="null"/>.
     /// </exception>
