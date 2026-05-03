@@ -37,7 +37,7 @@ using System;
 /// Extended Euclidean algorithm implementation
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
-public class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>
+public sealed class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>
 {
     /// <inheritdoc />
     /// <exception cref="ArgumentNullException">
