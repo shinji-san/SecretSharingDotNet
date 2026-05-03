@@ -49,6 +49,10 @@ internal static class Polynomial
     /// <param name="prime">The prime modulus defining the finite field.</param>
     /// <returns>A newly allocated <see cref="Calculator{TNumber}"/> representing <c>p(x) mod prime</c>. The caller owns and must dispose it.</returns>
     /// <exception cref="ArgumentNullException">Thrown when any parameter is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="x"/> is zero. Evaluating the polynomial at <c>x = 0</c> would return
+    /// the constant term <c>a₀</c> — i.e. the secret — and is therefore disallowed.
+    /// </exception>
     public static Calculator<TNumber> EvaluateAt<TNumber>(
         Calculator<TNumber> x,
         IEnumerable<Calculator<TNumber>> coefficients,
@@ -67,6 +71,11 @@ internal static class Polynomial
         if (prime is null)
         {
             throw new ArgumentNullException(nameof(prime));
+        }
+
+        if (x.IsZero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(x), ErrorMessages.ShareIndexMustBePositive);
         }
 
         var coefficientArray = coefficients as Calculator<TNumber>[] ?? coefficients.ToArray();

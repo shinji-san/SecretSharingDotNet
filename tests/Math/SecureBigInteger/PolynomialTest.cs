@@ -147,4 +147,20 @@ public class PolynomialTest
             coeffs[0].Dispose();
         }
     }
+
+    [Fact]
+    public void EvaluateAt_WithZero_ThrowsArgumentOutOfRangeException()
+    {
+        // Evaluating at x=0 would return the constant term — i.e. the secret a₀.
+        // The method must reject this regardless of valid null/non-null arguments.
+        using var xCalc = new SecureBigIntCalculator(0);
+        using var primeCalc = new SecureBigIntCalculator(8191);
+        using var a0 = new SecureBigIntCalculator(42);
+        using var a1 = new SecureBigIntCalculator(7);
+        var coeffs = new Calculator<SecureBigInteger>[] { a0, a1 };
+
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(
+            () => Polynomial.EvaluateAt(xCalc, coeffs, primeCalc));
+        Assert.Equal("x", ex.ParamName);
+    }
 }
