@@ -40,22 +40,6 @@ using System.Runtime.CompilerServices;
 internal static class ArrayExtensions
 {
     /// <summary>
-    /// Disposes all non-<see langword="null"/> elements in the array that implement
-    /// <see cref="IDisposable"/>. Null slots are skipped, allowing safe cleanup of
-    /// partially populated arrays (for example, when a caller's allocation loop is
-    /// aborted by an exception before every slot has been filled).
-    /// </summary>
-    /// <typeparam name="TArray">The type of the elements in the array, which must implement <see cref="IDisposable"/>.</typeparam>
-    /// <param name="array">The array whose elements will be disposed.</param>
-    public static void DisposeAll<TArray>(this TArray[] array) where TArray : IDisposable
-    {
-        foreach (var disposable in array)
-        {
-            disposable?.Dispose();
-        }
-    }
-
-    /// <summary>
     /// Compares two byte arrays for equality in a way that resists timing attacks.
     /// </summary>
     /// /// <param name="valueLeft">The first byte array to compare.</param>

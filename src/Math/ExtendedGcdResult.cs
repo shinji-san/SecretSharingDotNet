@@ -31,6 +31,7 @@
 
 namespace SecretSharingDotNet.Math;
 
+using Extension;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -48,9 +49,28 @@ public readonly struct ExtendedGcdResult<TNumber> : IExtendedGcdResult<TNumber>,
     /// <param name="gcd">Greatest common divisor</param>
     /// <param name="coefficients">Bézout coefficients</param>
     /// <param name="quotients">Quotients by the gcd</param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="gcd"/>, <paramref name="coefficients"/>, or <paramref name="quotients"/>
+    /// is <see langword="null"/>.
+    /// </exception>
     public ExtendedGcdResult(Calculator<TNumber> gcd, IList<Calculator<TNumber>> coefficients, IList<Calculator<TNumber>> quotients)
     {
-        this.GreatestCommonDivisor = gcd ?? throw new ArgumentNullException(nameof(gcd));
+        if (gcd is null)
+        {
+            throw new ArgumentNullException(nameof(gcd));
+        }
+
+        if (coefficients is null)
+        {
+            throw new ArgumentNullException(nameof(coefficients));
+        }
+
+        if (quotients is null)
+        {
+            throw new ArgumentNullException(nameof(quotients));
+        }
+
+        this.GreatestCommonDivisor = gcd;
         this.BezoutCoefficients = new ReadOnlyCollection<Calculator<TNumber>>(coefficients);
         this.Quotients = new ReadOnlyCollection<Calculator<TNumber>>(quotients);
     }
@@ -120,19 +140,20 @@ public readonly struct ExtendedGcdResult<TNumber> : IExtendedGcdResult<TNumber>,
     }
 
     /// <summary>
-    /// Releases the unmanaged resources used by the <see cref="ExtendedGcdResult{TNumber}"/> instance and optionally releases managed resources.
+    /// Releases the <see cref="Calculator{TNumber}"/> instances backing
+    /// <see cref="GreatestCommonDivisor"/>, <see cref="BezoutCoefficients"/>, and
+    /// <see cref="Quotients"/>.
     /// </summary>
+    /// <remarks>
+    /// Safe to call on a default-initialised <see cref="ExtendedGcdResult{TNumber}"/>
+    /// (all components <see langword="null"/>) — null components and null collections are
+    /// skipped. Idempotency is delegated to the contained calculator backend; current
+    /// backends are idempotent on repeated <see cref="IDisposable.Dispose"/>.
+    /// </remarks>
     public void Dispose()
     {
         this.GreatestCommonDivisor?.Dispose();
-        foreach (var bezoutCoefficient in this.BezoutCoefficients)
-        {
-            bezoutCoefficient.Dispose();
-        }
-
-        foreach (var quotient in this.Quotients)
-        {
-            quotient.Dispose();
-        }
+        this.BezoutCoefficients.DisposeAll();
+        this.Quotients.DisposeAll();
     }
 }
