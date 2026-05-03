@@ -49,7 +49,7 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     private readonly IMersennePrimeProvider mersennePrimeProvider;
 
     /// <summary>
-    /// Synchronizes mutations of <see cref="MersennePrime"/> and <see cref="fixedSecurityLevel"/> in
+    /// Synchronizes mutations of <see cref="MersennePrime"/> and <see cref="currentSecurityLevel"/> in
     /// the <see cref="SecurityLevel"/> setter and final disposal, so concurrent setters and a
     /// concurrent <see cref="Dispose"/> cannot interleave the field swap.
     /// </summary>
@@ -59,7 +59,7 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     /// Holds the current security level (Mersenne prime exponent) backing
     /// <see cref="SecurityLevel"/>. Mutated only inside <see cref="syncRoot"/>.
     /// </summary>
-    private int fixedSecurityLevel;
+    private int currentSecurityLevel;
 
     /// <summary>
     /// Disposal flag manipulated atomically via <see cref="Interlocked.Exchange(ref int, int)"/>:
@@ -87,7 +87,7 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     {
         this.mersennePrimeProvider = mersennePrimeProvider ?? throw new ArgumentNullException(nameof(mersennePrimeProvider));
         int initialLevel = this.mersennePrimeProvider.MinMersennePrimeExponent;
-        this.fixedSecurityLevel = initialLevel;
+        this.currentSecurityLevel = initialLevel;
         this.mersennePrime = NewMersennePrime(initialLevel);
     }
 
@@ -97,7 +97,7 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
         get
         {
             this.ThrowIfDisposed();
-            return this.fixedSecurityLevel;
+            return this.currentSecurityLevel;
         }
         set
         {
@@ -118,7 +118,7 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
                     this.ThrowIfDisposed();
                     oldPrime = this.mersennePrime;
                     this.mersennePrime = newPrime;
-                    this.fixedSecurityLevel = validSecurityLevel;
+                    this.currentSecurityLevel = validSecurityLevel;
                     newPrime = null; // ownership transferred to mersennePrime
                 }
             }

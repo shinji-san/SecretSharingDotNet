@@ -41,8 +41,15 @@ using System;
 public interface ISecurityLevelManager<TNumber> : IDisposable
 {
     /// <summary>
-    /// Gets or sets the security level (in bits).
+    /// Gets or sets the security level (in bits), expressed as a Mersenne prime exponent.
     /// </summary>
+    /// <remarks>
+    /// The setter rounds non-Mersenne values up to the next valid Mersenne prime exponent
+    /// (e.g. setting <c>20</c> stores <c>31</c>, the next exponent in the predefined list).
+    /// A subsequent get therefore can return a value that differs from what was assigned.
+    /// Reading the setter back is the reliable way to discover the level the manager
+    /// actually ended up using.
+    /// </remarks>
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The value is outside the valid range of Mersenne prime exponents.
     /// </exception>
@@ -62,10 +69,18 @@ public interface ISecurityLevelManager<TNumber> : IDisposable
     Calculator<TNumber> MersennePrime { get; }
 
     /// <summary>
-    /// Adjusts the security level based on the provided maximum Y value.
+    /// Fits <see cref="SecurityLevel"/> to the smallest Mersenne prime exponent for which
+    /// <paramref name="maximumY"/> still reduces to itself modulo the corresponding prime —
+    /// i.e. the smallest finite field that can hold <paramref name="maximumY"/>.
     /// </summary>
-    /// <param name="maximumY">The maximum Y value used to determine the security level.</param>
-    /// <remarks>Use this method for reconstruction.</remarks>
+    /// <param name="maximumY">The largest y-coordinate among the shares about to be processed.</param>
+    /// <remarks>
+    /// Use during reconstruction: callers pass the maximum share value, and the manager picks
+    /// the tightest Mersenne prime that still admits all share values. The level may be raised
+    /// or lowered relative to the current one. Implementations should mutate
+    /// <see cref="SecurityLevel"/> at most once so concurrent readers do not observe transient
+    /// intermediate values.
+    /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="maximumY"/> is <see langword="null"/>.</exception>
     /// <exception cref="ObjectDisposedException">The implementation has been disposed.</exception>
     void AdjustSecurityLevel(Calculator<TNumber> maximumY);
