@@ -86,7 +86,9 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     public SecurityLevelManager(IMersennePrimeProvider mersennePrimeProvider)
     {
         this.mersennePrimeProvider = mersennePrimeProvider ?? throw new ArgumentNullException(nameof(mersennePrimeProvider));
-        this.SecurityLevel = this.mersennePrimeProvider.MinMersennePrimeExponent;
+        int initialLevel = this.mersennePrimeProvider.MinMersennePrimeExponent;
+        this.fixedSecurityLevel = initialLevel;
+        this.mersennePrime = NewMersennePrime(initialLevel);
     }
 
     /// <inheritdoc/>
