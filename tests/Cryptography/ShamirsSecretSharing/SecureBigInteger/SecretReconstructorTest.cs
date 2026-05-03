@@ -87,17 +87,6 @@ public class SecretReconstructorTest
     }
 
     [Fact]
-    public void SecurityLevel_Set_AfterDispose_ThrowsObjectDisposedException()
-    {
-        // Arrange
-        var reconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
-        reconstructor.Dispose();
-
-        // Act & Assert
-        Assert.Throws<ObjectDisposedException>(() => reconstructor.SecurityLevel = 31);
-    }
-
-    [Fact]
     public void Reconstruction_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange

@@ -112,10 +112,17 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     }
 
     /// <summary>
-    /// Gets or sets the security level
+    /// Gets the security level (in bits) of the underlying
+    /// <see cref="ISecurityLevelManager{TNumber}"/>.
     /// </summary>
-    /// <remarks>The value is lower than 13 or greater than 43.112.609.</remarks>
-    /// <exception cref="T:System.ArgumentOutOfRangeException" accessor="set">The value is lower than 13 or greater than 43.112.609.</exception>
+    /// <remarks>
+    /// Read-only on this type. Each <see cref="Reconstruction"/> call invokes
+    /// <see cref="ISecurityLevelManager{TNumber}.AdjustSecurityLevel"/> on the manager,
+    /// which fits the level to <c>maximumY</c>; a value pinned by the caller would be
+    /// overwritten and is therefore not exposed via a setter. Callers who need to control
+    /// the level must inject their own <see cref="ISecurityLevelManager{TNumber}"/> via
+    /// the 2-arg constructor and configure it directly.
+    /// </remarks>
     /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public int SecurityLevel
     {
@@ -123,11 +130,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         {
             this.ThrowIfDisposed();
             return this.securityLevelManager.SecurityLevel;
-        }
-        set
-        {
-            this.ThrowIfDisposed();
-            this.securityLevelManager.SecurityLevel = value;
         }
     }
 
