@@ -44,4 +44,8 @@ public class SecretReconstructor<TNumber> : SecretReconstructor<TNumber, IExtend
 {
     /// <inheritdoc />
     public SecretReconstructor(IExtendedGcdAlgorithm<TNumber> extendedGcd) : base(extendedGcd) { }
+
+    /// <inheritdoc />
+    public SecretReconstructor(IExtendedGcdAlgorithm<TNumber> extendedGcd, ISecurityLevelManager<TNumber> securityLevelManager)
+        : base(extendedGcd, securityLevelManager) { }
 }

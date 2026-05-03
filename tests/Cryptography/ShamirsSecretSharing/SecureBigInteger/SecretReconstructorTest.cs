@@ -44,8 +44,7 @@ using Xunit;
 
 public class SecretReconstructorTest
 {
-    private static SecretReconstructor<SecureBigInteger, IExtendedGcdAlgorithm<SecureBigInteger>, ExtendedGcdResult<SecureBigInteger>>
-        CreateWithMock(Mock<ISecurityLevelManager<SecureBigInteger>> managerMock) =>
+    private static SecretReconstructor<SecureBigInteger> CreateWithMock(Mock<ISecurityLevelManager<SecureBigInteger>> managerMock) =>
         new(new ExtendedEuclideanAlgorithm<SecureBigInteger>(), managerMock.Object);
 
     [Fact]
