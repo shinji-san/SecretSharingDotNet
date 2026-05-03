@@ -248,20 +248,23 @@ public class SecurityLevelManagerTest
     {
         // Arrange
         using var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
+        using var two = new SecureBigInteger(2);
+        using var one = new SecureBigInteger(1);
 
-        // Act & Assert
+        // Act & Assert — first level
         securityLevelManager.SecurityLevel = 13;
-        var firstPrime = securityLevelManager.MersennePrime.Value;
+        using var pow13 = two.Pow(13);
+        using var expectedFirst = pow13 - one;
+        Assert.Equal(expectedFirst, securityLevelManager.MersennePrime.Value);
 
+        // Act & Assert — second level
         securityLevelManager.SecurityLevel = 17;
-        var secondPrime = securityLevelManager.MersennePrime.Value;
+        using var pow17 = two.Pow(17);
+        using var expectedSecond = pow17 - one;
+        Assert.Equal(expectedSecond, securityLevelManager.MersennePrime.Value);
 
-        Assert.NotEqual(firstPrime, secondPrime);
-        using var value = new SecureBigInteger(2);
-        using var powerResult1 = value.Pow(13);
-        using var powerResult2 = value.Pow(17);
-        Assert.Equal(powerResult1 - 1, firstPrime);
-        Assert.Equal(powerResult2 - 1, secondPrime);
+        // Sanity: the two expected values differ.
+        Assert.NotEqual(expectedFirst, expectedSecond);
     }
 
     [Fact]

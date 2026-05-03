@@ -111,7 +111,9 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
 
             using var one = Calculator<TNumber>.One;
             using var two = Calculator<TNumber>.Two;
-            this.MersennePrime = two.Pow(validSecurityLevel) - one;
+            var newPrime = two.Pow(validSecurityLevel) - one;
+            this.MersennePrime?.Dispose();
+            this.MersennePrime = newPrime;
             this.fixedSecurityLevel = validSecurityLevel;
         }
     }
