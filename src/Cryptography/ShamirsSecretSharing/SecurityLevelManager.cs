@@ -100,28 +100,11 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
         set
         {
             this.ThrowIfDisposed();
-            if (value < this.mersennePrimeProvider.MinMersennePrimeExponent)
-            {
-                throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MinimumSecurityLevelExceeded);
-            }
-
-            if (value > this.mersennePrimeProvider.MaxMersennePrimeExponent)
-            {
-                throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MaximumSecurityLevelExceeded);
-            }
-
-            int validSecurityLevel = !this.mersennePrimeProvider.IsValidMersennePrimeExponent(value)
-                ? this.mersennePrimeProvider.GetNextMersennePrimeExponent(value)
-                : value;
+            int validSecurityLevel = this.NormalizeMersenneExponent(value);
 
             // Allocate the new prime outside the lock — Pow/Subtract may be costly,
             // and we want to keep the critical section short.
-            Calculator<TNumber> newPrime;
-            using (var one = Calculator<TNumber>.One)
-            using (var two = Calculator<TNumber>.Two)
-            {
-                newPrime = two.Pow(validSecurityLevel) - one;
-            }
+            var newPrime = NewMersennePrime(validSecurityLevel);
 
             Calculator<TNumber> oldPrime;
             try
@@ -174,18 +157,71 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
             throw new ArgumentNullException(nameof(maximumY));
         }
 
-        this.SecurityLevel = maximumY.ByteCount * 8;
-        int index = this.mersennePrimeProvider.GetIndexOfMersennePrimeExponent(this.SecurityLevel);
-        while ((maximumY % this.MersennePrime + this.MersennePrime) % this.MersennePrime == maximumY && index >= 0)
+        // Determine the starting index without mutating MersennePrime: clamp the
+        // byte-count-derived bit length to a valid Mersenne exponent and resolve its index.
+        int initialLevel = this.NormalizeMersenneExponent(maximumY.ByteCount * 8);
+        int index = this.mersennePrimeProvider.GetIndexOfMersennePrimeExponent(initialLevel);
+
+        // Walk the index downward as long as maximumY still fits modulo the corresponding prime.
+        // Each candidate prime is allocated locally and disposed immediately; the manager's
+        // MersennePrime is not touched inside the loop.
+        while (index >= 0 && this.CandidatePrimeFitsMaximumY(index, maximumY))
         {
             index--;
-            if (index >= 0)
-            {
-                this.SecurityLevel = this.mersennePrimeProvider.GetMersennePrimeExponentByIndex(index);
-            }
         }
 
+        // index is now either -1 (maximumY fits even the smallest prime) or the highest
+        // exponent for which maximumY does NOT fit. The smallest fitting exponent is at index+1.
         this.SecurityLevel = this.mersennePrimeProvider.GetMersennePrimeExponentByIndex(index + 1);
+    }
+
+    /// <summary>
+    /// Validates <paramref name="value"/> against the Mersenne prime exponent range and rounds
+    /// non-Mersenne values up to the next valid exponent. Mirrors the input normalisation
+    /// performed by the <see cref="SecurityLevel"/> setter.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="value"/> is below <see cref="IMersennePrimeProvider.MinMersennePrimeExponent"/>
+    /// or above <see cref="IMersennePrimeProvider.MaxMersennePrimeExponent"/>.
+    /// </exception>
+    private int NormalizeMersenneExponent(int value)
+    {
+        if (value < this.mersennePrimeProvider.MinMersennePrimeExponent)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MinimumSecurityLevelExceeded);
+        }
+
+        if (value > this.mersennePrimeProvider.MaxMersennePrimeExponent)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value), value, ErrorMessages.MaximumSecurityLevelExceeded);
+        }
+
+        return this.mersennePrimeProvider.IsValidMersennePrimeExponent(value)
+            ? value
+            : this.mersennePrimeProvider.GetNextMersennePrimeExponent(value);
+    }
+
+    /// <summary>
+    /// Returns whether <paramref name="maximumY"/> reduces to itself modulo the Mersenne prime
+    /// at the given <paramref name="index"/> — i.e. whether <paramref name="maximumY"/> fits
+    /// inside that finite field.
+    /// </summary>
+    private bool CandidatePrimeFitsMaximumY(int index, Calculator<TNumber> maximumY)
+    {
+        int exponent = this.mersennePrimeProvider.GetMersennePrimeExponentByIndex(index);
+        using var prime = NewMersennePrime(exponent);
+        return (maximumY % prime + prime) % prime == maximumY;
+    }
+
+    /// <summary>
+    /// Allocates a freshly computed Mersenne prime <c>2^<paramref name="exponent"/> − 1</c>
+    /// as a <see cref="Calculator{TNumber}"/>. Caller takes ownership.
+    /// </summary>
+    private static Calculator<TNumber> NewMersennePrime(int exponent)
+    {
+        using var one = Calculator<TNumber>.One;
+        using var two = Calculator<TNumber>.Two;
+        return two.Pow(exponent) - one;
     }
 
     /// <summary>
