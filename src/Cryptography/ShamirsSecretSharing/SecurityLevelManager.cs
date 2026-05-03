@@ -131,10 +131,10 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
                     // Re-check disposed after acquiring the lock so a racing
                     // Dispose cannot resurrect this instance with a fresh prime.
                     this.ThrowIfDisposed();
-                    oldPrime = this.MersennePrime;
-                    this.MersennePrime = newPrime;
+                    oldPrime = this.mersennePrime;
+                    this.mersennePrime = newPrime;
                     this.fixedSecurityLevel = validSecurityLevel;
-                    newPrime = null; // ownership transferred to MersennePrime
+                    newPrime = null; // ownership transferred to mersennePrime
                 }
             }
             catch
@@ -150,11 +150,30 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     }
 
     /// <inheritdoc/>
-    public Calculator<TNumber> MersennePrime { get; private set; }
+    public Calculator<TNumber> MersennePrime
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.mersennePrime;
+        }
+    }
+
+    /// <summary>
+    /// Backing field for <see cref="MersennePrime"/>. Mutated only inside <see cref="syncRoot"/>
+    /// (by the <see cref="SecurityLevel"/> setter and <see cref="Dispose()"/>).
+    /// </summary>
+    private Calculator<TNumber> mersennePrime;
 
     /// <inheritdoc/>
     public void AdjustSecurityLevel(Calculator<TNumber> maximumY)
     {
+        this.ThrowIfDisposed();
+        if (maximumY is null)
+        {
+            throw new ArgumentNullException(nameof(maximumY));
+        }
+
         this.SecurityLevel = maximumY.ByteCount * 8;
         int index = this.mersennePrimeProvider.GetIndexOfMersennePrimeExponent(this.SecurityLevel);
         while ((maximumY % this.MersennePrime + this.MersennePrime) % this.MersennePrime == maximumY && index >= 0)
@@ -202,8 +221,8 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
         Calculator<TNumber> primeToDispose;
         lock (this.syncRoot)
         {
-            primeToDispose = this.MersennePrime;
-            this.MersennePrime = null;
+            primeToDispose = this.mersennePrime;
+            this.mersennePrime = null;
         }
 
         primeToDispose?.Dispose();

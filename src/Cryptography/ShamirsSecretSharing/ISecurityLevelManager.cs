@@ -46,17 +46,27 @@ public interface ISecurityLevelManager<TNumber> : IDisposable
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     /// The value is outside the valid range of Mersenne prime exponents.
     /// </exception>
+    /// <exception cref="ObjectDisposedException">The implementation has been disposed.</exception>
     int SecurityLevel { get; set; }
 
     /// <summary>
     /// Gets the Mersenne prime corresponding to the current security level.
     /// </summary>
+    /// <remarks>
+    /// The returned <see cref="Calculator{TNumber}"/> is owned by this manager and must not
+    /// be disposed by the caller. The reference becomes invalid after the next assignment
+    /// to <see cref="SecurityLevel"/> (which disposes the previous prime) and after
+    /// <see cref="IDisposable.Dispose"/>.
+    /// </remarks>
+    /// <exception cref="ObjectDisposedException">The implementation has been disposed.</exception>
     Calculator<TNumber> MersennePrime { get; }
 
     /// <summary>
     /// Adjusts the security level based on the provided maximum Y value.
     /// </summary>
     /// <param name="maximumY">The maximum Y value used to determine the security level.</param>
-    /// <remarks>Use this method for reconstruction</remarks>
+    /// <remarks>Use this method for reconstruction.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="maximumY"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ObjectDisposedException">The implementation has been disposed.</exception>
     void AdjustSecurityLevel(Calculator<TNumber> maximumY);
 }

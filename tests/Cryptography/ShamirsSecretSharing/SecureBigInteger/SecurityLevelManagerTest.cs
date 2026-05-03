@@ -363,4 +363,38 @@ public class SecurityLevelManagerTest
         // Assert — the prime backing buffer is released as part of disposal.
         Assert.Throws<ObjectDisposedException>(() => _ = prime.Value.IsZero);
     }
+
+    [Fact]
+    public void MersennePrime_Get_AfterDispose_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
+        securityLevelManager.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => _ = securityLevelManager.MersennePrime);
+    }
+
+    [Fact]
+    public void AdjustSecurityLevel_AfterDispose_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
+        using var maximumY = new SecureBigIntCalculator(8190);
+        securityLevelManager.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => securityLevelManager.AdjustSecurityLevel(maximumY));
+    }
+
+    [Fact]
+    public void AdjustSecurityLevel_WithNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => securityLevelManager.AdjustSecurityLevel(null!));
+        Assert.Equal("maximumY", ex.ParamName);
+    }
 }
