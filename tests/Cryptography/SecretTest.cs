@@ -460,7 +460,7 @@ public class SecretTest
     }
 
     /// <summary>
-    /// Tests that <see cref="Secret{TNumber}.ToCharArray"/> throws
+    /// Tests that <see cref="Secret{TNumber}.ToCharArray()"/> throws
     /// <see cref="ObjectDisposedException"/> after the secret has been disposed.
     /// </summary>
     [Fact]
@@ -473,7 +473,7 @@ public class SecretTest
         secret.Dispose();
 
         // Act & Assert
-        Assert.Throws<ObjectDisposedException>(() => secret.ToCharArray());
+        Assert.Throws<ObjectDisposedException>(secret.ToCharArray);
     }
 
     /// <summary>
@@ -633,7 +633,7 @@ public class SecretTest
 
     /// <summary>
     /// Tests that <see cref="Secret{TNumber}.FromText(PinnedPoolArray{char})"/> roundtrips a
-    /// UTF-8 secret correctly via <see cref="Secret{TNumber}.ToCharArray"/>.
+    /// UTF-8 secret correctly via <see cref="Secret{TNumber}.ToCharArray()"/>.
     /// </summary>
     [Fact]
     public void FromText_PinnedPoolArrayChar_RoundTripsViaToCharArray()
@@ -720,8 +720,6 @@ public class SecretTest
 
         // Act
         using (Secret<BigInteger>.FromText(pinnedText))
-        {
-        }
 
         // Assert — input buffer remains intact and usable.
         Assert.Equal(secretText.Length, pinnedText.Length);
@@ -917,8 +915,6 @@ public class SecretTest
         using var pinnedBase64 = base64.ToPinnedSecure();
 
         using (Secret<BigInteger>.FromBase64(pinnedBase64))
-        {
-        }
 
         // Input buffer must remain intact and usable.
         Assert.Equal(base64.Length, pinnedBase64.Length);
@@ -931,14 +927,14 @@ public class SecretTest
     private static int CountNonWhitespace(string s)
     {
         int n = 0;
-        for (int i = 0; i < s.Length; i++)
+        foreach (char c in s)
         {
-            char c = s[i];
             if (c != ' ' && c != '\t' && c != '\r' && c != '\n' && c != '\f' && c != '\v')
             {
                 n++;
             }
         }
+
         return n;
     }
 
