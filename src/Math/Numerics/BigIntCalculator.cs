@@ -100,6 +100,15 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     }
 
     /// <summary>
+    /// Returns a deep copy of the current <see cref="BigIntCalculator"/> instance.
+    /// </summary>
+    /// <returns>A new <see cref="Calculator{BigInteger}"/> with an independent
+    /// <see cref="Lazy{T}"/> byte-count cache; mutating the clone's
+    /// <see cref="Calculator{TNumber}.Value"/> does not affect the original's
+    /// cached <see cref="ByteCount"/>.</returns>
+    public override Calculator<BigInteger> Clone() => new BigIntCalculator(this.Value);
+
+    /// <summary>
     /// Determines whether this instance and an <paramref name="other"/> specified <see cref="Calculator{BigInteger}"/> instance are equal.
     /// </summary>
     /// <param name="other">The <see cref="Calculator{BigInteger}"/> instance to compare</param>

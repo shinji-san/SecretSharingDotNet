@@ -397,10 +397,17 @@ public abstract class Calculator<TNumber> :
     public static Calculator<TNumber> Two => One.Increment();
 
     /// <summary>
-    /// A shallow copy of the current <see cref="Calculator{TNumber}"/> instance.
+    /// Returns a deep, independent copy of the current <see cref="Calculator{TNumber}"/> instance.
     /// </summary>
-    /// <returns></returns>
-    public virtual Calculator<TNumber> Clone() => this.MemberwiseClone() as Calculator<TNumber>;
+    /// <returns>A new <see cref="Calculator{TNumber}"/> whose state — including any
+    /// <typeparamref name="TNumber"/> backing instance and any reference-type fields — is independent
+    /// of this instance, so mutating one does not affect the other.</returns>
+    /// <remarks>
+    /// Subtypes are responsible for producing a true deep copy. <see cref="object.MemberwiseClone"/>
+    /// is not safe as a default implementation when <typeparamref name="TNumber"/> is a reference
+    /// type or when the subtype carries reference-type fields.
+    /// </remarks>
+    public abstract Calculator<TNumber> Clone();
 
     /// <summary>
     /// Compares this instance to a second <see cref="Calculator{TNumber}"/> and returns an integer that indicates whether the value of this instance is less than, equal to, or greater than the value of the specified object.
