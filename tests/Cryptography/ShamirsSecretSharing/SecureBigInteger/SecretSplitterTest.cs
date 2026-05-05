@@ -139,4 +139,21 @@ public class SecretSplitterTest
 
         // Assert — implicit: no exception escaped.
     }
+
+    [Fact]
+    public void MakeShares_NumberOfSharesExceedsMersennePrime_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange — small numeric secret. After auto-upgrade the splitter ends up at
+        // SecurityLevel = 17 (next Mersenne exponent ≥ 16, since SecretByteSize = 2
+        // including the termination byte), so prime = 2^17 - 1 = 131071.
+        // numberOfShares = 131071 must be rejected: indices 1..131071 collapse to a
+        // collision modulo prime in any subsequent reconstruction.
+        using var splitter = new SecretSplitter<SecureBigInteger>();
+        using var secret = (Secret<SecureBigInteger>)(SecureBigInteger)42;
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(
+            () => splitter.MakeShares(2, 131071, secret));
+        Assert.Equal("numberOfShares", ex.ParamName);
+    }
 }

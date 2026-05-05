@@ -77,7 +77,13 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("MaxSharesLowerThanMinShares", resourceCulture);
             }
         }
-        
+
+        internal static string MaxSharesExceedsMersennePrime {
+            get {
+                return ResourceManager.GetString("MaxSharesExceedsMersennePrime", resourceCulture);
+            }
+        }
+
         internal static string ReadOnlyCollection {
             get {
                 return ResourceManager.GetString("ReadOnlyCollection", resourceCulture);

@@ -26,6 +26,9 @@
     <data name="MaxSharesLowerThanMinShares" xml:space="preserve">
         <value>Das Pool-Geheimnis wäre mit diesen Parametern unwiederbringlich, da die maximale Anzahl an Teilgeheimnissen kleiner ist als die minimale Anzahl an Teilgeheimnissen.</value>
     </data>
+    <data name="MaxSharesExceedsMersennePrime" xml:space="preserve">
+        <value>Die maximale Anzahl der Teilgeheimnisse muss kleiner sein als die aktuelle Mersenne-Primzahl, die den endlichen Körper definiert.</value>
+    </data>
     <data name="ReadOnlyCollection" xml:space="preserve">
         <value>Die {0}-Sammlung ist schreibgeschützt.</value>
     </data>

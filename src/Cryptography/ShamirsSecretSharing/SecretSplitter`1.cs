@@ -145,8 +145,10 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// </param>
     /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="securityLevel"/> is lower than 13 or greater than 43,112,609, or
-    /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// <paramref name="securityLevel"/> is lower than 13 or greater than 43,112,609;
+    /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>;
+    /// or <paramref name="numberOfShares"/> is greater than or equal to the current Mersenne prime
+    /// defining the finite field.
     /// </exception>
     /// <exception cref="InvalidOperationException">
     /// The configured <see cref="ISecurityLevelManager{TNumber}"/> has no Mersenne prime
@@ -211,8 +213,10 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// to fit the <paramref name="secret"/>'s byte length; it never lowers it.
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="securityLevel"/> is lower than 13 or greater than 43,112,609, or
-    /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// <paramref name="securityLevel"/> is lower than 13 or greater than 43,112,609;
+    /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>;
+    /// or <paramref name="numberOfShares"/> is greater than or equal to the current Mersenne prime
+    /// defining the finite field.
     /// </exception>
     /// <exception cref="InvalidOperationException">
     /// The configured <typeparamref name="TNumber"/> backend's <see cref="Calculator"/>
@@ -248,7 +252,9 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// byte length; it never lowers it.
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>.
+    /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>;
+    /// or <paramref name="numberOfShares"/> is greater than or equal to the current Mersenne prime
+    /// defining the finite field.
     /// </exception>
     /// <exception cref="InvalidOperationException">
     /// The configured <typeparamref name="TNumber"/> backend's <see cref="Calculator"/>
@@ -379,11 +385,36 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <param name="polynomial">The polynomial coefficients</param>
     /// <returns>Shares representing points on the secret polynomial. The caller owns each share
     /// and is responsible for disposal (typically by handing them to a <see cref="Shares{TNumber}"/>).</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="numberOfShares"/> is greater than or equal to the current Mersenne prime
+    /// defining the finite field. Share indices 1..<paramref name="numberOfShares"/> would
+    /// otherwise collide modulo the prime, breaking Lagrange reconstruction.
+    /// </exception>
+    /// <exception cref="NotSupportedException">
+    /// The configured <typeparamref name="TNumber"/> backend's <see cref="Calculator"/>
+    /// factory has no constructor matching the share-index byte buffer.
+    /// </exception>
     private Share<TNumber>[] CreateShares(int numberOfShares, ICollection<Calculator<TNumber>> polynomial)
     {
+        var prime = this.securityLevelManager.MersennePrime;
+
+        // Share indices 1..numberOfShares form a contiguous run of positive integers
+        // and must remain distinct modulo `prime` (Lagrange reconstruction divides by
+        // (x_i - x_j); a collision yields denominator = 0 and a misleading
+        // "inverse of zero" deep in DivMod). Reject early with a clean
+        // ArgumentOutOfRangeException naming the actual misconfigured argument.
+        using var maxIndex = Calculator.Create(BitConverter.GetBytes(numberOfShares), sizeof(int), typeof(TNumber)) as Calculator<TNumber>
+                             ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
+        if (maxIndex >= prime)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(numberOfShares),
+                numberOfShares,
+                ErrorMessages.MaxSharesExceedsMersennePrime);
+        }
+
         var size = numberOfShares + 1;
         var shares = new Share<TNumber>[numberOfShares];
-        var prime = this.securityLevelManager.MersennePrime;
 
         try
         {
