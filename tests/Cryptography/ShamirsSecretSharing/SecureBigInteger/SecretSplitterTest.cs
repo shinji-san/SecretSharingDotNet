@@ -156,4 +156,19 @@ public class SecretSplitterTest
             () => splitter.MakeShares(2, 131071, secret));
         Assert.Equal("numberOfShares", ex.ParamName);
     }
+
+    [Fact]
+    public void MakeShares_NumberOfSharesExceedsImplementationCap_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange — pick a secret large enough that the auto-upgraded prime is
+        // astronomically larger than the implementation cap, so the H3 prime guard
+        // cannot fire first; the implementation cap (M3) must still reject the request.
+        using var splitter = new SecretSplitter<SecureBigInteger>();
+        using var secret = new Secret<SecureBigInteger>(new byte[64]);
+
+        // Act & Assert — exactly one above the cap.
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(
+            () => splitter.MakeShares(2, SecretSplitter<SecureBigInteger>.MaxAllowedNumberOfShares + 1, secret));
+        Assert.Equal("numberOfShares", ex.ParamName);
+    }
 }

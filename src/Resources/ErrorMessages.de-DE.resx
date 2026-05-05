@@ -29,6 +29,9 @@
     <data name="MaxSharesExceedsMersennePrime" xml:space="preserve">
         <value>Die maximale Anzahl der Teilgeheimnisse muss kleiner sein als die aktuelle Mersenne-Primzahl, die den endlichen Körper definiert.</value>
     </data>
+    <data name="MaxSharesExceedsImplementationLimit" xml:space="preserve">
+        <value>Die maximale Anzahl der Teilgeheimnisse darf {0} nicht überschreiten.</value>
+    </data>
     <data name="ReadOnlyCollection" xml:space="preserve">
         <value>Die {0}-Sammlung ist schreibgeschützt.</value>
     </data>

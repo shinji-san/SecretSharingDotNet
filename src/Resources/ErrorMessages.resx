@@ -36,6 +36,9 @@
     <data name="MaxSharesExceedsMersennePrime" xml:space="preserve">
         <value>The maximum number of shares must be lower than the current Mersenne prime defining the finite field.</value>
     </data>
+    <data name="MaxSharesExceedsImplementationLimit" xml:space="preserve">
+        <value>The maximum number of shares must not exceed {0}.</value>
+    </data>
     <data name="ReadOnlyCollection" xml:space="preserve">
         <value>The {0} collection is read-only.</value>
     </data>

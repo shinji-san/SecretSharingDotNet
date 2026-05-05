@@ -51,6 +51,16 @@ using System.Threading;
 public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
 {
     /// <summary>
+    /// Hard upper bound on the maximum number of shares (<c>numberOfShares</c>) that
+    /// <see cref="MakeShares(int, int, Secret{TNumber})"/> and its overloads accept.
+    /// Any realistic Shamir-secret-sharing scheme uses values in the dozens; the cap is
+    /// deliberately generous so it never gets in the way of legitimate use, while still
+    /// protecting against pathological / hostile callers that would otherwise drive the
+    /// share-generation loop into multi-day CPU time.
+    /// </summary>
+    public const int MaxAllowedNumberOfShares = 1_000_000;
+
+    /// <summary>
     /// Represents the manager for configuring and retrieving the security level
     /// settings in the context of Shamir's Secret Sharing implementation.
     /// </summary>
@@ -147,6 +157,8 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="securityLevel"/> is lower than 13 or greater than 43,112,609;
     /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>;
+    /// <paramref name="numberOfShares"/> is greater than the implementation cap
+    /// <see cref="MaxAllowedNumberOfShares"/>;
     /// or <paramref name="numberOfShares"/> is greater than or equal to the current Mersenne prime
     /// defining the finite field.
     /// </exception>
@@ -215,6 +227,8 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="securityLevel"/> is lower than 13 or greater than 43,112,609;
     /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>;
+    /// <paramref name="numberOfShares"/> is greater than the implementation cap
+    /// <see cref="MaxAllowedNumberOfShares"/>;
     /// or <paramref name="numberOfShares"/> is greater than or equal to the current Mersenne prime
     /// defining the finite field.
     /// </exception>
@@ -253,6 +267,8 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="numberOfMinimumShares"/> is lower than 2 or greater than <paramref name="numberOfShares"/>;
+    /// <paramref name="numberOfShares"/> is greater than the implementation cap
+    /// <see cref="MaxAllowedNumberOfShares"/>;
     /// or <paramref name="numberOfShares"/> is greater than or equal to the current Mersenne prime
     /// defining the finite field.
     /// </exception>
@@ -386,6 +402,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <returns>Shares representing points on the secret polynomial. The caller owns each share
     /// and is responsible for disposal (typically by handing them to a <see cref="Shares{TNumber}"/>).</returns>
     /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="numberOfShares"/> exceeds <see cref="MaxAllowedNumberOfShares"/>; or
     /// <paramref name="numberOfShares"/> is greater than or equal to the current Mersenne prime
     /// defining the finite field. Share indices 1..<paramref name="numberOfShares"/> would
     /// otherwise collide modulo the prime, breaking Lagrange reconstruction.
@@ -396,6 +413,18 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// </exception>
     private Share<TNumber>[] CreateShares(int numberOfShares, ICollection<Calculator<TNumber>> polynomial)
     {
+        // Hard implementation cap — protects against pathological callers driving the
+        // share-generation loop into multi-day CPU time on a large finite field. Realistic
+        // Shamir schemes use values in the dozens; the cap is generous enough never to
+        // interfere with legitimate use.
+        if (numberOfShares > MaxAllowedNumberOfShares)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(numberOfShares),
+                numberOfShares,
+                string.Format(ErrorMessages.MaxSharesExceedsImplementationLimit, MaxAllowedNumberOfShares));
+        }
+
         var prime = this.securityLevelManager.MersennePrime;
 
         // Share indices 1..numberOfShares form a contiguous run of positive integers

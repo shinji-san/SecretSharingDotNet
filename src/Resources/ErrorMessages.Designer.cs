@@ -84,6 +84,12 @@ namespace SecretSharingDotNet {
             }
         }
 
+        internal static string MaxSharesExceedsImplementationLimit {
+            get {
+                return ResourceManager.GetString("MaxSharesExceedsImplementationLimit", resourceCulture);
+            }
+        }
+
         internal static string ReadOnlyCollection {
             get {
                 return ResourceManager.GetString("ReadOnlyCollection", resourceCulture);
