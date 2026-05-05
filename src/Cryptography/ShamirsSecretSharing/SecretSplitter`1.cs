@@ -302,23 +302,38 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         polynomial[0] = a0;
         try
         {
-            var mersennePrimeByteCount = this.securityLevelManager.MersennePrime.ByteCount;
-            using var randomBytePool = new PinnedPoolArray<byte>(mersennePrimeByteCount);
+            var prime = this.securityLevelManager.MersennePrime;
+            int mersennePrimeByteCount = prime.ByteCount;
+            // Allocate one extra trailing byte. PinnedPoolArray's ctor zeros the buffer and
+            // rng.GetBytes(buf, 0, n) only writes the prefix, so the high byte at index n
+            // stays 0. Both Calculator<TNumber> backends interpret their input as signed
+            // two's-complement little-endian; a 0 high byte therefore forces the value to
+            // be non-negative without an Abs() correction (which would skew the
+            // distribution by mapping ±x to the same magnitude).
+            using var randomBytePool = new PinnedPoolArray<byte>(mersennePrimeByteCount + 1);
             using var rng = RandomNumberGenerator.Create();
+            // Largest multiple of `prime` that fits in [0, 2^{8 * mersennePrimeByteCount}).
+            // Rejection-sample any draw that lands at or above this bound to remove the
+            // residual modulo bias. The reject probability is
+            // (2^{8n} mod prime) / 2^{8n}, which for every Mersenne prime in the supported
+            // range is well below 0.013% — the loop is overwhelmingly single-iteration.
+            using var rangeBound = ComputeRangeBound(mersennePrimeByteCount, prime);
             int topIndex = numberOfMinimumShares - 1;
             for (int i = 1; i < numberOfMinimumShares; i++)
             {
                 while (true)
                 {
                     rng.GetBytes(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
-                    using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>;
-                    if (randomValue == null)
+                    using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>
+                                            ?? throw new InvalidOperationException(ErrorMessages.RandomValueGenerationFailed);
+
+                    if (randomValue >= rangeBound)
                     {
-                        throw new InvalidOperationException(ErrorMessages.RandomValueGenerationFailed);
+                        // Bias-eliminating rejection: redraw.
+                        continue;
                     }
 
-                    using var abs = randomValue.Abs();
-                    var coefficient = abs % this.securityLevelManager.MersennePrime;
+                    var coefficient = randomValue % prime;
                     // The leading coefficient must be non-zero to keep the polynomial at the
                     // intended degree k-1. A zero leading coefficient would silently drop the
                     // effective threshold from k to k-1. Reroll on a zero draw; lower-index
@@ -340,6 +355,21 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         return polynomial;
+    }
+
+    /// <summary>
+    /// Computes <c>floor(2^{8 * <paramref name="byteCount"/>} / <paramref name="prime"/>) * <paramref name="prime"/></c> —
+    /// the largest multiple of <paramref name="prime"/> strictly below <c>2^{8 * byteCount}</c>.
+    /// Drawing uniformly in <c>[0, returnedValue)</c> and reducing modulo <paramref name="prime"/>
+    /// yields a uniform sample in <c>[0, prime - 1]</c>; samples in
+    /// <c>[returnedValue, 2^{8 * byteCount})</c> must be rejected.
+    /// </summary>
+    private static Calculator<TNumber> ComputeRangeBound(int byteCount, Calculator<TNumber> prime)
+    {
+        using var two = Calculator<TNumber>.Two;
+        using var space = two.Pow(byteCount * 8);
+        using var quotient = space / prime;
+        return quotient * prime;
     }
 
     /// <summary>
