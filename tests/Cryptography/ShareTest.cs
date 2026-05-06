@@ -446,11 +446,19 @@ public class ShareTest
     [Fact]
     public void Dispose_Idempotent_NoException()
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
 
-        share.Dispose();
-        share.Dispose();
-        share.Dispose();
+        // Act
+        var ex = Record.Exception(() =>
+        {
+            share.Dispose();
+            share.Dispose();
+            share.Dispose();
+        });
+
+        // Assert
+        Assert.Null(ex);
     }
 
     [Fact]

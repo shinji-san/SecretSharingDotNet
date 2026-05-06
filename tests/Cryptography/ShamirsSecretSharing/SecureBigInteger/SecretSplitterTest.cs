@@ -65,10 +65,16 @@ public class SecretSplitterTest
         // Arrange
         var splitter = new SecretSplitter<SecureBigInteger>();
 
-        // Act & Assert — must not throw on repeated dispose.
-        splitter.Dispose();
-        splitter.Dispose();
-        splitter.Dispose();
+        // Act
+        var ex = Record.Exception(() =>
+        {
+            splitter.Dispose();
+            splitter.Dispose();
+            splitter.Dispose();
+        });
+
+        // Assert
+        Assert.Null(ex);
     }
 
     [Fact]

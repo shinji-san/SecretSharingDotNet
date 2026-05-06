@@ -234,9 +234,15 @@ public class SecureCharBufferExtensionsTest
         // Arrange
         var lines = new[] { "1-FFFF" }.ToPinnedSecureShareLines();
 
-        // Act & Assert — must not throw on repeated dispose.
-        lines.Dispose();
-        lines.Dispose();
-        lines.Dispose();
+        // Act
+        var ex = Record.Exception(() =>
+        {
+            lines.Dispose();
+            lines.Dispose();
+            lines.Dispose();
+        });
+
+        // Assert
+        Assert.Null(ex);
     }
 }

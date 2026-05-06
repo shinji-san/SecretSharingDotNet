@@ -306,10 +306,16 @@ public class SecurityLevelManagerTest
         // Arrange
         var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
 
-        // Act & Assert — must not throw on repeated dispose.
-        securityLevelManager.Dispose();
-        securityLevelManager.Dispose();
-        securityLevelManager.Dispose();
+        // Act
+        var ex = Record.Exception(() =>
+        {
+            securityLevelManager.Dispose();
+            securityLevelManager.Dispose();
+            securityLevelManager.Dispose();
+        });
+
+        // Assert
+        Assert.Null(ex);
     }
 
     [Fact]

@@ -69,10 +69,16 @@ public class SecretReconstructorTest
         // Arrange
         var reconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
 
-        // Act & Assert — must not throw on repeated dispose.
-        reconstructor.Dispose();
-        reconstructor.Dispose();
-        reconstructor.Dispose();
+        // Act
+        var ex = Record.Exception(() =>
+        {
+            reconstructor.Dispose();
+            reconstructor.Dispose();
+            reconstructor.Dispose();
+        });
+
+        // Assert
+        Assert.Null(ex);
     }
 
     [Fact]
