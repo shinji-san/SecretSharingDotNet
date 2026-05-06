@@ -50,6 +50,36 @@ using System.Threading;
 /// Represents a secure arbitrary-precision integer with support for basic arithmetic operations.
 /// The internal data is securely cleared from memory when the instance is disposed.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <b>Threat model.</b> The "secure" qualifier covers a specific subset of side channels:
+/// </para>
+/// <list type="bullet">
+/// <item><description>
+/// <b>Protected:</b> passive memory disclosure (the underlying buffer is GC-pinned and wiped
+/// with a 3-pass overwrite plus <c>CryptographicOperations.ZeroMemory</c> on dispose, so heap
+/// snapshots, swap files, and reuse-after-free cannot recover plaintext); equality leaks
+/// (<see cref="Equals(SecureBigInteger)"/> pre-pads to <c>max(left, right)</c> and uses
+/// fixed-time comparison, so timing does not leak prefix-match length).
+/// </description></item>
+/// <item><description>
+/// <b>Not protected:</b> timing side channels in arithmetic. <see cref="op_Addition"/>,
+/// <see cref="op_Subtraction"/>, <see cref="op_Multiply"/>, <see cref="op_Division"/>,
+/// <see cref="op_Modulus"/>, <see cref="Pow"/>, <see cref="Sqrt"/>, and the comparison
+/// operators are variable-time — runtime depends on operand bit length, carry
+/// propagation, and quotient-iteration count. An attacker who can measure the runtime of
+/// these operations (cross-VM cache attack, browser high-resolution timer, network-RTT
+/// measurement on a server endpoint that performs arithmetic on attacker-influenced inputs)
+/// can in principle infer magnitude information about secret-derived values.
+/// </description></item>
+/// </list>
+/// <para>
+/// Constant-time arithmetic in pure managed .NET is non-trivial and is on the future-work
+/// list, not the current contract. Consumers whose threat model includes co-located active
+/// timing attackers should layer the operation through a constant-time crypto stack
+/// (libsodium-net, hardware-backed enclaves) rather than rely on this type's naming alone.
+/// </para>
+/// </remarks>
 #if DEBUG
 [DebuggerDisplay("{ToString(),nq}")]
 #else

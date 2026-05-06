@@ -38,6 +38,12 @@ using System.Threading;
 /// <summary>
 /// <see cref="Calculator"/> implementation of <see cref="SecureBigInteger"/>.
 /// </summary>
+/// <remarks>
+/// Inherits the threat-model boundaries of <see cref="SecureBigInteger"/>: protected
+/// against passive memory disclosure and equality timing leaks, but the dispatched
+/// arithmetic operators are variable-time. See the <c>SecureBigInteger</c> XML doc
+/// remarks for the full breakdown and the constant-time-arithmetic future-work note.
+/// </remarks>
 public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
 {
     /// <summary>

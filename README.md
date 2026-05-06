@@ -427,6 +427,43 @@ namespace Example5
 }
 ```
 
+# Security & Threat Model 🛡️
+
+The library targets two backends through the `Calculator<TNumber>` strategy pattern: the
+.NET-native `BigInteger` and a custom `SecureBigInteger`. The latter is positioned as the
+security-conscious option, but its protection is scoped — it is not a drop-in replacement
+for hardened native crypto stacks.
+
+**`SecureBigInteger` protects against:**
+
+- **Passive memory disclosure.** The internal byte buffer is GC-pinned and overwritten with
+  a 3-pass scramble plus `CryptographicOperations.ZeroMemory` on dispose. Heap snapshots,
+  swap files, and reuse-after-free of the same physical pages cannot recover plaintext.
+- **Length-vs-content equality leaks.** `SecureBigInteger.Equals` pre-pads to
+  `max(left, right)` and uses fixed-time comparison; equality timing does not leak which
+  prefix bytes match.
+- **Insecure RNG.** Every random draw goes through
+  `System.Security.Cryptography.RandomNumberGenerator` via the internal
+  `Cryptography.SecureRandom` helper. No `System.Random`, no PRNG seeds.
+
+**`SecureBigInteger` does *not* protect against:**
+
+- **Timing side channels in arithmetic.** `Add`, `Subtract`, `Multiply`, `Divide`,
+  `Modulo`, `Pow`, `Sqrt`, and the comparison operators are variable-time — runtime
+  depends on operand bit length, carry propagation, and quotient-iteration count. A
+  co-located attacker (cross-VM cache attack, browser high-resolution timer,
+  network-RTT measurement on a server endpoint that performs `SecureBigInteger`
+  arithmetic on attacker-influenced inputs) can in principle infer magnitude
+  information about secret-derived values.
+
+  Constant-time big-integer arithmetic in pure managed .NET is non-trivial; canonical
+  implementations (libsodium, BoringSSL) rely on fixed-width representation,
+  branchless conditional moves, and hand-tuned cache-pattern audits. **This is on
+  the future-work list, not the current contract.** Consumers whose threat model
+  includes co-located active timing attackers should layer the operation through a
+  constant-time crypto stack (e.g. libsodium-net, hardware-backed enclaves) rather
+  than rely on the `SecureBigInteger` naming alone.
+
 # CLI building instructions
 ## Prerequisites
 For the following instructions, please make sure that you are connected to the internet. If necessary, NuGet will try to restore the [xUnit](https://xunit.net/) packages.
