@@ -32,6 +32,9 @@
     <data name="MaxSharesExceedsImplementationLimit" xml:space="preserve">
         <value>Die maximale Anzahl der Teilgeheimnisse darf {0} nicht überschreiten.</value>
     </data>
+    <data name="RandomRangeExceedsMaximum" xml:space="preserve">
+        <value>Der angeforderte Zufallsbereich überschreitet das vom Zufallszahlen-Helfer unterstützte Maximum.</value>
+    </data>
     <data name="ReadOnlyCollection" xml:space="preserve">
         <value>Die {0}-Sammlung ist schreibgeschützt.</value>
     </data>

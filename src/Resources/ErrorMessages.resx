@@ -39,6 +39,9 @@
     <data name="MaxSharesExceedsImplementationLimit" xml:space="preserve">
         <value>The maximum number of shares must not exceed {0}.</value>
     </data>
+    <data name="RandomRangeExceedsMaximum" xml:space="preserve">
+        <value>The requested random range exceeds the maximum supported by the random helper.</value>
+    </data>
     <data name="ReadOnlyCollection" xml:space="preserve">
         <value>The {0} collection is read-only.</value>
     </data>

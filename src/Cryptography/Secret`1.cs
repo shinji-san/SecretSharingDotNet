@@ -117,15 +117,11 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
             throw new ArgumentException(ErrorMessages.EmptyCollection, nameof(secretSource));
         }
 
-        using var buffer = new PinnedPoolArray<byte>(1);
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetNonZeroBytes(buffer.PoolArray);
-        }
-
         this.secretNumber = new PinnedPoolArray<byte>(length + 1);
         byte maxMarkByte = length == 1 ? MinMarkByte : MaxMarkByte;
-        this.secretNumber.PoolArray[length] = (byte)(buffer.PoolArray[0] % maxMarkByte + 1);
+        // Termination byte uniformly distributed over [1, maxMarkByte]. SecureRandom.NextInt32
+        // performs rejection sampling internally — no `% maxMarkByte` modulo bias.
+        this.secretNumber.PoolArray[length] = (byte)SecureRandom.NextInt32(1, maxMarkByte + 1);
 #if NET8_0_OR_GREATER
         secretSource[..length].CopyTo(this.secretNumber.PoolArray);
 #else
@@ -823,10 +819,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     internal static Secret<TNumberStatic> CreateRandom<TNumberStatic>(Calculator<TNumberStatic> prime)
     {
         using var randomSecretBytes = new PinnedPoolArray<byte>(prime.ByteCount);
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(randomSecretBytes.PoolArray);
-        }
+        SecureRandom.Fill(randomSecretBytes.PoolArray, 0, randomSecretBytes.Length);
 
         int i = randomSecretBytes.Length - 1;
         while (i > 0)

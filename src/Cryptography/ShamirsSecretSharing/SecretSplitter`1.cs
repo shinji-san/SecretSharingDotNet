@@ -36,7 +36,6 @@ using Math;
 using SecureArray;
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Threading;
 
 /// <summary>
@@ -333,7 +332,6 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
             // be non-negative without an Abs() correction (which would skew the
             // distribution by mapping ±x to the same magnitude).
             using var randomBytePool = new PinnedPoolArray<byte>(mersennePrimeByteCount + 1);
-            using var rng = RandomNumberGenerator.Create();
             // Largest multiple of `prime` that fits in [0, 2^{8 * mersennePrimeByteCount}).
             // Rejection-sample any draw that lands at or above this bound to remove the
             // residual modulo bias. The reject probability is
@@ -345,7 +343,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
             {
                 while (true)
                 {
-                    rng.GetBytes(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
+                    SecureRandom.Fill(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
                     using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>
                                             ?? throw new InvalidOperationException(ErrorMessages.RandomValueGenerationFailed);
 

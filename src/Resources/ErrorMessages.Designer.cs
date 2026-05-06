@@ -90,6 +90,12 @@ namespace SecretSharingDotNet {
             }
         }
 
+        internal static string RandomRangeExceedsMaximum {
+            get {
+                return ResourceManager.GetString("RandomRangeExceedsMaximum", resourceCulture);
+            }
+        }
+
         internal static string ReadOnlyCollection {
             get {
                 return ResourceManager.GetString("ReadOnlyCollection", resourceCulture);
