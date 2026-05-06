@@ -61,9 +61,13 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_EnterImmediately_ReturnsEmptyBuffer()
     {
+        // Arrange
         var keys = MakeKeys(Enter());
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, null, _ => { });
 
+        // Assert
         Assert.Equal(0, pinned.Length);
         Assert.True(pinned.Capacity >= 8);
     }
@@ -71,9 +75,13 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_TypicalInput_AccumulatesChars()
     {
+        // Arrange
         var keys = MakeKeys(Char('a'), Char('b'), Char('c'), Enter());
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, null, _ => { });
 
+        // Assert
         Assert.Equal(3, pinned.Length);
         Assert.Equal('a', pinned[0]);
         Assert.Equal('b', pinned[1]);
@@ -83,9 +91,13 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_Backspace_RemovesLastChar()
     {
+        // Arrange
         var keys = MakeKeys(Char('a'), Char('b'), Backspace(), Char('c'), Enter());
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, null, _ => { });
 
+        // Assert
         Assert.Equal(2, pinned.Length);
         Assert.Equal('a', pinned[0]);
         Assert.Equal('c', pinned[1]);
@@ -94,9 +106,13 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_BackspaceOnEmptyBuffer_IsNoOp()
     {
+        // Arrange
         var keys = MakeKeys(Backspace(), Backspace(), Char('x'), Enter());
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, null, _ => { });
 
+        // Assert
         Assert.Equal(1, pinned.Length);
         Assert.Equal('x', pinned[0]);
     }
@@ -104,20 +120,27 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_BackspaceClearsCharSlot()
     {
+        // Arrange
         var keys = MakeKeys(Char('S'), Backspace(), Enter());
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 4, null, _ => { });
 
+        // Assert — the slot beyond the logical length must have been wiped on backspace.
         Assert.Equal(0, pinned.Length);
-        // The slot beyond the logical length must have been wiped on backspace.
         Assert.Equal('\0', pinned.PoolArray[0]);
     }
 
     [Fact]
     public void ReadPasswordLoop_MaxLengthReached_IgnoresFurtherChars()
     {
+        // Arrange
         var keys = MakeKeys(Char('a'), Char('b'), Char('c'), Char('d'), Enter());
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 2, null, _ => { });
 
+        // Assert
         Assert.Equal(2, pinned.Length);
         Assert.Equal('a', pinned[0]);
         Assert.Equal('b', pinned[1]);
@@ -126,9 +149,13 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_AfterMaxReached_BackspaceStillWorks()
     {
+        // Arrange
         var keys = MakeKeys(Char('a'), Char('b'), Char('c'), Backspace(), Char('Z'), Enter());
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 2, null, _ => { });
 
+        // Assert
         Assert.Equal(2, pinned.Length);
         Assert.Equal('a', pinned[0]);
         Assert.Equal('Z', pinned[1]);
@@ -137,9 +164,13 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_ControlKeys_AreIgnored()
     {
+        // Arrange
         var keys = MakeKeys(Char('a'), Tab(), Esc(), Char('b'), Enter());
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, null, _ => { });
 
+        // Assert
         Assert.Equal(2, pinned.Length);
         Assert.Equal('a', pinned[0]);
         Assert.Equal('b', pinned[1]);
@@ -148,10 +179,14 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_NoEcho_DoesNotInvokeSink()
     {
+        // Arrange
         var keys = MakeKeys(Char('a'), Char('b'), Backspace(), Enter());
         var sink = new StringBuilder();
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, null, s => sink.Append(s));
 
+        // Assert
         Assert.Equal(0, sink.Length);
         Assert.Equal(1, pinned.Length);
     }
@@ -159,10 +194,14 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_WithEcho_EmitsMaskCharPerKey()
     {
+        // Arrange
         var keys = MakeKeys(Char('a'), Char('b'), Char('c'), Enter());
         var sink = new StringBuilder();
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, '*', s => sink.Append(s));
 
+        // Assert
         Assert.Equal("***", sink.ToString());
         Assert.Equal(3, pinned.Length);
     }
@@ -170,10 +209,14 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_WithEcho_BackspaceEmitsEraseSequence()
     {
+        // Arrange
         var keys = MakeKeys(Char('a'), Backspace(), Enter());
         var sink = new StringBuilder();
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, '*', s => sink.Append(s));
 
+        // Assert
         Assert.Equal("*\b \b", sink.ToString());
         Assert.Equal(0, pinned.Length);
     }
@@ -181,10 +224,14 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPasswordLoop_WithEcho_BackspaceOnEmpty_NoEcho()
     {
+        // Arrange
         var keys = MakeKeys(Backspace(), Char('a'), Enter());
         var sink = new StringBuilder();
+
+        // Act
         using var pinned = ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, '*', s => sink.Append(s));
 
+        // Assert
         Assert.Equal("*", sink.ToString());
         Assert.Equal(1, pinned.Length);
     }
