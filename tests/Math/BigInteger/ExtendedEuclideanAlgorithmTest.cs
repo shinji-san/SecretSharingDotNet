@@ -43,15 +43,23 @@ public class ExtendedEuclideanAlgorithmTest
     [Fact]
     public void TestSimpleGcd()
     {
+        // Arrange
         using Calculator<BigInteger> expected = (BigInteger)3;
+
+        // Act
         var gcdResult = this.gcd.Compute(BigInteger.Parse("6", CultureInfo.InvariantCulture), BigInteger.Parse("9", CultureInfo.InvariantCulture));
+
+        // Assert
         Assert.Equal(expected, gcdResult.GreatestCommonDivisor);
     }
 
     [Fact]
     public void TestPositiveBoth()
     {
+        // Act
         var result = this.gcd.Compute(BigInteger.Parse("2", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
+
+        // Assert
         Assert.Equal(BigInteger.Parse("-85070591730234615865843651857942052863", CultureInfo.InvariantCulture), result.BezoutCoefficients[0].Value);
         Assert.Equal(BigInteger.One, result.BezoutCoefficients[1].Value);
     }
@@ -59,7 +67,10 @@ public class ExtendedEuclideanAlgorithmTest
     [Fact]
     public void Test1NegativeParameterA()
     {
+        // Act
         var result = this.gcd.Compute(BigInteger.Parse("-1", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
+
+        // Assert
         Assert.Equal(BigInteger.One, result.BezoutCoefficients[0].Value);
         Assert.Equal(BigInteger.Zero, result.BezoutCoefficients[1].Value);
     }
@@ -67,7 +78,10 @@ public class ExtendedEuclideanAlgorithmTest
     [Fact]
     public void Test2NegativeParameterA()
     {
+        // Act
         var result = this.gcd.Compute(BigInteger.Parse("-4", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
+
+        // Assert
         Assert.Equal(BigInteger.Parse("42535295865117307932921825928971026432", CultureInfo.InvariantCulture), result.BezoutCoefficients[0].Value);
         Assert.Equal(BigInteger.One, result.BezoutCoefficients[1].Value);
     }
@@ -75,7 +89,10 @@ public class ExtendedEuclideanAlgorithmTest
     [Fact]
     public void Test1NegativeParameterB()
     {
+        // Act
         var result = this.gcd.Compute(BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture), BigInteger.Parse("-1", CultureInfo.InvariantCulture));
+
+        // Assert
         Assert.Equal(BigInteger.Zero, result.BezoutCoefficients[0].Value);
         Assert.Equal(BigInteger.One, result.BezoutCoefficients[1].Value);
     }
@@ -83,7 +100,10 @@ public class ExtendedEuclideanAlgorithmTest
     [Fact]
     public void Test2NegativeParameterB()
     {
+        // Act
         var result = this.gcd.Compute(BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture), BigInteger.Parse("-4", CultureInfo.InvariantCulture));
+
+        // Assert
         Assert.Equal(BigInteger.One, result.BezoutCoefficients[0].Value);
         Assert.Equal(BigInteger.Parse("42535295865117307932921825928971026432", CultureInfo.InvariantCulture), result.BezoutCoefficients[1].Value);
     }

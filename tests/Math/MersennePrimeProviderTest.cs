@@ -102,6 +102,7 @@ public class MersennePrimeProviderTest
     [Fact]
     public void GetNextMersennePrimeExponent_Should_ThrowException_WhenOutOfRange()
     {
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             MersennePrimeProvider.Instance.GetNextMersennePrimeExponent(50000000));
     }

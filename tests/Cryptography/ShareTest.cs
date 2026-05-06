@@ -259,9 +259,13 @@ public class ShareTest
     [InlineData("0x01-0x01", 1, 1)]
     public void Constructor_WithLowerHexPrefix_ShouldParse(string shareString, int expectedIndex, int expectedValue)
     {
+        // Arrange
         using var pinned = shareString.ToPinnedSecure();
+
+        // Act
         var share = new Share<BigInteger>(pinned);
 
+        // Assert
         Assert.Equal(new BigIntCalculator(expectedIndex), share.Index);
         Assert.Equal(new BigIntCalculator(expectedValue), share.Value);
     }
@@ -271,9 +275,13 @@ public class ShareTest
     [InlineData("05-0x0A", 5, 10)]
     public void Constructor_WithPartialPrefix_ShouldParse(string shareString, int expectedIndex, int expectedValue)
     {
+        // Arrange
         using var pinned = shareString.ToPinnedSecure();
+
+        // Act
         var share = new Share<BigInteger>(pinned);
 
+        // Assert
         Assert.Equal(new BigIntCalculator(expectedIndex), share.Index);
         Assert.Equal(new BigIntCalculator(expectedValue), share.Value);
     }
@@ -284,7 +292,10 @@ public class ShareTest
     [InlineData("0x05-0X0A")]
     public void Constructor_WithUpperHexPrefix_ShouldThrow(string shareString)
     {
+        // Arrange
         using var pinned = shareString.ToPinnedSecure();
+
+        // Act & Assert
         Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
     }
 
@@ -293,30 +304,39 @@ public class ShareTest
     [InlineData("0x01-0xGG")]
     public void Constructor_WithInvalidHexAfterPrefix_ShouldThrow(string shareString)
     {
+        // Arrange
         using var pinned = shareString.ToPinnedSecure();
+
+        // Act & Assert
         Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
     }
 
     [Fact]
     public void Constructor_InvalidHexMessage_ContainsPosition()
     {
+        // Arrange
         // "01-ZX" — the 'Z' at position 3 is the first invalid hex character.
         using var pinned = "01-ZX".ToPinnedSecure();
 
+        // Act
         var ex = Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
 
+        // Assert
         Assert.Contains("3", ex.Message);
     }
 
     [Fact]
     public void Constructor_OddLengthWithInvalidChar_ThrowsArgumentException()
     {
+        // Arrange
         // Single-char (odd-length) index with a non-hex character exercises the
         // odd-length branch in DecodeHexToCalculator.
         using var pinned = "Z-01".ToPinnedSecure();
 
+        // Act
         var ex = Assert.Throws<ArgumentException>(() => new Share<BigInteger>(pinned));
 
+        // Assert
         Assert.Contains("0", ex.Message);
     }
 
@@ -326,7 +346,10 @@ public class ShareTest
     [InlineData("0x-0x")]
     public void Constructor_WithEmptyCoordinateAfterPrefix_ShouldThrow(string shareString)
     {
+        // Arrange
         using var pinned = shareString.ToPinnedSecure();
+
+        // Act & Assert
         Assert.Throws<FormatException>(() => new Share<BigInteger>(pinned));
     }
 
@@ -336,11 +359,14 @@ public class ShareTest
     [InlineData(1000, 4096)]
     public void RoundTrip_ToCharArrayWithPrefix_ShouldParseBack(BigInteger index, BigInteger value)
     {
+        // Arrange
         var original = new Share<BigInteger>(index, value);
 
+        // Act
         using var chars = original.ToCharArray(uppercase: true, withPrefix: true);
         var parsed = new Share<BigInteger>(chars);
 
+        // Assert
         Assert.Equal(original.Index, parsed.Index);
         Assert.Equal(original.Value, parsed.Value);
     }
@@ -358,11 +384,14 @@ public class ShareTest
     [InlineData(5, 128, true, 11)]
     public void GetCharCount_MatchesToCharArrayLength(BigInteger index, BigInteger value, bool withPrefix, int expected)
     {
+        // Arrange
         var share = new Share<BigInteger>(index, value);
 
+        // Act
         var count = share.GetCharCount(withPrefix);
         using var chars = share.ToCharArray(uppercase: true, withPrefix);
 
+        // Assert
         Assert.Equal(expected, count);
         Assert.Equal(chars.Length, count);
     }
@@ -375,10 +404,14 @@ public class ShareTest
     public void WriteCharsTo_WithParameters_WritesExpectedChars(
         BigInteger index, BigInteger value, bool uppercase, bool withPrefix, string expected)
     {
+        // Arrange
         var share = new Share<BigInteger>(index, value);
         var buffer = new char[expected.Length + 4];
+
+        // Act
         var written = share.WriteCharsTo(buffer, offset: 2, uppercase, withPrefix);
 
+        // Assert
         Assert.Equal(expected.Length, written);
         Assert.Equal(expected, new string(buffer, 2, written));
         Assert.Equal('\0', buffer[0]);
@@ -388,8 +421,10 @@ public class ShareTest
     [Fact]
     public void WriteCharsTo_NullDest_ThrowsArgumentNullException()
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
 
+        // Act & Assert
         Assert.Throws<ArgumentNullException>(() => share.WriteCharsTo(null, 0, uppercase: true, withPrefix: false));
     }
 
@@ -398,9 +433,11 @@ public class ShareTest
     [InlineData(17)]
     public void WriteCharsTo_InvalidOffset_ThrowsArgumentOutOfRangeException(int offset)
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         var buffer = new char[16];
 
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(
             () => share.WriteCharsTo(buffer, offset, uppercase: true, withPrefix: false));
     }
@@ -408,9 +445,11 @@ public class ShareTest
     [Fact]
     public void WriteCharsTo_InsufficientSpace_ThrowsArgumentException()
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         var buffer = new char[16];
 
+        // Act & Assert
         // share "05-0A" needs 5 chars; offset 14 leaves only 2.
         Assert.Throws<ArgumentException>(
             () => share.WriteCharsTo(buffer, offset: 14, uppercase: true, withPrefix: false));
@@ -464,12 +503,15 @@ public class ShareTest
     [Fact]
     public void Dispose_ReleasesIndexAndValue()
     {
+        // Arrange
         var index = new BigIntCalculator(5);
         var value = new BigIntCalculator(10);
         var share = new Share<BigInteger>(index, value);
 
+        // Act
         share.Dispose();
 
+        // Assert
         // Post-dispose access to the underlying calculators via a public Share property path
         // should throw; we verify the Share-level guard.
         Assert.Throws<ObjectDisposedException>(share.ToCharArray);
@@ -478,9 +520,11 @@ public class ShareTest
     [Fact]
     public void PostDispose_ToString_DoesNotThrowInDebug()
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         share.Dispose();
 
+        // Act & Assert
 #if DEBUG
         // DEBUG ToString reads state → guarded by ThrowIfDisposed
         Assert.Throws<ObjectDisposedException>(share.ToString);
@@ -495,19 +539,23 @@ public class ShareTest
     [InlineData(true)]
     public void PostDispose_GetCharCount_ThrowsObjectDisposedException(bool withPrefix)
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         share.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => share.GetCharCount(withPrefix));
     }
 
     [Fact]
     public void PostDispose_WriteCharsTo_ThrowsObjectDisposedException()
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         share.Dispose();
         var buffer = new char[16];
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(
             () => share.WriteCharsTo(buffer, 0, uppercase: true, withPrefix: false));
     }
@@ -515,54 +563,66 @@ public class ShareTest
     [Fact]
     public void PostDispose_IsIndexEven_ThrowsObjectDisposedException()
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(4), new BigIntCalculator(10));
         share.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => _ = share.IsIndexEven);
     }
 
     [Fact]
     public void PostDispose_CompareTo_ThrowsObjectDisposedException()
     {
+        // Arrange
         var share1 = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         using var share2 = new Share<BigInteger>(new BigIntCalculator(7), new BigIntCalculator(20));
         share1.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => share1.CompareTo(share2));
     }
 
     [Fact]
     public void CompareTo_NullOther_ReturnsPositive()
     {
+        // Arrange
         using var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
 
+        // Act & Assert
         Assert.Equal(1, share.CompareTo(null));
     }
 
     [Fact]
     public void PostDispose_IndexGetter_ThrowsObjectDisposedException()
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         share.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => _ = share.Index);
     }
 
     [Fact]
     public void PostDispose_ValueGetter_ThrowsObjectDisposedException()
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         share.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => _ = share.Value);
     }
 
     [Fact]
     public void PostDispose_Deconstruct_ThrowsObjectDisposedException()
     {
+        // Arrange
         var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         share.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() =>
         {
             var (_, _) = share;

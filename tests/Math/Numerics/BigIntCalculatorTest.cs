@@ -206,9 +206,13 @@ public class BigIntCalculatorTest
     [Fact]
     public void Pow_ShouldReturnCorrectPower()
     {
+        // Arrange
         Calculator<BigInteger> calculator = new BigIntCalculator(new BigInteger(2));
+
+        // Act
         var result = calculator.Pow(3);
 
+        // Assert
         Assert.Equal(new BigInteger(8), result.Value);
     }
 

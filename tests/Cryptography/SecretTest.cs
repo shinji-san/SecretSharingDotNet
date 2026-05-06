@@ -595,9 +595,11 @@ public class SecretTest
     [MemberData(nameof(TestData.MixedSecrets), MemberType = typeof(TestData))]
     public void CastObjectToSecret_FromSupportedType_ReturnsSecret(object secretSource)
     {
+        // Arrange
         Secret<BigInteger> secret;
         try
         {
+            // Act & Assert
             switch (secretSource)
             {
                 case string password:
@@ -746,8 +748,11 @@ public class SecretTest
     [Fact]
     public void FromText_PinnedPoolArrayCharEncoding_NullEncoding_ThrowsArgumentNullException()
     {
+        // Arrange
         using var pinnedText = new PinnedPoolArray<char>(1);
         pinnedText.PoolArray[0] = 'X';
+
+        // Act & Assert
         Assert.Throws<ArgumentNullException>(() => Secret<BigInteger>.FromText(pinnedText, null));
     }
 
@@ -758,7 +763,10 @@ public class SecretTest
     [Fact]
     public void FromText_PinnedPoolArrayChar_EmptyText_ThrowsArgumentException()
     {
+        // Arrange
         using var pinnedText = new PinnedPoolArray<char>(0);
+
+        // Act & Assert
         Assert.Throws<ArgumentException>(() => Secret<BigInteger>.FromText(pinnedText));
     }
 
@@ -769,8 +777,11 @@ public class SecretTest
     [Fact]
     public void FromText_PinnedPoolArrayChar_DisposedText_ThrowsObjectDisposedException()
     {
+        // Arrange
         var pinnedText = new PinnedPoolArray<char>(4);
         pinnedText.Dispose();
+
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => Secret<BigInteger>.FromText(pinnedText));
     }
 
@@ -831,14 +842,17 @@ public class SecretTest
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_EquivalentToConvertFromBase64String()
     {
+        // Arrange
         // Independent oracle: bytes must match Convert.FromBase64String exactly.
         const string base64 = "UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=";
         byte[] expected = Convert.FromBase64String(base64);
 
+        // Act
         using var pinnedBase64 = base64.ToPinnedSecure();
         using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
         using var bytes = secret.ToByteArray();
 
+        // Assert
         Assert.Equal(expected.Length, bytes.Length);
         for (int i = 0; i < expected.Length; i++)
         {
@@ -849,11 +863,15 @@ public class SecretTest
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_InvalidChar_ThrowsFormatExceptionWithPosition()
     {
+        // Arrange
         // '!' at position 4 is not a Base64 alphabet character.
         const string bad = "ABCD!FGH";
         using var pinnedBase64 = bad.ToPinnedSecure();
 
+        // Act
         var ex = Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
+
+        // Assert
         Assert.Contains("'!'", ex.Message);
         Assert.Contains("4", ex.Message);
     }
@@ -861,36 +879,51 @@ public class SecretTest
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_NotMultipleOfFour_ThrowsFormatException()
     {
+        // Arrange
         using var pinnedBase64 = "ABC".ToPinnedSecure();
+
+        // Act & Assert
         Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_TooManyPads_ThrowsFormatException()
     {
+        // Arrange
         using var pinnedBase64 = "A===".ToPinnedSecure();
+
+        // Act & Assert
         Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_NonPadAfterPad_ThrowsFormatException()
     {
+        // Arrange
         // 'B' appears after a '=' in the same group.
         using var pinnedBase64 = "A=B=".ToPinnedSecure();
+
+        // Act & Assert
         Assert.Throws<FormatException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_OnlyWhitespace_ThrowsArgumentException()
     {
+        // Arrange
         using var pinnedBase64 = "   \t\r\n\f\v   ".ToPinnedSecure();
+
+        // Act & Assert
         Assert.Throws<ArgumentException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_EmptyBuffer_ThrowsArgumentException()
     {
+        // Arrange
         using var pinnedBase64 = new PinnedPoolArray<char>(0);
+
+        // Act & Assert
         Assert.Throws<ArgumentException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
@@ -903,20 +936,25 @@ public class SecretTest
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_DisposedBuffer_ThrowsObjectDisposedException()
     {
+        // Arrange
         var pinnedBase64 = new PinnedPoolArray<char>(4);
         pinnedBase64.Dispose();
+
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => Secret<BigInteger>.FromBase64(pinnedBase64));
     }
 
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_DoesNotConsumeInput()
     {
+        // Arrange
         const string base64 = "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu";
         using var pinnedBase64 = base64.ToPinnedSecure();
 
+        // Act
         using (Secret<BigInteger>.FromBase64(pinnedBase64))
 
-        // Input buffer must remain intact and usable.
+        // Assert — input buffer must remain intact and usable.
         Assert.Equal(base64.Length, pinnedBase64.Length);
         for (int i = 0; i < base64.Length; i++)
         {

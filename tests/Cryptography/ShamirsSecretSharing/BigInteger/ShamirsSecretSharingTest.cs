@@ -53,10 +53,13 @@ public class ShamirsSecretSharingTest
     [Fact]
     public void TestDivMod()
     {
+        // Arrange
         using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         Calculator<BigInteger> d = (BigInteger)3000;
         Calculator<BigInteger> n = (BigInteger)3000;
         Calculator<BigInteger> p = Calculator<BigInteger>.Two.Pow(127) - Calculator<BigInteger>.One;
+
+        // Act & Assert
         Assert.Equal(n, d * secretReconstructor.DivMod(d, n, p) % p);
     }
 

@@ -57,23 +57,27 @@ public class SecureBigIntCalculatorTest
     [Fact]
     public void Constructor_NullValue_FallsBackToZero()
     {
+        // Arrange
         // The single-argument constructor accepts null and substitutes zero.
         // This contract exists to support `Calculator<SecureBigInteger>.Zero`
         // on the reference-type backend (where `default(TNumber) == null`).
         using var calculator = new SecureBigIntCalculator(null);
 
+        // Act & Assert
         Assert.True(calculator.Value.IsZero);
     }
 
     [Fact]
     public void Calculator_Zero_ReliesOnNullFallback_AndReturnsZero()
     {
+        // Arrange
         // Regression guard: removing the null fallback in the SecureBigInteger
         // constructor would break Calculator<SecureBigInteger>.Zero (and the
         // chains that depend on it: One, Two, every Sqrt pre-check that
         // compares against Zero).
         using var zero = Calculator<SecureBigInteger>.Zero;
 
+        // Act & Assert
         Assert.True(zero.Value.IsZero);
     }
 
@@ -191,6 +195,7 @@ public class SecureBigIntCalculatorTest
     [Fact]
     public void Increment_ShouldIncreaseValueByOne()
     {
+        // Arrange
         // Keep a separate reference to the source object so that we can verify it
         // remains untouched: ++ reassigns the local `working` to point at the
         // freshly-allocated incremented Calculator, but the original object that
@@ -198,8 +203,10 @@ public class SecureBigIntCalculatorTest
         using var source = new SecureBigIntCalculator(new SecureBigInteger(10));
         Calculator<SecureBigInteger> working = source;
 
+        // Act
         using var incrementedCalculator = ++working;
 
+        // Assert
         Assert.Equal(new SecureBigInteger(11), incrementedCalculator.Value);
         Assert.Equal(new SecureBigInteger(10), source.Value);
     }
@@ -207,11 +214,14 @@ public class SecureBigIntCalculatorTest
     [Fact]
     public void Decrement_ShouldDecreaseValueByOne()
     {
+        // Arrange
         using var source = new SecureBigIntCalculator(new SecureBigInteger(10));
         Calculator<SecureBigInteger> working = source;
 
+        // Act
         using var decrementedCalculator = --working;
 
+        // Assert
         Assert.Equal(new SecureBigInteger(9), decrementedCalculator.Value);
         Assert.Equal(new SecureBigInteger(10), source.Value);
     }
@@ -219,12 +229,15 @@ public class SecureBigIntCalculatorTest
     [Fact]
     public void IncrementDecrement_RepeatedCalls_NoCrashOrLeak()
     {
+        // Arrange
         // Smoke test: 100 iterations of ++ / -- against a single source must not
         // crash, double-dispose, or otherwise corrupt pinned-pool state. Each
         // iteration aliases the source into a local and pre-increments/decrements
         // the alias — `++` reassigns the local to a fresh wrapper without
         // touching `source`, and the result is captured and disposed on the spot.
         using var source = new SecureBigIntCalculator(new SecureBigInteger(50));
+
+        // Act & Assert
         for (int i = 0; i < 100; i++)
         {
             Calculator<SecureBigInteger> working = source;
@@ -260,9 +273,13 @@ public class SecureBigIntCalculatorTest
     [Fact]
     public void Pow_ShouldReturnCorrectPower()
     {
+        // Arrange
         using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(2));
+
+        // Act
         using var result = calculator.Pow(3);
 
+        // Assert
         using var expected = new SecureBigInteger(8);
         Assert.Equal(expected, result.Value);
     }
@@ -313,8 +330,10 @@ public class SecureBigIntCalculatorTest
     [InlineData(long.MinValue, true)]
     public void IsEven_HandlesBoundaryValues(long value, bool expectedEven)
     {
+        // Arrange
         using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(value));
 
+        // Act & Assert
         Assert.Equal(expectedEven, calculator.IsEven);
     }
 
@@ -335,10 +354,13 @@ public class SecureBigIntCalculatorTest
     [Fact]
     public void Sqrt_OfZero_ReturnsZero()
     {
+        // Arrange
         using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(0));
 
+        // Act
         using var result = calculator.Sqrt();
 
+        // Assert
         Assert.True(result.Value.IsZero);
     }
 
@@ -385,9 +407,12 @@ public class SecureBigIntCalculatorTest
     [Fact]
     public void Dispose_TwiceFromMultipleThreads_DoesNotDoubleFree()
     {
+        // Arrange
         // Concurrent Dispose calls must not let both threads reach
         // `this.Value.Dispose()`. The atomic Interlocked.Exchange guard ensures a
         // single winner; the loser observes `disposed == 1` and returns.
+
+        // Act & Assert
         for (int iteration = 0; iteration < 50; iteration++)
         {
             var calculator = new SecureBigIntCalculator(new SecureBigInteger(42));

@@ -41,20 +41,24 @@ public class PolynomialTest
     [Fact]
     public void EvaluateAt_ConstantPolynomial_ReturnsConstantModPrime()
     {
+        // Arrange
         // p(x) = 7 evaluated at x=100 with prime=13 → 7 mod 13 = 7
         using var xCalc = new BigIntCalculator(100);
         using var primeCalc = new BigIntCalculator(13);
         using var constant = new BigIntCalculator(7);
         var coeffs = new Calculator<BigInteger>[] { constant };
 
+        // Act
         using var result = Polynomial.EvaluateAt(xCalc, coeffs, primeCalc);
 
+        // Assert
         Assert.Equal(new BigIntCalculator(7), result);
     }
 
     [Fact]
     public void EvaluateAt_LinearPolynomial_ComputesCorrectly()
     {
+        // Arrange
         // p(x) = 3 + 5x evaluated at x=4 with prime=17 → 23 mod 17 = 6
         using var xCalc = new BigIntCalculator(4);
         using var primeCalc = new BigIntCalculator(17);
@@ -66,8 +70,10 @@ public class PolynomialTest
 
         try
         {
+            // Act
             using var result = Polynomial.EvaluateAt(xCalc, coeffs, primeCalc);
 
+            // Assert
             Assert.Equal(new BigIntCalculator(6), result);
         }
         finally
@@ -82,6 +88,7 @@ public class PolynomialTest
     [Fact]
     public void EvaluateAt_QuadraticPolynomial_ComputesCorrectly()
     {
+        // Arrange
         // p(x) = 2 + 3x + x² evaluated at x=5 with prime=23 → 42 mod 23 = 19
         using var xCalc = new BigIntCalculator(5);
         using var primeCalc = new BigIntCalculator(23);
@@ -94,8 +101,10 @@ public class PolynomialTest
 
         try
         {
+            // Act
             using var result = Polynomial.EvaluateAt(xCalc, coeffs, primeCalc);
 
+            // Assert
             Assert.Equal(new BigIntCalculator(19), result);
         }
         finally
@@ -110,11 +119,13 @@ public class PolynomialTest
     [Fact]
     public void EvaluateAt_NullX_ThrowsArgumentNullException()
     {
+        // Arrange
         using var primeCalc = new BigIntCalculator(17);
         var coeffs = new Calculator<BigInteger>[] { new BigIntCalculator(1) };
 
         try
         {
+            // Act & Assert
             Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(null, coeffs, primeCalc));
         }
         finally
@@ -126,20 +137,24 @@ public class PolynomialTest
     [Fact]
     public void EvaluateAt_NullCoefficients_ThrowsArgumentNullException()
     {
+        // Arrange
         using var xCalc = new BigIntCalculator(1);
         using var primeCalc = new BigIntCalculator(17);
 
+        // Act & Assert
         Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(xCalc, null, primeCalc));
     }
 
     [Fact]
     public void EvaluateAt_NullPrime_ThrowsArgumentNullException()
     {
+        // Arrange
         using var xCalc = new BigIntCalculator(1);
         var coeffs = new Calculator<BigInteger>[] { new BigIntCalculator(1) };
 
         try
         {
+            // Act & Assert
             Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(xCalc, coeffs, null));
         }
         finally

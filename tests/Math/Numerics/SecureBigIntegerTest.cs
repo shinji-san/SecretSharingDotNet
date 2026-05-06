@@ -249,17 +249,21 @@ public class SecureBigIntegerTests
     [InlineData(long.MinValue, true)]
     public void IsEven_ReturnsCorrectResult(long value, bool expectedEven)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
 
+        // Act & Assert
         Assert.Equal(expectedEven, num.IsEven);
     }
 
     [Fact]
     public void IsEven_AfterDispose_ThrowsObjectDisposedException()
     {
+        // Arrange
         var num = new SecureBigInteger(42);
         num.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => num.IsEven);
     }
 
@@ -706,11 +710,16 @@ public class SecureBigIntegerTests
     [Fact]
     public void NegateOperator_NullInput_ThrowsArgumentNullException()
     {
+        // Arrange
         SecureBigInteger value = null;
+
+        // Act
         var ex = Assert.Throws<ArgumentNullException>(() =>
         {
             using var _ = -value;
         });
+
+        // Assert
         Assert.Equal("value", ex.ParamName);
     }
 
@@ -870,52 +879,81 @@ public class SecureBigIntegerTests
     [Fact]
     public void Log_WithNegativeBase_ReturnsNaN()
     {
+        // Arrange
         using var num = new SecureBigInteger(100);
+
+        // Act
         double result = SecureBigInteger.Log(num, -10);
+
+        // Assert
         Assert.True(double.IsNaN(result));
     }
 
     [Fact]
     public void Log_WithNaNBase_ReturnsNaN()
     {
+        // Arrange
         using var num = new SecureBigInteger(100);
+
+        // Act
         double result = SecureBigInteger.Log(num, double.NaN);
+
+        // Assert
         Assert.True(double.IsNaN(result));
     }
 
     [Fact]
     public void Log_WithInfiniteBase_ReturnsCorrectValue()
     {
+        // Arrange
         using var one = new SecureBigInteger(1);
         using var other = new SecureBigInteger(100);
-        double resultOne = SecureBigInteger.Log(one, double.PositiveInfinity);
-        Assert.Equal(0.0, resultOne);
 
+        // Act
+        double resultOne = SecureBigInteger.Log(one, double.PositiveInfinity);
         double resultOther = SecureBigInteger.Log(other, double.PositiveInfinity);
+
+        // Assert
+        Assert.Equal(0.0, resultOne);
         Assert.True(double.IsNaN(resultOther));
     }
 
     [Fact]
     public void Log_WithZeroBase_ReturnsNaN()
     {
+        // Arrange
         using var num = new SecureBigInteger(100);
+
+        // Act
         double result = SecureBigInteger.Log(num, 0.0);
+
+        // Assert
         Assert.True(double.IsNaN(result));
     }
 
     [Fact]
     public void Log_OfOneWithZeroBase_ReturnsZero()
     {
+        // Arrange
         using var num = new SecureBigInteger(1);
+
+        // Act
         double result = SecureBigInteger.Log(num, 0.0);
+
+        // Assert
         Assert.Equal(0.0, result);
     }
 
     [Fact]
     public void Log_OfOne_ReturnsZero()
     {
+        // Arrange
         using var num = new SecureBigInteger(1);
+
+        // Act
         double result = SecureBigInteger.Log(num, 10);
+
+        // Assert
         Assert.Equal(0.0, result);
     }
 
@@ -926,16 +964,26 @@ public class SecureBigIntegerTests
     [InlineData(100, 4.605170185988092)]
     public void Log_Natural_ReturnsCorrectValue(int value, double expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
+
+        // Act
         double result = SecureBigInteger.Log(num);
+
+        // Assert
         Assert.Equal(expected, result, 10);
     }
 
     [Fact]
     public void Log_Natural_MatchesMathLog()
     {
+        // Arrange
         using var num = new SecureBigInteger(12345);
+
+        // Act
         double result = SecureBigInteger.Log(num);
+
+        // Assert
         double expected = Math.Log(12345);
         Assert.Equal(expected, result, 10);
     }
@@ -943,16 +991,26 @@ public class SecureBigIntegerTests
     [Fact]
     public void Log_Natural_OfZero_ReturnsNegativeInfinity()
     {
+        // Arrange
         using var num = new SecureBigInteger(0);
+
+        // Act
         double result = SecureBigInteger.Log(num);
+
+        // Assert
         Assert.Equal(double.NegativeInfinity, result);
     }
 
     [Fact]
     public void Log_Natural_OfNegative_ReturnsNaN()
     {
+        // Arrange
         using var num = new SecureBigInteger(-10);
+
+        // Act
         double result = SecureBigInteger.Log(num);
+
+        // Assert
         Assert.True(double.IsNaN(result));
     }
 
@@ -964,16 +1022,26 @@ public class SecureBigIntegerTests
     [InlineData(10000, 4.0)]
     public void Log10_ReturnsCorrectValue(int value, double expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
+
+        // Act
         double result = SecureBigInteger.Log10(num);
+
+        // Assert
         Assert.Equal(expected, result, 10);
     }
 
     [Fact]
     public void Log10_MatchesMathLog10()
     {
+        // Arrange
         using var num = new SecureBigInteger(12345);
+
+        // Act
         double result = SecureBigInteger.Log10(num);
+
+        // Assert
         double expected = Math.Log10(12345);
         Assert.Equal(expected, result, 10);
     }
@@ -981,16 +1049,26 @@ public class SecureBigIntegerTests
     [Fact]
     public void Log10_OfZero_ReturnsNegativeInfinity()
     {
+        // Arrange
         using var num = new SecureBigInteger(0);
+
+        // Act
         double result = SecureBigInteger.Log10(num);
+
+        // Assert
         Assert.Equal(double.NegativeInfinity, result);
     }
 
     [Fact]
     public void Log10_OfNegative_ReturnsNaN()
     {
+        // Arrange
         using var num = new SecureBigInteger(-10);
+
+        // Act
         double result = SecureBigInteger.Log10(num);
+
+        // Assert
         Assert.True(double.IsNaN(result));
     }
 
@@ -1003,16 +1081,26 @@ public class SecureBigIntegerTests
     [InlineData(1024, 10.0)]
     public void Log2_ReturnsCorrectValue(int value, double expected)
     {
+        // Arrange
         using var num = new SecureBigInteger(value);
+
+        // Act
         double result = SecureBigInteger.Log2(num);
+
+        // Assert
         Assert.Equal(expected, result, 10);
     }
 
     [Fact]
     public void Log2_MatchesMathLog2()
     {
+        // Arrange
         using var num = new SecureBigInteger(12345);
+
+        // Act
         double result = SecureBigInteger.Log2(num);
+
+        // Assert
         double expected = Math.Log(12345, 2);
         Assert.Equal(expected, result, 10);
     }
@@ -1020,18 +1108,28 @@ public class SecureBigIntegerTests
     [Fact]
     public void Log2_OfZero_ReturnsNegativeInfinity()
     {
+        // Arrange
         using var num = new SecureBigInteger(0);
+
+        // Act
         double result = SecureBigInteger.Log2(num);
+
+        // Assert
         Assert.Equal(double.NegativeInfinity, result);
     }
 
     [Fact]
     public void Log_VeryLargeNumber_ReturnsReasonableValue()
     {
+        // Arrange
         // 2^1000
         using var num = new SecureBigInteger(2);
         using var large = num.Pow(1000);
+
+        // Act
         double result = SecureBigInteger.Log2(large);
+
+        // Assert
         // Sollte ungefähr 1000 sein
         Assert.True(Math.Abs(result - 1000.0) < 1.0);
     }
@@ -1039,10 +1137,15 @@ public class SecureBigIntegerTests
     [Fact]
     public void Log10_VeryLargeNumber_ReturnsReasonableValue()
     {
+        // Arrange
         // 10^100 (Googol)
         using var num = new SecureBigInteger(10);
         using var googol = num.Pow(100);
+
+        // Act
         double result = SecureBigInteger.Log10(googol);
+
+        // Assert
         // Sollte genau 100 sein
         Assert.Equal(100.0, result, 5);
     }
@@ -1050,11 +1153,15 @@ public class SecureBigIntegerTests
     [Fact]
     public void Log_ConsistentAcrossBases()
     {
+        // Arrange
         using var num = new SecureBigInteger(12345);
+
+        // Act
         double log2 = SecureBigInteger.Log2(num);
         double log10 = SecureBigInteger.Log10(num);
         double logE = SecureBigInteger.Log(num);
 
+        // Assert
         // Überprüfe Beziehungen zwischen den Logarithmen
         // log_b(x) = ln(x) / ln(b)
         double log2FromNatural = logE / Math.Log(2);
@@ -1067,9 +1174,11 @@ public class SecureBigIntegerTests
     [Fact]
     public void Log_MatchesBigIntegerLog()
     {
+        // Arrange
         var testValues = new[] { 2, 10, 100, 1000, 12345, 999999 };
         var bases = new[] { 2.0, Math.E, 10.0, 16.0 };
 
+        // Act & Assert
         foreach (var value in testValues)
         {
             using var secure = new SecureBigInteger(value);
@@ -1088,8 +1197,10 @@ public class SecureBigIntegerTests
     [Fact]
     public void Log10_MatchesBigIntegerLog10()
     {
+        // Arrange
         var testValues = new[] { 1, 10, 100, 1000, 12345, 999999 };
 
+        // Act & Assert
         foreach (var value in testValues)
         {
             using var secure = new SecureBigInteger(value);
@@ -1308,36 +1419,56 @@ public class SecureBigIntegerTests
     [Fact]
     public void LessThanOrEqualOperator_NullLeft_ThrowsArgumentNullException()
     {
+        // Arrange
         SecureBigInteger left = null;
         using var right = new SecureBigInteger(5);
+
+        // Act
         var ex = Assert.Throws<ArgumentNullException>(() => left <= right);
+
+        // Assert
         Assert.Equal("left", ex.ParamName);
     }
 
     [Fact]
     public void LessThanOrEqualOperator_NullRight_ThrowsArgumentNullException()
     {
+        // Arrange
         using var left = new SecureBigInteger(5);
         SecureBigInteger right = null;
+
+        // Act
         var ex = Assert.Throws<ArgumentNullException>(() => left <= right);
+
+        // Assert
         Assert.Equal("right", ex.ParamName);
     }
 
     [Fact]
     public void GreaterThanOrEqualOperator_NullLeft_ThrowsArgumentNullException()
     {
+        // Arrange
         SecureBigInteger left = null;
         using var right = new SecureBigInteger(5);
+
+        // Act
         var ex = Assert.Throws<ArgumentNullException>(() => left >= right);
+
+        // Assert
         Assert.Equal("left", ex.ParamName);
     }
 
     [Fact]
     public void GreaterThanOrEqualOperator_NullRight_ThrowsArgumentNullException()
     {
+        // Arrange
         using var left = new SecureBigInteger(5);
         SecureBigInteger right = null;
+
+        // Act
         var ex = Assert.Throws<ArgumentNullException>(() => left >= right);
+
+        // Assert
         Assert.Equal("right", ex.ParamName);
     }
 
@@ -1675,27 +1806,33 @@ public class SecureBigIntegerTests
     [Fact]
     public void CompareTo_NullOther_ReturnsOne()
     {
+        // Arrange
         // IComparable<T> convention: a non-null instance is greater than null.
         using var num = new SecureBigInteger(42);
 
+        // Act & Assert
         Assert.Equal(1, num.CompareTo(null));
     }
 
     [Fact]
     public void EqualsObject_MatchingSecureBigInteger_ReturnsTrue()
     {
+        // Arrange
         using var num = new SecureBigInteger(42);
         using var same = new SecureBigInteger(42);
 
+        // Act & Assert
         Assert.True(num.Equals((object)same));
     }
 
     [Fact]
     public void EqualsObject_DifferingSecureBigInteger_ReturnsFalse()
     {
+        // Arrange
         using var num = new SecureBigInteger(42);
         using var different = new SecureBigInteger(43);
 
+        // Act & Assert
         Assert.False(num.Equals((object)different));
     }
 
@@ -1710,8 +1847,10 @@ public class SecureBigIntegerTests
     [Fact]
     public void EqualsObject_NonSecureBigIntegerType_ReturnsFalse()
     {
+        // Arrange
         using var num = new SecureBigInteger(42);
 
+        // Act & Assert
         // Cast to object to defeat the implicit `int → SecureBigInteger` conversion
         // that would otherwise pick the `Equals(SecureBigInteger)` overload.
         Assert.False(num.Equals("not a SecureBigInteger"));
@@ -1721,6 +1860,7 @@ public class SecureBigIntegerTests
     [Fact]
     public void AllArithmeticOperations_WithNullOperand_ThrowArgumentNullException()
     {
+        // Arrange
         // Aggregate guard: every static math/comparison/conversion API rejects null
         // operands with ArgumentNullException. The dedicated Add_WithNull*,
         // LessThanOrEqualOperator_Null*, GreaterThanOrEqualOperator_Null* and
@@ -1729,6 +1869,7 @@ public class SecureBigIntegerTests
         // drops the guard on any single operation is caught.
         using var live = new SecureBigInteger(7);
 
+        // Act & Assert
         // Binary arithmetic
         Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Add(null, live));
         Assert.Throws<ArgumentNullException>(() => SecureBigInteger.Add(live, null));
@@ -1792,12 +1933,14 @@ public class SecureBigIntegerTests
     [Fact]
     public void Constructor_Copy_WithDisposedSource_ThrowsObjectDisposedException()
     {
+        // Arrange
         // The copy constructor must reject a disposed source — copying it would
         // either dereference the freed pool buffer or silently produce a corrupted
         // duplicate, both unacceptable for a secret container.
         var source = new SecureBigInteger(42);
         source.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() =>
         {
             using var _ = new SecureBigInteger(source);
@@ -1955,10 +2098,13 @@ public class SecureBigIntegerTests
     [InlineData(int.MinValue)]
     public void Constructor_FromByteArrayLengthSign_NegativeLength_ThrowsWithParamNameLength(int length)
     {
+        // Act
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
             using var _ = new SecureBigInteger(new byte[] { 0x01 }, length, false);
         });
+
+        // Assert
         Assert.Equal("length", ex.ParamName);
     }
 
@@ -1967,10 +2113,13 @@ public class SecureBigIntegerTests
     [InlineData(int.MinValue)]
     public void Constructor_FromByteArrayLength_NegativeLength_ThrowsWithParamNameLength(int length)
     {
+        // Act
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
             using var _ = new SecureBigInteger(new byte[] { 0x01 }, length);
         });
+
+        // Assert
         Assert.Equal("length", ex.ParamName);
     }
 
@@ -1979,10 +2128,13 @@ public class SecureBigIntegerTests
     [InlineData(100)]
     public void Constructor_FromByteArrayLengthSign_LengthExceedsArray_ThrowsWithParamNameLength(int length)
     {
+        // Act
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
             using var _ = new SecureBigInteger(new byte[] { 0x01 }, length, false);
         });
+
+        // Assert
         Assert.Equal("length", ex.ParamName);
     }
 
@@ -1991,17 +2143,23 @@ public class SecureBigIntegerTests
     [InlineData(100)]
     public void Constructor_FromByteArrayLength_LengthExceedsArray_ThrowsWithParamNameLength(int length)
     {
+        // Act
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
             using var _ = new SecureBigInteger(new byte[] { 0x01 }, length);
         });
+
+        // Assert
         Assert.Equal("length", ex.ParamName);
     }
 
     [Fact]
     public void Constructor_FromByteArrayLengthSign_ZeroLength_IsZero()
     {
+        // Arrange
         using var num = new SecureBigInteger(new byte[] { 0xFF, 0xFF }, 0, false);
+
+        // Act & Assert
         Assert.True(num.IsZero);
         Assert.Equal(0, num.Sign);
     }
@@ -2009,7 +2167,10 @@ public class SecureBigIntegerTests
     [Fact]
     public void Constructor_FromByteArrayLengthSign_ZeroLengthAndIsNegative_IsZeroWithoutSign()
     {
+        // Arrange
         using var num = new SecureBigInteger(new byte[] { 0xFF, 0xFF }, 0, true);
+
+        // Act & Assert
         Assert.True(num.IsZero);
         Assert.Equal(0, num.Sign);
     }
@@ -2017,7 +2178,10 @@ public class SecureBigIntegerTests
     [Fact]
     public void Constructor_FromByteArrayLength_ZeroLength_IsZero()
     {
+        // Arrange
         using var num = new SecureBigInteger(new byte[] { 0xFF, 0xFF }, 0);
+
+        // Act & Assert
         Assert.True(num.IsZero);
         Assert.Equal(0, num.Sign);
     }
@@ -2025,6 +2189,7 @@ public class SecureBigIntegerTests
     [Fact]
     public void Constructor_FromString_InvalidChar_RepeatedFailures_DoNotCrash()
     {
+        // Act & Assert
         for (int i = 0; i < 100; i++)
         {
             Assert.Throws<FormatException>(() =>
@@ -2037,7 +2202,10 @@ public class SecureBigIntegerTests
     [Fact]
     public void Sqrt_RepeatedCalls_ReturnsConsistentResult()
     {
+        // Arrange
         using var value = new SecureBigInteger(123456789);
+
+        // Act & Assert
         for (int i = 0; i < 100; i++)
         {
             using var root = value.Sqrt();
@@ -2048,8 +2216,11 @@ public class SecureBigIntegerTests
     [Fact]
     public void Gcd_RepeatedCalls_ReturnsConsistentResult()
     {
+        // Arrange
         using var a = new SecureBigInteger(48);
         using var b = new SecureBigInteger(18);
+
+        // Act & Assert
         for (int i = 0; i < 100; i++)
         {
             using var g = SecureBigInteger.Gcd(a, b);
@@ -2060,7 +2231,10 @@ public class SecureBigIntegerTests
     [Fact]
     public void ToPinnedCharArray_RepeatedCalls_ReturnsConsistentString()
     {
+        // Arrange
         using var value = new SecureBigInteger(-12345);
+
+        // Act & Assert
         for (int i = 0; i < 100; i++)
         {
             using var arr = value.ToPinnedCharArray();

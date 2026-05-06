@@ -42,19 +42,23 @@ public class SecretAssertionsTest
     [Fact]
     public void AssertSecretEqualsString_EqualValues_DoesNotThrow()
     {
+        // Arrange
         const string text = "P&ssw0rd!";
         using var pinned = text.ToPinnedSecure();
         using var secret = Secret<BigInteger>.FromText(pinned);
 
+        // Act & Assert
         SecretAssertions.AssertSecretEqualsString(text, secret);
     }
 
     [Fact]
     public void AssertSecretEqualsString_DifferentValues_ThrowsEqualException()
     {
+        // Arrange
         using var pinned = "actual".ToPinnedSecure();
         using var secret = Secret<BigInteger>.FromText(pinned);
 
+        // Act & Assert
         Assert.Throws<EqualException>(
             () => SecretAssertions.AssertSecretEqualsString("expected", secret));
     }
@@ -62,9 +66,11 @@ public class SecretAssertionsTest
     [Fact]
     public void AssertSecretEqualsString_NullExpected_ThrowsArgumentNullException()
     {
+        // Arrange
         using var pinned = "x".ToPinnedSecure();
         using var secret = Secret<BigInteger>.FromText(pinned);
 
+        // Act & Assert
         Assert.Throws<ArgumentNullException>(
             () => SecretAssertions.AssertSecretEqualsString<BigInteger>(null, secret));
     }

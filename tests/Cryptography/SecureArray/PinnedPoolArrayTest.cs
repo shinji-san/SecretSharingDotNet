@@ -201,22 +201,27 @@ public class PinnedPoolArrayTest
     [Fact]
     public void SecureClear_AfterDispose_ThrowsObjectDisposedException()
     {
+        // Arrange
         // Q1 regression guard: a SecureClear call that arrives after Dispose
         // must NOT touch the pool-resident buffer (which may already be owned by
         // another tenant). It must throw instead.
         var pinnedArray = new PinnedPoolArray<byte>(50);
         pinnedArray.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(pinnedArray.SecureClear);
     }
 
     [Fact]
     public void Dispose_DrainsInFlightSecureClear()
     {
+        // Arrange
         // Q2 regression smoke-test: hammer SecureClear from one thread while
         // disposing from another. Acceptable outcomes per iteration: clean
         // completion, or ObjectDisposedException from the SecureClear thread.
         // Anything else (AccessViolation, pool double-return, etc.) fails.
+
+        // Act & Assert
         for (int iteration = 0; iteration < 100; iteration++)
         {
             var pinnedArray = new PinnedPoolArray<byte>(1024);
@@ -253,28 +258,34 @@ public class PinnedPoolArrayTest
     [Fact]
     public void Length_Getter_AfterDispose_ThrowsObjectDisposedException()
     {
+        // Arrange
         var arr = new PinnedPoolArray<byte>(50);
         arr.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => { _ = arr.Length; });
     }
 
     [Fact]
     public void Length_Setter_AfterDispose_ThrowsObjectDisposedException()
     {
+        // Arrange
         var arr = new PinnedPoolArray<byte>(50);
         arr.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => { arr.Length = 10; });
     }
 
     [Fact]
     public void Equals_WithCountedComparer_AfterDispose_ThrowsObjectDisposedException()
     {
+        // Arrange
         var arr = new PinnedPoolArray<byte>(50);
         using var other = new PinnedPoolArray<byte>(50);
         arr.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(
             () => arr.Equals(other, new CountedEqualityComparer<byte>(50)));
     }
@@ -282,9 +293,11 @@ public class PinnedPoolArrayTest
     [Fact]
     public void GetHashCode_WithCountedComparer_AfterDispose_ThrowsObjectDisposedException()
     {
+        // Arrange
         var arr = new PinnedPoolArray<byte>(50);
         arr.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(
             () => arr.GetHashCode(new CountedEqualityComparer<byte>(50)));
     }
@@ -292,10 +305,12 @@ public class PinnedPoolArrayTest
     [Fact]
     public void StructuralCompareTo_AfterDispose_ThrowsObjectDisposedException()
     {
+        // Arrange
         var arr = new PinnedPoolArray<byte>(50);
         using var other = new PinnedPoolArray<byte>(50);
         arr.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(
             () => ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default));
     }
@@ -303,10 +318,12 @@ public class PinnedPoolArrayTest
     [Fact]
     public void StructuralCompareTo_OtherDisposed_ThrowsObjectDisposedException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(50);
         var other = new PinnedPoolArray<byte>(50);
         other.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(
             () => ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default));
     }
@@ -314,9 +331,11 @@ public class PinnedPoolArrayTest
     [Fact]
     public void StructuralCompareTo_NullComparer_ThrowsArgumentNullException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(50);
         using var other = new PinnedPoolArray<byte>(50);
 
+        // Act & Assert
         Assert.Throws<ArgumentNullException>(
             () => ((IStructuralComparable)arr).CompareTo(other, null));
     }
@@ -324,8 +343,10 @@ public class PinnedPoolArrayTest
     [Fact]
     public void StructuralCompareTo_NullOther_NullComparer_PrefersArgumentNullException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(50);
 
+        // Act & Assert
         // Argument validation precedes the IStructuralComparable.CompareTo
         // "null is less than anything" shortcut.
         Assert.Throws<ArgumentNullException>(
@@ -335,9 +356,11 @@ public class PinnedPoolArrayTest
     [Fact]
     public void Equals_NullComparer_ThrowsArgumentNullException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(50);
         using var other = new PinnedPoolArray<byte>(50);
 
+        // Act & Assert
         Assert.Throws<ArgumentNullException>(
             () => arr.Equals(other, null));
     }
@@ -345,10 +368,12 @@ public class PinnedPoolArrayTest
     [Fact]
     public void Equals_OtherPinnedArrayDisposed_ThrowsObjectDisposedException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(50);
         var other = new PinnedPoolArray<byte>(50);
         other.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(
             () => arr.Equals(other, new CountedEqualityComparer<byte>(50)));
     }
@@ -356,8 +381,10 @@ public class PinnedPoolArrayTest
     [Fact]
     public void GetHashCode_NullComparer_ThrowsArgumentNullException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(50);
 
+        // Act & Assert
         Assert.Throws<ArgumentNullException>(
             () => arr.GetHashCode(null));
     }
@@ -365,6 +392,7 @@ public class PinnedPoolArrayTest
     [Fact]
     public void GetHashCode_EqualArraysWithSameComparer_ProduceSameHash()
     {
+        // Arrange
         using var arr1 = new PinnedPoolArray<byte>(4);
         using var arr2 = new PinnedPoolArray<byte>(4);
         for (int i = 0; i < 4; i++)
@@ -373,15 +401,18 @@ public class PinnedPoolArrayTest
             arr2[i] = (byte)(i + 10);
         }
 
+        // Act
         var hash1 = arr1.GetHashCode(new CountedEqualityComparer<byte>(4));
         var hash2 = arr2.GetHashCode(new CountedEqualityComparer<byte>(4));
 
+        // Assert
         Assert.Equal(hash1, hash2);
     }
 
     [Fact]
     public void GetHashCode_DifferentBytes_ProduceDifferentHash()
     {
+        // Arrange
         using var arr1 = new PinnedPoolArray<byte>(4);
         using var arr2 = new PinnedPoolArray<byte>(4);
         for (int i = 0; i < 4; i++)
@@ -391,17 +422,22 @@ public class PinnedPoolArrayTest
         }
 
         arr2[2] = 0xFF;
+
+        // Act
         var hash1 = arr1.GetHashCode(new CountedEqualityComparer<byte>(4));
         var hash2 = arr2.GetHashCode(new CountedEqualityComparer<byte>(4));
 
+        // Assert
         Assert.NotEqual(hash1, hash2);
     }
 
     [Fact]
     public void GetHashCode_ComparerNotCounted_ThrowsArgumentException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
 
+        // Act & Assert
         Assert.Throws<ArgumentException>(
             () => arr.GetHashCode(EqualityComparer<byte>.Default));
     }
@@ -409,8 +445,10 @@ public class PinnedPoolArrayTest
     [Fact]
     public void GetHashCode_CountExceedsLength_ThrowsArgumentOutOfRangeException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
 
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(
             () => arr.GetHashCode(new CountedEqualityComparer<byte>(8)));
     }
@@ -418,16 +456,20 @@ public class PinnedPoolArrayTest
     [Fact]
     public void Equals_ReferenceEqualsSelf_ReturnsTrue()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
 
+        // Act
         var result = arr.Equals(arr, new CountedEqualityComparer<byte>(4));
 
+        // Assert
         Assert.True(result);
     }
 
     [Fact]
     public void Equals_OtherIsRawArrayWithMatchingBytes_ReturnsTrue()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
         for (int i = 0; i < 4; i++)
         {
@@ -435,14 +477,18 @@ public class PinnedPoolArrayTest
         }
 
         var rawOther = new byte[] { 1, 2, 3, 4 };
+
+        // Act
         var result = arr.Equals(rawOther, new CountedEqualityComparer<byte>(4));
 
+        // Assert
         Assert.True(result);
     }
 
     [Fact]
     public void Equals_OtherIsPinnedPoolArrayWithMatchingBytes_ReturnsTrue()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
         using var other = new PinnedPoolArray<byte>(4);
         for (int i = 0; i < 4; i++)
@@ -451,14 +497,17 @@ public class PinnedPoolArrayTest
             other[i] = (byte)(i + 1);
         }
 
+        // Act
         var result = arr.Equals(other, new CountedEqualityComparer<byte>(4));
 
+        // Assert
         Assert.True(result);
     }
 
     [Fact]
     public void Equals_OtherIsPinnedPoolArrayWithDifferingByte_ReturnsFalse()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
         using var other = new PinnedPoolArray<byte>(4);
         for (int i = 0; i < 4; i++)
@@ -468,27 +517,35 @@ public class PinnedPoolArrayTest
         }
 
         other[2] = 99;
+
+        // Act
         var result = arr.Equals(other, new CountedEqualityComparer<byte>(4));
 
+        // Assert
         Assert.False(result);
     }
 
     [Fact]
     public void Equals_OtherIsUnsupportedType_ReturnsFalse()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
 
+        // Act
         var result = arr.Equals("not an array", new CountedEqualityComparer<byte>(4));
 
+        // Assert
         Assert.False(result);
     }
 
     [Fact]
     public void Equals_ComparerNotCounted_ThrowsArgumentException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
         using var other = new PinnedPoolArray<byte>(4);
 
+        // Act & Assert
         Assert.Throws<ArgumentException>(
             () => arr.Equals(other, EqualityComparer<byte>.Default));
     }
@@ -496,9 +553,11 @@ public class PinnedPoolArrayTest
     [Fact]
     public void Equals_CountExceedsLength_ThrowsArgumentOutOfRangeException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
         using var other = new PinnedPoolArray<byte>(4);
 
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(
             () => arr.Equals(other, new CountedEqualityComparer<byte>(8)));
     }
@@ -506,6 +565,7 @@ public class PinnedPoolArrayTest
     [Fact]
     public void StructuralCompareTo_EqualArrays_ReturnsZero()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
         using var other = new PinnedPoolArray<byte>(4);
         for (int i = 0; i < 4; i++)
@@ -514,14 +574,17 @@ public class PinnedPoolArrayTest
             other[i] = (byte)i;
         }
 
+        // Act
         var result = ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default);
 
+        // Assert
         Assert.Equal(0, result);
     }
 
     [Fact]
     public void StructuralCompareTo_ThisLessThanOther_ReturnsNegative()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
         using var other = new PinnedPoolArray<byte>(4);
         arr[0] = 1;
@@ -529,39 +592,49 @@ public class PinnedPoolArrayTest
         other[0] = 1;
         other[1] = 3;
 
+        // Act
         var result = ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default);
 
+        // Assert
         Assert.True(result < 0);
     }
 
     [Fact]
     public void StructuralCompareTo_ThisGreaterThanOther_ReturnsPositive()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
         using var other = new PinnedPoolArray<byte>(4);
         arr[0] = 5;
         other[0] = 1;
 
+        // Act
         var result = ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default);
 
+        // Assert
         Assert.True(result > 0);
     }
 
     [Fact]
     public void StructuralCompareTo_NullOther_ReturnsOne()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
 
+        // Act
         var result = ((IStructuralComparable)arr).CompareTo(null, Comparer<object>.Default);
 
+        // Assert
         Assert.Equal(1, result);
     }
 
     [Fact]
     public void StructuralCompareTo_OtherNotPinnedPoolArray_ThrowsArgumentException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
 
+        // Act & Assert
         Assert.Throws<ArgumentException>(
             () => ((IStructuralComparable)arr).CompareTo(new byte[] { 1, 2, 3, 4 }, Comparer<object>.Default));
     }
@@ -569,9 +642,11 @@ public class PinnedPoolArrayTest
     [Fact]
     public void StructuralCompareTo_LengthMismatch_ThrowsArgumentException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(4);
         using var other = new PinnedPoolArray<byte>(8);
 
+        // Act & Assert
         Assert.Throws<ArgumentException>(
             () => ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default));
     }
@@ -579,25 +654,31 @@ public class PinnedPoolArrayTest
     [Fact]
     public void Indexer_Get_ValidIndex_ReturnsStoredValue()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(8);
         arr.PoolArray[3] = 0x42;
 
+        // Act & Assert
         Assert.Equal(0x42, arr[3]);
     }
 
     [Fact]
     public void Indexer_Get_NegativeIndex_ThrowsArgumentOutOfRangeException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(8);
 
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[-1]);
     }
 
     [Fact]
     public void Indexer_Get_IndexAtOrBeyondLength_ThrowsArgumentOutOfRangeException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(8);
 
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[8]);
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[100]);
     }
@@ -605,35 +686,44 @@ public class PinnedPoolArrayTest
     [Fact]
     public void Indexer_Get_AfterDispose_ThrowsObjectDisposedException()
     {
+        // Arrange
         var arr = new PinnedPoolArray<byte>(8);
         arr.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => arr[0]);
     }
 
     [Fact]
     public void Indexer_Set_ValidIndex_StoresValue()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(8);
 
+        // Act
         arr[3] = 0x42;
 
+        // Assert
         Assert.Equal((byte)0x42, arr.PoolArray[3]);
     }
 
     [Fact]
     public void Indexer_Set_NegativeIndex_ThrowsArgumentOutOfRangeException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(8);
 
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[-1] = 0);
     }
 
     [Fact]
     public void Indexer_Set_IndexAtOrBeyondLength_ThrowsArgumentOutOfRangeException()
     {
+        // Arrange
         using var arr = new PinnedPoolArray<byte>(8);
 
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[8] = 0);
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[100] = 0);
     }
@@ -641,20 +731,24 @@ public class PinnedPoolArrayTest
     [Fact]
     public void Indexer_Set_AfterDispose_ThrowsObjectDisposedException()
     {
+        // Arrange
         var arr = new PinnedPoolArray<byte>(8);
         arr.Dispose();
 
+        // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => arr[0] = 1);
     }
 
     [Fact]
     public void Indexer_RespectsLengthNotCapacity()
     {
+        // Arrange
         // After shrinking Length, indices in [Length..Capacity) must throw — the
         // PoolArray escape hatch is the only way to touch those bytes.
         using var arr = new PinnedPoolArray<byte>(16);
         arr.Length = 4;
 
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[4]);
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[4] = 1);
     }
@@ -662,8 +756,11 @@ public class PinnedPoolArrayTest
     [Fact]
     public void Dispose_TwiceFromMultipleThreads_DoesNotDoubleFree()
     {
+        // Arrange
         // Concurrent Dispose calls must not return the same array to the pool twice.
         // ArrayPool surfaces double-return via InvalidOperationException on some TFMs.
+
+        // Act & Assert
         for (int iteration = 0; iteration < 50; iteration++)
         {
             var pinnedArray = new PinnedPoolArray<byte>(64);

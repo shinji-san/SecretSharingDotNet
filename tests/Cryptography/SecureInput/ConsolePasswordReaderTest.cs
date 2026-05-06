@@ -42,19 +42,21 @@ public class ConsolePasswordReaderTest
     [Fact]
     public void ReadPassword_NegativeMaxLength_ThrowsArgumentOutOfRangeException()
     {
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => ConsolePasswordReader.ReadPassword(-1));
     }
 
     [Fact]
     public void ReadPassword_ZeroMaxLength_ThrowsArgumentOutOfRangeException()
     {
+        // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => ConsolePasswordReader.ReadPassword(0));
     }
 
     [Fact]
     public void ReadPassword_WhenInputIsRedirected_ThrowsInvalidOperationException()
     {
-        // The xUnit test runner runs with stdin redirected, so this hits the redirect guard.
+        // Act & Assert — the xUnit test runner runs with stdin redirected, so this hits the redirect guard.
         Assert.Throws<InvalidOperationException>(() => ConsolePasswordReader.ReadPassword(8));
     }
 

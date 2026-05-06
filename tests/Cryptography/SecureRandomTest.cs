@@ -43,6 +43,7 @@ public class SecureRandomTest
     [Fact]
     public void Fill_NullBuffer_ThrowsArgumentNullException()
     {
+        // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() => SecureRandom.Fill(null!, 0, 0));
         Assert.Equal("buffer", ex.ParamName);
     }
@@ -50,7 +51,10 @@ public class SecureRandomTest
     [Fact]
     public void Fill_NegativeOffset_ThrowsArgumentOutOfRangeException()
     {
+        // Arrange
         var buffer = new byte[8];
+
+        // Act & Assert
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => SecureRandom.Fill(buffer, -1, 0));
         Assert.Equal("offset", ex.ParamName);
     }
@@ -58,7 +62,10 @@ public class SecureRandomTest
     [Fact]
     public void Fill_RangePastEndOfBuffer_ThrowsArgumentOutOfRangeException()
     {
+        // Arrange
         var buffer = new byte[8];
+
+        // Act & Assert
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => SecureRandom.Fill(buffer, 4, 5));
         Assert.Equal("count", ex.ParamName);
     }
@@ -91,6 +98,7 @@ public class SecureRandomTest
     [Fact]
     public void NextInt32_BoundsInverted_ThrowsArgumentOutOfRangeException()
     {
+        // Act & Assert
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => SecureRandom.NextInt32(10, 5));
         Assert.Equal("toExclusive", ex.ParamName);
     }
@@ -98,6 +106,7 @@ public class SecureRandomTest
     [Fact]
     public void NextInt32_BoundsEqual_ThrowsArgumentOutOfRangeException()
     {
+        // Act & Assert
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => SecureRandom.NextInt32(7, 7));
         Assert.Equal("toExclusive", ex.ParamName);
     }
@@ -105,8 +114,8 @@ public class SecureRandomTest
     [Fact]
     public void NextInt32_StaysWithinRange_TerminationByteSmall()
     {
-        // [1, 32) — the small-mark-byte termination range. Sample many draws and confirm
-        // every result lies in the requested range.
+        // Act & Assert — [1, 32) is the small-mark-byte termination range. Sample many draws
+        // and confirm every result lies in the requested range.
         for (int i = 0; i < 1024; i++)
         {
             int value = SecureRandom.NextInt32(1, 32);
@@ -117,7 +126,7 @@ public class SecureRandomTest
     [Fact]
     public void NextInt32_StaysWithinRange_TerminationByteLarge()
     {
-        // [1, 128) — the large-mark-byte termination range.
+        // Act & Assert — [1, 128) is the large-mark-byte termination range.
         for (int i = 0; i < 1024; i++)
         {
             int value = SecureRandom.NextInt32(1, 128);
@@ -128,7 +137,7 @@ public class SecureRandomTest
     [Fact]
     public void NextInt32_SingletonRange_AlwaysReturnsLowerBound()
     {
-        // [42, 43) has exactly one valid result.
+        // Act & Assert — [42, 43) has exactly one valid result.
         for (int i = 0; i < 16; i++)
         {
             Assert.Equal(42, SecureRandom.NextInt32(42, 43));

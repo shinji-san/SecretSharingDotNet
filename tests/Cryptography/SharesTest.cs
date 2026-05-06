@@ -398,8 +398,10 @@ public class SharesTest
     [Fact]
     public void ImplicitCastToPinnedPoolArray_NullShares_ThrowsArgumentNullException()
     {
+        // Arrange
         Shares<BigInteger> shares = null;
 
+        // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
         {
             PinnedPoolArray<char> _ = shares;
@@ -463,13 +465,17 @@ public class SharesTest
     [Fact]
     public void FromText_NullBuffer_ReturnsEmptyShares()
     {
+        // Act
         var shares = Shares<BigInteger>.FromText(null);
+
+        // Assert
         Assert.Equal(0, shares.Count);
     }
 
     [Fact]
     public void FromTextLines_NullArgument_ThrowsArgumentNullException()
     {
+        // Act & Assert
         Assert.Throws<ArgumentNullException>(() => Shares<BigInteger>.FromTextLines(null));
     }
 
