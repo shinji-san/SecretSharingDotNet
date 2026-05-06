@@ -281,70 +281,74 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
-        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
 
         // Act
-        using Shares<SecureBigInteger> shares = blob;
+        using Shares<SecureBigInteger> shares = Shares<SecureBigInteger>.FromTextLines(lines);
         var secret = secretReconstructor.Reconstruction(shares);
 
         // Assert
         SecretAssertions.AssertSecretEqualsString(TestData.DefaultTestPassword, secret);
     }
 
-    // /// <summary>
-    // /// Tests the secret reconstruction from shares represented by a single string (separated by newline)
-    // /// </summary>
-    // [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-    // [Fact]
-    // public void TestReconstructFromString()
-    // {
-    //     // Arrange
-    //     var sharesChunk = new StringBuilder();
-    //     foreach (var share in TestData.GetPredefinedShares())
-    //     {
-    //         sharesChunk.AppendLine(share);
-    //     }
-    //
-    //     var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
-    //
-    //     // Act
-    //     var secret = secretReconstructor.Reconstruction(sharesChunk.ToString());
-    //
-    //     // Assert
-    //     Assert.Equal(TestData.DefaultTestPassword, secret);
-    // }
-    //
-    // /// <summary>
-    // /// Tests whether or not bug #60 occurs [Reconstruction fails at random].
-    // /// </summary>
-    // [Theory]
-    // [MemberData(nameof(TestData.ByteArraySize), MemberType = typeof(TestData))]
-    // public void ReconstructionFailsAtRnd(int byteArraySize)
-    // {
-    //     // Arrange
-    //     int ok = 0;
-    //     const int total = 1000;
-    //     var secretSplitter = new SecretSplitter<SecureBigInteger>();
-    //     var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
-    //     var rng = new Random();
-    //
-    //     // Act
-    //     for (int i = 0; i < total; i++)
-    //     {
-    //         var message = new byte[byteArraySize];
-    //         rng.NextBytes(message);
-    //         const int n = 5;
-    //         var s = Convert.ToBase64String(message);
-    //         var secret = new Secret<SecureBigInteger>(s);
-    //         var shares = secretSplitter.MakeShares((n + 1) / 2, n, secret);
-    //         var reconstructed =
-    //             Convert.FromBase64String(secretReconstructor.Reconstruction(shares.Take((n + 1) / 2).ToArray())
-    //                 .ToBase64());
-    //         if (message.SequenceEqual(reconstructed))
-    //             ok++;
-    //     }
-    //
-    //     // Assert
-    //     Assert.Equal(1.0, (double)ok / total);
-    // }
+    /// <summary>
+    /// Tests the secret reconstruction from shares represented by a single string (separated by newline)
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Fact]
+    public void TestReconstructFromString()
+    {
+        // Arrange
+        var sharesChunk = new StringBuilder();
+        foreach (var share in TestData.GetPredefinedShares())
+        {
+            sharesChunk.AppendLine(share);
+        }
+
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var blob = sharesChunk.ToString().ToPinnedSecure();
+
+        // Act
+        Shares<SecureBigInteger> shares = Shares<SecureBigInteger>.FromText(blob);
+        var secret = secretReconstructor.Reconstruction(shares);
+
+        // Assert
+        SecretAssertions.AssertSecretEqualsString(TestData.DefaultTestPassword, secret);
+    }
+
+    /// <summary>
+    /// Tests whether or not bug #60 occurs [Reconstruction fails at random].
+    /// </summary>
+    [Theory(Skip = "Takes to long to run. SecureBigInteger is not performant enough.")]
+    [MemberData(nameof(TestData.ByteArraySize), MemberType = typeof(TestData))]
+    public void ReconstructionFailsAtRnd(int byteArraySize)
+    {
+        // Arrange
+        int ok = 0;
+        const int total = 1000;
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        var rng = new Random();
+
+        // Act
+        for (int i = 0; i < total; i++)
+        {
+            var message = new byte[byteArraySize];
+            rng.NextBytes(message);
+            const int n = 5;
+            var s = Convert.ToBase64String(message);
+            using var pinnedBase64 = s.ToPinnedSecure();
+            using var secret = Secret<SecureBigInteger>.FromBase64(pinnedBase64);
+            var shares = secretSplitter.MakeShares((n + 1) / 2, n, secret);
+            using var reconstructedBase64 = secretReconstructor.Reconstruction(shares.Take((n + 1) / 2).ToArray())
+                .ToBase64CharArray();
+            var reconstructed =
+                Convert.FromBase64String(new string(reconstructedBase64.PoolArray, 0, reconstructedBase64.Length));
+            if (message.SequenceEqual(reconstructed))
+                ok++;
+        }
+
+        // Assert
+        Assert.Equal(1.0, (double)ok / total);
+    }
 }

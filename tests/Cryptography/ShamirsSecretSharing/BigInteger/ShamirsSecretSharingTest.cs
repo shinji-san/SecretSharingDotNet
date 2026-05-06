@@ -288,10 +288,10 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-        using var blob = PinnedTestHelper.ToPinnedLines(TestData.GetPredefinedShares());
+        using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
 
         // Act
-        Shares<BigInteger> shares = blob;
+        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
         var secret = secretReconstructor.Reconstruction(shares);
 
         // Assert
@@ -316,7 +316,7 @@ public class ShamirsSecretSharingTest
         using var blob = sharesChunk.ToString().ToPinnedSecure();
 
         // Act
-        Shares<BigInteger> shares = blob;
+        Shares<BigInteger> shares = Shares<BigInteger>.FromText(blob);
         var secret = secretReconstructor.Reconstruction(shares);
 
         // Assert

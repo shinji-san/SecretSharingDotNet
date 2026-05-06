@@ -31,6 +31,7 @@
 
 namespace SecretSharingDotNet.Cryptography.SecureInput;
 
+using Extension;
 using System;
 using SecureArray;
 
@@ -146,5 +147,52 @@ public static class SecureCharBufferExtensions
         }
 
         return pinned;
+    }
+
+    /// <summary>
+    /// Copies each share-line <see cref="string"/> in <paramref name="lines"/> into its own
+    /// pinned <see cref="PinnedPoolArray{T}"/> and returns them as a single owned
+    /// <see cref="PinnedPoolArrayList{T}"/>. A single <c>using</c> over the returned list
+    /// disposes every line buffer at once.
+    /// </summary>
+    /// <param name="lines">
+    /// The share-line strings (typically from a UI form or import file). <see langword="null"/>
+    /// or empty entries are pinned as zero-length buffers — the caller is responsible for
+    /// upstream validation if blank lines are not desirable.
+    /// </param>
+    /// <returns>
+    /// A <see cref="PinnedPoolArrayList{T}"/> of <see cref="char"/> with one entry per source line.
+    /// </returns>
+    /// <remarks>
+    /// Same string-residue caveats as <see cref="ToPinnedSecure(string)"/> — the source strings
+    /// remain in unpinned, immutable managed memory and cannot be securely cleared.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="lines"/> is <see langword="null"/>.
+    /// </exception>
+    public static PinnedPoolArrayList<char> ToPinnedSecureShareLines(this string[] lines)
+    {
+        if (lines is null)
+        {
+            throw new ArgumentNullException(nameof(lines));
+        }
+
+        var entries = new PinnedPoolArray<char>[lines.Length];
+        try
+        {
+            for (int i = 0; i < lines.Length; i++)
+            {
+                entries[i] = lines[i] is null
+                    ? new PinnedPoolArray<char>(0)
+                    : lines[i].ToPinnedSecure();
+            }
+        }
+        catch
+        {
+            entries.DisposeAll();
+            throw;
+        }
+
+        return new PinnedPoolArrayList<char>(entries);
     }
 }

@@ -109,22 +109,23 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     }
 
     /// <summary>
-    /// Casts a pinned multi-line character buffer to a <see cref="Shares{TNumber}"/> object.
+    /// Parses a pinned multi-line character buffer into a <see cref="Shares{TNumber}"/> instance.
     /// </summary>
     /// <param name="buffer">
     /// A <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing two or more
     /// <c>INDEX-VALUE</c> share lines separated by line feed (<c>\n</c>) or carriage return (<c>\r</c>).
     /// Blank lines are skipped. The caller retains ownership of <paramref name="buffer"/>.
     /// </param>
+    /// <returns>
+    /// A new <see cref="Shares{TNumber}"/> containing one entry per non-empty source line, or an
+    /// empty collection if <paramref name="buffer"/> is <see langword="null"/>.
+    /// </returns>
     /// <remarks>
     /// Each non-empty line is copied into its own short-lived pinned sub-buffer for the duration
     /// of the share construction, then securely cleared on dispose. No unpinned heap copy of
     /// the share material is created.
     /// </remarks>
-    /// <exception cref="ArgumentNullException">
-    /// Thrown when <paramref name="buffer"/> is <see langword="null"/>.
-    /// </exception>
-    public static implicit operator Shares<TNumber>(PinnedPoolArray<char> buffer)
+    public static Shares<TNumber> FromText(PinnedPoolArray<char> buffer)
     {
         if (buffer is null)
         {
@@ -152,6 +153,41 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
             }
 
             lineStart = i + 1;
+        }
+
+        return new Shares<TNumber>(shares);
+    }
+
+    /// <summary>
+    /// Parses a sequence of pinned single-line buffers — each in <c>INDEX-VALUE</c> format —
+    /// into a <see cref="Shares{TNumber}"/> instance. Intended for callers whose share lines
+    /// arrive separately (e.g. from a UI form) and who want to keep each line pinned end-to-end
+    /// without going through a multi-line concatenation.
+    /// </summary>
+    /// <param name="lines">
+    /// The pinned single-line buffers. <see langword="null"/> entries and zero-length buffers
+    /// are skipped. The caller retains ownership of <paramref name="lines"/> and every entry.
+    /// </param>
+    /// <returns>A new <see cref="Shares{TNumber}"/> containing one entry per non-empty input line.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="lines"/> is <see langword="null"/>.
+    /// </exception>
+    public static Shares<TNumber> FromTextLines(IEnumerable<PinnedPoolArray<char>> lines)
+    {
+        if (lines is null)
+        {
+            throw new ArgumentNullException(nameof(lines));
+        }
+
+        var shares = new List<Share<TNumber>>();
+        foreach (var line in lines)
+        {
+            if (line is null || line.Length == 0)
+            {
+                continue;
+            }
+
+            shares.Add(new Share<TNumber>(line));
         }
 
         return new Shares<TNumber>(shares);

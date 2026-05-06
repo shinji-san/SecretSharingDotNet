@@ -155,4 +155,88 @@ public class SecureCharBufferExtensionsTest
     {
         Assert.Throws<ArgumentNullException>(() => ((char[])null).ToPinnedSecureClearing());
     }
+
+    [Fact]
+    public void ToPinnedSecureShareLines_FromNullArray_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => ((string[])null).ToPinnedSecureShareLines());
+    }
+
+    [Fact]
+    public void ToPinnedSecureShareLines_EmptyArray_ReturnsEmptyList()
+    {
+        // Arrange
+        var input = Array.Empty<string>();
+
+        // Act
+        using var lines = input.ToPinnedSecureShareLines();
+
+        // Assert
+        Assert.Equal(0, lines.Count);
+    }
+
+    [Fact]
+    public void ToPinnedSecureShareLines_PinsEachLineWithoutConcatenation()
+    {
+        // Arrange
+        var input = new[] { "1-FFFF", "2-AAAA", "3-1234" };
+
+        // Act
+        using var lines = input.ToPinnedSecureShareLines();
+
+        // Assert — each input string ends up in its own pinned buffer, character-for-character.
+        Assert.Equal(3, lines.Count);
+        for (int i = 0; i < input.Length; i++)
+        {
+            Assert.Equal(input[i].Length, lines[i].Length);
+            for (int j = 0; j < input[i].Length; j++)
+            {
+                Assert.Equal(input[i][j], lines[i].PoolArray[j]);
+            }
+        }
+    }
+
+    [Fact]
+    public void ToPinnedSecureShareLines_NullEntry_PinsAsZeroLengthBuffer()
+    {
+        // Arrange — null entries are tolerated; they show up as empty pinned buffers.
+        var input = new[] { "1-FFFF", null, "3-1234" };
+
+        // Act
+        using var lines = input.ToPinnedSecureShareLines();
+
+        // Assert
+        Assert.Equal(3, lines.Count);
+        Assert.Equal(6, lines[0].Length);
+        Assert.Equal(0, lines[1].Length);
+        Assert.Equal(6, lines[2].Length);
+    }
+
+    [Fact]
+    public void ToPinnedSecureShareLines_DisposesEveryEntryOnListDispose()
+    {
+        // Arrange
+        var input = new[] { "1-FFFF", "2-AAAA" };
+        var lines = input.ToPinnedSecureShareLines();
+        var entries = new[] { lines[0], lines[1] };
+
+        // Act
+        lines.Dispose();
+
+        // Assert — accessing a disposed PinnedPoolArray's Length throws ObjectDisposedException.
+        Assert.Throws<ObjectDisposedException>(() => _ = entries[0].Length);
+        Assert.Throws<ObjectDisposedException>(() => _ = entries[1].Length);
+    }
+
+    [Fact]
+    public void ToPinnedSecureShareLines_DoubleDispose_IsIdempotent()
+    {
+        // Arrange
+        var lines = new[] { "1-FFFF" }.ToPinnedSecureShareLines();
+
+        // Act & Assert — must not throw on repeated dispose.
+        lines.Dispose();
+        lines.Dispose();
+        lines.Dispose();
+    }
 }
