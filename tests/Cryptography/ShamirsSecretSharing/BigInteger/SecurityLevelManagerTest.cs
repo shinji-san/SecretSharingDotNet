@@ -46,7 +46,7 @@ public class SecurityLevelManagerTest
     public void Constructor_WithoutParameter_InitializesWithDefaultMersennePrimeProvider()
     {
         // Arrange & Act
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
 
         // Assert
         Assert.NotNull(securityLevelManager);
@@ -65,7 +65,7 @@ public class SecurityLevelManagerTest
         mersennePrimeProviderMock.Setup(p => p.IsValidMersennePrimeExponent(expectedSecurityLevel)).Returns(true);
 
         // Act
-        var securityLevelManager = new SecurityLevelManager<BigInteger>(mersennePrimeProviderMock.Object);
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>(mersennePrimeProviderMock.Object);
 
         // Assert
         Assert.NotNull(securityLevelManager);
@@ -84,7 +84,7 @@ public class SecurityLevelManagerTest
     public void SecurityLevel_Set_WithMersennePrimeExponent_SetsSecurityLevelCorrectly()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 17;
 
         // Act
@@ -98,7 +98,7 @@ public class SecurityLevelManagerTest
     public void SecurityLevel_Set_BelowMinimum_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 10;
 
         // Act & Assert
@@ -112,7 +112,7 @@ public class SecurityLevelManagerTest
     public void SecurityLevel_Set_AboveMaximum_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 50000000;
 
         // Act & Assert
@@ -135,7 +135,7 @@ public class SecurityLevelManagerTest
         mockProvider.Setup(p => p.GetNextMersennePrimeExponent(initialSecurityLevel)).Returns(31);
         mockProvider.Setup(p => p.IsValidMersennePrimeExponent(expectedAdjustedLevel)).Returns(true);
 
-        var securityLevelManager = new SecurityLevelManager<BigInteger>(mockProvider.Object);
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>(mockProvider.Object);
 
         // Act
         securityLevelManager.SecurityLevel = initialSecurityLevel;
@@ -148,7 +148,7 @@ public class SecurityLevelManagerTest
     public void MersennePrime_AfterSettingSecurityLevel_IsCalculatedCorrectly()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 17;
         
         // Act
@@ -162,7 +162,7 @@ public class SecurityLevelManagerTest
     public void MersennePrime_AfterSettingSecurityLevel_IsNotNull()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
 
         // Act
         securityLevelManager.SecurityLevel = 31;
@@ -175,10 +175,10 @@ public class SecurityLevelManagerTest
     public void AdjustSecurityLevel_WhenMaximumYCorrespondsToMinimumMersennePrimeExponent_DoesNothing()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         var initialSecurityLevel = securityLevelManager.SecurityLevel;
         byte[] byteArray = [0xFF, 0x0F];
-        var maximumY = new BigIntCalculator(byteArray, byteArray.Length);
+        using var maximumY = new BigIntCalculator(byteArray, byteArray.Length);
 
         // Act
         securityLevelManager.AdjustSecurityLevel(maximumY);
@@ -191,10 +191,10 @@ public class SecurityLevelManagerTest
     public void AdjustSecurityLevel_WhenMaximumYIsLargerThanInitialSecurityLevel_IncreasesSecurityLevel()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         var initialSecurityLevel = securityLevelManager.SecurityLevel;
         byte[] byteArray = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F];
-        var maximumY = new BigIntCalculator(byteArray, byteArray.Length);
+        using var maximumY = new BigIntCalculator(byteArray, byteArray.Length);
 
         // Act
         securityLevelManager.AdjustSecurityLevel(maximumY);
@@ -207,11 +207,11 @@ public class SecurityLevelManagerTest
     public void AdjustSecurityLevel_WhenMaximumYIsLowerThanInitialSecurityLevel_DecreasesSecurityLevel()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 31;
         securityLevelManager.SecurityLevel = initialSecurityLevel;
         byte[] byteArray = [0x0F, 0x0F];
-        var maximumY = new BigIntCalculator(byteArray, byteArray.Length);
+        using var maximumY = new BigIntCalculator(byteArray, byteArray.Length);
 
         // Act
         securityLevelManager.AdjustSecurityLevel(maximumY);
@@ -234,7 +234,7 @@ public class SecurityLevelManagerTest
     public void SecurityLevel_Set_WithValidMersennePrimeExponents_SetsCorrectly(int exponent)
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
 
         // Act
         securityLevelManager.SecurityLevel = exponent;
@@ -247,7 +247,7 @@ public class SecurityLevelManagerTest
     public void SecurityLevel_MultipleSet_UpdatesMersennePrimeEachTime()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
 
         // Act & Assert
         securityLevelManager.SecurityLevel = 13;
@@ -265,7 +265,7 @@ public class SecurityLevelManagerTest
     public void SecurityLevel_Get_ReturnsCurrentSecurityLevel()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 31;
         securityLevelManager.SecurityLevel = initialSecurityLevel;
 
@@ -280,7 +280,7 @@ public class SecurityLevelManagerTest
     public void MersennePrime_Get_ReturnsCurrentMersennePrime()
     {
         // Arrange
-        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+        using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 31;
         securityLevelManager.SecurityLevel = initialSecurityLevel;
 
