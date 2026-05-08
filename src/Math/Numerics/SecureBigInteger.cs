@@ -163,6 +163,42 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="SecureBigInteger"/> class from a <see cref="ulong"/> value.
+    /// </summary>
+    /// <param name="value">The <see cref="ulong"/> value to initialize from.</param>
+    /// <remarks>
+    /// Always non-negative. The full <see cref="ulong"/> range is supported, including
+    /// values above <see cref="long.MaxValue"/> that would overflow the
+    /// <see cref="SecureBigInteger(long)"/> ctor.
+    /// </remarks>
+    public SecureBigInteger(ulong value)
+    {
+        if (value == 0)
+        {
+            this.data = new PinnedPoolArray<byte>(1);
+            return;
+        }
+
+        this.isNegative = false;
+
+        int byteCount = 0;
+        ulong temp = value;
+        while (temp > 0)
+        {
+            byteCount++;
+            temp >>= 8;
+        }
+
+        this.data = new PinnedPoolArray<byte>(byteCount);
+        ulong remaining = value;
+        for (int i = 0; i < byteCount; i++)
+        {
+            this.data[i] = (byte)(remaining & 0xFF);
+            remaining >>= 8;
+        }
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="SecureBigInteger"/> class by copying another instance.
     /// </summary>
     /// <param name="other">The <see cref="SecureBigInteger"/> instance to copy.</param>
@@ -1712,6 +1748,18 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="value">The long integer value to convert.</param>
     /// <returns>A <see cref="SecureBigInteger"/> instance representing the long integer value.</returns>
     public static implicit operator SecureBigInteger(long value) => new SecureBigInteger(value);
+
+    /// <summary>
+    /// Implicit conversion from <see cref="ulong"/> to <see cref="SecureBigInteger"/>.
+    /// </summary>
+    /// <param name="value">The unsigned long integer value to convert.</param>
+    /// <returns>A <see cref="SecureBigInteger"/> instance representing the unsigned long integer value.</returns>
+    /// <remarks>
+    /// Covers the full <see cref="ulong"/> range, including values above
+    /// <see cref="long.MaxValue"/>. Without this overload such literals would have
+    /// to be routed through a manual byte-array constructor.
+    /// </remarks>
+    public static implicit operator SecureBigInteger(ulong value) => new SecureBigInteger(value);
 
     /// <summary>
     /// Explicit conversion from <see cref="SecureBigInteger"/> to <see cref="int"/>.

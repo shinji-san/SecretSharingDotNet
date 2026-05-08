@@ -105,6 +105,41 @@ public class SecureBigIntegerTests
         Assert.Equal(value.ToString(), s);
     }
 
+    [Theory]
+    [InlineData(0UL)]
+    [InlineData(1UL)]
+    [InlineData(123456789UL)]
+    [InlineData((ulong)long.MaxValue)]
+    // Above long.MaxValue — the value the long ctor cannot represent.
+    [InlineData((ulong)long.MaxValue + 1UL)]
+    [InlineData(ulong.MaxValue)]
+    public void Constructor_FromUlong_CreatesCorrectValue(ulong value)
+    {
+        // Arrange & Act
+        using var num = new SecureBigInteger(value);
+
+        // Assert
+        using var pinnedCharArray = num.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(value.ToString(), s);
+    }
+
+    [Theory]
+    [InlineData(0UL)]
+    [InlineData(123456789UL)]
+    [InlineData((ulong)long.MaxValue + 1UL)]
+    [InlineData(ulong.MaxValue)]
+    public void ImplicitConversion_FromUlong_ProducesCorrectInstance(ulong value)
+    {
+        // Arrange & Act — implicit conversion routed through the ulong ctor.
+        using SecureBigInteger num = value;
+
+        // Assert
+        using var pinnedCharArray = num.ToPinnedCharArray();
+        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(value.ToString(), s);
+    }
+
     [Fact]
     public void Constructor_Copy_CreatesIndependentCopy()
     {
