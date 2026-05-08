@@ -34,6 +34,7 @@ namespace SecretSharingDotNetTest.Cryptography;
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureArray;
 using SecretSharingDotNet.Cryptography.SecureInput;
+using SecretSharingDotNet.Extension;
 using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Collections;
@@ -60,11 +61,12 @@ public class SharesTest
     {
         // Arrange
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> sharesCollection = Shares<BigInteger>.FromTextLines(lines);
+        using var sharesCollection = Shares<BigInteger>.FromTextLines(lines);
         using var sharePinned = TestData.GetPredefinedShares()[index].ToPinnedSecure();
+        using var expectedShare = new Share<BigInteger>(sharePinned);
 
         // Act & Assert
-        Assert.Contains(new Share<BigInteger>(sharePinned), sharesCollection);
+        Assert.Contains(expectedShare, sharesCollection);
     }
 
     /// <summary>
@@ -77,9 +79,9 @@ public class SharesTest
     {
         // Arrange
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> sharesCollection = Shares<BigInteger>.FromTextLines(lines);
+        using var sharesCollection = Shares<BigInteger>.FromTextLines(lines);
         using var nonExistingPinned = "4-9999999999999999999999".ToPinnedSecure();
-        var nonExistingShare = new Share<BigInteger>(nonExistingPinned);
+        using var nonExistingShare = new Share<BigInteger>(nonExistingPinned);
 
         // Act & Assert
         Assert.DoesNotContain(nonExistingShare, sharesCollection);
@@ -95,7 +97,7 @@ public class SharesTest
         // Arrange
         var text = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
         using var blob = text.ToPinnedSecure();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromText(blob);
+        using var shares = Shares<BigInteger>.FromText(blob);
 
         // Act & Assert
 #if DEBUG
@@ -115,7 +117,7 @@ public class SharesTest
     {
         // Arrange
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
         var testDataArray = TestData.GetPredefinedShares()
             .Select(entry =>
             {
@@ -124,19 +126,26 @@ public class SharesTest
             })
             .ToArray();
 
-        // Act
-        var actual = ((IEnumerable)shares).GetEnumerator();
-        using var disposable = actual as IDisposable;
-        var expected = testDataArray.GetEnumerator();
-
-        // Assert
-        for (var i = 0; i < testDataArray.Length; i++)
+        try
         {
-            Assert.Equal(expected.MoveNext(), actual.MoveNext());
-            Assert.Equal(expected.Current, actual.Current);
-        }
+            // Act
+            var actual = ((IEnumerable)shares).GetEnumerator();
+            using var disposable = actual as IDisposable;
+            var expected = testDataArray.GetEnumerator();
 
-        Assert.True(shares.SequenceEqual(testDataArray));
+            // Assert
+            for (var i = 0; i < testDataArray.Length; i++)
+            {
+                Assert.Equal(expected.MoveNext(), actual.MoveNext());
+                Assert.Equal(expected.Current, actual.Current);
+            }
+
+            Assert.True(shares.SequenceEqual(testDataArray));
+        }
+        finally
+        {
+            testDataArray.DisposeAll();
+        }
     }
 
     [Fact]
@@ -144,7 +153,7 @@ public class SharesTest
     {
         // Arrange
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
         var expectedCount = TestData.GetPredefinedShares().Length;
 
         // Act
@@ -159,19 +168,15 @@ public class SharesTest
     {
         // Arrange
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
-        var expectedShares = TestData.GetPredefinedShares()
-            .Select(entry =>
-            {
-                using var p = entry.ToPinnedSecure();
-                return new Share<BigInteger>(p);
-            })
-            .ToArray();
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
+        var entries = TestData.GetPredefinedShares();
 
         // Act & Assert
-        for (int i = 0; i < shares.Count; i++)
+        for (int i = 0; i < entries.Length; i++)
         {
-            Assert.Equal(expectedShares[i], shares[i]);
+            using var p = entries[i].ToPinnedSecure();
+            using var expected = new Share<BigInteger>(p);
+            Assert.Equal(expected, shares[i]);
         }
     }
 
@@ -180,7 +185,7 @@ public class SharesTest
     {
         // Arrange
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
         var sharesArray = new Share<BigInteger>[shares.Count];
 
         // Act
@@ -198,7 +203,7 @@ public class SharesTest
     {
         // Arrange — array is sized Count + 2 with 2-slot prefix padding.
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
         var target = new Share<BigInteger>[shares.Count + 2];
 
         // Act — fills target[2 .. Count+1] exactly.
@@ -218,7 +223,7 @@ public class SharesTest
     {
         // Arrange — target has Count+2 slots, but offset leaves only Count-1 remaining.
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
         var target = new Share<BigInteger>[shares.Count + 2];
         var offset = target.Length - shares.Count + 1;
 
@@ -232,7 +237,7 @@ public class SharesTest
     {
         // Arrange
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
         var target = new Share<BigInteger>[shares.Count];
 
         // Act & Assert
@@ -244,7 +249,7 @@ public class SharesTest
     {
         // Arrange
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
 
         // Act
         var isReadOnly = shares.IsReadOnly;
@@ -261,14 +266,15 @@ public class SharesTest
         using var lines = stringArray.ToPinnedSecureShareLines();
 
         // Act
-        Shares<BigInteger> shares = Shares<BigInteger>.FromTextLines(lines);
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
 
         // Assert
         Assert.Equal(stringArray.Length, shares.Count);
         for (int i = 0; i < stringArray.Length; i++)
         {
             using var p = stringArray[i].ToPinnedSecure();
-            Assert.Equal(new Share<BigInteger>(p), shares[i]);
+            using var expected = new Share<BigInteger>(p);
+            Assert.Equal(expected, shares[i]);
         }
     }
 
@@ -285,15 +291,18 @@ public class SharesTest
         using var lines = stringArray.ToPinnedSecureShareLines();
 
         // Act
-        Shares<BigInteger> sortedShares = Shares<BigInteger>.FromTextLines(lines);
+        using var sortedShares = Shares<BigInteger>.FromTextLines(lines);
 
         // Assert
         using var p1 = "1-100".ToPinnedSecure();
         using var p2 = "2-200".ToPinnedSecure();
         using var p3 = "3-300".ToPinnedSecure();
-        Assert.Equal(new Share<BigInteger>(p1), sortedShares[0]);
-        Assert.Equal(new Share<BigInteger>(p2), sortedShares[1]);
-        Assert.Equal(new Share<BigInteger>(p3), sortedShares[2]);
+        using var s1 = new Share<BigInteger>(p1);
+        using var s2 = new Share<BigInteger>(p2);
+        using var s3 = new Share<BigInteger>(p3);
+        Assert.Equal(s1, sortedShares[0]);
+        Assert.Equal(s2, sortedShares[1]);
+        Assert.Equal(s3, sortedShares[2]);
     }
 
     [Fact]
@@ -307,15 +316,18 @@ public class SharesTest
         using var blob = input.ToPinnedSecure();
 
         // Act
-        Shares<BigInteger> sortedShares = Shares<BigInteger>.FromText(blob);
+        using var sortedShares = Shares<BigInteger>.FromText(blob);
 
         // Assert
         using var p1 = "1-100".ToPinnedSecure();
         using var p2 = "2-200".ToPinnedSecure();
         using var p3 = "3-300".ToPinnedSecure();
-        Assert.Equal(new Share<BigInteger>(p1), sortedShares[0]);
-        Assert.Equal(new Share<BigInteger>(p2), sortedShares[1]);
-        Assert.Equal(new Share<BigInteger>(p3), sortedShares[2]);
+        using var s1 = new Share<BigInteger>(p1);
+        using var s2 = new Share<BigInteger>(p2);
+        using var s3 = new Share<BigInteger>(p3);
+        Assert.Equal(s1, sortedShares[0]);
+        Assert.Equal(s2, sortedShares[1]);
+        Assert.Equal(s3, sortedShares[2]);
     }
 
     /// <summary>
@@ -327,7 +339,7 @@ public class SharesTest
     {
         // Arrange
         using var blob = string.Join(Environment.NewLine, TestData.GetPredefinedShares()).ToPinnedSecure();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromText(blob);
+        using var shares = Shares<BigInteger>.FromText(blob);
         var expected = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
 
         // Act
@@ -347,7 +359,7 @@ public class SharesTest
         // Arrange
         var stringArray = new[] { "03-0A", "01-FF", "02-10" };
         using var blob = string.Join(Environment.NewLine, stringArray).ToPinnedSecure();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromText(blob);
+        using var shares = Shares<BigInteger>.FromText(blob);
 
         // Act
         using var result = shares.ToCharArray(uppercase, withPrefix);
@@ -367,7 +379,7 @@ public class SharesTest
     public void ToCharArray_EmptyCollection_ReturnsZeroLength()
     {
         // Arrange
-        Shares<BigInteger> empty = Array.Empty<Share<BigInteger>>();
+        using Shares<BigInteger> empty = Array.Empty<Share<BigInteger>>();
 
         // Act
         using var result = empty.ToCharArray();
@@ -385,7 +397,7 @@ public class SharesTest
     {
         // Arrange
         using var blob = string.Join(Environment.NewLine, TestData.GetPredefinedShares()).ToPinnedSecure();
-        Shares<BigInteger> shares = Shares<BigInteger>.FromText(blob);
+        using var shares = Shares<BigInteger>.FromText(blob);
         var expected = string.Join(Environment.NewLine, TestData.GetPredefinedShares()) + Environment.NewLine;
 
         // Act
@@ -413,11 +425,11 @@ public class SharesTest
     {
         // Arrange
         using var input = string.Join(Environment.NewLine, TestData.GetPredefinedShares()).ToPinnedSecure();
-        Shares<BigInteger> original = Shares<BigInteger>.FromText(input);
+        using var original = Shares<BigInteger>.FromText(input);
 
         // Act — collection → pinned chars → collection
         using PinnedPoolArray<char> serialized = original;
-        Shares<BigInteger> reparsed = Shares<BigInteger>.FromText(serialized);
+        using var reparsed = Shares<BigInteger>.FromText(serialized);
 
         // Assert
         Assert.Equal(original.Count, reparsed.Count);
@@ -466,10 +478,10 @@ public class SharesTest
     public void FromText_NullBuffer_ReturnsEmptyShares()
     {
         // Act
-        var shares = Shares<BigInteger>.FromText(null);
+        using var shares = Shares<BigInteger>.FromText(null);
 
         // Assert
-        Assert.Equal(0, shares.Count);
+        Assert.Empty(shares);
     }
 
     [Fact]
@@ -489,7 +501,7 @@ public class SharesTest
         var lines = new[] { validA, null, emptyEntry, validB };
 
         // Act
-        var shares = Shares<BigInteger>.FromTextLines(lines);
+        using var shares = Shares<BigInteger>.FromTextLines(lines);
 
         // Assert — only the two non-empty entries become shares.
         Assert.Equal(2, shares.Count);
@@ -503,11 +515,13 @@ public class SharesTest
         using var p2 = "2-AAAA".ToPinnedSecure();
 
         // Act
-        var shares = Shares<BigInteger>.FromTextLines(new[] { p1, p2 });
+        using var shares = Shares<BigInteger>.FromTextLines([p1, p2]);
 
         // Assert
+        using var expectedIndex0 = new BigIntCalculator(1);
+        using var expectedIndex1 = new BigIntCalculator(2);
         Assert.Equal(2, shares.Count);
-        Assert.Equal(new BigIntCalculator(1), shares[0].Index);
-        Assert.Equal(new BigIntCalculator(2), shares[1].Index);
+        Assert.Equal(expectedIndex0, shares[0].Index);
+        Assert.Equal(expectedIndex1, shares[1].Index);
     }
 }
