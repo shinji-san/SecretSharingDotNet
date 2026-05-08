@@ -52,7 +52,8 @@ public class PolynomialTest
         using var result = Polynomial.EvaluateAt(xCalc, coeffs, primeCalc);
 
         // Assert
-        Assert.Equal(new SecureBigIntCalculator(7), result);
+        using var expected = new SecureBigIntCalculator(7);
+        Assert.Equal(expected, result);
     }
 
     [Fact]
@@ -74,7 +75,8 @@ public class PolynomialTest
             using var result = Polynomial.EvaluateAt(xCalc, coeffs, primeCalc);
 
             // Assert
-            Assert.Equal(new SecureBigIntCalculator(6), result);
+            using var expected = new SecureBigIntCalculator(6);
+            Assert.Equal(expected, result);
         }
         finally
         {
@@ -105,7 +107,8 @@ public class PolynomialTest
             using var result = Polynomial.EvaluateAt(xCalc, coeffs, primeCalc);
 
             // Assert
-            Assert.Equal(new SecureBigIntCalculator(19), result);
+            using var expected = new SecureBigIntCalculator(19);
+            Assert.Equal(expected, result);
         }
         finally
         {
