@@ -24,7 +24,7 @@ public class ShareTest
         using Calculator<BigInteger> expectedValue = value;
 
         // Act
-        var share = new Share<BigInteger>(index, value);
+        using var share = new Share<BigInteger>(index, value);
 
         // Assert
         Assert.Equal(expectedIndex, share.Index);
@@ -123,11 +123,13 @@ public class ShareTest
         var valueBytes = new byte[] { 10, 0 };
 
         // Act
-        var share = new Share<BigInteger>(indexBytes, valueBytes);
+        using var share = new Share<BigInteger>(indexBytes, valueBytes);
 
         // Assert
-        Assert.Equal(new BigIntCalculator(5), share.Index);
-        Assert.Equal(new BigIntCalculator(10), share.Value);
+        using var expectedIndex = new BigIntCalculator(5);
+        using var expectedValue = new BigIntCalculator(10);
+        Assert.Equal(expectedIndex, share.Index);
+        Assert.Equal(expectedValue, share.Value);
     }
 
     [Fact]
@@ -136,7 +138,7 @@ public class ShareTest
         // Arrange
         var index = new BigIntCalculator(4);
         var value = new BigIntCalculator(10);
-        var share = new Share<BigInteger>(index, value);
+        using var share = new Share<BigInteger>(index, value);
 
         // Act & Assert
         Assert.True(share.IsIndexEven);
@@ -148,7 +150,7 @@ public class ShareTest
         // Arrange
         var index = new BigIntCalculator(5);
         var value = new BigIntCalculator(10);
-        var share = new Share<BigInteger>(index, value);
+        using var share = new Share<BigInteger>(index, value);
 
         // Act & Assert
         Assert.True(share.IsIndexOdd);
@@ -164,7 +166,7 @@ public class ShareTest
     public void ToString_ValidShare_ShouldReturnFormattedString(BigInteger index, BigInteger value, string expected)
     {
         // Arrange
-        var share = new Share<BigInteger>(index, value);
+        using var share = new Share<BigInteger>(index, value);
 
         // Act & Assert
 #if DEBUG
@@ -181,11 +183,13 @@ public class ShareTest
         using var pinned = "B-AA".ToPinnedSecure();
 
         // Act
-        var share = new Share<BigInteger>(pinned);
+        using var share = new Share<BigInteger>(pinned);
 
         // Assert
-        Assert.Equal(new BigIntCalculator(11), share.Index);
-        Assert.Equal(new BigIntCalculator(-86), share.Value);
+        using var expectedIndex = new BigIntCalculator(11);
+        using var expectedValue = new BigIntCalculator(-86);
+        Assert.Equal(expectedIndex, share.Index);
+        Assert.Equal(expectedValue, share.Value);
     }
 
     [Theory]
@@ -195,7 +199,7 @@ public class ShareTest
     {
         // Arrange
         using var pinned = input.ToPinnedSecure();
-        var shareUnderTest = new Share<BigInteger>(pinned);
+        using var shareUnderTest = new Share<BigInteger>(pinned);
 
         // Act
         string actual = shareUnderTest.ToString();
@@ -231,7 +235,7 @@ public class ShareTest
         BigInteger index, BigInteger value, bool uppercase, bool withPrefix, string expected)
     {
         // Arrange
-        var share = new Share<BigInteger>(index, value);
+        using var share = new Share<BigInteger>(index, value);
 
         // Act
         using var result = share.ToCharArray(uppercase, withPrefix);
@@ -244,7 +248,7 @@ public class ShareTest
     public void ToCharArray_NoArgs_ShouldReturnUppercaseWithoutPrefix()
     {
         // Arrange
-        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        using var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
 
         // Act
         using var result = share.ToCharArray();
@@ -263,11 +267,13 @@ public class ShareTest
         using var pinned = shareString.ToPinnedSecure();
 
         // Act
-        var share = new Share<BigInteger>(pinned);
+        using var share = new Share<BigInteger>(pinned);
 
         // Assert
-        Assert.Equal(new BigIntCalculator(expectedIndex), share.Index);
-        Assert.Equal(new BigIntCalculator(expectedValue), share.Value);
+        using var expectedIndexCalc = new BigIntCalculator(expectedIndex);
+        using var expectedValueCalc = new BigIntCalculator(expectedValue);
+        Assert.Equal(expectedIndexCalc, share.Index);
+        Assert.Equal(expectedValueCalc, share.Value);
     }
 
     [Theory]
@@ -279,11 +285,13 @@ public class ShareTest
         using var pinned = shareString.ToPinnedSecure();
 
         // Act
-        var share = new Share<BigInteger>(pinned);
+        using var share = new Share<BigInteger>(pinned);
 
         // Assert
-        Assert.Equal(new BigIntCalculator(expectedIndex), share.Index);
-        Assert.Equal(new BigIntCalculator(expectedValue), share.Value);
+        using var expectedIndexCalc = new BigIntCalculator(expectedIndex);
+        using var expectedValueCalc = new BigIntCalculator(expectedValue);
+        Assert.Equal(expectedIndexCalc, share.Index);
+        Assert.Equal(expectedValueCalc, share.Value);
     }
 
     [Theory]
@@ -360,11 +368,11 @@ public class ShareTest
     public void RoundTrip_ToCharArrayWithPrefix_ShouldParseBack(BigInteger index, BigInteger value)
     {
         // Arrange
-        var original = new Share<BigInteger>(index, value);
+        using var original = new Share<BigInteger>(index, value);
 
         // Act
         using var chars = original.ToCharArray(uppercase: true, withPrefix: true);
-        var parsed = new Share<BigInteger>(chars);
+        using var parsed = new Share<BigInteger>(chars);
 
         // Assert
         Assert.Equal(original.Index, parsed.Index);
@@ -385,7 +393,7 @@ public class ShareTest
     public void GetCharCount_MatchesToCharArrayLength(BigInteger index, BigInteger value, bool withPrefix, int expected)
     {
         // Arrange
-        var share = new Share<BigInteger>(index, value);
+        using var share = new Share<BigInteger>(index, value);
 
         // Act
         var count = share.GetCharCount(withPrefix);
@@ -405,7 +413,7 @@ public class ShareTest
         BigInteger index, BigInteger value, bool uppercase, bool withPrefix, string expected)
     {
         // Arrange
-        var share = new Share<BigInteger>(index, value);
+        using var share = new Share<BigInteger>(index, value);
         var buffer = new char[expected.Length + 4];
 
         // Act
@@ -422,7 +430,7 @@ public class ShareTest
     public void WriteCharsTo_NullDest_ThrowsArgumentNullException()
     {
         // Arrange
-        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        using var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => share.WriteCharsTo(null, 0, uppercase: true, withPrefix: false));
@@ -434,7 +442,7 @@ public class ShareTest
     public void WriteCharsTo_InvalidOffset_ThrowsArgumentOutOfRangeException(int offset)
     {
         // Arrange
-        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        using var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         var buffer = new char[16];
 
         // Act & Assert
@@ -446,7 +454,7 @@ public class ShareTest
     public void WriteCharsTo_InsufficientSpace_ThrowsArgumentException()
     {
         // Arrange
-        var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        using var share = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
         var buffer = new char[16];
 
         // Act & Assert
@@ -459,21 +467,22 @@ public class ShareTest
     public void CompareTo_ShouldReturnCorrectComparisonResult()
     {
         // Arrange
-        var share1 = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
-        var share2 = new Share<BigInteger>(new BigIntCalculator(10), new BigIntCalculator(20));
+        using var share1 = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        using var share2 = new Share<BigInteger>(new BigIntCalculator(10), new BigIntCalculator(20));
+        using var sameIndexShare = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(15));
 
         // Act & Assert
         Assert.True(share1.CompareTo(share2) < 0);
         Assert.True(share2.CompareTo(share1) > 0);
-        Assert.Equal(0, share1.CompareTo(new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(15))));
+        Assert.Equal(0, share1.CompareTo(sameIndexShare));
     }
 
     [Fact]
     public void Operators_ShouldPerformComparisonsCorrectly()
     {
         // Arrange
-        var share1 = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
-        var share2 = new Share<BigInteger>(new BigIntCalculator(10), new BigIntCalculator(20));
+        using var share1 = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        using var share2 = new Share<BigInteger>(new BigIntCalculator(10), new BigIntCalculator(20));
 
         // Act & Assert
         Assert.True(share1 < share2);
