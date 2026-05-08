@@ -686,12 +686,6 @@ public class SecretTest
     [MemberData(nameof(TestData.MixedSecrets), MemberType = typeof(TestData))]
     public void CastObjectToSecret_FromSupportedType_ReturnsSecret(object secretSource)
     {
-        // Note: per-branch using (instead of one outer try/finally) avoids calling
-        // Dispose() on a default(Secret<SecureBigInteger>), which currently
-        // dereferences a null secretNumber field. The BigInteger sibling test
-        // tolerates the same shape because TestData.MixedSecrets has no null entry,
-        // but the default-switch branch on this backend would otherwise reach the
-        // outer Dispose call.
         switch (secretSource)
         {
             case string password:
