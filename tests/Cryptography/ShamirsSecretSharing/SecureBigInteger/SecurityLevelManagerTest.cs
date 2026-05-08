@@ -158,7 +158,9 @@ public class SecurityLevelManagerTest
         // Assert
         using var value = new SecureBigInteger(2);
         using var powerResult = value.Pow(initialSecurityLevel);
-        Assert.Equal(powerResult - 1, securityLevelManager.MersennePrime.Value);
+        using var one = new SecureBigInteger(1);
+        using var expected = powerResult - one;
+        Assert.Equal(expected, securityLevelManager.MersennePrime.Value);
     }
 
     [Fact]
@@ -180,7 +182,7 @@ public class SecurityLevelManagerTest
         // Arrange
         using var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
         var initialSecurityLevel = securityLevelManager.SecurityLevel;
-        var maximumY = new SecureBigIntCalculator(8190);
+        using var maximumY = new SecureBigIntCalculator(8190);
 
         // Act
         securityLevelManager.AdjustSecurityLevel(maximumY);
@@ -195,7 +197,7 @@ public class SecurityLevelManagerTest
         // Arrange
         using var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
         var initialSecurityLevel = securityLevelManager.SecurityLevel;
-        var maximumY = new SecureBigIntCalculator(8191);
+        using var maximumY = new SecureBigIntCalculator(8191);
 
         // Act
         securityLevelManager.AdjustSecurityLevel(maximumY);
@@ -211,7 +213,7 @@ public class SecurityLevelManagerTest
         using var securityLevelManager = new SecurityLevelManager<SecureBigInteger>();
         const int initialSecurityLevel = 31;
         securityLevelManager.SecurityLevel = initialSecurityLevel;
-        var maximumY = new SecureBigIntCalculator(8190);
+        using var maximumY = new SecureBigIntCalculator(8190);
 
         // Act
         securityLevelManager.AdjustSecurityLevel(maximumY);
@@ -297,7 +299,9 @@ public class SecurityLevelManagerTest
         Assert.NotNull(mersennePrime);
         using var value = new SecureBigInteger(2);
         using var powerResult = value.Pow(initialSecurityLevel);
-        Assert.Equal(powerResult - 1, mersennePrime.Value);
+        using var one = new SecureBigInteger(1);
+        using var expected = powerResult - one;
+        Assert.Equal(expected, mersennePrime.Value);
     }
 
     [Fact]
