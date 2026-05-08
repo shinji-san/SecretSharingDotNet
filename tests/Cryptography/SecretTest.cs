@@ -73,8 +73,16 @@ public class SecretTest
     [MemberData(nameof(EqualSecrets), MemberType = typeof(SecretTest))]
     public void Equal_WithEqualSecrets_ReturnsTrue(Secret<BigInteger> left, Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.True(left.Equals(right));
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.True(left.Equals(right));
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -86,8 +94,16 @@ public class SecretTest
     [MemberData(nameof(EqualSecrets), MemberType = typeof(SecretTest))]
     public void EqualOperator_WithEqualSecrets_ReturnsTrue(Secret<BigInteger> left, Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.True(left == right);
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.True(left == right);
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -132,8 +148,16 @@ public class SecretTest
     [MemberData(nameof(NotEqualSecrets), MemberType = typeof(SecretTest))]
     public void Equal_WithNotEqualSecrets_ReturnsFalse(Secret<BigInteger> left, Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.False(left.Equals(right));
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.False(left.Equals(right));
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -145,8 +169,16 @@ public class SecretTest
     [MemberData(nameof(NotEqualSecrets), MemberType = typeof(SecretTest))]
     public void NotEqualOperator_WithNotEqualSecrets_ReturnsTrue(Secret<BigInteger> left, Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.True(left != right);
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.True(left != right);
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -192,8 +224,16 @@ public class SecretTest
         Secret<BigInteger> left,
         Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.True(left <= right);
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.True(left <= right);
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -228,8 +268,16 @@ public class SecretTest
         Secret<BigInteger> left,
         Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.False(left <= right);
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.False(left <= right);
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -263,8 +311,16 @@ public class SecretTest
         Secret<BigInteger> left,
         Secret<BigInteger> right)
     {
-        // Arrange, Act & Assert
-        Assert.True(left < right);
+        try
+        {
+            // Arrange, Act & Assert
+            Assert.True(left < right);
+        }
+        finally
+        {
+            left.Dispose();
+            right.Dispose();
+        }
     }
 
     /// <summary>
@@ -619,9 +675,11 @@ public class SecretTest
                     break;
                 case byte[] byteArray:
                     secret = new Secret<BigInteger>(byteArray, byteArray.Length);
-                    var pinnedPoolArray = secret.ToByteArray();
-                    var countedEqualityComparer = new CountedEqualityComparer<byte>(count: byteArray.Length);
-                    Assert.True(pinnedPoolArray.Equals(byteArray, countedEqualityComparer));
+                    using (var pinnedPoolArray = secret.ToByteArray())
+                    {
+                        var countedEqualityComparer = new CountedEqualityComparer<byte>(count: byteArray.Length);
+                        Assert.True(pinnedPoolArray.Equals(byteArray, countedEqualityComparer));
+                    }
                     break;
                 case null:
                     return;
