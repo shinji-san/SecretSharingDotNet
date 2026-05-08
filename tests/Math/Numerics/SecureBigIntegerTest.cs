@@ -2016,6 +2016,33 @@ public class SecureBigIntegerTests
     }
 
     [Theory]
+    [InlineData(127,   new byte[] { 0x7F })]
+    [InlineData(128,   new byte[] { 0x80, 0x00 })]
+    [InlineData(255,   new byte[] { 0xFF, 0x00 })]
+    [InlineData(256,   new byte[] { 0x00, 0x01 })]
+    [InlineData(32767, new byte[] { 0xFF, 0x7F })]
+    [InlineData(32768, new byte[] { 0x00, 0x80, 0x00 })]
+    public void ToByteArray_PositiveValue_MatchesTwosComplementForm(int value, byte[] expected)
+    {
+        // Mirror of Constructor_TwosComplement_PositiveBoundary_PreservesValue: same
+        // value/byte pairs, opposite direction. ToByteArray must append a 0x00
+        // sentinel when the high bit of the most-significant byte is set, so that
+        // round-trip decoding (or any consumer that reads the bytes as
+        // two's-complement) interprets the value as positive.
+        using var num = new SecureBigInteger(value);
+
+        // Act
+        using var bytes = num.ToByteArray();
+
+        // Assert
+        Assert.Equal(expected.Length, bytes.Length);
+        for (int i = 0; i < expected.Length; i++)
+        {
+            Assert.Equal(expected[i], bytes[i]);
+        }
+    }
+
+    [Theory]
     [InlineData(new byte[] { 0x7F }, 127)]
     [InlineData(new byte[] { 0x80, 0x00 }, 128)]
     [InlineData(new byte[] { 0xFF, 0x00 }, 255)]

@@ -950,7 +950,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             return TwosComplement(this.data.PoolArray, this.Length);
         }
 
-        var result = new PinnedPoolArray<byte>(this.Length);
+        bool needsPadding = this.Length > 0 && (this.data[this.Length - 1] & 0x80) != 0;
+        var result = new PinnedPoolArray<byte>(needsPadding ? this.Length + 1 : this.Length);
         Array.Copy(this.data.PoolArray, result.PoolArray, this.Length);
         return result;
     }
