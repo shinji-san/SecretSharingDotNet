@@ -644,6 +644,30 @@ public class SecretTest
     }
 
     /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.Dispose"/> on a default-constructed
+    /// secret (i.e. <see langword="default"/>(Secret&lt;SecureBigInteger&gt;)) is a
+    /// clean no-op and idempotent — consistent with ToCharArray / ToBase64CharArray
+    /// on a default secret returning empty rather than throwing.
+    /// </summary>
+    [Fact]
+    public void Dispose_OnDefaultSecret_DoesNotThrow()
+    {
+        // Arrange — default struct: secretNumber is null.
+        Secret<SecureBigInteger> emptySecret = default;
+
+        // Act
+        var ex = Record.Exception(() =>
+        {
+            emptySecret.Dispose();
+            emptySecret.Dispose();
+            emptySecret.Dispose();
+        });
+
+        // Assert
+        Assert.Null(ex);
+    }
+
+    /// <summary>
     /// Tests the cast of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
     /// <param name="secretSource">Secret as string, BigInteger, int or byte array</param>

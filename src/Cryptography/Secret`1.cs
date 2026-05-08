@@ -639,7 +639,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     public void Dispose()
     {
-        this.secretNumber.Dispose();
+        this.secretNumber?.Dispose();
     }
 
     /// <summary>
