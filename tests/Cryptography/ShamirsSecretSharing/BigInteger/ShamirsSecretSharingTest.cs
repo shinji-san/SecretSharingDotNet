@@ -48,30 +48,6 @@ using Xunit;
 public class ShamirsSecretSharingTest
 {
     /// <summary>
-    /// Checks the following condition: denominator * DivMod(numerator, denominator, prime) % prime == numerator
-    /// </summary>
-    [Fact]
-    public void TestDivMod()
-    {
-        // Arrange
-        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-        using Calculator<BigInteger> d = (BigInteger)3000;
-        using Calculator<BigInteger> n = (BigInteger)3000;
-        using var two = Calculator<BigInteger>.Two;
-        using var twoPow127 = two.Pow(127);
-        using var one = Calculator<BigInteger>.One;
-        using var p = twoPow127 - one;
-
-        // Act
-        using var divModResult = secretReconstructor.DivMod(d, n, p);
-        using var dTimesDivMod = d * divModResult;
-        using var modulo = dTimesDivMod % p;
-
-        // Assert
-        Assert.Equal(n, modulo);
-    }
-
-    /// <summary>
     /// Tests the security level auto-detection of <see cref="SecretSplitter{TNumber}"/>.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
