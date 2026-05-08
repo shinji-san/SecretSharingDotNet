@@ -1,4 +1,4 @@
-namespace SecretSharingDotNetTest.Cryptography;
+namespace SecretSharingDotNetTest.Cryptography.BigInteger;
 
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureInput;
