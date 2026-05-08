@@ -119,6 +119,28 @@ public class SecretReconstructorTest
     }
 
     [Fact]
+    public void DivMod_RoundTrip_DenominatorTimesQuotientModPrime_EqualsNumerator()
+    {
+        // Arrange — checks `d * DivMod(d, n, p) % p == n` with the M127 Mersenne prime.
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(
+            new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using Calculator<SecureBigInteger> d = (SecureBigInteger)3000;
+        using Calculator<SecureBigInteger> n = (SecureBigInteger)3000;
+        using var two       = Calculator<SecureBigInteger>.Two;
+        using var twoPow127 = two.Pow(127);
+        using var one       = Calculator<SecureBigInteger>.One;
+        using var p         = twoPow127 - one;
+
+        // Act
+        using var divModResult = reconstructor.DivMod(d, n, p);
+        using var dTimesDivMod = d * divModResult;
+        using var modulo       = dTimesDivMod % p;
+
+        // Assert
+        Assert.Equal(n, modulo);
+    }
+
+    [Fact]
     public void UsingPattern_WithOwnedManager_DoesNotThrow()
     {
         // Arrange & Act — owned-manager round-trip via using.
