@@ -55,12 +55,20 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
-        Calculator<SecureBigInteger> d = (SecureBigInteger)3000;
-        Calculator<SecureBigInteger> n = (SecureBigInteger)3000;
-        Calculator<SecureBigInteger> p = Calculator<SecureBigInteger>.Two.Pow(127) - Calculator<SecureBigInteger>.One;
+        using Calculator<SecureBigInteger> d = (SecureBigInteger)3000;
+        using Calculator<SecureBigInteger> n = (SecureBigInteger)3000;
+        using var two = Calculator<SecureBigInteger>.Two;
+        using var twoPow127 = two.Pow(127);
+        using var one = Calculator<SecureBigInteger>.One;
+        using var p = twoPow127 - one;
 
-        // Act & Assert
-        Assert.Equal(n, d * secretReconstructor.DivMod(d, n, p) % p);
+        // Act
+        using var divModResult = secretReconstructor.DivMod(d, n, p);
+        using var dTimesDivMod = d * divModResult;
+        using var modulo = dTimesDivMod % p;
+
+        // Assert
+        Assert.Equal(n, modulo);
     }
 
     // /// <summary>
@@ -129,18 +137,18 @@ public class ShamirsSecretSharingTest
         using var passwordSecret = Secret<SecureBigInteger>.FromText(pinnedPassword);
 
         // Act
-        var shares = secretSplitter.MakeShares(3, 7, passwordSecret, splitSecurityLevel);
+        using var shares = secretSplitter.MakeShares(3, 7, passwordSecret, splitSecurityLevel);
         var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
-        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+        using var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
         var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
-        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
+        using var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
 
         // Assert
         SecretAssertions.AssertSecretEqualsString(password, recoveredSecret1);
         SecretAssertions.AssertSecretEqualsString(password, recoveredSecret2);
         Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
     }
-    
+
     // /// <summary>
     // /// Tests <see cref="SecretSplitter{TNumber}"/> with <see cref="BigInteger"/> as secret.
     // /// </summary>
@@ -182,18 +190,21 @@ public class ShamirsSecretSharingTest
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
-    
+
         // Act
-        var shares = secretSplitter.MakeShares(3, 7, splitSecurityLevel, out var originalSecret);
-        var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
-        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
-        var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
-        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
-    
-        // Assert
-        Assert.Equal(originalSecret, recoveredSecret1);
-        Assert.Equal(originalSecret, recoveredSecret2);
-        Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
+        using var shares = secretSplitter.MakeShares(3, 7, splitSecurityLevel, out var originalSecret);
+        using (originalSecret)
+        {
+            var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
+            using var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+            var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
+            using var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
+
+            // Assert
+            Assert.Equal(originalSecret, recoveredSecret1);
+            Assert.Equal(originalSecret, recoveredSecret2);
+            Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
+        }
     }
     
     /// <summary>
@@ -223,9 +234,13 @@ public class ShamirsSecretSharingTest
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
 
         // Act & Assert
-        var shares = secretSplitter.MakeShares(2, 7, 13, out _);
-        var subSet = shares.Where(p => p.Index == Calculator<SecureBigInteger>.One).ToArray();
-        Assert.Throws<ArgumentOutOfRangeException>(() => secretReconstructor.Reconstruction(subSet));
+        using var shares = secretSplitter.MakeShares(2, 7, 13, out var discardedSecret);
+        using (discardedSecret)
+        {
+            using var oneCalc = Calculator<SecureBigInteger>.One;
+            var subSet = shares.Where(p => p.Index == oneCalc).ToArray();
+            Assert.Throws<ArgumentOutOfRangeException>(() => secretReconstructor.Reconstruction(subSet));
+        }
     }
 
     /// <summary>
@@ -240,12 +255,15 @@ public class ShamirsSecretSharingTest
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
 
         // Act
-        var shares = secretSplitter.MakeShares(3, 7, 51, out var originalSecret);
-        var subSet = shares.Take(2).ToArray();
-        var secret = secretReconstructor.Reconstruction(subSet);
+        using var shares = secretSplitter.MakeShares(3, 7, 51, out var originalSecret);
+        using (originalSecret)
+        {
+            var subSet = shares.Take(2).ToArray();
+            using var secret = secretReconstructor.Reconstruction(subSet);
 
-        // Assert
-        Assert.NotEqual(originalSecret, secret);
+            // Assert
+            Assert.NotEqual(originalSecret, secret);
+        }
     }
     
     /// <summary>
@@ -264,11 +282,11 @@ public class ShamirsSecretSharingTest
         using var longSecretValue = Secret<SecureBigInteger>.FromText(pinnedLong);
 
         // Act
-        var shares = secretSplitter.MakeShares(3, 7, longSecretValue, 1024);
+        using var shares = secretSplitter.MakeShares(3, 7, longSecretValue, 1024);
         var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
-        var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+        using var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
         var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
-        var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
+        using var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
 
         // Assert
         SecretAssertions.AssertSecretEqualsString(longSecret, recoveredSecret1);
@@ -288,7 +306,7 @@ public class ShamirsSecretSharingTest
 
         // Act
         using Shares<SecureBigInteger> shares = Shares<SecureBigInteger>.FromTextLines(lines);
-        var secret = secretReconstructor.Reconstruction(shares);
+        using var secret = secretReconstructor.Reconstruction(shares);
 
         // Assert
         SecretAssertions.AssertSecretEqualsString(TestData.DefaultTestPassword, secret);
@@ -312,8 +330,8 @@ public class ShamirsSecretSharingTest
         using var blob = sharesChunk.ToString().ToPinnedSecure();
 
         // Act
-        Shares<SecureBigInteger> shares = Shares<SecureBigInteger>.FromText(blob);
-        var secret = secretReconstructor.Reconstruction(shares);
+        using Shares<SecureBigInteger> shares = Shares<SecureBigInteger>.FromText(blob);
+        using var secret = secretReconstructor.Reconstruction(shares);
 
         // Assert
         SecretAssertions.AssertSecretEqualsString(TestData.DefaultTestPassword, secret);
@@ -342,9 +360,9 @@ public class ShamirsSecretSharingTest
             var s = Convert.ToBase64String(message);
             using var pinnedBase64 = s.ToPinnedSecure();
             using var secret = Secret<SecureBigInteger>.FromBase64(pinnedBase64);
-            var shares = secretSplitter.MakeShares((n + 1) / 2, n, secret);
-            using var reconstructedBase64 = secretReconstructor.Reconstruction(shares.Take((n + 1) / 2).ToArray())
-                .ToBase64CharArray();
+            using var shares = secretSplitter.MakeShares((n + 1) / 2, n, secret);
+            using var reconstructedSecret = secretReconstructor.Reconstruction(shares.Take((n + 1) / 2).ToArray());
+            using var reconstructedBase64 = reconstructedSecret.ToBase64CharArray();
             var reconstructed =
                 Convert.FromBase64String(new string(reconstructedBase64.PoolArray, 0, reconstructedBase64.Length));
             if (message.SequenceEqual(reconstructed))
