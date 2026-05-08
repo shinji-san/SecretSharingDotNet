@@ -122,10 +122,12 @@ public class SecureBigIntCalculatorTest
     {
         // Arrange
         using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(10));
+        using Calculator<SecureBigInteger> rhs5 = new SecureBigIntCalculator(new SecureBigInteger(5));
+        using Calculator<SecureBigInteger> rhs15 = new SecureBigIntCalculator(new SecureBigInteger(15));
 
         // Act & Assert
-        Assert.True(calculator >  new SecureBigIntCalculator(new SecureBigInteger(5)));
-        Assert.False(calculator >  new SecureBigIntCalculator(new SecureBigInteger(15)));
+        Assert.True(calculator > rhs5);
+        Assert.False(calculator > rhs15);
     }
 
     [Fact]
@@ -133,10 +135,12 @@ public class SecureBigIntCalculatorTest
     {
         // Arrange
         using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(10));
+        using Calculator<SecureBigInteger> rhs5 = new SecureBigIntCalculator(new SecureBigInteger(5));
+        using Calculator<SecureBigInteger> rhs15 = new SecureBigIntCalculator(new SecureBigInteger(15));
 
         // Act & Assert
-        Assert.True(calculator <  new SecureBigIntCalculator(new SecureBigInteger(15)));
-        Assert.False(calculator <  new SecureBigIntCalculator(new SecureBigInteger(5)));
+        Assert.True(calculator < rhs15);
+        Assert.False(calculator < rhs5);
     }
 
     [Fact]
@@ -144,11 +148,14 @@ public class SecureBigIntCalculatorTest
     {
         // Arrange
         using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(10));
+        using Calculator<SecureBigInteger> rhs5 = new SecureBigIntCalculator(new SecureBigInteger(5));
+        using Calculator<SecureBigInteger> rhs10 = new SecureBigIntCalculator(new SecureBigInteger(10));
+        using Calculator<SecureBigInteger> rhs11 = new SecureBigIntCalculator(new SecureBigInteger(11));
 
         // Act & Assert
-        Assert.True(calculator >= new SecureBigIntCalculator(new SecureBigInteger(10)));
-        Assert.True(calculator >= new SecureBigIntCalculator(new SecureBigInteger(5)));
-        Assert.False(calculator >=  new SecureBigIntCalculator(new SecureBigInteger(11)));
+        Assert.True(calculator >= rhs10);
+        Assert.True(calculator >= rhs5);
+        Assert.False(calculator >= rhs11);
     }
 
     [Fact]
@@ -156,11 +163,14 @@ public class SecureBigIntCalculatorTest
     {
         // Arrange
         using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(10));
+        using Calculator<SecureBigInteger> rhs5 = new SecureBigIntCalculator(new SecureBigInteger(5));
+        using Calculator<SecureBigInteger> rhs10 = new SecureBigIntCalculator(new SecureBigInteger(10));
+        using Calculator<SecureBigInteger> rhs11 = new SecureBigIntCalculator(new SecureBigInteger(11));
 
         // Act & Assert
-        Assert.True(calculator <= new SecureBigIntCalculator(new SecureBigInteger(10)));
-        Assert.True(calculator <= new SecureBigIntCalculator(new SecureBigInteger(11)));
-        Assert.False(calculator <=  new SecureBigIntCalculator(new SecureBigInteger(5)));
+        Assert.True(calculator <= rhs10);
+        Assert.True(calculator <= rhs11);
+        Assert.False(calculator <= rhs5);
     }
 
     [Fact]
@@ -179,17 +189,34 @@ public class SecureBigIntCalculatorTest
     [Fact]
     public void ArithmeticOperations_ShouldReturnCorrectResults()
     {
-        // Arrange
+        // Arrange — operand 5 / 10 / 11 are reused; expected results are pre-allocated.
         using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(10));
+        using Calculator<SecureBigInteger> rhs5 = new SecureBigIntCalculator(new SecureBigInteger(5));
+        using Calculator<SecureBigInteger> rhs10 = new SecureBigIntCalculator(new SecureBigInteger(10));
+        using Calculator<SecureBigInteger> rhs11 = new SecureBigIntCalculator(new SecureBigInteger(11));
+        using Calculator<SecureBigInteger> expected15 = new SecureBigIntCalculator(new SecureBigInteger(15));
+        using Calculator<SecureBigInteger> expected50 = new SecureBigIntCalculator(new SecureBigInteger(50));
+        using Calculator<SecureBigInteger> expected2 = new SecureBigIntCalculator(new SecureBigInteger(2));
+        using Calculator<SecureBigInteger> expected1 = new SecureBigIntCalculator(new SecureBigInteger(1));
+        using Calculator<SecureBigInteger> expected0 = new SecureBigIntCalculator(new SecureBigInteger(0));
 
-        // Act & Assert
-        Assert.Equal(new SecureBigIntCalculator(new SecureBigInteger(15)), calculator + new SecureBigIntCalculator(new SecureBigInteger(5)));
-        Assert.Equal(new SecureBigIntCalculator(new SecureBigInteger(5)), calculator - new SecureBigIntCalculator(new SecureBigInteger(5)));
-        Assert.Equal(new SecureBigIntCalculator(new SecureBigInteger(50)), calculator * new SecureBigIntCalculator(new SecureBigInteger(5)));
-        Assert.Equal(new SecureBigIntCalculator(new SecureBigInteger(2)), calculator / new SecureBigIntCalculator(new SecureBigInteger(5)));
-        Assert.Equal(new SecureBigIntCalculator(new SecureBigInteger(1)), calculator / new SecureBigIntCalculator(new SecureBigInteger(10)));
-        Assert.Equal(new SecureBigIntCalculator(new SecureBigInteger(0)), calculator % new SecureBigIntCalculator(new SecureBigInteger(5)));
-        Assert.Equal(new SecureBigIntCalculator(new SecureBigInteger(10)), calculator % new SecureBigIntCalculator(new SecureBigInteger(11)));
+        // Act
+        using var sum = calculator + rhs5;
+        using var difference = calculator - rhs5;
+        using var product = calculator * rhs5;
+        using var quotientBy5 = calculator / rhs5;
+        using var quotientBy10 = calculator / rhs10;
+        using var moduloBy5 = calculator % rhs5;
+        using var moduloBy11 = calculator % rhs11;
+
+        // Assert
+        Assert.Equal(expected15, sum);
+        Assert.Equal(rhs5, difference);
+        Assert.Equal(expected50, product);
+        Assert.Equal(expected2, quotientBy5);
+        Assert.Equal(expected1, quotientBy10);
+        Assert.Equal(expected0, moduloBy5);
+        Assert.Equal(rhs10, moduloBy11);
     }
 
     [Fact]
@@ -207,8 +234,10 @@ public class SecureBigIntCalculatorTest
         using var incrementedCalculator = ++working;
 
         // Assert
-        Assert.Equal(new SecureBigInteger(11), incrementedCalculator.Value);
-        Assert.Equal(new SecureBigInteger(10), source.Value);
+        using var expected11 = new SecureBigInteger(11);
+        using var expected10 = new SecureBigInteger(10);
+        Assert.Equal(expected11, incrementedCalculator.Value);
+        Assert.Equal(expected10, source.Value);
     }
 
     [Fact]
@@ -222,8 +251,10 @@ public class SecureBigIntCalculatorTest
         using var decrementedCalculator = --working;
 
         // Assert
-        Assert.Equal(new SecureBigInteger(9), decrementedCalculator.Value);
-        Assert.Equal(new SecureBigInteger(10), source.Value);
+        using var expected9 = new SecureBigInteger(9);
+        using var expected10 = new SecureBigInteger(10);
+        Assert.Equal(expected9, decrementedCalculator.Value);
+        Assert.Equal(expected10, source.Value);
     }
 
     [Fact]
@@ -236,6 +267,9 @@ public class SecureBigIntCalculatorTest
         // the alias — `++` reassigns the local to a fresh wrapper without
         // touching `source`, and the result is captured and disposed on the spot.
         using var source = new SecureBigIntCalculator(new SecureBigInteger(50));
+        using var expected51 = new SecureBigInteger(51);
+        using var expected50 = new SecureBigInteger(50);
+        using var expected49 = new SecureBigInteger(49);
 
         // Act & Assert
         for (int i = 0; i < 100; i++)
@@ -243,16 +277,16 @@ public class SecureBigIntCalculatorTest
             Calculator<SecureBigInteger> working = source;
             using (var incremented = ++working)
             {
-                Assert.Equal(new SecureBigInteger(51), incremented.Value);
+                Assert.Equal(expected51, incremented.Value);
             }
 
             working = source;
             using (var decremented = --working)
             {
-                Assert.Equal(new SecureBigInteger(49), decremented.Value);
+                Assert.Equal(expected49, decremented.Value);
             }
 
-            Assert.Equal(new SecureBigInteger(50), source.Value);
+            Assert.Equal(expected50, source.Value);
         }
     }
 
