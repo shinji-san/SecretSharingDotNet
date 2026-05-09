@@ -31,6 +31,7 @@
 
 namespace SecretSharingDotNetTest.Math.SecureBigInteger;
 
+using System.Numerics;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using Xunit;
@@ -54,88 +55,36 @@ public class ExtendedEuclideanAlgorithmTest
         Assert.Equal(expected, gcdResult.GreatestCommonDivisor);
     }
 
-    [Fact]
-    public void TestPositiveBoth()
+    [Theory]
+    // Originally 5 separate [Fact]s in this class. The InlineData rows preserve
+    // every original decimal test value verbatim — large constants are routed
+    // through System.Numerics.BigInteger.Parse and BigIntegerExtensions
+    // .ToSecureBigInteger() because the SecureBigInteger(string) decimal ctor
+    // was removed in D3. The BezoutCoefficients[0] / [1] convention pins
+    // expectedCoefficientForA → BezoutCoefficients[0] and
+    // expectedCoefficientForB → BezoutCoefficients[1].
+    [InlineData("2", "170141183460469231731687303715884105727", "-85070591730234615865843651857942052863", "1")]
+    [InlineData("-1", "170141183460469231731687303715884105727", "1", "0")]
+    [InlineData("-4", "170141183460469231731687303715884105727", "42535295865117307932921825928971026432", "1")]
+    [InlineData("170141183460469231731687303715884105727", "-1", "0", "1")]
+    [InlineData("170141183460469231731687303715884105727", "-4", "1", "42535295865117307932921825928971026432")]
+    public void Compute_ProducesExpectedBezoutCoefficients(
+        string operandA,
+        string operandB,
+        string expectedCoefficientForA,
+        string expectedCoefficientForB)
     {
         // Arrange
-        using Calculator<SecureBigInteger> a = (SecureBigInteger)2; 
-        using Calculator<SecureBigInteger> b = new SecureBigInteger("170141183460469231731687303715884105727");
-
-        // Act
-        using var result = this.gcd.Compute(a, b);
-        
-        // Assert
-        using Calculator<SecureBigInteger> expected1 = new SecureBigInteger("-85070591730234615865843651857942052863");
-        using Calculator<SecureBigInteger> expected2 = new SecureBigInteger("1");
-        Assert.Equal(expected1, result.BezoutCoefficients[0]);
-        Assert.Equal(expected2, result.BezoutCoefficients[1]);
-    }
-
-    [Fact]
-    public void Test1NegativeParameterA()
-    {
-        // Arrange
-        using Calculator<SecureBigInteger> a = (SecureBigInteger)(-1); 
-        using Calculator<SecureBigInteger> b = new SecureBigInteger("170141183460469231731687303715884105727");
-
-        // Act
-        using var result = this.gcd.Compute(a, b);
-
-        // Assert
-        using Calculator<SecureBigInteger> expected1 = (SecureBigInteger)1;
-        using Calculator<SecureBigInteger> expected2 =  (SecureBigInteger)0;
-        Assert.Equal(expected1, result.BezoutCoefficients[0]);
-        Assert.Equal(expected2, result.BezoutCoefficients[1]);
-    }
-
-    [Fact]
-    public void Test2NegativeParameterA()
-    {
-        // Arrange
-        using Calculator<SecureBigInteger> a = (SecureBigInteger)(-4); 
-        using Calculator<SecureBigInteger> b = new SecureBigInteger("170141183460469231731687303715884105727");
+        using Calculator<SecureBigInteger> a = BigInteger.Parse(operandA).ToSecureBigInteger();
+        using Calculator<SecureBigInteger> b = BigInteger.Parse(operandB).ToSecureBigInteger();
+        using Calculator<SecureBigInteger> expectedA = BigInteger.Parse(expectedCoefficientForA).ToSecureBigInteger();
+        using Calculator<SecureBigInteger> expectedB = BigInteger.Parse(expectedCoefficientForB).ToSecureBigInteger();
 
         // Act
         using var result = this.gcd.Compute(a, b);
 
         // Assert
-        using Calculator<SecureBigInteger> expected1 = new SecureBigInteger("42535295865117307932921825928971026432");
-        using Calculator<SecureBigInteger> expected2 =  (SecureBigInteger)1;
-        Assert.Equal(expected1, result.BezoutCoefficients[0]);
-        Assert.Equal(expected2, result.BezoutCoefficients[1]);
-    }
-
-    [Fact]
-    public void Test1NegativeParameterB()
-    {
-        // Arrange
-        using Calculator<SecureBigInteger> a = new SecureBigInteger("170141183460469231731687303715884105727"); 
-        using Calculator<SecureBigInteger> b = (SecureBigInteger)(-1);
-
-        // Act
-        using var result = this.gcd.Compute(a, b);
-
-        // Assert
-        using Calculator<SecureBigInteger> expected1 = (SecureBigInteger)0;
-        using Calculator<SecureBigInteger> expected2 =  (SecureBigInteger)1;
-        Assert.Equal(expected1, result.BezoutCoefficients[0]);
-        Assert.Equal(expected2, result.BezoutCoefficients[1]);
-    }
-
-    [Fact]
-    public void Test2NegativeParameterB()
-    {
-        // Arrange
-        using Calculator<SecureBigInteger> a = new SecureBigInteger("170141183460469231731687303715884105727"); 
-        using Calculator<SecureBigInteger> b = (SecureBigInteger)(-4);
-
-        // Act
-        using var result = this.gcd.Compute(a, b);
-
-        // Assert
-        using Calculator<SecureBigInteger> expected1 = (SecureBigInteger)1;
-        using Calculator<SecureBigInteger> expected2 =  new SecureBigInteger("42535295865117307932921825928971026432");
-        Assert.Equal(expected1, result.BezoutCoefficients[0]);
-        Assert.Equal(expected2, result.BezoutCoefficients[1]);
+        Assert.Equal(expectedA, result.BezoutCoefficients[0]);
+        Assert.Equal(expectedB, result.BezoutCoefficients[1]);
     }
 }

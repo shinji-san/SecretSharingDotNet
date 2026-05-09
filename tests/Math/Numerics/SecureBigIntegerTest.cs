@@ -33,6 +33,7 @@
 
 namespace SecretSharingDotNetTest.Math.Numerics;
 
+using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Numerics;
@@ -152,69 +153,6 @@ public class SecureBigIntegerTests
         // Assert
         Assert.Equal(original, copy);
         Assert.NotSame(original, copy);
-    }
-
-    [Theory]
-    [InlineData("0")]
-    [InlineData("1")]
-    [InlineData("-1")]
-    [InlineData("123456789")]
-    [InlineData("-123456789")]
-    [InlineData("123456789012345678901234567890")]
-    [InlineData("-123456789012345678901234567890")]
-    public void Constructor_FromString_CreatesCorrectValue(string value)
-    {
-        // Arrange & Act
-        using var num = new SecureBigInteger(value);
-        string expected = value.TrimStart('+');
-
-        // Assert
-        using var pinnedCharArray = num.ToPinnedCharArray();
-        Assert.Equal(expected, new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length));
-    }
-
-    [Theory]
-    [InlineData("+5", 5)]
-    [InlineData("+0", 0)]
-    [InlineData("-0", 0)]
-    [InlineData("00000", 0)]
-    [InlineData("  5  ", 5)]
-    [InlineData("\t-42\t", -42)]
-    public void Constructor_FromString_ValidSignAndWhitespace_Parses(string value, int expected)
-    {
-        // Arrange & Act
-        using var num = new SecureBigInteger(value);
-
-        // Assert
-        Assert.Equal(expected, (int)num);
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData(" ")]
-    [InlineData("   ")]
-    [InlineData("\t")]
-    [InlineData("\t\n ")]
-    public void Constructor_FromString_EmptyOrWhitespace_ThrowsArgumentException(string value)
-    {
-        Assert.Throws<ArgumentException>(() =>
-        {
-            using var _ = new SecureBigInteger(value);
-        });
-    }
-
-    [Theory]
-    [InlineData("-")]
-    [InlineData("+")]
-    [InlineData(" - ")]
-    [InlineData(" + ")]
-    [InlineData("\t-\t")]
-    public void Constructor_FromString_OnlySign_ThrowsFormatException(string value)
-    {
-        Assert.Throws<FormatException>(() =>
-        {
-            using var _ = new SecureBigInteger(value);
-        });
     }
 
     [Fact]
@@ -427,20 +365,29 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
-    [Fact]
-    public void Multiply_LargeNumbers_ReturnsCorrectProduct()
+    [Theory]
+    // First row preserves the original Multiply_LargeNumbers test values
+    // (123456789 × 987654321 = 121932631112635269) verbatim. Subsequent rows
+    // add coverage for full-32-bit operands, half-and-half magnitudes, and a
+    // 20-decimal × 20-decimal case that exercises a wider operand window than
+    // the original.
+    [InlineData("123456789", "987654321", "121932631112635269")]
+    [InlineData("4294967295", "4294967295", "18446744065119617025")]
+    [InlineData("99999999", "99999999", "9999999800000001")]
+    [InlineData("12345678901234567890", "98765432109876543210", "1219326311370217952237463801111263526900")]
+    public void Multiply_LargeNumbers_ReturnsCorrectProduct(string leftFactor, string rightFactor, string expectedProduct)
     {
         // Arrange
-        using var num1 = new SecureBigInteger("123456789");
-        using var num2 = new SecureBigInteger("987654321");
+        using var left = BigInteger.Parse(leftFactor).ToSecureBigInteger();
+        using var right = BigInteger.Parse(rightFactor).ToSecureBigInteger();
 
         // Act
-        using var result = SecureBigInteger.Multiply(num1, num2);
+        using var result = SecureBigInteger.Multiply(left, right);
 
         // Assert
         using var pinnedCharArray = result.ToPinnedCharArray();
-        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
-        Assert.Equal("121932631112635269", s);
+        var actualProduct = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
+        Assert.Equal(expectedProduct, actualProduct);
     }
 
     [Fact]
@@ -1659,15 +1606,24 @@ public class SecureBigIntegerTests
         Assert.Throws<ObjectDisposedException>(() => num.CompareTo(live));
     }
 
-    [Fact]
-    public void VeryLargeNumber_CanBeCreatedAndUsed()
+    [Theory]
+    // First row preserves the original 50-decimal-digit test value verbatim.
+    // The remaining rows extend the surface to 60 digits (positive), 60
+    // digits (negative magnitude — verifies sign carries through the
+    // BigInteger → hex → SecureBigInteger bridge), and a Mersenne-shaped
+    // value that crosses the M127 boundary the Shamir hot path operates near.
+    [InlineData("12345678901234567890123456789012345678901234567890", 1)]
+    [InlineData("987654321098765432109876543210987654321098765432109876543210", 1)]
+    [InlineData("-987654321098765432109876543210987654321098765432109876543210", -1)]
+    [InlineData("170141183460469231731687303715884105727", 1)]
+    public void VeryLargeNumber_CanBeCreatedAndUsed(string decimalValue, int expectedSign)
     {
         // Arrange & Act
-        using var num = new SecureBigInteger("12345678901234567890123456789012345678901234567890");
+        using var num = BigInteger.Parse(decimalValue).ToSecureBigInteger();
 
         // Assert
         Assert.False(num.IsZero);
-        Assert.Equal(1, num.Sign);
+        Assert.Equal(expectedSign, num.Sign);
     }
 
     [Fact]
@@ -2137,17 +2093,54 @@ public class SecureBigIntegerTests
         Assert.Equal(0, num.Sign);
     }
 
-    [Fact]
-    public void Constructor_FromString_InvalidChar_RepeatedFailures_DoNotCrash()
+    [Theory]
+    // First row preserves the spirit of the original
+    // Constructor_FromString_InvalidChar_RepeatedFailures test, which fed
+    // "12abc" to the (now-removed) decimal ctor. "12abc" is valid hex, so it
+    // can no longer test rejection — replaced with "1G2" which is invalid hex
+    // for the same structural reason ('G' is the smallest letter past 'F').
+    // Subsequent rows extend coverage to whitespace, punctuation, and a fully
+    // non-hex Latin sample. Repeating the failure path 100× guards against a
+    // regression where the exception path leaks pinned buffers
+    // (no SecureClear on throw).
+    [InlineData("1G2")]
+    [InlineData("12 34")]
+    [InlineData("12.34")]
+    [InlineData("XYZ")]
+    public void FromHexadecimal_InvalidChar_RepeatedFailures_DoNotCrash(string invalidHex)
     {
+        // Arrange — none beyond the parameterised invalid input.
+
         // Act & Assert
         for (int i = 0; i < 100; i++)
         {
+            using var hex = invalidHex.ToPinnedSecure();
             Assert.Throws<FormatException>(() =>
             {
-                using var _ = new SecureBigInteger("12abc");
+                using var _ = SecureBigInteger.FromHexadecimal(hex);
             });
         }
+    }
+
+    [Theory]
+    // Companion to the invalid-char test above: "12abc" was REJECTED by the
+    // old decimal ctor as having non-digit characters; under the new hex API
+    // it is ACCEPTED as a valid lower-case hex literal (= 0x12ABC = 76732).
+    // Preserved as a regression guard against future tightening that might
+    // re-reject mixed-case hex.
+    [InlineData("12abc", 0x12ABC)]
+    [InlineData("DEADBEEF", 0xDEADBEEFL)]
+    [InlineData("AbCdEf", 0xABCDEF)]
+    public void FromHexadecimal_MixedCaseHex_ParsesCorrectly(string hexValue, long expectedValue)
+    {
+        // Arrange
+        using var pinnedHex = hexValue.ToPinnedSecure();
+
+        // Act
+        using var num = SecureBigInteger.FromHexadecimal(pinnedHex);
+
+        // Assert
+        Assert.Equal(expectedValue, (long)num);
     }
 
     [Fact]
@@ -2178,5 +2171,152 @@ public class SecureBigIntegerTests
             var s = new string(arr.PoolArray, 0, arr.Length);
             Assert.Equal("-12345", s);
         }
+    }
+
+    [Fact]
+    public void FromHexadecimal_NullInput_ThrowsArgumentNullException()
+    {
+        // Arrange — none.
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            using var _ = SecureBigInteger.FromHexadecimal(null!);
+        });
+    }
+
+    [Fact]
+    public void FromHexadecimal_EmptyInput_ThrowsArgumentException()
+    {
+        // Arrange
+        using var emptyHex = string.Empty.ToPinnedSecure();
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+        {
+            using var _ = SecureBigInteger.FromHexadecimal(emptyHex);
+        });
+    }
+
+    [Theory]
+    [InlineData("-")]
+    [InlineData("+")]
+    public void FromHexadecimal_SignWithoutDigits_ThrowsFormatException(string signOnly)
+    {
+        // Arrange
+        using var hex = signOnly.ToPinnedSecure();
+
+        // Act & Assert
+        Assert.Throws<FormatException>(() =>
+        {
+            using var _ = SecureBigInteger.FromHexadecimal(hex);
+        });
+    }
+
+    [Theory]
+    // Odd-length input is supported per the API contract — the leading hex
+    // character represents the LOW nibble of the most-significant byte.
+    [InlineData("F", 0xFL)]
+    [InlineData("1FF", 0x1FFL)]
+    [InlineData("ABCDE", 0xABCDEL)]
+    public void FromHexadecimal_OddLengthInput_ParsesAsLowNibbleOfMsb(string oddHex, long expectedValue)
+    {
+        // Arrange
+        using var hex = oddHex.ToPinnedSecure();
+
+        // Act
+        using var num = SecureBigInteger.FromHexadecimal(hex);
+
+        // Assert
+        Assert.Equal(expectedValue, (long)num);
+    }
+
+    [Theory]
+    // Sign acceptance: '+' is allowed for symmetry with '-' and matches the
+    // convention of the (now-removed) decimal ctor.
+    [InlineData("+5", 5L)]
+    [InlineData("+FF", 255L)]
+    [InlineData("-5", -5L)]
+    [InlineData("-FF", -255L)]
+    public void FromHexadecimal_SignedInput_HonoursLeadingSign(string signedHex, long expectedValue)
+    {
+        // Arrange
+        using var hex = signedHex.ToPinnedSecure();
+
+        // Act
+        using var num = SecureBigInteger.FromHexadecimal(hex);
+
+        // Assert
+        Assert.Equal(expectedValue, (long)num);
+    }
+
+    [Theory]
+    // 0x / 0X base prefix is optional. The same magnitude must parse
+    // identically with or without the prefix and across leading-zero
+    // variations. Sign + prefix combinations are also exercised.
+    [InlineData("7B2", 0x7B2L)]
+    [InlineData("07B2", 0x7B2L)]
+    [InlineData("0x7B2", 0x7B2L)]
+    [InlineData("0X7B2", 0x7B2L)]
+    [InlineData("0x07B2", 0x7B2L)]
+    [InlineData("0X07B2", 0x7B2L)]
+    [InlineData("-0xFF", -0xFFL)]
+    [InlineData("+0xFF", 0xFFL)]
+    [InlineData("-0X07B2", -0x7B2L)]
+    public void FromHexadecimal_AcceptsOptional0xPrefix(string hexInput, long expectedValue)
+    {
+        // Arrange
+        using var hex = hexInput.ToPinnedSecure();
+
+        // Act
+        using var num = SecureBigInteger.FromHexadecimal(hex);
+
+        // Assert
+        Assert.Equal(expectedValue, (long)num);
+    }
+
+    [Theory]
+    // The 0x prefix without trailing digits is rejected, mirroring the
+    // sign-without-digits rule.
+    [InlineData("0x")]
+    [InlineData("0X")]
+    [InlineData("-0x")]
+    [InlineData("+0X")]
+    public void FromHexadecimal_PrefixWithoutDigits_ThrowsFormatException(string input)
+    {
+        // Arrange
+        using var hex = input.ToPinnedSecure();
+
+        // Act & Assert
+        Assert.Throws<FormatException>(() =>
+        {
+            using var _ = SecureBigInteger.FromHexadecimal(hex);
+        });
+    }
+
+    [Theory]
+    // Round-trip: every value ToHexadecimal can emit must be parsed back to
+    // the same value by FromHexadecimal. Decimals span sign, single byte,
+    // multi-byte, and a Mersenne-shaped value at the M127 boundary.
+    [InlineData("0")]
+    [InlineData("1")]
+    [InlineData("-1")]
+    [InlineData("255")]
+    [InlineData("-255")]
+    [InlineData("65536")]
+    [InlineData("123456789012345678901234567890")]
+    [InlineData("170141183460469231731687303715884105727")]
+    [InlineData("-170141183460469231731687303715884105727")]
+    public void FromHexadecimal_RoundTripWithToHexadecimal_PreservesValue(string decimalValue)
+    {
+        // Arrange
+        using var original = BigInteger.Parse(decimalValue).ToSecureBigInteger();
+
+        // Act
+        using var hexChars = original.ToHexadecimal();
+        using var roundTripped = SecureBigInteger.FromHexadecimal(hexChars);
+
+        // Assert
+        Assert.Equal(original, roundTripped);
     }
 }

@@ -331,83 +331,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SecureBigInteger"/> class from its string representation.
-    /// </summary>
-    /// <param name="value">The string representation of the integer.</param>
-    /// <exception cref="ArgumentException"><paramref name="value"/> is null or whitespace.</exception>
-    /// <exception cref="FormatException">Thrown if <paramref name="value"/> contains invalid characters.</exception>
-#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
-    public SecureBigInteger(ReadOnlySpan<char> value)
-    {
-        if (value.IsEmpty || value.IsWhiteSpace())
-        {
-            throw new ArgumentException(ErrorMessages.ValueCannotBeEmpty, nameof(value));
-        }
-#else
-    public SecureBigInteger(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new ArgumentException(ErrorMessages.ValueCannotBeEmpty, nameof(value));
-        }
-#endif
-        value = value.Trim();
-        this.isNegative = value[0] == '-';
-        if (this.isNegative || value[0] == '+')
-        {
-#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
-            value = value[1..];
-#else
-            value = value.Substring(1);
-#endif
-            if (value.Length == 0)
-            {
-                throw new FormatException(ErrorMessages.NumberFormatSignWithoutDigits);
-            }
-        }
-
-        // Exception-safety pattern (cf. ModPow): all heap-allocated temporaries that
-        // outlive a single statement are tracked via locals + try/finally so that a
-        // mid-loop throw (FormatException, OutOfMemoryException) cannot leak pinned
-        // pool buffers.
-        SecureBigInteger result = null;
-        try
-        {
-            result = new SecureBigInteger(0);
-            using var ten = new SecureBigInteger(10);
-
-            foreach (char c in value)
-            {
-                if (!char.IsDigit(c))
-                {
-                    throw new FormatException(string.Format(ErrorMessages.NumberFormatInvalidChar, c));
-                }
-
-                int digit = c - DigitOffset;
-
-                // result = result * 10 + digit
-                using var temp1 = MultiplyUnsigned(result, ten);
-                using var digitBytes = new SecureBigInteger(digit);
-                var newResult = AddUnsigned(temp1, digitBytes);
-                result.Dispose();
-                result = newResult;
-            }
-
-            this.data = new PinnedPoolArray<byte>(result.Length);
-            Array.Copy(result.data.PoolArray, this.data.PoolArray, result.Length);
-        }
-        finally
-        {
-            result?.Dispose();
-        }
-
-        if (this.IsZeroInternal())
-        {
-            this.isNegative = false;
-        }
-    }
-
-    /// <summary>
     /// Finalizes an instance of the <see cref="SecureBigInteger"/> class.
     /// </summary>
     ~SecureBigInteger()
@@ -2591,5 +2514,154 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     private static char GetHexChar(int value)
     {
         return value < 10 ? (char)(DigitOffset + value) : (char)('A' + value - 10);
+    }
+
+    /// <summary>
+    /// 128-entry ASCII lookup table mapping each hex character to its 0..15
+    /// nibble value. Non-hex ASCII positions hold <c>0xFF</c> (sentinel for
+    /// invalid). The table is loaded once at type initialisation and is
+    /// considered public information (the hex alphabet leaks no secrets).
+    /// </summary>
+    private static readonly byte[] HexCharLookup = BuildHexCharLookup();
+
+    private static byte[] BuildHexCharLookup()
+    {
+        var table = new byte[128];
+        for (int i = 0; i < 128; i++)
+        {
+            table[i] = 0xFF;
+        }
+
+        for (int i = 0; i <= 9; i++)
+        {
+            table['0' + i] = (byte)i;
+        }
+
+        for (int i = 0; i < 6; i++)
+        {
+            table['a' + i] = (byte)(10 + i);
+            table['A' + i] = (byte)(10 + i);
+        }
+
+        return table;
+    }
+
+    private static int DecodeHexChar(char c)
+    {
+        if (c >= 128 || HexCharLookup[c] == 0xFF)
+        {
+            throw new FormatException(string.Format(ErrorMessages.NumberFormatInvalidChar, c));
+        }
+
+        return HexCharLookup[c];
+    }
+
+    /// <summary>
+    /// Reconstructs a <see cref="SecureBigInteger"/> from its hexadecimal
+    /// representation, the inverse of <see cref="ToHexadecimal"/>.
+    /// </summary>
+    /// <param name="hex">
+    /// Pinned character buffer containing the hex digits in the order:
+    /// optional sign (<c>'-'</c> or <c>'+'</c>) → optional <c>0x</c> /
+    /// <c>0X</c> base prefix → one or more hex digits. Mixed-case digits are
+    /// accepted (<c>0-9</c>, <c>a-f</c>, <c>A-F</c>). Odd-length digit
+    /// sequences are allowed; the leading digit then represents the low
+    /// nibble of the most-significant magnitude byte. Examples that all
+    /// parse to the same value: <c>"7B2"</c>, <c>"07B2"</c>, <c>"0x7B2"</c>,
+    /// <c>"0X07B2"</c>.
+    /// </param>
+    /// <returns>A new <see cref="SecureBigInteger"/> with the parsed value.
+    /// The caller takes ownership and must dispose.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="hex"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="hex"/> is empty.
+    /// </exception>
+    /// <exception cref="FormatException">
+    /// <paramref name="hex"/> contains a sign character without any following
+    /// digits, or contains a non-hex character.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// The input must be supplied as a <see cref="PinnedPoolArray{T}"/> of
+    /// <see cref="char"/> rather than a <see cref="string"/> or
+    /// <see cref="ReadOnlySpan{T}"/>: those alternative containers cannot be
+    /// securely cleared (managed strings are GC-relocatable and possibly
+    /// interned, spans give no ownership over their backing storage). Callers
+    /// who already hold a <see cref="string"/> can bridge through
+    /// <see cref="Cryptography.SecureInput.SecureCharBufferExtensions.ToPinnedSecure(string)"/>
+    /// — that helper documents the residual leakage of the source string.
+    /// </para>
+    /// <para>
+    /// Parsing of valid input is best-effort constant-time: each hex digit is
+    /// resolved through a fixed 128-entry lookup table, and the byte assembly
+    /// loop walks the input in a fixed-stride pattern that does not branch on
+    /// digit values. The throw on invalid hex characters short-circuits and is
+    /// therefore variable-time in the failure mode — acceptable because
+    /// invalid input is by definition malformed public data, not secret
+    /// material.
+    /// </para>
+    /// </remarks>
+    public static SecureBigInteger FromHexadecimal(PinnedPoolArray<char> hex)
+    {
+        if (hex is null)
+        {
+            throw new ArgumentNullException(nameof(hex));
+        }
+
+        int length = hex.Length;
+        if (length == 0)
+        {
+            throw new ArgumentException(ErrorMessages.ValueCannotBeEmpty, nameof(hex));
+        }
+
+        bool isNegative = false;
+        int hexStart = 0;
+        char first = hex[0];
+        if (first == '-')
+        {
+            isNegative = true;
+            hexStart = 1;
+        }
+        else if (first == '+')
+        {
+            hexStart = 1;
+        }
+
+        // Optional 0x / 0X base prefix. Detected only after the sign so that
+        // both "-0xFF" and "0xFF" work; ambiguous shorter inputs like "0" or
+        // "0X" alone do not match (length check guards both).
+        if (length - hexStart >= 2
+            && hex[hexStart] == '0'
+            && (hex[hexStart + 1] == 'x' || hex[hexStart + 1] == 'X'))
+        {
+            hexStart += 2;
+        }
+
+        int hexCharCount = length - hexStart;
+        if (hexCharCount == 0)
+        {
+            throw new FormatException(ErrorMessages.NumberFormatSignWithoutDigits);
+        }
+
+        int byteCount = (hexCharCount + 1) / 2;
+        using var bytes = new PinnedPoolArray<byte>(byteCount);
+
+        for (int i = 0; i < hexCharCount; i++)
+        {
+            char c = hex[hexStart + i];
+            int nibble = DecodeHexChar(c);
+
+            // Position from the LSB end; the input walks MSB-first, the byte
+            // buffer is little-endian, so the leftmost char ends up in the
+            // highest byte index.
+            int posFromEnd = hexCharCount - 1 - i;
+            int byteIdx = posFromEnd / 2;
+            bool highNibble = (posFromEnd & 1) != 0;
+            bytes[byteIdx] |= highNibble ? (byte)(nibble << 4) : (byte)nibble;
+        }
+
+        return new SecureBigInteger(bytes.PoolArray, byteCount, isNegative);
     }
 }
