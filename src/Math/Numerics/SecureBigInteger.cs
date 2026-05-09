@@ -657,18 +657,18 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Computes the negation of the current <see cref="SecureBigInteger"/> instance.
     /// </summary>
-    /// <returns>Negated value</returns>
+    /// <returns>Negated value.</returns>
+    /// <remarks>
+    /// Constant-time on the magnitude: copies all limbs unconditionally and flips the
+    /// sign flag. The limbs constructor canonicalises a zero magnitude paired with the
+    /// negative flag back to non-negative zero, so <c>Negate(0)</c> still returns zero
+    /// without any explicit zero check.
+    /// </remarks>
     public SecureBigInteger Negate()
     {
         this.ThrowIfDisposed();
-        if (this.IsZeroInternal())
-        {
-            return new SecureBigInteger(0);
-        }
-
-        var secureBigInteger = new SecureBigInteger(this);
-        secureBigInteger.isNegative = !this.isNegative;
-        return secureBigInteger;
+        using var limbs = this.ToLimbs();
+        return new SecureBigInteger(limbs, this.LimbCount, !this.isNegative);
     }
 
     /// <summary>
@@ -1739,77 +1739,88 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Adds two unsigned <see cref="SecureBigInteger"/> values and returns the result.
+    /// Adds two unsigned <see cref="SecureBigInteger"/> values and returns the sum.
     /// </summary>
-    /// <param name="left">The first unsigned <see cref="SecureBigInteger"/> value to add.</param>
-    /// <param name="right">The second unsigned <see cref="SecureBigInteger"/> value to add.</param>
-    /// <returns>A new <see cref="SecureBigInteger"/> representing the sum of the two input values.</returns>
+    /// <param name="left">First operand.</param>
+    /// <param name="right">Second operand.</param>
+    /// <returns>A new non-negative <see cref="SecureBigInteger"/> representing
+    /// <c>|left| + |right|</c>.</returns>
+    /// <remarks>
+    /// Constant-time on the magnitude: iterates a fixed number of limbs equal to
+    /// <c>max(left.LimbCount, right.LimbCount) + 1</c>, propagating the carry via the
+    /// branchless bit-fold formula <c>((l &amp; r) | ((l | r) &amp; ~sum)) &gt;&gt; 63</c>.
+    /// No data-dependent loop bound and no early exit when the carry stops propagating.
+    /// </remarks>
     private static SecureBigInteger AddUnsigned(SecureBigInteger left, SecureBigInteger right)
     {
-        var leftLen = GetActualLength(left);
-        var rightLen = GetActualLength(right);
-        var maxLen = Math.Max(leftLen, rightLen);
-        using var result = new PinnedPoolArray<byte>(maxLen + 1);
+        using var leftLimbs = left.ToLimbs();
+        using var rightLimbs = right.ToLimbs();
+        int leftCount = left.LimbCount;
+        int rightCount = right.LimbCount;
+        int maxCount = leftCount >= rightCount ? leftCount : rightCount;
+        int resultCount = maxCount + 1;
 
-        var carry = 0;
-        var i = 0;
-        for (; i < maxLen || carry > 0; i++)
+        using var result = new PinnedPoolArray<ulong>(resultCount);
+        ulong carry = 0;
+
+        for (int i = 0; i < resultCount; i++)
         {
-            var sum = carry;
-            if (i < leftLen)
-            {
-                sum += left.data[i];
-            }
+            ulong l = i < leftCount ? leftLimbs[i] : 0UL;
+            ulong r = i < rightCount ? rightLimbs[i] : 0UL;
 
-            if (i < rightLen)
-            {
-                sum += right.data[i];
-            }
-
-            result[i] = (byte)(sum & 0xFF);
-            carry = sum >> 8;
+            ulong sum = l + r + carry;
+            // Branchless carry-out from a 64-bit add: bit 63 of
+            // ((l AND r) OR ((l OR r) AND NOT sum)) is 1 iff l + r + carry overflowed
+            // 2^64. Verified for all 8 single-bit cases (a, b, carry-in) → (sum, carry-out).
+            carry = ((l & r) | ((l | r) & ~sum)) >> 63;
+            result[i] = sum;
         }
 
-        return new SecureBigInteger(result.PoolArray, i, false);
+        return new SecureBigInteger(result, resultCount, isNegative: false);
     }
 
     /// <summary>
     /// Subtracts two unsigned <see cref="SecureBigInteger"/> instances and returns the result.
     /// Requires <c>|minuend| &gt;= |subtrahend|</c>; the result is undefined otherwise.
     /// </summary>
-    /// <param name="minuend">The <see cref="SecureBigInteger"/> instance to subtract from.</param>
-    /// <param name="subtrahend">The <see cref="SecureBigInteger"/> instance to subtract.</param>
-    /// <returns>A new <see cref="SecureBigInteger"/> instance representing the unsigned subtraction result.</returns>
+    /// <param name="minuend">Minuend.</param>
+    /// <param name="subtrahend">Subtrahend.</param>
+    /// <returns>A new non-negative <see cref="SecureBigInteger"/> representing
+    /// <c>|minuend| - |subtrahend|</c>.</returns>
+    /// <remarks>
+    /// Constant-time on the magnitudes: iterates a fixed number of limbs equal to
+    /// <c>max(minuend.LimbCount, subtrahend.LimbCount)</c>. Borrow propagation uses
+    /// two unsigned-overflow checks per limb expressed as <c>&lt;</c>/<c>&gt;</c>
+    /// comparisons; on x86/ARM the JIT lowers these to <c>setb</c>/<c>setbe</c>
+    /// instructions without a branch.
+    /// </remarks>
     private static SecureBigInteger SubtractUnsigned(SecureBigInteger minuend, SecureBigInteger subtrahend)
     {
-        var minuendLen = GetActualLength(minuend);
-        var subtrahendLen = GetActualLength(subtrahend);
-        using var result = new PinnedPoolArray<byte>(minuendLen);
+        using var mLimbs = minuend.ToLimbs();
+        using var sLimbs = subtrahend.ToLimbs();
+        int mCount = minuend.LimbCount;
+        int sCount = subtrahend.LimbCount;
+        int maxCount = mCount >= sCount ? mCount : sCount;
 
-        var borrow = 0;
-        var i = 0;
-        for (; i < minuendLen; i++)
+        using var result = new PinnedPoolArray<ulong>(maxCount);
+        ulong borrow = 0;
+
+        for (int i = 0; i < maxCount; i++)
         {
-            int diff = minuend.data[i] - borrow;
-            if (i < subtrahendLen)
-            {
-                diff -= subtrahend.data[i];
-            }
+            ulong m = i < mCount ? mLimbs[i] : 0UL;
+            ulong s = i < sCount ? sLimbs[i] : 0UL;
 
-            if (diff < 0)
-            {
-                diff += 256;
-                borrow = 1;
-            }
-            else
-            {
-                borrow = 0;
-            }
-
-            result[i] = (byte)diff;
+            // Step 1: combine subtrahend limb with incoming borrow.
+            ulong sb = s + borrow;
+            ulong borrow1 = sb < s ? 1UL : 0UL;
+            // Step 2: subtract from the minuend limb.
+            ulong diff = m - sb;
+            ulong borrow2 = diff > m ? 1UL : 0UL;
+            borrow = borrow1 | borrow2;
+            result[i] = diff;
         }
 
-        return new SecureBigInteger(result.PoolArray, GetActualLength(result.PoolArray, i), false);
+        return new SecureBigInteger(result, maxCount, isNegative: false);
     }
 
     /// <summary>
@@ -1940,11 +1951,45 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// Zero if <paramref name="left"/> is equal to <paramref name="right"/>.
     /// Greater than zero if <paramref name="left"/> is greater than <paramref name="right"/>.
     /// </returns>
+    /// <remarks>
+    /// Constant-time on the magnitudes: walks every limb of <c>max(left.LimbCount,
+    /// right.LimbCount)</c> from least- to most-significant, computing per-limb
+    /// gt/lt flags via <c>(b - a) &gt;&gt; 63</c> (the high-bit-of-wrap trick) and
+    /// folding them into a running result with a branchless overwrite-if-non-zero
+    /// mask. Because later iterations process more-significant limbs, the final
+    /// non-zero limb encountered determines the result — exactly the lexicographic
+    /// MSB-first ordering required.
+    /// </remarks>
     private static int CompareUnsigned(SecureBigInteger left, SecureBigInteger right)
     {
-        var leftLength = GetActualLength(left);
-        var rightLength = GetActualLength(right);
-        return CompareUnsigned(left.data.PoolArray, leftLength, right.data.PoolArray, rightLength);
+        using var leftLimbs = left.ToLimbs();
+        using var rightLimbs = right.ToLimbs();
+        int leftCount = left.LimbCount;
+        int rightCount = right.LimbCount;
+        int maxCount = leftCount >= rightCount ? leftCount : rightCount;
+
+        long result = 0;
+        for (int i = 0; i < maxCount; i++)
+        {
+            ulong l = i < leftCount ? leftLimbs[i] : 0UL;
+            ulong r = i < rightCount ? rightLimbs[i] : 0UL;
+
+            // l > r and l < r as 0/1 ulongs. The C# `<`/`>` operators on ulong
+            // lower to `setb`/`seta` on x86 RyuJIT — branchless. The naive
+            // bit-fold `(r - l) >> 63` is *wrong* for limbs in [2^63, 2^64),
+            // because the unsigned wrap-result and a non-wrapping difference
+            // both set bit 63 in those cases.
+            ulong gt = l > r ? 1UL : 0UL;
+            ulong lt = l < r ? 1UL : 0UL;
+            long limbDiff = (long)gt - (long)lt;
+
+            // mask = -1L if limbDiff != 0, 0L otherwise. Arithmetic right shift on
+            // signed long sign-extends the high bit.
+            long mask = (limbDiff | -limbDiff) >> 63;
+            result = (result & ~mask) | (limbDiff & mask);
+        }
+
+        return (int)result;
     }
 
     /// <summary>
@@ -2101,38 +2146,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         }
 
         return new SecureBigInteger(result.PoolArray, GetActualLength(result.PoolArray, finalLen), false);
-    }
-
-    private static SecureBigInteger ShiftRight(SecureBigInteger value, int bits)
-    {
-        if (bits <= 0)
-        {
-            return new SecureBigInteger(value);
-        }
-
-        var byteShift = bits / 8;
-        var bitShift = bits % 8;
-
-        if (byteShift >= value.Length)
-        {
-            return new SecureBigInteger(0);
-        }
-
-        using var result = new PinnedPoolArray<byte>(value.Length - byteShift);
-
-        for (int i = 0; i < value.Length - byteShift; i++)
-        {
-            int val = value.data[i + byteShift] >> bitShift;
-
-            if (i + byteShift + 1 < value.Length && bitShift > 0)
-            {
-                val |= (value.data[i + byteShift + 1] << (8 - bitShift)) & 0xFF;
-            }
-
-            result[i] = (byte)val;
-        }
-
-        return new SecureBigInteger(result.PoolArray, GetActualLength(result.PoolArray, value.Length - byteShift), value.isNegative);
     }
 
     private static void ShiftRightInPlace(SecureBigInteger value, int bits)
