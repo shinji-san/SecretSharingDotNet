@@ -1851,48 +1851,119 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Multiplies two unsigned <see cref="SecureBigInteger"/> values and returns the result.
+    /// Multiplies two unsigned <see cref="SecureBigInteger"/> values and returns the product.
     /// </summary>
-    /// <param name="left">The first <see cref="SecureBigInteger"/> operand in the multiplication.</param>
-    /// <param name="right">The second <see cref="SecureBigInteger"/> operand in the multiplication.</param>
-    /// <returns>A new <see cref="SecureBigInteger"/> instance representing the product of the two inputs.</returns>
+    /// <param name="left">First operand.</param>
+    /// <param name="right">Second operand.</param>
+    /// <returns>A new non-negative <see cref="SecureBigInteger"/> representing
+    /// <c>|left| * |right|</c>.</returns>
     /// <remarks>
-    /// The schoolbook iteration runs <c>left.Length * right.Length</c> inner steps unconditionally
-    /// and follows them with a fixed-bound carry-propagation pass that always touches every higher
-    /// byte of the result buffer. There is no zero-byte fast-path on either operand and no
-    /// data-dependent loop termination, so the running time depends only on the lengths of the
-    /// operands — not on their byte values.
+    /// Constant-time on the magnitudes: schoolbook multiplication on 64-bit limbs.
+    /// The outer loop runs <c>left.LimbCount</c> iterations and the inner loop runs
+    /// <c>right.LimbCount</c> iterations, both bounded by public observables (the
+    /// limb counts depend on the operand magnitudes' bit lengths, which the threat
+    /// model treats as observable). There is no zero-skip path on either operand,
+    /// no early termination of the carry chain, and the inner-loop body has no
+    /// data-dependent branches — every iteration performs the same 64×64→128
+    /// multiplication, three branchless ulong additions, and three carry
+    /// computations.
     /// </remarks>
     private static SecureBigInteger MultiplyUnsigned(SecureBigInteger left, SecureBigInteger right)
     {
-        var leftLen = left.Length;
-        var rightLen = right.Length;
-        var totalLen = leftLen + rightLen;
-        using var result = new PinnedPoolArray<byte>(totalLen);
+        using var leftLimbs = left.ToLimbs();
+        using var rightLimbs = right.ToLimbs();
+        int leftCount = left.LimbCount;
+        int rightCount = right.LimbCount;
+        int resultCount = leftCount + rightCount;
 
-        for (int i = 0; i < leftLen; i++)
+        using var result = new PinnedPoolArray<ulong>(resultCount);
+
+        for (int i = 0; i < leftCount; i++)
         {
             ulong carry = 0;
-            for (int j = 0; j < rightLen; j++)
+            ulong leftLimb = leftLimbs[i];
+            for (int j = 0; j < rightCount; j++)
             {
-                ulong product = result[i + j] + carry + (ulong)left.data[i] * right.data[j];
-                result[i + j] = (byte)(product & 0xFF);
-                carry = product >> 8;
+                MultiplyToHighLow(leftLimb, rightLimbs[j], out ulong productHigh, out ulong productLow);
+
+                // Three-way add with branchless carry capture:
+                //   result[i+j] += productLow (carry1 if it wrapped)
+                //   then            += previous-carry (carry2 if THAT wrapped)
+                // The two carries can never both be 1 simultaneously: that would
+                // require result[i+j] + productLow ≥ 2^64 AND the truncated sum to
+                // also be ≥ 2^64 - carryIn, which exceeds the maximum
+                // (2 × (2^64 - 1) = 2^65 - 2). So carry1 + carry2 ∈ {0, 1}, and
+                // the next iteration's carry productHigh + (0 or 1) ≤ 2^64 - 1
+                // (productHigh ≤ 2^64 - 2 for any 64×64 product) — no further
+                // wrap to handle.
+                ulong currentLimb = result[i + j];
+
+                ulong sumWithLow = currentLimb + productLow;
+                ulong carry1 = sumWithLow < currentLimb ? 1UL : 0UL;
+
+                ulong sumWithCarry = sumWithLow + carry;
+                ulong carry2 = sumWithCarry < sumWithLow ? 1UL : 0UL;
+
+                result[i + j] = sumWithCarry;
+                carry = productHigh + carry1 + carry2;
             }
 
-            // Fixed-bound carry-propagation: touch every remaining byte of the result buffer
-            // regardless of whether the carry is already zero. This keeps the loop's iteration
-            // count independent of secret data.
-            for (int k = i + rightLen; k < totalLen; k++)
-            {
-                ulong sum = result[k] + carry;
-                result[k] = (byte)(sum & 0xFF);
-                carry = sum >> 8;
-            }
+            // The position one beyond the inner loop's last write is still zero
+            // (it has not been touched in this or any prior outer iteration —
+            // outer-i writes positions [i, i + rightCount - 1], so position
+            // i + rightCount is first reached here). Safe to overwrite with the
+            // accumulated final carry.
+            result[i + rightCount] = carry;
         }
 
-        return new SecureBigInteger(result.PoolArray, totalLen, false);
+        return new SecureBigInteger(result, resultCount, isNegative: false);
     }
+
+#if NET5_0_OR_GREATER
+    /// <summary>
+    /// Computes the full 128-bit product of two 64-bit unsigned integers. Routes
+    /// through <see cref="Math.BigMul(ulong, ulong, out ulong)"/> on .NET 5+
+    /// (single-instruction <c>MUL r/m64</c> on x64), which the JIT lowers to a
+    /// constant-time hardware multiplication on every supported architecture.
+    /// </summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private static void MultiplyToHighLow(ulong x, ulong y, out ulong high, out ulong low)
+    {
+        // Math.BigMul(a, b, out lo) RETURNS the high 64 bits and OUTS the low
+        // 64 bits — naming the receiving variable for the return value `high`
+        // and the out-parameter target `low` is essential. Swapping these
+        // locally produces the correct numeric result only for products that
+        // fit in 64 bits (where high == 0); larger products come out with
+        // their halves transposed, which propagates through long division
+        // (EE/GCD over Mersenne primes) into apparent non-termination.
+        high = Math.BigMul(x, y, out low);
+    }
+#else
+    /// <summary>
+    /// Computes the full 128-bit product of two 64-bit unsigned integers via four
+    /// 32×32 partial products (the standard fallback formula used when
+    /// <c>Math.BigMul(ulong, ulong, out ulong)</c> is not available on the target
+    /// framework). Each 32×32 multiplication compiles to a single hardware
+    /// instruction on x86/x64/ARM64 — constant-time on those platforms. The
+    /// recombination uses only addition and bit-shifts, no branches.
+    /// </summary>
+    private static void MultiplyToHighLow(ulong x, ulong y, out ulong high, out ulong low)
+    {
+        uint xLow = (uint)x;
+        uint xHigh = (uint)(x >> 32);
+        uint yLow = (uint)y;
+        uint yHigh = (uint)(y >> 32);
+
+        ulong loLo = (ulong)xLow * yLow;
+        ulong hiLo = (ulong)xHigh * yLow;
+        ulong loHi = (ulong)xLow * yHigh;
+        ulong hiHi = (ulong)xHigh * yHigh;
+
+        ulong cross = (loLo >> 32) + (hiLo & 0xFFFFFFFFUL) + loHi;
+        low = (loLo & 0xFFFFFFFFUL) | (cross << 32);
+        high = (hiLo >> 32) + (cross >> 32) + hiHi;
+    }
+#endif
 
     /// <summary>
     /// Performs an unsigned division of two <see cref="SecureBigInteger"/> instances and returns the quotient.
