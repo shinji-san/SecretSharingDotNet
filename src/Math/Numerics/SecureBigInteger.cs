@@ -836,6 +836,146 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         return result;
     }
 
+    #region D2 — ulong-limb interop (transitional dual-rail)
+
+    // The byte-array representation (`this.data`) remains canonical until D9.
+    // The methods in this region expose the magnitude as 64-bit limbs in
+    // little-endian order so that constant-time operations introduced in
+    // D3–D9 can iterate over machine-word limbs instead of bytes — both for
+    // performance (Multiply scales O(n²) in the limb width) and to ease the
+    // safegcd implementation in D7, which is naturally limb-oriented.
+    //
+    // The byte-to-limb assembly is explicit (not MemoryMarshal.Cast), so the
+    // representation is host-endian-independent: limb[i] stores the byte at
+    // magnitude offset (i*8 + j) in bit position (j*8), regardless of CPU
+    // endianness.
+
+    /// <summary>
+    /// Returns the magnitude of this instance as a freshly allocated sequence of
+    /// 64-bit limbs in little-endian order: <c>limb[0]</c> holds magnitude bytes
+    /// 0..7, <c>limb[1]</c> holds bytes 8..15, etc. The high limb is zero-padded
+    /// if the magnitude byte length is not a multiple of 8. The sign bit is not
+    /// included; query <see cref="Sign"/> separately.
+    /// </summary>
+    /// <returns>
+    /// A new <see cref="PinnedPoolArray{T}"/> of <see cref="ulong"/> with
+    /// <c>Length == <see cref="LimbCount"/></c>. Caller takes ownership and
+    /// must dispose to wipe the buffer.
+    /// </returns>
+    internal PinnedPoolArray<ulong> ToLimbs()
+    {
+        this.ThrowIfDisposed();
+        int limbCount = this.LimbCount;
+        var limbs = new PinnedPoolArray<ulong>(limbCount);
+        BytesToLimbs(this.data.PoolArray, this.Length, limbs);
+        return limbs;
+    }
+
+    /// <summary>
+    /// Number of 64-bit limbs required to represent this instance's magnitude.
+    /// Always at least 1; equivalent to <c>max(1, ceil(byteLength / 8))</c>.
+    /// </summary>
+    internal int LimbCount
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            int byteLength = this.Length;
+            return byteLength <= 0 ? 1 : (byteLength + 7) / 8;
+        }
+    }
+
+    /// <summary>
+    /// Initializes a new instance from a magnitude expressed as 64-bit limbs
+    /// (little-endian) plus an explicit sign flag. Inverse of
+    /// <see cref="ToLimbs"/>.
+    /// </summary>
+    /// <param name="limbs">Limbs representing the magnitude.</param>
+    /// <param name="limbCount">
+    /// Number of valid limbs in <paramref name="limbs"/>; must be in
+    /// <c>[1, limbs.Length]</c>.
+    /// </param>
+    /// <param name="isNegative">Sign of the value.</param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="limbs"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="limbCount"/> is less than 1 or greater than
+    /// <c>limbs.Length</c>.
+    /// </exception>
+    /// <remarks>
+    /// The constructor securely wipes its transient byte buffer before
+    /// returning. Caller retains ownership of <paramref name="limbs"/>.
+    /// </remarks>
+    internal SecureBigInteger(PinnedPoolArray<ulong> limbs, int limbCount, bool isNegative)
+    {
+        if (limbs is null)
+        {
+            throw new ArgumentNullException(nameof(limbs));
+        }
+
+        if (limbCount < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limbCount), string.Format(ErrorMessages.ValueLowerThanX, 1));
+        }
+
+        if (limbCount > limbs.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limbCount), string.Format(ErrorMessages.CountExceedsArrayLength, limbCount, limbs.Length));
+        }
+
+        int byteCapacity = limbCount * 8;
+        using var byteBuf = new PinnedPoolArray<byte>(byteCapacity);
+        LimbsToBytes(limbs, limbCount, byteBuf.PoolArray);
+
+        int actualByteLength = GetActualLength(byteBuf.PoolArray, byteCapacity);
+        this.data = new PinnedPoolArray<byte>(actualByteLength);
+        Array.Copy(byteBuf.PoolArray, this.data.PoolArray, actualByteLength);
+
+        this.isNegative = isNegative;
+        if (this.IsZeroInternal())
+        {
+            this.isNegative = false;
+        }
+    }
+
+    private static void BytesToLimbs(byte[] bytes, int byteCount, PinnedPoolArray<ulong> limbsOut)
+    {
+        int limbsLen = limbsOut.Length;
+        for (int i = 0; i < limbsLen; i++)
+        {
+            ulong limb = 0;
+            int offset = i * 8;
+            for (int j = 0; j < 8; j++)
+            {
+                int idx = offset + j;
+                if (idx >= byteCount)
+                {
+                    break;
+                }
+
+                limb |= ((ulong)bytes[idx]) << (j * 8);
+            }
+
+            limbsOut[i] = limb;
+        }
+    }
+
+    private static void LimbsToBytes(PinnedPoolArray<ulong> limbs, int limbCount, byte[] bytesOut)
+    {
+        for (int i = 0; i < limbCount; i++)
+        {
+            ulong limb = limbs[i];
+            int offset = i * 8;
+            for (int j = 0; j < 8; j++)
+            {
+                bytesOut[offset + j] = (byte)(limb >> (j * 8));
+            }
+        }
+    }
+
+    #endregion
+
     /// <summary>
     /// Determines whether the given little-endian byte array represents a negative
     /// number in two's-complement form.
