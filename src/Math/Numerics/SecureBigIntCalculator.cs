@@ -55,6 +55,14 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     private int disposed;
 
     /// <summary>
+    /// Lazily-evaluated byte count matching <see cref="ToByteArray"/>'s output length —
+    /// i.e. the canonical two's-complement size including any sign-padding sentinel.
+    /// Mirrors <see cref="BigIntCalculator"/>'s approach so that consumers like
+    /// <c>Share&lt;TNumber&gt;.GetCharCount</c> see the same length on both backends.
+    /// </summary>
+    private readonly Lazy<int> byteCountLazy;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="SecureBigIntCalculator"/> class.
     /// </summary>
     /// <param name="val">
@@ -67,6 +75,7 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// </param>
     public SecureBigIntCalculator(SecureBigInteger val) : base(val ?? 0)
     {
+        this.byteCountLazy = this.InitializeByteCountLazy();
     }
 
     /// <summary>
@@ -76,6 +85,7 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <param name="length">length of the byte stream representation</param>
     public SecureBigIntCalculator(byte[] data, int length) : base(new SecureBigInteger(data, length))
     {
+        this.byteCountLazy = this.InitializeByteCountLazy();
     }
 
     /// <summary>
@@ -231,7 +241,23 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <summary>
     /// Gets the number of elements of the byte representation of the <see cref="SecureBigIntCalculator"/> object.
     /// </summary>
-    public override int ByteCount => this.Value.ByteCount;
+    public override int ByteCount => this.byteCountLazy.Value;
+
+    /// <summary>
+    /// Builds the lazy producing <see cref="ByteCount"/>. Computes
+    /// <c>this.Value.ToByteArray().Length</c> once on first access and caches it,
+    /// so consumers that read <see cref="ByteCount"/> repeatedly (e.g.
+    /// <c>Share&lt;TNumber&gt;.GetCharCount</c> on every formatting call) do not
+    /// re-allocate a pinned buffer per call.
+    /// </summary>
+    private Lazy<int> InitializeByteCountLazy()
+    {
+        return new Lazy<int>(() =>
+        {
+            using var pinnedBytes = this.Value.ToByteArray();
+            return pinnedBytes.Length;
+        }, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
 
     /// <summary>
     /// Gets the byte representation of the <see cref="SecureBigIntCalculator"/> object.
