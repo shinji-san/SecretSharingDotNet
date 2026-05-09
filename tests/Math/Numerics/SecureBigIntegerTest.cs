@@ -587,109 +587,6 @@ public class SecureBigIntegerTests
 
     [Theory]
     [InlineData(0, 0)]
-    [InlineData(1, 1)]
-    [InlineData(4, 2)]
-    [InlineData(9, 3)]
-    [InlineData(16, 4)]
-    [InlineData(25, 5)]
-    [InlineData(100, 10)]
-    [InlineData(144, 12)]
-    [InlineData(10, 3)]
-    public void Sqrt_ReturnsCorrectRoot(int value, int expected)
-    {
-        // Arrange
-        using var num = new SecureBigInteger(value);
-
-        // Act
-        using var result = num.Sqrt();
-        
-        // Assert
-        using var pinnedCharArray = result.ToPinnedCharArray();
-        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
-        Assert.Equal(expected.ToString(), s);
-    }
-
-    [Fact]
-    public void Sqrt_NegativeNumber_ThrowsInvalidOperationException()
-    {
-        // Arrange
-        using var num = new SecureBigInteger(-4);
-        
-        // Act & Assert
-        Assert.Throws<InvalidOperationException>(() =>
-        {
-            using var _ = num.Sqrt();
-        });
-    }
-
-    [Theory]
-    [InlineData(8, 3, 2)]
-    [InlineData(27, 3, 3)]
-    [InlineData(64, 3, 4)]
-    [InlineData(16, 4, 2)]
-    [InlineData(32, 5, 2)]
-    [InlineData(100, 2, 10)]
-    public void NthRoot_ReturnsCorrectRoot(int value, int n, int expected)
-    {
-        // Arrange
-        using var num = new SecureBigInteger(value);
-
-        // Act
-        using var result = num.NthRoot(n);
-
-        // Assert
-        using var pinnedCharArray = result.ToPinnedCharArray();
-        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
-        Assert.Equal(expected.ToString(), s);
-    }
-
-    [Fact]
-    public void NthRoot_NegativeWithOddRoot_ReturnsCorrectRoot()
-    {
-        // Arrange
-        using var num = new SecureBigInteger(-8);
-
-        // Act
-        using var result = num.NthRoot(3);
-
-        // Assert
-        using var pinnedCharArray = result.ToPinnedCharArray();
-        var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
-        Assert.Equal("-2", s);
-    }
-
-    [Fact]
-    public void NthRoot_NegativeWithEvenRoot_ThrowsInvalidOperationException()
-    {
-        // Arrange
-        using var num = new SecureBigInteger(-16);
-
-        // Act & Assert
-        Assert.Throws<InvalidOperationException>(() =>
-        {
-            using var _ = num.NthRoot(2);
-        });
-    }
-
-    [Fact]
-    public void NthRoot_ZeroOrNegativeExponent_ThrowsArgumentException()
-    {
-        // Arrange
-        using var num = new SecureBigInteger(8);
-
-        // Act & Assert
-        Assert.Throws<ArgumentException>(() =>
-        {
-            using var _ = num.NthRoot(0);
-        });
-        Assert.Throws<ArgumentException>(() =>
-        {
-            using var _ = num.NthRoot(-1);
-        });
-    }
-
-    [Theory]
-    [InlineData(0, 0)]
     [InlineData(5, 5)]
     [InlineData(-5, 5)]
     [InlineData(100, 100)]
@@ -1737,14 +1634,6 @@ public class SecureBigIntegerTests
         });
         Assert.Throws<ObjectDisposedException>(() =>
         {
-            using var _ = num.Sqrt();
-        });
-        Assert.Throws<ObjectDisposedException>(() =>
-        {
-            using var _ = num.NthRoot(3);
-        });
-        Assert.Throws<ObjectDisposedException>(() =>
-        {
             using var _ = num.Pow(2);
         });
 
@@ -2258,20 +2147,6 @@ public class SecureBigIntegerTests
             {
                 using var _ = new SecureBigInteger("12abc");
             });
-        }
-    }
-
-    [Fact]
-    public void Sqrt_RepeatedCalls_ReturnsConsistentResult()
-    {
-        // Arrange
-        using var value = new SecureBigInteger(123456789);
-
-        // Act & Assert
-        for (int i = 0; i < 100; i++)
-        {
-            using var root = value.Sqrt();
-            Assert.Equal(11111, (int)root);
         }
     }
 

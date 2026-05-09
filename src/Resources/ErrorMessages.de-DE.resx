@@ -126,15 +126,6 @@
     <data name="DivisionByZero" xml:space="preserve">
         <value>Division durch null ist nicht zulässig.</value>
     </data>
-    <data name="SqrtOfNegativeUndefined" xml:space="preserve">
-        <value>Die Quadratwurzel negativer Zahlen ist nicht definiert.</value>
-    </data>
-    <data name="RootExponentMustBePositive" xml:space="preserve">
-        <value>Der Wurzelexponent muss positiv sein.</value>
-    </data>
-    <data name="EvenRootOfNegativeUndefined" xml:space="preserve">
-        <value>Eine gerade Wurzel negativer Zahlen ist nicht definiert.</value>
-    </data>
     <data name="ExponentMustBeNonNegative" xml:space="preserve">
         <value>Der Exponent darf nicht negativ sein.</value>
     </data>
@@ -149,9 +140,6 @@
     </data>
     <data name="ValueTooLargeForLong" xml:space="preserve">
         <value>Der Wert ist zu groß für 'long'.</value>
-    </data>
-    <data name="SqrtOfNegativeIsNaN" xml:space="preserve">
-        <value>Das Ergebnis ist NaN: Die Quadratwurzel eines negativen Werts ist nicht definiert.</value>
     </data>
     <data name="MaxLengthMustBePositive" xml:space="preserve">
         <value>Die maximale Länge muss eine positive ganze Zahl größer als null sein.</value>

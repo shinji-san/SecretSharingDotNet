@@ -72,9 +72,8 @@ public class SecureBigIntCalculatorTest
     {
         // Arrange
         // Regression guard: removing the null fallback in the SecureBigInteger
-        // constructor would break Calculator<SecureBigInteger>.Zero (and the
-        // chains that depend on it: One, Two, every Sqrt pre-check that
-        // compares against Zero).
+        // constructor would break Calculator<SecureBigInteger>.Zero (and every
+        // dependent chain: One, Two, etc.).
         using var zero = Calculator<SecureBigInteger>.Zero;
 
         // Act & Assert
@@ -369,44 +368,6 @@ public class SecureBigIntCalculatorTest
 
         // Act & Assert
         Assert.Equal(expectedEven, calculator.IsEven);
-    }
-
-    [Fact]
-    public void Sqrt_ShouldReturnCorrectResultForPerfectSquare()
-    {
-        // Arrange
-        using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(16));
-
-        // Act
-        using var result = calculator.Sqrt();
-
-        // Assert
-        using var expected = new SecureBigInteger(4);
-        Assert.Equal(expected, result.Value);
-    }
-
-    [Fact]
-    public void Sqrt_OfZero_ReturnsZero()
-    {
-        // Arrange
-        using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(0));
-
-        // Act
-        using var result = calculator.Sqrt();
-
-        // Assert
-        Assert.True(result.Value.IsZero);
-    }
-
-    [Fact]
-    public void Sqrt_ShouldThrowExceptionForNegativeValue()
-    {
-        // Arrange
-        using Calculator<SecureBigInteger> calculator = new SecureBigIntCalculator(new SecureBigInteger(-16));
-
-        // Act & Assert
-        var arithmeticException = Assert.Throws<ArithmeticException>(() => calculator.Sqrt());
-        Assert.Equal(ErrorMessages.SqrtOfNegativeIsNaN, arithmeticException.Message);
     }
 
     [Fact]

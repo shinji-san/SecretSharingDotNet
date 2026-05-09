@@ -280,30 +280,6 @@ public class BigIntCalculatorTest
     }
 
     [Fact]
-    public void Sqrt_ShouldReturnCorrectResultForPerfectSquare()
-    {
-        // Arrange
-        using Calculator<BigInteger> calculator = new BigIntCalculator(new BigInteger(16));
-
-        // Act
-        using var result = calculator.Sqrt();
-
-        // Assert
-        Assert.Equal(new BigInteger(4), result.Value);
-    }
-
-    [Fact]
-    public void Sqrt_ShouldThrowExceptionForNegativeValue()
-    {
-        // Arrange — ctor succeeds, Sqrt() throws → operand is allocated and must be disposed.
-        using Calculator<BigInteger> calculator = new BigIntCalculator(new BigInteger(-16));
-
-        // Act & Assert
-        var arithmeticException = Assert.Throws<ArithmeticException>(() => calculator.Sqrt());
-        Assert.Equal(ErrorMessages.SqrtOfNegativeIsNaN, arithmeticException.Message);
-    }
-
-    [Fact]
     public void ByteRepresentation_ShouldReturnCorrectBytes()
     {
         // Arrange

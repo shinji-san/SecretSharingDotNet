@@ -276,24 +276,6 @@ namespace SecretSharingDotNet {
             }
         }
 
-        internal static string SqrtOfNegativeUndefined {
-            get {
-                return ResourceManager.GetString("SqrtOfNegativeUndefined", resourceCulture);
-            }
-        }
-
-        internal static string RootExponentMustBePositive {
-            get {
-                return ResourceManager.GetString("RootExponentMustBePositive", resourceCulture);
-            }
-        }
-
-        internal static string EvenRootOfNegativeUndefined {
-            get {
-                return ResourceManager.GetString("EvenRootOfNegativeUndefined", resourceCulture);
-            }
-        }
-
         internal static string ExponentMustBeNonNegative {
             get {
                 return ResourceManager.GetString("ExponentMustBeNonNegative", resourceCulture);
@@ -321,12 +303,6 @@ namespace SecretSharingDotNet {
         internal static string ValueTooLargeForLong {
             get {
                 return ResourceManager.GetString("ValueTooLargeForLong", resourceCulture);
-            }
-        }
-
-        internal static string SqrtOfNegativeIsNaN {
-            get {
-                return ResourceManager.GetString("SqrtOfNegativeIsNaN", resourceCulture);
             }
         }
 

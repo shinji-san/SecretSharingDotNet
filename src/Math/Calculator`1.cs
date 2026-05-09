@@ -153,11 +153,6 @@ public abstract class Calculator<TNumber> :
     public abstract Calculator<TNumber> Pow(int expo);
 
     /// <summary>
-    /// Returns the square root of the current <see cref="Calculator{TNumber}"/>.
-    /// </summary>
-    public abstract Calculator<TNumber> Sqrt();
-
-    /// <summary>
     /// This method represents the Greater Than operator.
     /// </summary>
     /// <param name="right">right-hand operand</param>

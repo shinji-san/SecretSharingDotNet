@@ -133,15 +133,6 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="DivisionByZero" xml:space="preserve">
         <value>Division by zero is not allowed.</value>
     </data>
-    <data name="SqrtOfNegativeUndefined" xml:space="preserve">
-        <value>Square root of negative numbers is not defined.</value>
-    </data>
-    <data name="RootExponentMustBePositive" xml:space="preserve">
-        <value>The root exponent must be positive.</value>
-    </data>
-    <data name="EvenRootOfNegativeUndefined" xml:space="preserve">
-        <value>Even root of negative numbers is not defined.</value>
-    </data>
     <data name="ExponentMustBeNonNegative" xml:space="preserve">
         <value>Exponent must be non-negative.</value>
     </data>
@@ -156,9 +147,6 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     </data>
     <data name="ValueTooLargeForLong" xml:space="preserve">
         <value>Value is too large for 'long'.</value>
-    </data>
-    <data name="SqrtOfNegativeIsNaN" xml:space="preserve">
-        <value>Result is NaN: square root of a negative value is undefined.</value>
     </data>
     <data name="MaxLengthMustBePositive" xml:space="preserve">
         <value>Maximum length must be a positive integer greater than zero.</value>

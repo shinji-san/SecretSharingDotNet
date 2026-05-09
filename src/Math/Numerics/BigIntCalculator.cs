@@ -313,33 +313,6 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     public override int Sign => this.Value.Sign;
 
     /// <summary>
-    /// Returns the square root of the current <see cref="BigIntCalculator"/> object.
-    /// </summary>
-    /// <exception cref="T:System.ArithmeticException" accessor="get">NaN (value is lower than zero)</exception>
-    public override Calculator<BigInteger> Sqrt()
-    {
-        if (this.Value == BigInteger.Zero)
-        {
-            return Zero;
-        }
-
-        if (this.Value < BigInteger.Zero)
-        {
-            throw new ArithmeticException(ErrorMessages.SqrtOfNegativeIsNaN);
-        }
-
-        int bitLength = Convert.ToInt32(Math.Ceiling(BigInteger.Log(this.Value, 2)));
-        var root = BigInteger.One << (bitLength >> 1);
-        bool IsSqrt(BigInteger n, BigInteger r) => n >= r * r && n < (r + 1) * (r + 1);
-        while (!IsSqrt(this.Value, root))
-        {
-            root = root + this.Value / root >> 1;
-        }
-
-        return root;
-    }
-
-    /// <summary>
     /// Creates a lazily initialized instance to compute the byte count of the backing <see cref="BigInteger"/> value.
     /// </summary>
     /// <returns>A lazily initialized function that calculates the length of the byte array representing the <see cref="BigInteger"/> value.

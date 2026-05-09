@@ -285,24 +285,6 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     public override int Sign => this.Value.Sign;
 
     /// <summary>
-    /// Returns the square root of the current <see cref="SecureBigIntCalculator"/> object.
-    /// </summary>
-    /// <exception cref="T:System.ArithmeticException" accessor="get">NaN (value is lower than zero)</exception>
-    public override Calculator<SecureBigInteger> Sqrt()
-    {
-        if (this.Value.Sign < 0)
-        {
-            throw new ArithmeticException(ErrorMessages.SqrtOfNegativeIsNaN);
-        }
-
-        // SecureBigInteger.Sqrt handles both zero and one internally and the
-        // Newton-Raphson loop for the general case; delegating saves the
-        // throwaway Calculator/SecureBigInteger allocations that the previous
-        // `Zero.Value` comparisons produced on every call.
-        return this.Value.Sqrt();
-    }
-
-    /// <summary>
     /// Converts the numeric value of the current <see cref="SecureBigIntCalculator"/> object to its equivalent string representation.
     /// </summary>
     /// <returns>The <see cref="System.String"/> representation of the current <see cref="SecureBigIntCalculator"/> value.</returns>

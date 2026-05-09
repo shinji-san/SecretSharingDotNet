@@ -65,7 +65,7 @@ using System.Threading;
 /// <item><description>
 /// <b>Not protected:</b> timing side channels in arithmetic. <see cref="op_Addition"/>,
 /// <see cref="op_Subtraction"/>, <see cref="op_Multiply"/>, <see cref="op_Division"/>,
-/// <see cref="op_Modulus"/>, <see cref="Pow"/>, <see cref="Sqrt"/>, and the comparison
+/// <see cref="op_Modulus"/>, <see cref="Pow"/>, and the comparison
 /// operators are variable-time — runtime depends on operand bit length, carry
 /// propagation, and quotient-iteration count. An attacker who can measure the runtime of
 /// these operations (cross-VM cache attack, browser high-resolution timer, network-RTT
@@ -719,171 +719,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Computes the integer square root of the current <see cref="SecureBigInteger"/> instance
-    /// using Newton-Raphson iteration.
-    /// </summary>
-    /// <returns>The largest <see cref="SecureBigInteger"/> <c>r</c> such that <c>r * r &lt;= this</c>.</returns>
-    /// <exception cref="InvalidOperationException">Thrown if the current instance is negative.</exception>
-    public SecureBigInteger Sqrt()
-    {
-        this.ThrowIfDisposed();
-
-        if (this.isNegative)
-        {
-            throw new InvalidOperationException(ErrorMessages.SqrtOfNegativeUndefined);
-        }
-
-        if (this.IsZeroInternal() || this.IsOne)
-        {
-            return new SecureBigInteger(this);
-        }
-
-        // Newton-Raphson: x_{n+1} = (x_n + a/x_n) / 2
-        var bitLength = GetBitLength(this);
-        var next = ShiftRight(this, (bitLength - 1) / 2);
-        // Ownership of `next` is transferred to the caller on success; on exception
-        // the catch disposes it. Pattern parallels the constructor / ModPow.
-        try
-        {
-            using var two = new SecureBigInteger(2);
-            while (true)
-            {
-                using var temp1 = Divide(this, next);
-                using var temp2 = Add(next, temp1);
-                using var newNext = Divide(temp2, two);
-                if (newNext >= next)
-                {
-                    break;
-                }
-
-                next.Dispose();
-                next = new SecureBigInteger(newNext);
-            }
-
-            return next;
-        }
-        catch
-        {
-            next.Dispose();
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Computes the integer n-th root of the current <see cref="SecureBigInteger"/> instance
-    /// using Newton-Raphson iteration.
-    /// </summary>
-    /// <param name="n">The root exponent. Must be positive.</param>
-    /// <returns>The largest <see cref="SecureBigInteger"/> <c>r</c> such that <c>r^n &lt;= |this|</c>,
-    /// signed according to the input when <paramref name="n"/> is odd.</returns>
-    /// <exception cref="ArgumentException">Thrown if <paramref name="n"/> is not positive.</exception>
-    /// <exception cref="InvalidOperationException">Thrown if <paramref name="n"/> is even and
-    /// the current instance is negative.</exception>
-    public SecureBigInteger NthRoot(int n)
-    {
-        this.ThrowIfDisposed();
-        this.ValidateNthRootArguments(n);
-
-        if (this.IsZeroInternal())
-        {
-            return new SecureBigInteger(0);
-        }
-
-        return n switch
-        {
-            1 => new SecureBigInteger(this),
-            2 => this.Sqrt(),
-            _ => this.ComputeNthRootNewton(n)
-        };
-    }
-
-    /// <summary>
-    /// Validates the exponent of <see cref="NthRoot(int)"/>: rejects non-positive exponents and
-    /// even-root requests on negative values. Extracted from the main dispatch to keep it under
-    /// SonarQube's cognitive-complexity threshold.
-    /// </summary>
-    private void ValidateNthRootArguments(int n)
-    {
-        if (n <= 0)
-        {
-            throw new ArgumentException(ErrorMessages.RootExponentMustBePositive, nameof(n));
-        }
-
-        if (n % 2 == 0 && this.isNegative)
-        {
-            throw new InvalidOperationException(ErrorMessages.EvenRootOfNegativeUndefined);
-        }
-    }
-
-    /// <summary>
-    /// Computes the integer n-th root for <c>n &gt;= 3</c> via Newton-Raphson. The trivial cases
-    /// (zero base, n == 1, n == 2) are handled by the caller; this routine is private and assumes
-    /// pre-validated input.
-    /// </summary>
-    /// <param name="n">The root exponent (already validated to be &gt;= 3).</param>
-    /// <returns>The largest <see cref="SecureBigInteger"/> <c>r</c> with <c>r^n &lt;= |this|</c>,
-    /// signed when <paramref name="n"/> is odd and <c>this</c> is negative.</returns>
-    private SecureBigInteger ComputeNthRootNewton(int n)
-    {
-        // Newton-Raphson: x_{n+1} = ((k-1)*x_n + a/x_n^(k-1)) / k
-        using var absThis = this.Abs();
-        var bitLength = GetBitLength(absThis);
-
-        if (n >= bitLength && bitLength > 1)
-        {
-            var retVal = new SecureBigInteger(1);
-            if (this.isNegative && n % 2 == 1)
-            {
-                retVal.isNegative = true;
-            }
-
-            return retVal;
-        }
-
-        var targetBit = bitLength / n + 1;
-        var byteCount = targetBit / 8 + 1;
-        byte[] initialGuessData = new byte[byteCount];
-        SetBit(initialGuessData, targetBit);
-
-        var next = new SecureBigInteger(initialGuessData, false);
-        // Ownership of `next` transfers to the caller on success; catch disposes it
-        // on exception. Pattern parallels the constructor / ModPow / Sqrt.
-        try
-        {
-            using var nValue = new SecureBigInteger(n);
-            using var nMinus1 = new SecureBigInteger(n - 1);
-
-            while (true)
-            {
-                using var powered = next.Pow(n - 1);
-                using var divided = Divide(absThis, powered);
-                using var temp1 = Multiply(next, nMinus1);
-                using var temp2 = Add(temp1, divided);
-                using var newNext = Divide(temp2, nValue);
-                if (newNext >= next)
-                {
-                    break;
-                }
-
-                next.Dispose();
-                next = new SecureBigInteger(newNext);
-            }
-
-            if (this.isNegative && n % 2 == 1)
-            {
-                next.isNegative = true;
-            }
-
-            return next;
-        }
-        catch
-        {
-            next.Dispose();
-            throw;
-        }
-    }
-
-    /// <summary>
     /// Computes the absolute value of the current <see cref="SecureBigInteger"/> instance.
     /// </summary>
     /// <returns>A new non-negative <see cref="SecureBigInteger"/> with the same magnitude as
@@ -916,7 +751,16 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Computes the power of the current <see cref="SecureBigInteger"/> instance raised to the specified exponent.
     /// </summary>
-    /// <param name="exponent">The exponent to raise the current instance to. Must be non-negative.</param>
+    /// <param name="exponent">
+    /// The exponent to raise the current instance to. Must be non-negative.
+    /// <para>
+    /// <b>Constant-time contract:</b> <paramref name="exponent"/> is treated as <i>public</i> —
+    /// its value (and therefore the iteration count <c>O(log₂(exponent))</c>) may influence
+    /// runtime. Callers must not pass secret-derived exponents through this method. The base
+    /// instance, by contrast, is treated as secret and the per-iteration arithmetic does not
+    /// branch on its bits.
+    /// </para>
+    /// </param>
     /// <returns>A new <see cref="SecureBigInteger"/> representing <c>this^exponent</c>.</returns>
     /// <exception cref="ArgumentException">Thrown if <paramref name="exponent"/> is negative.</exception>
     public SecureBigInteger Pow(int exponent)
@@ -1405,7 +1249,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         // Both `a` and `b` are heap-allocated and live across multiple iterations;
         // catch on exception releases whichever is still live. Pattern parallels the
-        // constructor / ModPow / Sqrt / NthRoot.
+        // constructor / ModPow.
         SecureBigInteger a = null;
         SecureBigInteger b = null;
         try
