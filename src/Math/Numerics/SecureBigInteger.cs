@@ -372,12 +372,36 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Gets a value indicating whether the current <see cref="SecureBigInteger"/> instance represents the value one.
     /// </summary>
+    /// <remarks>
+    /// Constant-time on the magnitude bytes: the sign is observable per the threat
+    /// model and may legitimately short-circuit to <see langword="false"/>; the
+    /// magnitude check XOR-folds the expected pattern (low byte = 1, all higher
+    /// bytes = 0) into a single byte that is compared against zero. The byte-level
+    /// length <see cref="Length"/> is a public observable and may bound the loop.
+    /// </remarks>
     public bool IsOne
     {
         get
         {
             this.ThrowIfDisposed();
-            return !this.isNegative && this.Length == 1 && this.data[0] == 1;
+            if (this.isNegative)
+            {
+                return false;
+            }
+
+            int len = this.Length;
+            if (len == 0)
+            {
+                return false;
+            }
+
+            byte acc = (byte)(this.data[0] ^ 1);
+            for (int i = 1; i < len; i++)
+            {
+                acc |= this.data[i];
+            }
+
+            return acc == 0;
         }
     }
 
@@ -401,17 +425,20 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Gets the sign of the current <see cref="SecureBigInteger"/> instance.
     /// </summary>
+    /// <remarks>
+    /// Constant-time on the magnitude bytes: <see cref="IsZeroInternal"/> performs
+    /// a fixed-iteration OR-fold and returns a branchless zero-test. The polarity
+    /// branch on <see cref="isNegative"/> is acceptable because the sign field is
+    /// a public observable per the threat model.
+    /// </remarks>
     public int Sign
     {
         get
         {
             this.ThrowIfDisposed();
-            if (this.IsZeroInternal())
-            {
-                return 0;
-            }
-
-            return this.isNegative ? -1 : 1;
+            return this.IsZeroInternal()
+                ? 0
+                : (this.isNegative ? -1 : 1);
         }
     }
 
@@ -2207,7 +2234,27 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <returns>
     /// True if the instance represents the value zero; otherwise, false.
     /// </returns>
-    private bool IsZeroInternal() => this.Length == 1 && this.data[0] == 0;
+    /// <summary>
+    /// Returns <see langword="true"/> iff the magnitude bytes are all zero,
+    /// independent of the sign flag.
+    /// </summary>
+    /// <remarks>
+    /// Branchless on the magnitude: ORs every byte of <see cref="data"/> into a
+    /// single accumulator, then compares against zero. The <c>acc == 0</c>
+    /// final test compiles to <c>setz</c> on x86 RyuJIT, branchless. Loop bound
+    /// is <see cref="Length"/>, a public observable.
+    /// </remarks>
+    private bool IsZeroInternal()
+    {
+        byte acc = 0;
+        int len = this.Length;
+        for (int i = 0; i < len; i++)
+        {
+            acc |= this.data[i];
+        }
+
+        return acc == 0;
+    }
 
     /// <summary>
     /// Throws an <see cref="ObjectDisposedException"/> if the current instance has been disposed.
