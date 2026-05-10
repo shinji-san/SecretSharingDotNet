@@ -450,22 +450,36 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         {
             result = AddUnsigned(left, right);
             result.isNegative = left.isNegative;
-            return result;
         }
-
-        var comparison = CompareUnsigned(left, right);
-        switch (comparison)
+        else
         {
-            case 0:
-                return new SecureBigInteger(0);
-            case > 0:
+            // Mixed sign: |a + b| = ||a| - |b||, sign follows the operand with greater magnitude.
+            // The previous `case 0` early-return allocated a fresh zero, taking a structurally
+            // shorter path than the > 0 / < 0 cases; that allowed timing to distinguish
+            // |left| == |right| from |left| ≠ |right|. Merging case 0 into the >= 0 branch
+            // removes that leak — both paths now run a SubtractUnsigned with the same iteration
+            // count. The remaining >= 0 vs < 0 branch reveals only what the result's own sign
+            // already publicly reveals (which operand had greater magnitude).
+            var comparison = CompareUnsigned(left, right);
+            if (comparison >= 0)
+            {
                 result = SubtractUnsigned(left, right);
                 result.isNegative = left.isNegative;
-                break;
-            default:
+            }
+            else
+            {
                 result = SubtractUnsigned(right, left);
                 result.isNegative = right.isNegative;
-                break;
+            }
+        }
+
+        // Normalize: a magnitude-0 result must have isNegative=false (canonical zero).
+        // Without this guard, e.g. (+5) + (-5) would hit the >= 0 branch with left.isNegative=false,
+        // but (-5) + (+5) would hit the < 0 branch with right.isNegative=false — still safe — yet
+        // mixed-magnitude same-sign Subtract paths can land on -0 and rely on this normalization.
+        if (result.IsZeroInternal())
+        {
+            result.isNegative = false;
         }
 
         return result;
@@ -503,24 +517,35 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             // a - (-b) = a + b   |   (-a) - b = -(a + b)
             result = AddUnsigned(minuend, subtrahend);
             result.isNegative = minuend.isNegative;
-            return result;
         }
-
-        // Same sign: the magnitudes determine direction; the result inherits the
-        // minuend's sign when |minuend| >= |subtrahend|, and the inverted sign otherwise.
-        var comparison = CompareUnsigned(minuend, subtrahend);
-        switch (comparison)
+        else
         {
-            case 0:
-                return new SecureBigInteger(0);
-            case > 0:
+            // Same sign: the magnitudes determine direction; the result inherits the
+            // minuend's sign when |minuend| >= |subtrahend|, and the inverted sign otherwise.
+            // The previous `case 0` early-return allocated a fresh zero, taking a structurally
+            // shorter path than the > 0 / < 0 cases; that allowed timing to distinguish
+            // |minuend| == |subtrahend| from |minuend| ≠ |subtrahend|. Merging case 0 into
+            // the >= 0 branch closes that leak.
+            var comparison = CompareUnsigned(minuend, subtrahend);
+            if (comparison >= 0)
+            {
                 result = SubtractUnsigned(minuend, subtrahend);
                 result.isNegative = minuend.isNegative;
-                break;
-            default:
+            }
+            else
+            {
                 result = SubtractUnsigned(subtrahend, minuend);
                 result.isNegative = !minuend.isNegative;
-                break;
+            }
+        }
+
+        // Normalize: e.g. (+5) - (+5) lands on the same-sign >= 0 branch with isNegative=false,
+        // but (-5) - (-5) on the same branch with isNegative=true on a magnitude-0 result —
+        // i.e. -0. Mixed-sign Subtract on equal magnitudes also produces -0 when minuend is
+        // negative. Guard ensures canonical-zero invariant.
+        if (result.IsZeroInternal())
+        {
+            result.isNegative = false;
         }
 
         return result;

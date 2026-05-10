@@ -340,6 +340,53 @@ public class SecureBigIntegerTests
     }
 
     [Theory]
+    // Mixed-sign Add and same-sign Subtract on equal magnitudes used to take a
+    // distinct early-return path (H1 fix). Verify the result is a canonical +0
+    // — IsZero, Sign, Equals, and GetHashCode all agree with a clean zero.
+    [InlineData(5, -5)]
+    [InlineData(-5, 5)]
+    [InlineData(int.MaxValue, -int.MaxValue)]
+    [InlineData(-int.MaxValue, int.MaxValue)]
+    public void Add_OppositeSignsEqualMagnitudes_EqualsCleanZero(int a, int b)
+    {
+        // Arrange
+        using var left = new SecureBigInteger(a);
+        using var right = new SecureBigInteger(b);
+        using var cleanZero = new SecureBigInteger(0);
+
+        // Act
+        using var sum = SecureBigInteger.Add(left, right);
+
+        // Assert
+        Assert.True(sum.IsZero);
+        Assert.Equal(0, sum.Sign);
+        Assert.Equal(cleanZero, sum);
+        Assert.Equal(cleanZero.GetHashCode(), sum.GetHashCode());
+    }
+
+    [Theory]
+    [InlineData(5, 5)]
+    [InlineData(-5, -5)]
+    [InlineData(int.MaxValue, int.MaxValue)]
+    [InlineData(-int.MaxValue, -int.MaxValue)]
+    public void Subtract_SameSignEqualMagnitudes_EqualsCleanZero(int a, int b)
+    {
+        // Arrange
+        using var minuend = new SecureBigInteger(a);
+        using var subtrahend = new SecureBigInteger(b);
+        using var cleanZero = new SecureBigInteger(0);
+
+        // Act
+        using var diff = SecureBigInteger.Subtract(minuend, subtrahend);
+
+        // Assert
+        Assert.True(diff.IsZero);
+        Assert.Equal(0, diff.Sign);
+        Assert.Equal(cleanZero, diff);
+        Assert.Equal(cleanZero.GetHashCode(), diff.GetHashCode());
+    }
+
+    [Theory]
     [InlineData(0, 5, 0)]
     [InlineData(5, 0, 0)]
     [InlineData(1, 5, 5)]
