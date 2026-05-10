@@ -306,12 +306,6 @@ namespace SecretSharingDotNet {
             }
         }
 
-        internal static string ModulusMustEqualConfiguredMersennePrime {
-            get {
-                return ResourceManager.GetString("ModulusMustEqualConfiguredMersennePrime", resourceCulture);
-            }
-        }
-
         internal static string ValueTooLargeForInt {
             get {
                 return ResourceManager.GetString("ValueTooLargeForInt", resourceCulture);

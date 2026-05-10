@@ -141,9 +141,6 @@
     <data name="ModulusMustNotBeZero" xml:space="preserve">
         <value>Der Modul darf nicht null sein.</value>
     </data>
-    <data name="ModulusMustEqualConfiguredMersennePrime" xml:space="preserve">
-        <value>Der Modul muss mit der aktuell auf dem Security-Level-Manager konfigurierten Mersenne-Primzahl übereinstimmen.</value>
-    </data>
     <data name="ValueTooLargeForInt" xml:space="preserve">
         <value>Der Wert ist zu groß für 'int'.</value>
     </data>

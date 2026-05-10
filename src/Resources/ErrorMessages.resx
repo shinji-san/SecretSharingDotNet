@@ -148,9 +148,6 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="ModulusMustNotBeZero" xml:space="preserve">
         <value>Modulus must not be zero.</value>
     </data>
-    <data name="ModulusMustEqualConfiguredMersennePrime" xml:space="preserve">
-        <value>Modulus must equal the Mersenne prime currently configured on the security-level manager.</value>
-    </data>
     <data name="ValueTooLargeForInt" xml:space="preserve">
         <value>Value is too large for 'int'.</value>
     </data>

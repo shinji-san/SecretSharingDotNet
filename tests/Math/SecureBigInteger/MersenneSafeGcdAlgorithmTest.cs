@@ -32,20 +32,12 @@ namespace SecretSharingDotNetTest.Math.SecureBigInteger;
 
 using System;
 using System.Numerics;
-using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using Xunit;
 
 public class MersenneSafeGcdAlgorithmTest
 {
-    [Fact]
-    public void Constructor_NullSecurityLevelManager_ThrowsArgumentNullException()
-    {
-        // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new MersenneSafeGcdAlgorithm(null!));
-    }
-
     [Theory]
     // (denominator, mersenneExponent). For each row:
     //   gcd       = 1
@@ -66,14 +58,13 @@ public class MersenneSafeGcdAlgorithmTest
     public void Compute_NonZeroDenominator_ReturnsModularInverse(string denominatorDec, int mersenneExponent)
     {
         // Arrange
-        using var manager = new SecurityLevelManager<SecureBigInteger> { SecurityLevel = mersenneExponent };
         BigInteger primeBig = (BigInteger.One << mersenneExponent) - BigInteger.One;
         BigInteger denominatorBig = BigInteger.Parse(denominatorDec) % primeBig;
         BigInteger expectedInverse = BigInteger.ModPow(denominatorBig, primeBig - 2, primeBig);
 
-        var algorithm = new MersenneSafeGcdAlgorithm(manager);
+        var algorithm = new MersenneSafeGcdAlgorithm();
         using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(denominatorBig.ToSecureBigInteger());
-        Calculator<SecureBigInteger> bCalc = manager.MersennePrime;
+        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
 
         // Act
         using var result = algorithm.Compute(aCalc, bCalc);
@@ -93,12 +84,11 @@ public class MersenneSafeGcdAlgorithmTest
     public void Compute_ZeroDenominator_GcdEqualsPrime()
     {
         // Arrange
-        using var manager = new SecurityLevelManager<SecureBigInteger> { SecurityLevel = 31 };
         BigInteger primeBig = (BigInteger.One << 31) - BigInteger.One;
 
-        var algorithm = new MersenneSafeGcdAlgorithm(manager);
+        var algorithm = new MersenneSafeGcdAlgorithm();
         using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(BigInteger.Zero.ToSecureBigInteger());
-        Calculator<SecureBigInteger> bCalc = manager.MersennePrime;
+        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
 
         // Act
         using var result = algorithm.Compute(aCalc, bCalc);
@@ -112,9 +102,9 @@ public class MersenneSafeGcdAlgorithmTest
     public void Compute_NullA_ThrowsArgumentNullException()
     {
         // Arrange
-        using var manager = new SecurityLevelManager<SecureBigInteger> { SecurityLevel = 31 };
-        var algorithm = new MersenneSafeGcdAlgorithm(manager);
-        Calculator<SecureBigInteger> bCalc = manager.MersennePrime;
+        BigInteger primeBig = (BigInteger.One << 31) - BigInteger.One;
+        var algorithm = new MersenneSafeGcdAlgorithm();
+        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => algorithm.Compute(null!, bCalc));
@@ -124,29 +114,11 @@ public class MersenneSafeGcdAlgorithmTest
     public void Compute_NullB_ThrowsArgumentNullException()
     {
         // Arrange
-        using var manager = new SecurityLevelManager<SecureBigInteger> { SecurityLevel = 31 };
-        var algorithm = new MersenneSafeGcdAlgorithm(manager);
+        var algorithm = new MersenneSafeGcdAlgorithm();
         using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(new SecureBigInteger(7));
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => algorithm.Compute(aCalc, null!));
-    }
-
-    [Fact]
-    public void Compute_BIsNotConfiguredMersennePrime_ThrowsArgumentException()
-    {
-        // Arrange: configure manager with M_31, but pass M_13 as `b`.
-        using var manager = new SecurityLevelManager<SecureBigInteger> { SecurityLevel = 31 };
-        var algorithm = new MersenneSafeGcdAlgorithm(manager);
-        BigInteger m13 = (BigInteger.One << 13) - BigInteger.One;
-        using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(new SecureBigInteger(7));
-        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(m13.ToSecureBigInteger());
-
-        // Act
-        var ex = Assert.Throws<ArgumentException>(() => algorithm.Compute(aCalc, bCalc));
-
-        // Assert
-        Assert.Equal("b", ex.ParamName);
     }
 
     [Theory]
@@ -157,15 +129,14 @@ public class MersenneSafeGcdAlgorithmTest
         string denominatorDec, int mersenneExponent)
     {
         // Arrange
-        using var manager = new SecurityLevelManager<SecureBigInteger> { SecurityLevel = mersenneExponent };
         BigInteger primeBig = (BigInteger.One << mersenneExponent) - BigInteger.One;
         BigInteger denominatorBig = BigInteger.Parse(denominatorDec) % primeBig;
 
-        var safegcd = new MersenneSafeGcdAlgorithm(manager);
+        var safegcd = new MersenneSafeGcdAlgorithm();
         var euclidean = new ExtendedEuclideanAlgorithm<SecureBigInteger>();
 
         using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(denominatorBig.ToSecureBigInteger());
-        Calculator<SecureBigInteger> bCalc = manager.MersennePrime;
+        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
 
         // Act
         using var safegcdResult = safegcd.Compute(aCalc, bCalc);
@@ -183,10 +154,10 @@ public class MersenneSafeGcdAlgorithmTest
     public void Compute_ResultDispose_IsIdempotent()
     {
         // Arrange
-        using var manager = new SecurityLevelManager<SecureBigInteger> { SecurityLevel = 31 };
-        var algorithm = new MersenneSafeGcdAlgorithm(manager);
+        BigInteger primeBig = (BigInteger.One << 31) - BigInteger.One;
+        var algorithm = new MersenneSafeGcdAlgorithm();
         using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(new SecureBigInteger(42));
-        Calculator<SecureBigInteger> bCalc = manager.MersennePrime;
+        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
 
         // Act
         var result = algorithm.Compute(aCalc, bCalc);
@@ -202,8 +173,8 @@ public class MersenneSafeGcdAlgorithmTest
     //
     // These tests target the internal Bernstein–Yang divsteps helper directly
     // (visible to the test assembly via InternalsVisibleTo) rather than going
-    // through Compute(). Compute() requires `b == manager.MersennePrime`, so
-    // testing the algorithm against arbitrary non-Mersenne pairs
+    // through Compute(). Compute() requires that `b` be a Mersenne prime,
+    // so testing the algorithm against arbitrary non-Mersenne pairs
     // (e.g. 15/10 with shared factor 5) is only possible at the helper level.
     // -------------------------------------------------------------------------
 

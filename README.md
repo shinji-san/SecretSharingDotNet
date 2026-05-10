@@ -455,8 +455,11 @@ for hardened native crypto stacks.
   `MersenneSafeGcdAlgorithm` implements the Bernstein–Yang "safegcd" / divstep
   recurrence and provides a constant-time modular inverse for use inside
   `SecretReconstructor.DivMod`. The iteration count is fixed at the public Mersenne
-  exponent, independent of operand values. To wire it in, construct
-  `SecretReconstructor` via the 3-generic-argument overload with
+  exponent, independent of operand values. The exponent is derived from the
+  modulus passed to `Compute` at call time — the algorithm holds no
+  `ISecurityLevelManager` reference, so it cannot drift from the
+  `SecretReconstructor` consuming it. To wire it in, construct
+  `SecretReconstructor` via the 3-generic-argument overload with a parameterless
   `MersenneSafeGcdAlgorithm` as the GCD strategy.
 
 **Public-input dependence (treated as public, not secret):**

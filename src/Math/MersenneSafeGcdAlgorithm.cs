@@ -37,11 +37,11 @@ using System;
 /// <summary>
 /// Constant-time extended-GCD algorithm specialised for the
 /// <see cref="SecureBigInteger"/> backend, computing modular inverses against
-/// the Mersenne prime configured on a supplied
-/// <see cref="ISecurityLevelManager{TNumber}"/>. Implements the Bernstein–Yang
-/// "safegcd" / divsteps recurrence (with Bezout-coefficient tracking) and
-/// applies the <c>2^{-n}</c> correction needed to convert the algorithm's
-/// integer-form Bezout identity into a modular inverse.
+/// the Mersenne prime supplied as the modulus argument to
+/// <see cref="Compute"/>. Implements the Bernstein–Yang "safegcd" / divsteps
+/// recurrence (with Bezout-coefficient tracking) and applies the
+/// <c>2^{-n}</c> correction needed to convert the algorithm's integer-form
+/// Bezout identity into a modular inverse.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -92,10 +92,13 @@ using System;
 /// <em>modulo the configured Mersenne prime</em>, not over <c>Z</c>.
 /// </para>
 /// <para>
-/// <b>Precondition.</b> <see cref="Compute"/>'s <c>b</c> argument must equal
-/// the Mersenne prime currently configured on the supplied
-/// <see cref="ISecurityLevelManager{TNumber}"/>. Mismatch throws — the
-/// <c>2^{-n} mod M_p</c> arithmetic is invalid against any other modulus.
+/// <b>Precondition.</b> <see cref="Compute"/>'s <c>b</c> argument must be a
+/// Mersenne prime <c>M_p = 2^p − 1</c>. The exponent <c>p</c> is derived from
+/// <c>b</c>'s bit length at call time; passing a non-Mersenne modulus produces
+/// silently-wrong results because the <c>2^{-n} mod M_p</c> correction
+/// arithmetic is only valid against a true Mersenne modulus. The single
+/// in-product caller (<see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}.DivMod"/>)
+/// satisfies this precondition by construction.
 /// </para>
 /// <para>
 /// <b>Threat model.</b> The outer iteration count is fixed at the public
@@ -121,26 +124,17 @@ using System;
 /// </remarks>
 public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigInteger>
 {
-    private readonly ISecurityLevelManager<SecureBigInteger> securityLevelManager;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="MersenneSafeGcdAlgorithm"/> class.
     /// </summary>
-    /// <param name="securityLevelManager">
-    /// The security-level manager whose currently-configured Mersenne prime defines
-    /// the modulus used by every <see cref="Compute"/> call. The manager is borrowed
-    /// (not owned); ownership and disposal remain with the caller, matching the
-    /// pattern of <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/>'s
-    /// 2-arg constructor.
-    /// </param>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="securityLevelManager"/> is <see langword="null"/>.
-    /// </exception>
-    public MersenneSafeGcdAlgorithm(ISecurityLevelManager<SecureBigInteger> securityLevelManager)
-    {
-        this.securityLevelManager = securityLevelManager
-            ?? throw new ArgumentNullException(nameof(securityLevelManager));
-    }
+    /// <remarks>
+    /// Stateless: the Mersenne exponent <c>p</c> is derived from the modulus
+    /// passed to <see cref="Compute"/> at call time. No security-level manager
+    /// is referenced, so the algorithm and the
+    /// <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/>
+    /// that consumes it cannot drift in their view of the configured prime.
+    /// </remarks>
+    public MersenneSafeGcdAlgorithm() { }
 
     /// <inheritdoc />
     /// <remarks>
@@ -149,6 +143,14 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
     /// supplied as <paramref name="b"/>. Internally calls <see cref="ExtendedGcd"/>
     /// with <c>fInput = b</c> (odd by Mersenne-prime definition) and
     /// <c>gInput = a</c>, then applies the <c>2^{-n} mod M_p</c> correction.
+    /// </para>
+    /// <para>
+    /// The Mersenne exponent <c>p</c> is read off <paramref name="b"/>'s bit length
+    /// (since <c>M_p = 2^p − 1</c> has exactly <c>p</c> significant bits). Callers
+    /// must pass a true Mersenne prime as <paramref name="b"/>; the precondition is
+    /// not structurally validated, and a non-Mersenne modulus produces silently
+    /// wrong results because the <c>2^{-n} mod M_p</c> correction relies on
+    /// <c>2^p ≡ 1 (mod M_p)</c>.
     /// </para>
     /// <para>
     /// The returned <see cref="ExtendedGcdResult{TNumber}.BezoutCoefficients"/> are
@@ -169,10 +171,6 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
     /// <exception cref="ArgumentNullException">
     /// <paramref name="a"/> or <paramref name="b"/> is <see langword="null"/>.
     /// </exception>
-    /// <exception cref="ArgumentException">
-    /// <paramref name="b"/> is not equal to the Mersenne prime currently configured
-    /// on the security-level manager.
-    /// </exception>
     public ExtendedGcdResult<SecureBigInteger> Compute(
         Calculator<SecureBigInteger> a,
         Calculator<SecureBigInteger> b)
@@ -187,17 +185,9 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
             throw new ArgumentNullException(nameof(b));
         }
 
-        int mersenneExponent = this.securityLevelManager.SecurityLevel;
         SecureBigInteger denominatorVal = a;
         SecureBigInteger primeVal = b;
-        SecureBigInteger expectedPrime = this.securityLevelManager.MersennePrime;
-
-        if (!primeVal.Equals(expectedPrime))
-        {
-            throw new ArgumentException(
-                ErrorMessages.ModulusMustEqualConfiguredMersennePrime,
-                nameof(b));
-        }
+        int mersenneExponent = BitLengthOfPublicMersennePrime(primeVal);
 
         // ExtendedGcd contract: alpha * primeVal + beta * denominatorVal = 2^iter * gcd.
         // primeVal is odd & positive (Mersenne primes M_p = 2^p − 1 with p ≥ 2),
@@ -495,5 +485,56 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
         uG = newUG;
         vG = newVG;
         delta = newDelta;
+    }
+
+    /// <summary>
+    /// Returns the bit length of <paramref name="publicValue"/> — i.e. the
+    /// position of its highest set bit, 1-indexed (0 for zero). For a Mersenne
+    /// prime <c>M_p = 2^p − 1</c>, this is exactly <c>p</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Variable-time on operand magnitude.</b> The high-byte location and
+    /// its leading-zero count both depend on the operand value. This helper is
+    /// deliberately scoped <c>private static</c> on
+    /// <see cref="MersenneSafeGcdAlgorithm"/> rather than exposed as an accessor
+    /// on <see cref="SecureBigInteger"/>, so the only call site is
+    /// <see cref="Compute"/>'s exponent-derivation path — where the argument is
+    /// the public Mersenne-prime modulus <c>b</c>. Callers cannot reach this
+    /// method on secret material, which preserves the constant-time contract
+    /// of the secret-bearing arithmetic path.
+    /// </para>
+    /// <para>
+    /// Implementation: scan from the most-significant byte of the magnitude
+    /// downward, find the first non-zero byte, then count significant bits in
+    /// it. <see cref="SecureBigInteger.ToByteArray"/> may insert a single
+    /// sign-extension padding byte when the magnitude's high-byte MSB is set —
+    /// the leading-zero scan transparently absorbs that case. For known
+    /// Mersenne exponents (all odd primes ≥ 2), no padding occurs in practice.
+    /// </para>
+    /// </remarks>
+    private static int BitLengthOfPublicMersennePrime(SecureBigInteger publicValue)
+    {
+        using var bytes = publicValue.ToByteArray();
+        int idx = bytes.Length - 1;
+        while (idx >= 0 && bytes[idx] == 0)
+        {
+            idx--;
+        }
+
+        if (idx < 0)
+        {
+            return 0;
+        }
+
+        byte highByte = bytes[idx];
+        int bitsInHighByte = 0;
+        while (highByte != 0)
+        {
+            bitsInHighByte++;
+            highByte >>= 1;
+        }
+
+        return (idx * 8) + bitsInHighByte;
     }
 }
