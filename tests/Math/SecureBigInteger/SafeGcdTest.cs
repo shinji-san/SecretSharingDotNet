@@ -28,19 +28,13 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNetTest.Math;
+namespace SecretSharingDotNetTest.Math.SecureBigInteger;
 
 using System;
+using System.Numerics;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using Xunit;
-
-// `BigInteger` and `SecureBigInteger` are sub-namespaces of
-// SecretSharingDotNetTest.Math (parallel-test hierarchy convention), so an
-// unqualified `BigInteger` would resolve to the namespace, not the BCL type.
-// Aliases here pin the BCL type explicitly.
-using BclBigInteger = System.Numerics.BigInteger;
-using BclSecureBigInteger = SecretSharingDotNet.Math.Numerics.SecureBigInteger;
 
 public class SafeGcdTest
 {
@@ -68,9 +62,9 @@ public class SafeGcdTest
     public void Gcd_MatchesBclBigInteger(string fDec, string gDec, string expectedGcdDec, int bitLengthBound)
     {
         // Arrange
-        using var f = BclBigInteger.Parse(fDec).ToSecureBigInteger();
-        using var g = BclBigInteger.Parse(gDec).ToSecureBigInteger();
-        using var expected = BclBigInteger.Parse(expectedGcdDec).ToSecureBigInteger();
+        using var f = BigInteger.Parse(fDec).ToSecureBigInteger();
+        using var g = BigInteger.Parse(gDec).ToSecureBigInteger();
+        using var expected = BigInteger.Parse(expectedGcdDec).ToSecureBigInteger();
 
         // Act
         using var actual = SafeGcd.Gcd(f, g, bitLengthBound);
@@ -83,7 +77,7 @@ public class SafeGcdTest
     public void Gcd_FInputNull_ThrowsArgumentNullException()
     {
         // Arrange
-        using var g = new BclSecureBigInteger(5);
+        using var g = new SecureBigInteger(5);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -96,7 +90,7 @@ public class SafeGcdTest
     public void Gcd_GInputNull_ThrowsArgumentNullException()
     {
         // Arrange
-        using var f = new BclSecureBigInteger(7);
+        using var f = new SecureBigInteger(7);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -111,8 +105,8 @@ public class SafeGcdTest
     public void Gcd_NonPositiveBitLengthBound_ThrowsArgumentOutOfRangeException(int bitLengthBound)
     {
         // Arrange
-        using var f = new BclSecureBigInteger(7);
-        using var g = new BclSecureBigInteger(5);
+        using var f = new SecureBigInteger(7);
+        using var g = new SecureBigInteger(5);
 
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -129,8 +123,8 @@ public class SafeGcdTest
     public void Gcd_InvalidF_ThrowsArgumentException(int fValue)
     {
         // Arrange
-        using var f = new BclSecureBigInteger(fValue);
-        using var g = new BclSecureBigInteger(5);
+        using var f = new SecureBigInteger(fValue);
+        using var g = new SecureBigInteger(5);
 
         // Act
         var ex = Assert.Throws<ArgumentException>(() =>
@@ -146,8 +140,8 @@ public class SafeGcdTest
     public void Gcd_NegativeG_ThrowsArgumentException()
     {
         // Arrange
-        using var f = new BclSecureBigInteger(7);
-        using var g = new BclSecureBigInteger(-1);
+        using var f = new SecureBigInteger(7);
+        using var g = new SecureBigInteger(-1);
 
         // Act
         var ex = Assert.Throws<ArgumentException>(() =>
@@ -182,9 +176,9 @@ public class SafeGcdTest
     public void ExtendedGcd_AlphaTimesFPlusBetaTimesG_Equals2ToTheNTimesGcd(string fDec, string gDec, int bitLengthBound)
     {
         // Arrange
-        BclBigInteger fBig = BclBigInteger.Parse(fDec);
-        BclBigInteger gBig = BclBigInteger.Parse(gDec);
-        BclBigInteger expectedGcd = BclBigInteger.GreatestCommonDivisor(fBig, gBig);
+        BigInteger fBig = BigInteger.Parse(fDec);
+        BigInteger gBig = BigInteger.Parse(gDec);
+        BigInteger expectedGcd = BigInteger.GreatestCommonDivisor(fBig, gBig);
         using var f = fBig.ToSecureBigInteger();
         using var g = gBig.ToSecureBigInteger();
 
@@ -193,11 +187,11 @@ public class SafeGcdTest
 
         try
         {
-            BclBigInteger gcdActual = gcd.ToBigInteger();
-            BclBigInteger alphaActual = alpha.ToBigInteger();
-            BclBigInteger betaActual = beta.ToBigInteger();
-            BclBigInteger expectedRhs = (BclBigInteger.One << iterations) * expectedGcd;
-            BclBigInteger actualLhs = (alphaActual * fBig) + (betaActual * gBig);
+            BigInteger gcdActual = gcd.ToBigInteger();
+            BigInteger alphaActual = alpha.ToBigInteger();
+            BigInteger betaActual = beta.ToBigInteger();
+            BigInteger expectedRhs = (BigInteger.One << iterations) * expectedGcd;
+            BigInteger actualLhs = (alphaActual * fBig) + (betaActual * gBig);
 
             // Assert
             Assert.Equal(expectedGcd, gcdActual);
@@ -215,7 +209,7 @@ public class SafeGcdTest
     public void ExtendedGcd_FInputNull_ThrowsArgumentNullException()
     {
         // Arrange
-        using var g = new BclSecureBigInteger(5);
+        using var g = new SecureBigInteger(5);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => SafeGcd.ExtendedGcd(null!, g, 8));
@@ -225,7 +219,7 @@ public class SafeGcdTest
     public void ExtendedGcd_GInputNull_ThrowsArgumentNullException()
     {
         // Arrange
-        using var f = new BclSecureBigInteger(7);
+        using var f = new SecureBigInteger(7);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => SafeGcd.ExtendedGcd(f, null!, 8));
@@ -237,8 +231,8 @@ public class SafeGcdTest
     public void ExtendedGcd_NonPositiveBitLengthBound_ThrowsArgumentOutOfRangeException(int bitLengthBound)
     {
         // Arrange
-        using var f = new BclSecureBigInteger(7);
-        using var g = new BclSecureBigInteger(5);
+        using var f = new SecureBigInteger(7);
+        using var g = new SecureBigInteger(5);
 
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => SafeGcd.ExtendedGcd(f, g, bitLengthBound));
