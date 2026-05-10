@@ -2334,9 +2334,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             temp = new SecureBigInteger(value);
             temp.isNegative = false;
             using var ten = new SecureBigInteger(10);
-            using var zero = new SecureBigInteger(0);
             int count = 0;
-            while (CompareUnsigned(temp, zero) > 0)
+            while (!temp.IsZeroInternal())
             {
                 count++;
                 var quotient = DivideUnsigned(temp, ten, out var rem);
@@ -2393,10 +2392,9 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
             temp = new SecureBigInteger(this);
             temp.isNegative = false;
-            using var zero = new SecureBigInteger(0);
             using var ten = new SecureBigInteger(10);
 
-            while (CompareUnsigned(temp, zero) > 0)
+            while (!temp.IsZeroInternal())
             {
                 var quotient = DivideUnsigned(temp, ten, out var rem);
                 try
