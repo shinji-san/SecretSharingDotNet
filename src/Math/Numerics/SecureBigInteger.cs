@@ -614,7 +614,15 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             return new SecureBigInteger(0);
         }
 
-        var quotient = DivideUnsigned(dividend, divisor, out _);
+        // DivideUnsigned allocates BOTH the quotient (return) and the remainder
+        // (out-param) as fresh SecureBigInteger instances. The remainder is not
+        // needed here, but must be disposed explicitly — discarding it via
+        // `out _` would leak a pinned-pool slot (the finalizer on
+        // SecureBigInteger only sets the disposed flag and does not release
+        // managed resources, see Dispose(bool)) and delay the secret-data wipe
+        // until pool-level finalization runs.
+        var quotient = DivideUnsigned(dividend, divisor, out var remainder);
+        remainder.Dispose();
         quotient.isNegative = dividend.isNegative != divisor.isNegative;
 
         return quotient;
@@ -654,7 +662,13 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             return new SecureBigInteger(0);
         }
 
-        DivideUnsigned(dividend, divisor, out var remainder);
+        // Symmetric to Divide above: DivideUnsigned allocates both outputs, but
+        // here the quotient is the unused half. Dispose it via `using` so that
+        // its pinned-pool slot is released and its plaintext bytes wiped on the
+        // success path; on a throw between the call and the using-scope-exit
+        // (none of the operations in this short tail can throw realistically),
+        // the using ensures cleanup as well.
+        using var quotient = DivideUnsigned(dividend, divisor, out var remainder);
         remainder.isNegative = dividend.isNegative;
         return remainder;
     }
@@ -2236,9 +2250,15 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             {
                 count++;
                 var quotient = DivideUnsigned(temp, ten, out var rem);
-                rem.Dispose();
-                temp.Dispose();
+                // Transfer ownership of `quotient` into `temp` BEFORE any
+                // potentially-throwing dispose. If `rem.Dispose()` or
+                // `oldTemp.Dispose()` throws, the surrounding finally still
+                // disposes `temp` (now holding `quotient`), so no allocation
+                // is orphaned.
+                var oldTemp = temp;
                 temp = quotient;
+                rem.Dispose();
+                oldTemp.Dispose();
             }
 
             return count;
@@ -2293,11 +2313,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
                 {
                     result[index--] = (char)(DigitOffset + rem.data[0]);
                     temp.Dispose();
-                    temp = new SecureBigInteger(quotient);
+                    temp = quotient;
+                    quotient = null; // ownership transferred to temp
                 }
                 finally
                 {
-                    quotient.Dispose();
+                    quotient?.Dispose();
                     rem.Dispose();
                 }
             }

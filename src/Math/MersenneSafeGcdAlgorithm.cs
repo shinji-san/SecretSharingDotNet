@@ -361,6 +361,14 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
         SecureBigInteger vG = (SecureBigInteger)1;
         int delta = 1;
 
+        // Tail-allocated outputs declared outside the try-block so the finally
+        // can dispose them on exception (e.g. OOM during one of the three
+        // allocations below); cleared to null after ownership transfer to the
+        // returned tuple so the success path does not double-dispose.
+        SecureBigInteger gcd = null;
+        SecureBigInteger alpha = null;
+        SecureBigInteger beta = null;
+
         try
         {
             for (int i = 0; i < iterations; i++)
@@ -371,11 +379,14 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
             // Sign-correct the Bezout coefficients so the returned identity is
             // alpha * fInput + beta * gInput = 2^iterationCount * |f_n|.
             bool fIsNegative = f.Sign < 0;
-            SecureBigInteger gcd = f.Abs();
-            SecureBigInteger alpha = fIsNegative ? uF.Negate() : new SecureBigInteger(uF);
-            SecureBigInteger beta = fIsNegative ? vF.Negate() : new SecureBigInteger(vF);
+            gcd = f.Abs();
+            alpha = fIsNegative ? uF.Negate() : new SecureBigInteger(uF);
+            beta = fIsNegative ? vF.Negate() : new SecureBigInteger(vF);
 
-            return (gcd, alpha, beta, iterations);
+            var result = (gcd, alpha, beta, iterations);
+            // Ownership transferred to the returned tuple.
+            gcd = alpha = beta = null;
+            return result;
         }
         finally
         {
@@ -385,6 +396,12 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
             vF?.Dispose();
             uG?.Dispose();
             vG?.Dispose();
+            // On the success path these are null; on a throw between the
+            // tail allocations and the ownership-transfer assignment, the
+            // partially-allocated values are released here.
+            gcd?.Dispose();
+            alpha?.Dispose();
+            beta?.Dispose();
         }
     }
 
@@ -404,45 +421,65 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
         bool gIsOdd = !g.IsEven;
         bool branch1 = delta > 0 && gIsOdd;
 
-        SecureBigInteger newF;
-        SecureBigInteger newG;
-        SecureBigInteger newUF;
-        SecureBigInteger newVF;
-        SecureBigInteger newUG;
-        SecureBigInteger newVG;
+        // Each branch performs four to seven fresh allocations. If the n-th
+        // allocation throws (OOM), the prior n-1 must be released or they
+        // leak — every branch declares its outputs as nullable locals up
+        // front and the catch clause releases whatever was allocated before
+        // the throw. Past the catch the new state is fully committed; the
+        // tail's Dispose-then-swap operates on values that are not expected
+        // to throw (Dispose() is robust on the SecureBigInteger backend).
+        SecureBigInteger newF = null;
+        SecureBigInteger newG = null;
+        SecureBigInteger newUF = null;
+        SecureBigInteger newVF = null;
+        SecureBigInteger newUG = null;
+        SecureBigInteger newVG = null;
         int newDelta;
 
-        if (branch1)
+        try
         {
-            newF = new SecureBigInteger(g);
-            using var diff = SecureBigInteger.Subtract(g, f);
-            newG = diff / 2;
-            newUF = uG + uG;
-            newVF = vG + vG;
-            newUG = SecureBigInteger.Subtract(uG, uF);
-            newVG = SecureBigInteger.Subtract(vG, vF);
-            newDelta = -delta;
+            if (branch1)
+            {
+                newF = new SecureBigInteger(g);
+                using var diff = SecureBigInteger.Subtract(g, f);
+                newG = diff / 2;
+                newUF = uG + uG;
+                newVF = vG + vG;
+                newUG = SecureBigInteger.Subtract(uG, uF);
+                newVG = SecureBigInteger.Subtract(vG, vF);
+                newDelta = -delta;
+            }
+            else if (gIsOdd)
+            {
+                newF = new SecureBigInteger(f);
+                using var sum = SecureBigInteger.Add(g, f);
+                newG = sum / 2;
+                newUF = uF + uF;
+                newVF = vF + vF;
+                newUG = SecureBigInteger.Add(uG, uF);
+                newVG = SecureBigInteger.Add(vG, vF);
+                newDelta = delta + 1;
+            }
+            else
+            {
+                newF = new SecureBigInteger(f);
+                newG = g / 2;
+                newUF = uF + uF;
+                newVF = vF + vF;
+                newUG = new SecureBigInteger(uG);
+                newVG = new SecureBigInteger(vG);
+                newDelta = delta + 1;
+            }
         }
-        else if (gIsOdd)
+        catch
         {
-            newF = new SecureBigInteger(f);
-            using var sum = SecureBigInteger.Add(g, f);
-            newG = sum / 2;
-            newUF = uF + uF;
-            newVF = vF + vF;
-            newUG = SecureBigInteger.Add(uG, uF);
-            newVG = SecureBigInteger.Add(vG, vF);
-            newDelta = delta + 1;
-        }
-        else
-        {
-            newF = new SecureBigInteger(f);
-            newG = g / 2;
-            newUF = uF + uF;
-            newVF = vF + vF;
-            newUG = new SecureBigInteger(uG);
-            newVG = new SecureBigInteger(vG);
-            newDelta = delta + 1;
+            newF?.Dispose();
+            newG?.Dispose();
+            newUF?.Dispose();
+            newVF?.Dispose();
+            newUG?.Dispose();
+            newVG?.Dispose();
+            throw;
         }
 
         f.Dispose();
