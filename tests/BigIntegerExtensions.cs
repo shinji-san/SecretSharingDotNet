@@ -64,4 +64,20 @@ internal static class BigIntegerExtensions
         using var pinned = hex.ToPinnedSecure();
         return SecureBigInteger.FromHexadecimal(pinned);
     }
+
+    /// <summary>
+    /// Converts a <see cref="SecureBigInteger"/> back to a BCL
+    /// <see cref="BigInteger"/> for cross-checking against authoritative
+    /// reference computations in unit tests. Goes through
+    /// <see cref="SecureBigInteger.ToByteArray"/>, which already emits a
+    /// two's-complement byte sequence in little-endian order — the exact
+    /// shape <see cref="BigInteger"/>'s ctor consumes.
+    /// </summary>
+    public static BigInteger ToBigInteger(this SecureBigInteger value)
+    {
+        using var bytes = value.ToByteArray();
+        var managed = new byte[bytes.Length];
+        System.Array.Copy(bytes.PoolArray, managed, bytes.Length);
+        return new BigInteger(managed);
+    }
 }

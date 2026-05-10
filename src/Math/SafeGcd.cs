@@ -176,6 +176,185 @@ internal static class SafeGcd
     }
 
     /// <summary>
+    /// Computes the gcd together with integer-form Bezout coefficients
+    /// <paramref name="alpha"/> and <paramref name="beta"/> satisfying
+    /// <c>alpha * fInput + beta * gInput = 2^iterationCount * gcd</c>.
+    /// Tracks a 2 × 2 transition matrix in integer form so that the divstep
+    /// halving cancels with an outer doubling — every matrix update is a
+    /// pure integer add, subtract, or doubling, never a division.
+    /// </summary>
+    /// <param name="fInput">First operand. Must be positive and odd.</param>
+    /// <param name="gInput">Second operand. Must be non-negative.</param>
+    /// <param name="bitLengthBound">Public upper bound on the bit length
+    /// of the operands (drives the iteration count, identical contract
+    /// to <see cref="Gcd"/>).</param>
+    /// <returns>A tuple <c>(gcd, alpha, beta, iterationCount)</c> with the
+    /// gcd and the integer-form Bezout coefficients. The caller takes
+    /// ownership of all three <see cref="SecureBigInteger"/> instances and
+    /// must dispose them.</returns>
+    /// <remarks>
+    /// The integer-form formulation tracks <c>(u_f, v_f, u_g, v_g)</c> such
+    /// that for each iteration <c>k</c>:
+    /// <code>
+    ///   2^k * f_k = u_f * fInput + v_f * gInput
+    ///   2^k * g_k = u_g * fInput + v_g * gInput
+    /// </code>
+    /// Initial state at k = 0: <c>u_f = 1</c>, <c>v_f = 0</c>, <c>u_g = 0</c>,
+    /// <c>v_g = 1</c>. Per-divstep updates (derived directly from the
+    /// definitions of f_{k+1}, g_{k+1} in each branch):
+    /// <list type="bullet">
+    ///   <item>Branch 1 (δ &gt; 0, g_k odd):
+    ///   u_f' = 2 u_g, v_f' = 2 v_g, u_g' = u_g − u_f, v_g' = v_g − v_f.</item>
+    ///   <item>Branch 2 (δ ≤ 0, g_k odd):
+    ///   u_f' = 2 u_f, v_f' = 2 v_f, u_g' = u_g + u_f, v_g' = v_g + v_f.</item>
+    ///   <item>Branch 3 (g_k even):
+    ///   u_f' = 2 u_f, v_f' = 2 v_f, u_g' = u_g, v_g' = v_g.</item>
+    /// </list>
+    /// After iteration <c>n</c>, <c>g_n = 0</c> and <c>|f_n| = gcd</c>;
+    /// <c>2^n * gcd = ±(u_f * fInput + v_f * gInput)</c>, where the sign
+    /// flips if <c>f_n &lt; 0</c>. The returned alpha, beta absorb that
+    /// sign so the caller-facing identity is always
+    /// <c>alpha * fInput + beta * gInput = 2^iterationCount * gcd</c> with
+    /// non-negative gcd.
+    /// </remarks>
+    public static (SecureBigInteger gcd, SecureBigInteger alpha, SecureBigInteger beta, int iterationCount)
+        ExtendedGcd(SecureBigInteger fInput, SecureBigInteger gInput, int bitLengthBound)
+    {
+        if (fInput is null)
+        {
+            throw new ArgumentNullException(nameof(fInput));
+        }
+
+        if (gInput is null)
+        {
+            throw new ArgumentNullException(nameof(gInput));
+        }
+
+        if (bitLengthBound <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitLengthBound), bitLengthBound, string.Format(ErrorMessages.ValueLowerThanX, 1));
+        }
+
+        if (fInput.Sign <= 0 || fInput.IsEven)
+        {
+            throw new ArgumentException("fInput must be positive and odd.", nameof(fInput));
+        }
+
+        if (gInput.Sign < 0)
+        {
+            throw new ArgumentException(string.Format(ErrorMessages.ValueLowerThanX, 0), nameof(gInput));
+        }
+
+        int iterations = ((4939 * bitLengthBound) + 8000 + 1699) / 1700;
+
+        SecureBigInteger f = new SecureBigInteger(fInput);
+        SecureBigInteger g = new SecureBigInteger(gInput);
+        SecureBigInteger uF = (SecureBigInteger)1;
+        SecureBigInteger vF = (SecureBigInteger)0;
+        SecureBigInteger uG = (SecureBigInteger)0;
+        SecureBigInteger vG = (SecureBigInteger)1;
+        int delta = 1;
+
+        try
+        {
+            for (int i = 0; i < iterations; i++)
+            {
+                ApplyExtendedDivstep(ref f, ref g, ref delta, ref uF, ref vF, ref uG, ref vG);
+            }
+
+            // Sign-correct the Bezout coefficients so the returned identity is
+            // alpha * fInput + beta * gInput = 2^iterationCount * |f_n|.
+            bool fIsNegative = f.Sign < 0;
+            SecureBigInteger gcd = f.Abs();
+            SecureBigInteger alpha = fIsNegative ? uF.Negate() : new SecureBigInteger(uF);
+            SecureBigInteger beta = fIsNegative ? vF.Negate() : new SecureBigInteger(vF);
+
+            return (gcd, alpha, beta, iterations);
+        }
+        finally
+        {
+            f?.Dispose();
+            g?.Dispose();
+            uF?.Dispose();
+            vF?.Dispose();
+            uG?.Dispose();
+            vG?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Applies one extended divstep transformation, updating the working
+    /// values <paramref name="f"/>, <paramref name="g"/>,
+    /// <paramref name="delta"/> together with the four matrix entries
+    /// <paramref name="uF"/>, <paramref name="vF"/>, <paramref name="uG"/>,
+    /// <paramref name="vG"/> in lock-step. All previous instances are
+    /// disposed before being replaced.
+    /// </summary>
+    private static void ApplyExtendedDivstep(
+        ref SecureBigInteger f, ref SecureBigInteger g, ref int delta,
+        ref SecureBigInteger uF, ref SecureBigInteger vF,
+        ref SecureBigInteger uG, ref SecureBigInteger vG)
+    {
+        bool gIsOdd = !g.IsEven;
+        bool branch1 = delta > 0 && gIsOdd;
+
+        SecureBigInteger newF;
+        SecureBigInteger newG;
+        SecureBigInteger newUF;
+        SecureBigInteger newVF;
+        SecureBigInteger newUG;
+        SecureBigInteger newVG;
+        int newDelta;
+
+        if (branch1)
+        {
+            newF = new SecureBigInteger(g);
+            using var diff = SecureBigInteger.Subtract(g, f);
+            newG = diff / 2;
+            newUF = uG + uG;
+            newVF = vG + vG;
+            newUG = SecureBigInteger.Subtract(uG, uF);
+            newVG = SecureBigInteger.Subtract(vG, vF);
+            newDelta = -delta;
+        }
+        else if (gIsOdd)
+        {
+            newF = new SecureBigInteger(f);
+            using var sum = SecureBigInteger.Add(g, f);
+            newG = sum / 2;
+            newUF = uF + uF;
+            newVF = vF + vF;
+            newUG = SecureBigInteger.Add(uG, uF);
+            newVG = SecureBigInteger.Add(vG, vF);
+            newDelta = delta + 1;
+        }
+        else
+        {
+            newF = new SecureBigInteger(f);
+            newG = g / 2;
+            newUF = uF + uF;
+            newVF = vF + vF;
+            newUG = new SecureBigInteger(uG);
+            newVG = new SecureBigInteger(vG);
+            newDelta = delta + 1;
+        }
+
+        f.Dispose();
+        g.Dispose();
+        uF.Dispose();
+        vF.Dispose();
+        uG.Dispose();
+        vG.Dispose();
+        f = newF;
+        g = newG;
+        uF = newUF;
+        vF = newVF;
+        uG = newUG;
+        vG = newVG;
+        delta = newDelta;
+    }
+
+    /// <summary>
     /// Applies one divstep transformation to <paramref name="f"/>,
     /// <paramref name="g"/>, and <paramref name="delta"/> in place.
     /// </summary>

@@ -158,4 +158,89 @@ public class SafeGcdTest
         // Assert
         Assert.Equal("gInput", ex.ParamName);
     }
+
+    [Theory]
+    // Verifies the integer-form Bezout identity:
+    //   alpha * fInput + beta * gInput = 2^iterationCount * gcd
+    // for representative inputs across small primes, common-factor pairs,
+    // and Mersenne-prime moduli (M_3, M_5, M_13, M_31).
+    [InlineData("7", "5", 3)]
+    [InlineData("7", "0", 3)]
+    [InlineData("31", "10", 5)]
+    [InlineData("31", "30", 5)]
+    [InlineData("127", "100", 7)]
+    [InlineData("127", "1", 7)]
+    [InlineData("15", "10", 4)]
+    [InlineData("15", "9", 4)]
+    [InlineData("21", "14", 5)]
+    // Note: bitLengthBound must upper-bound BOTH inputs. Below, 12345 has 14 bits,
+    // larger than M_13 = 8191 (13 bits), so the bound is 14 not 13.
+    [InlineData("8191", "12345", 14)]
+    [InlineData("8191", "0", 13)]
+    [InlineData("2147483647", "1", 31)]
+    [InlineData("2147483647", "999999937", 31)]
+    public void ExtendedGcd_AlphaTimesFPlusBetaTimesG_Equals2ToTheNTimesGcd(string fDec, string gDec, int bitLengthBound)
+    {
+        // Arrange
+        BclBigInteger fBig = BclBigInteger.Parse(fDec);
+        BclBigInteger gBig = BclBigInteger.Parse(gDec);
+        BclBigInteger expectedGcd = BclBigInteger.GreatestCommonDivisor(fBig, gBig);
+        using var f = fBig.ToSecureBigInteger();
+        using var g = gBig.ToSecureBigInteger();
+
+        // Act
+        var (gcd, alpha, beta, iterations) = SafeGcd.ExtendedGcd(f, g, bitLengthBound);
+
+        try
+        {
+            BclBigInteger gcdActual = gcd.ToBigInteger();
+            BclBigInteger alphaActual = alpha.ToBigInteger();
+            BclBigInteger betaActual = beta.ToBigInteger();
+            BclBigInteger expectedRhs = (BclBigInteger.One << iterations) * expectedGcd;
+            BclBigInteger actualLhs = (alphaActual * fBig) + (betaActual * gBig);
+
+            // Assert
+            Assert.Equal(expectedGcd, gcdActual);
+            Assert.Equal(expectedRhs, actualLhs);
+        }
+        finally
+        {
+            gcd.Dispose();
+            alpha.Dispose();
+            beta.Dispose();
+        }
+    }
+
+    [Fact]
+    public void ExtendedGcd_FInputNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var g = new BclSecureBigInteger(5);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => SafeGcd.ExtendedGcd(null!, g, 8));
+    }
+
+    [Fact]
+    public void ExtendedGcd_GInputNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var f = new BclSecureBigInteger(7);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => SafeGcd.ExtendedGcd(f, null!, 8));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ExtendedGcd_NonPositiveBitLengthBound_ThrowsArgumentOutOfRangeException(int bitLengthBound)
+    {
+        // Arrange
+        using var f = new BclSecureBigInteger(7);
+        using var g = new BclSecureBigInteger(5);
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() => SafeGcd.ExtendedGcd(f, g, bitLengthBound));
+    }
 }
