@@ -40,6 +40,7 @@ using Cryptography.SecureArray;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
 using System.Security.Cryptography;
 #endif
@@ -1926,7 +1927,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// (single-instruction <c>MUL r/m64</c> on x64), which the JIT lowers to a
     /// constant-time hardware multiplication on every supported architecture.
     /// </summary>
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void MultiplyToHighLow(ulong x, ulong y, out ulong high, out ulong low)
     {
         // Math.BigMul(a, b, out lo) RETURNS the high 64 bits and OUTS the low
@@ -1973,68 +1974,165 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="divisor">The <see cref="SecureBigInteger"/> to divide by.</param>
     /// <param name="remainder">The out parameter that will contain the remainder of the division.</param>
     /// <returns>A new <see cref="SecureBigInteger"/> representing the unsigned quotient of the division.</returns>
+    /// <remarks>
+    /// Constant-time long division on 64-bit limbs. The bit loop iterates
+    /// <c>dividend.LimbCount * 64</c> times unconditionally — a public observable
+    /// that depends on the operand byte length, never on its content. Each
+    /// iteration:
+    /// <list type="number">
+    ///   <item>shifts the partial remainder left by one bit (linear in
+    ///   <c>remainderLimbCount</c>);</item>
+    ///   <item>OR-s in the dividend bit at the current position;</item>
+    ///   <item>trial-subtracts the divisor in place, tracking the final borrow;</item>
+    ///   <item>conditionally adds the divisor back when the trial subtraction
+    ///   underflowed, gated by a branchless mask <c>0 - borrow</c>;</item>
+    ///   <item>writes the canSubtract flag into the quotient bit at the same
+    ///   position via an unconditional OR with <c>(canSubtract &lt;&lt; bit)</c>.</item>
+    /// </list>
+    /// The classical "compare-and-subtract" branch is replaced by always-subtract +
+    /// always-undo-when-borrow. The final remainder is bounded by
+    /// <c>divisor - 1</c>; the pre-subtract value is bounded by <c>2*divisor - 1</c>,
+    /// which is why the remainder buffer is sized at <c>divisor.LimbCount + 1</c>.
+    /// </remarks>
     private static SecureBigInteger DivideUnsigned(SecureBigInteger dividend, SecureBigInteger divisor,
         out SecureBigInteger remainder)
     {
-        var dividendLen = GetActualLength(dividend);
-        var divisorLen = GetActualLength(divisor);
-        var cmp = CompareUnsigned(dividend.data.PoolArray, dividendLen, divisor.data.PoolArray, divisorLen);
+        using var dividendLimbs = dividend.ToLimbs();
+        using var divisorLimbs = divisor.ToLimbs();
+        int dividendLimbCount = dividend.LimbCount;
+        int divisorLimbCount = divisor.LimbCount;
+        int totalBits = dividendLimbCount * 64;
 
-        switch (cmp)
+        // Pre-subtract maximum: shift-left of (divisor - 1) plus an OR-in bit
+        // gives 2*(divisor - 1) + 1 < 2*divisor, which fits in
+        // divisor.LimbCount + 1 limbs. The +1 absorbs the shift overflow from
+        // the high limb of the post-shift value.
+        int remainderLimbCount = divisorLimbCount + 1;
+        using var rem = new PinnedPoolArray<ulong>(remainderLimbCount);
+        using var quot = new PinnedPoolArray<ulong>(dividendLimbCount);
+
+        for (int bit = totalBits - 1; bit >= 0; bit--)
         {
-            case < 0:
-                remainder = new SecureBigInteger(dividend.data.PoolArray, dividendLen, false);
-                return new SecureBigInteger(0);
-            case 0:
-                remainder = new SecureBigInteger(0);
-                return new SecureBigInteger(1);
+            ShiftLeftByOneBitInPlace(rem, remainderLimbCount);
+
+            // OR in the dividend bit at position `bit` (LSB-indexed; bit/64
+            // selects the limb, bit%64 the bit within it).
+            ulong dividendBit = (dividendLimbs[bit >> 6] >> (bit & 63)) & 1UL;
+            rem[0] |= dividendBit;
+
+            ulong borrow = SubtractInPlace(rem, remainderLimbCount, divisorLimbs, divisorLimbCount);
+
+            // canSubtract = NOT borrow (1 if rem ≥ divisor, 0 if rem < divisor).
+            // undoMask    = all-ones if the trial subtract underflowed (need to
+            // revert), zero otherwise.
+            ulong canSubtract = borrow ^ 1UL;
+            ulong undoMask = 0UL - borrow;
+
+            AddMaskedInPlace(rem, remainderLimbCount, divisorLimbs, divisorLimbCount, undoMask);
+
+            // Set quotient bit to canSubtract — an unconditional OR works
+            // because quot[qLimbIdx] starts at zero (PinnedPoolArray ctor
+            // zeroes the buffer) and each bit position is written exactly once.
+            quot[bit >> 6] |= canSubtract << (bit & 63);
         }
 
-        var bitLength = GetBitLength(dividend);
-        using var quotient = new PinnedPoolArray<byte>((bitLength + 7) / 8);
-
-        var currentRemainder = new SecureBigInteger(0);
-        using var one = new SecureBigInteger(1);
-        for (var i = bitLength - 1; i >= 0; i--)
-        {
-            var nextRemainder = ShiftLeftByOneBit(currentRemainder);
-            currentRemainder.Dispose();
-            currentRemainder = nextRemainder;
-
-            if (GetBit(dividend.data.PoolArray, i))
-            {
-                var nextRemWithBit = AddUnsigned(currentRemainder, one);
-                currentRemainder.Dispose();
-                currentRemainder = nextRemWithBit;
-            }
-
-            if (CompareUnsigned(currentRemainder.data.PoolArray, currentRemainder.Length, divisor.data.PoolArray, divisorLen) >= 0)
-            {
-                var nextRemSub = SubtractUnsigned(currentRemainder, divisor);
-                currentRemainder.Dispose();
-                currentRemainder = nextRemSub;
-                SetBit(quotient.PoolArray, i);
-            }
-        }
-
-        remainder = currentRemainder;
-
-        return new SecureBigInteger(quotient.PoolArray, GetActualLength(quotient.PoolArray, (bitLength + 7) / 8), false);
+        remainder = new SecureBigInteger(rem, remainderLimbCount, isNegative: false);
+        return new SecureBigInteger(quot, dividendLimbCount, isNegative: false);
     }
 
     /// <summary>
-    /// Sets a specific bit in the given byte array to 1 at the specified bit index.
+    /// Shifts a pinned ulong-limb buffer left by one bit, in place. High bits
+    /// propagate up through the limb chain LSB-first; the bit shifted out of
+    /// the highest limb is discarded (callers must size their buffer to absorb
+    /// the worst-case shift).
     /// </summary>
-    /// <param name="data">The byte array in which the bit will be set.</param>
-    /// <param name="bitIndex">The index of the bit to set, where the index is zero-based and spans across the entire array.</param>
-    private static void SetBit(byte[] data, int bitIndex)
+    /// <remarks>
+    /// CT-helper marked <c>NoInlining | NoOptimization</c> per the project
+    /// convention for limb-level constant-time primitives, mirroring the BCL
+    /// <c>CryptographicOperations.FixedTimeEquals</c> pattern (available on
+    /// .NET 5+ but referenced here textually so older TFMs keep building).
+    /// The loop iteration count is <paramref name="limbCount"/>, a public
+    /// observable; the per-iteration body has no data-dependent branches.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+    private static void ShiftLeftByOneBitInPlace(PinnedPoolArray<ulong> limbs, int limbCount)
     {
-        var byteIndex = bitIndex / 8;
-        var bitInByte = bitIndex % 8;
-
-        if (byteIndex < data.Length)
+        ulong shiftCarry = 0;
+        for (int i = 0; i < limbCount; i++)
         {
-            data[byteIndex] |= (byte)(1 << bitInByte);
+            ulong oldLimb = limbs[i];
+            limbs[i] = (oldLimb << 1) | shiftCarry;
+            shiftCarry = oldLimb >> 63;
+        }
+    }
+
+    /// <summary>
+    /// Subtracts <paramref name="subtrahend"/> from <paramref name="minuend"/>
+    /// in place, returning the final borrow (1 if the unsigned subtraction
+    /// underflowed, 0 otherwise). Both buffers are read LSB-first; the
+    /// subtrahend may be shorter than the minuend, in which case the missing
+    /// high limbs are treated as zero.
+    /// </summary>
+    /// <remarks>
+    /// CT-helper. Borrow propagation uses the two-step pattern of D4-step-1:
+    /// <c>borrow1</c> captures wrap of <c>(s + carryIn)</c>, <c>borrow2</c>
+    /// captures wrap of <c>(m - sb)</c>; their bitwise-OR is the new borrow.
+    /// On x86 RyuJIT the <c>&lt;</c> and <c>&gt;</c> operators on <c>ulong</c>
+    /// lower to <c>setb</c>/<c>seta</c> — branchless even with
+    /// <c>NoOptimization</c>, because the basic CMP+SETcc lowering is part of
+    /// standard code emission.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+    private static ulong SubtractInPlace(
+        PinnedPoolArray<ulong> minuend, int minuendCount,
+        PinnedPoolArray<ulong> subtrahend, int subtrahendCount)
+    {
+        ulong borrow = 0;
+        for (int i = 0; i < minuendCount; i++)
+        {
+            ulong s = i < subtrahendCount ? subtrahend[i] : 0UL;
+            ulong sb = s + borrow;
+            ulong borrow1 = sb < s ? 1UL : 0UL;
+            ulong diff = minuend[i] - sb;
+            ulong borrow2 = diff > minuend[i] ? 1UL : 0UL;
+            borrow = borrow1 | borrow2;
+            minuend[i] = diff;
+        }
+
+        return borrow;
+    }
+
+    /// <summary>
+    /// Adds <paramref name="addend"/> to <paramref name="accumulator"/> in
+    /// place, with each addend limb gated by <paramref name="mask"/>: when
+    /// <paramref name="mask"/> is all-ones the addend is added unchanged;
+    /// when it is zero the addition is a no-op (every addLimb becomes zero).
+    /// Used as a constant-time conditional add in the divide loop's
+    /// "trial-subtract + undo-on-borrow" pattern.
+    /// </summary>
+    /// <remarks>
+    /// CT-helper. The mask is computed branchlessly by the caller from the
+    /// trial subtract's borrow flag (<c>0 - borrow</c>), so no data-dependent
+    /// branch ever reaches this routine; the loop iteration count is
+    /// <paramref name="accumulatorCount"/>, a public observable.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+    private static void AddMaskedInPlace(
+        PinnedPoolArray<ulong> accumulator, int accumulatorCount,
+        PinnedPoolArray<ulong> addend, int addendCount,
+        ulong mask)
+    {
+        ulong carry = 0;
+        for (int i = 0; i < accumulatorCount; i++)
+        {
+            ulong a = i < addendCount ? addend[i] : 0UL;
+            ulong addLimb = a & mask;
+            ulong sum = accumulator[i] + addLimb;
+            ulong carry1 = sum < accumulator[i] ? 1UL : 0UL;
+            ulong sumWithCarry = sum + carry;
+            ulong carry2 = sumWithCarry < sum ? 1UL : 0UL;
+            accumulator[i] = sumWithCarry;
+            carry = carry1 | carry2;
         }
     }
 
@@ -2194,57 +2292,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         return bits;
     }
 
-    /// <summary>
-    /// Determines whether the specified bit is set in a byte array.
-    /// </summary>
-    /// <param name="data">The byte array from which to check the specified bit.</param>
-    /// <param name="bitIndex">The zero-based index of the bit to check.</param>
-    /// <returns>Returns <see langword="true"/> if the specified bit is set; otherwise, returns <see langword="false"/>.</returns>
-    private static bool GetBit(byte[] data, int bitIndex)
-    {
-        var byteIndex = bitIndex / 8;
-        var bitInByte = bitIndex % 8;
-
-        if (byteIndex >= data.Length)
-        {
-            return false;
-        }
-
-        return (data[byteIndex] >> bitInByte & 1) == 1;
-    }
-
-    /// <summary>
-    /// Shifts the bits of the specified <see cref="SecureBigInteger"/> to the left by one position.
-    /// </summary>
-    /// <param name="secureBigInteger">
-    /// The <see cref="SecureBigInteger"/> instance whose bits are to be shifted left by one position.
-    /// </param>
-    /// <returns>
-    /// A new <see cref="SecureBigInteger"/> representing the result of the left bitwise shift operation.
-    /// </returns>
-    private static SecureBigInteger ShiftLeftByOneBit(SecureBigInteger secureBigInteger)
-    {
-        var actualLen = GetActualLength(secureBigInteger);
-        using var result = new PinnedPoolArray<byte>(actualLen + 1);
-
-        var carry = 0;
-
-        for (var i = 0; i < actualLen; i++)
-        {
-            int shifted = (secureBigInteger.data[i] << 1) | carry;
-            result[i] = (byte)(shifted & 0xFF);
-            carry = shifted >> 8;
-        }
-
-        var finalLen = actualLen;
-        if (carry > 0)
-        {
-            result[actualLen] = (byte)carry;
-            finalLen++;
-        }
-
-        return new SecureBigInteger(result.PoolArray, GetActualLength(result.PoolArray, finalLen), false);
-    }
 
     private static void ShiftRightInPlace(SecureBigInteger value, int bits)
     {
