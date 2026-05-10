@@ -1168,469 +1168,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Calculates the logarithm to the specified base
-    /// </summary>
-    /// <param name="value">Value to calculate the logarithm for</param>
-    /// <param name="baseValue">Base of the logarithm</param>
-    /// <returns>The logarithm to the specified base or NaN if not defined</returns>
-    public static double Log(SecureBigInteger value, double baseValue)
-    {
-        if (value is null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        value.ThrowIfDisposed();
-
-        if (TryGetSpecialLogResult(value, baseValue, out double special))
-        {
-            return special;
-        }
-
-        if (value.Sign <= 0)
-        {
-            return value.Sign == 0
-                ? double.NegativeInfinity
-                : double.NaN; // Logarithm of negative numbers is not defined
-        }
-
-        if (value.IsOne)
-        {
-            return 0.0;
-        }
-
-        if (value.Length <= 8)
-        {
-            try
-            {
-                ulong ulongValue = BytesToULong(value.data.PoolArray, value.Length);
-                return Math.Log(ulongValue, baseValue);
-            }
-            catch
-            {
-                // Case of overflow, continue with the general method
-            }
-        }
-
-        // For large numbers: log_b(x) = ln(x) / ln(b)
-        double naturalLog = Log(value);
-        return naturalLog / Math.Log(baseValue);
-    }
-
-    /// <summary>
-    /// Calculates the natural logarithm (base e)
-    /// </summary>
-    /// <param name="value">Value to calculate the natural logarithm for</param>
-    /// <returns>The natural logarithm</returns>
-    public static double Log(SecureBigInteger value)
-    {
-        if (value is null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        value.ThrowIfDisposed();
-
-        if (value.Sign <= 0)
-        {
-            return value.Sign == 0 ? double.NegativeInfinity : double.NaN;
-        }
-
-        if (value.IsOne)
-        {
-            return 0.0;
-        }
-
-        // For small values, calculate directly
-        if (value.Length <= 8)
-        {
-            try
-            {
-                var ulongValue = BytesToULong(value.data.PoolArray, value.Length);
-                return Math.Log(ulongValue);
-            }
-            catch
-            {
-                // Case of overflow, continue with the general method
-            }
-        }
-
-        // For large numbers:
-        // ln(x) = ln(2^n * m) = n * ln(2) + ln(m)
-        // where n is the number of bits and m is the mantissa
-
-        var bitLength = GetBitLength(value);
-
-        // Extract the leading bits for higher accuracy
-        const int mantissaBits = 53;
-        var mantissa = ExtractMantissa(value, bitLength, mantissaBits);
-
-        // ln(x) = (bitLength - mantissaBits) * ln(2) + ln(mantissa)
-        return (bitLength - mantissaBits) * Math.Log(2.0) + Math.Log(mantissa);
-    }
-
-    /// <summary>
-    /// Calculates the logarithm to base 10
-    /// </summary>
-    /// <param name="value">Value to calculate the logarithm for</param>
-    /// <returns>The logarithm to base 10</returns>
-    public static double Log10(SecureBigInteger value)
-    {
-        if (value is null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        value.ThrowIfDisposed();
-
-        if (value.Sign <= 0)
-        {
-            return value.Sign == 0 ? double.NegativeInfinity : double.NaN;
-        }
-
-        if (value.IsOne)
-        {
-            return 0.0;
-        }
-
-        // For small values, calculate directly
-        if (value.Length <= 8)
-        {
-            try
-            {
-                var ulongValue = BytesToULong(value.data.PoolArray, value.Length);
-                return Math.Log10(ulongValue);
-            }
-            catch
-            {
-                // Case of overflow, continue with the general method
-            }
-        }
-
-        // log10(x) = ln(x) / ln(10)
-        return Log(value) / Math.Log(10.0);
-    }
-
-    /// <summary>
-    /// Calculates the logarithm to base 2
-    /// </summary>
-    /// <param name="value">Value to calculate the logarithm for</param>
-    /// <returns>The logarithm to base 2</returns>
-    public static double Log2(SecureBigInteger value)
-    {
-        if (value is null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        value.ThrowIfDisposed();
-
-        if (value.Sign <= 0)
-        {
-            return value.Sign == 0 ? double.NegativeInfinity : double.NaN;
-        }
-
-        if (value.IsOne)
-        {
-            return 0.0;
-        }
-
-        // For small values, calculate directly
-        if (value.Length <= 8)
-        {
-            try
-            {
-                ulong ulongValue = BytesToULong(value.data.PoolArray, value.Length);
-                return Math.Log(ulongValue, 2.0);
-            }
-            catch
-            {
-                // Case of overflow, continue with the general method
-            }
-        }
-
-        // The logarithm to base 2 can be calculated efficiently:
-        var bitLength = GetBitLength(value);
-
-        // Extract the mantissa using the leading 53 bits (double mantissa) for higher accuracy
-        const int mantissaBits = 53;
-        var mantissa = ExtractMantissa(value, bitLength, mantissaBits);
-
-        // log2(x) = (bitLength - mantissaBits) + log2(mantissa)
-        return (bitLength - mantissaBits) + Math.Log(mantissa, 2.0);
-    }
-
-    /// <summary>
-    /// Returns a special-case logarithm result when the base alone (or base together with
-    /// <paramref name="value"/> being one or an infinite base) determines the answer.
-    /// Extracted to keep <see cref="Log(SecureBigInteger, double)"/> below SonarQube's
-    /// cognitive-complexity threshold.
-    /// </summary>
-    [SuppressMessage("SonarQube", "S1244",
-        Justification = "Exact equality is intentional for these IEEE 754 magic-value checks. " +
-                        "A tolerance would erroneously classify near-1 or near-0 bases as " +
-                        "undefined; only the exact bit pattern represents the mathematically " +
-                        "degenerate cases.")]
-    private static bool TryGetSpecialLogResult(SecureBigInteger value, double baseValue, out double result)
-    {
-        if (double.IsNaN(baseValue) || baseValue < 0.0)
-        {
-            result = double.NaN;
-            return true;
-        }
-
-        if (baseValue == 1.0)
-        {
-            result = double.NaN;
-            return true;
-        }
-
-        if (double.IsPositiveInfinity(baseValue))
-        {
-            result = value.IsOne ? 0.0 : double.NaN;
-            return true;
-        }
-
-        if (baseValue == 0.0 && !value.IsOne)
-        {
-            result = double.NaN;
-            return true;
-        }
-
-        result = 0;
-        return false;
-    }
-
-    /// <summary>
-    /// Converts the first <paramref name="length"/> little-endian bytes of <paramref name="data"/>
-    /// into a 64-bit unsigned integer.
-    /// </summary>
-    /// <param name="data">The little-endian byte array.</param>
-    /// <param name="length">The number of bytes to consume. Must be in <c>[0, 8]</c>; callers
-    /// holding wider values must extract the desired 8-byte window themselves.</param>
-    /// <returns>The little-endian interpretation of <c>data[0..length]</c>.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="length"/>
-    /// is negative or greater than 8.</exception>
-    private static ulong BytesToULong(byte[] data, int length)
-    {
-        if (length is < 0 or > 8)
-        {
-            throw new ArgumentOutOfRangeException(nameof(length), ErrorMessages.LengthOutOfRangeForUlong);
-        }
-
-        var result = 0UL;
-        for (int i = length - 1; i >= 0; i--)
-        {
-            result = result << 8 | data[i];
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Extracts the leading bits from the given <see cref="SecureBigInteger"/> to form a mantissa suitable for logarithm calculations.
-    /// </summary>
-    /// <param name="secureBigInteger">The <see cref="SecureBigInteger"/> instance to extract the mantissa from.</param>
-    /// <param name="totalBits">The total number of bits in the number.</param>
-    /// <param name="bitsToExtract">The number of leading bits to extract.</param>
-    /// <returns>A mantissa as a double, where 1.0 &lt;= result &lt; 2.0.</returns>
-    private static double ExtractMantissa(SecureBigInteger secureBigInteger, int totalBits, int bitsToExtract)
-    {
-        var actualLen = GetActualLength(secureBigInteger);
-        if (totalBits <= bitsToExtract)
-        {
-            // The entire number fits into the mantissa; for bitsToExtract == 53 that's at most 7 bytes.
-            return BytesToULong(secureBigInteger.data.PoolArray, Math.Min(actualLen, 8));
-        }
-
-        using var tempData = new PinnedPoolArray<byte>(actualLen);
-        Array.Copy(secureBigInteger.data.PoolArray, tempData.PoolArray, actualLen);
-        var bitsToShift = totalBits - bitsToExtract;
-        ShiftRightInPlaceInternal(tempData.PoolArray, actualLen, bitsToShift);
-        // After the right shift the mantissa lives in the lowest ceil(bitsToExtract / 8) bytes;
-        // higher bytes are zero. Cap at 8 to satisfy BytesToULong's contract.
-        return BytesToULong(tempData.PoolArray, Math.Min(actualLen, 8));
-    }
-
-    /// <summary>
-    /// Shift-method for a byte array.
-    /// </summary>
-    private static void ShiftRightInPlaceInternal(byte[] data, int length, int bits)
-    {
-        if (bits <= 0)
-        {
-            return;
-        }
-
-        var byteShift = bits / 8;
-        var bitShift = bits % 8;
-
-        if (byteShift >= length)
-        {
-            Array.Clear(data, 0, length);
-            return;
-        }
-
-        // Byte-Shift
-        if (byteShift > 0)
-        {
-            for (int i = 0; i < length - byteShift; i++)
-            {
-                data[i] = data[i + byteShift];
-            }
-
-            for (int i = length - byteShift; i < length; i++)
-            {
-                data[i] = 0;
-            }
-        }
-
-        // Bit-Shift
-        if (bitShift > 0)
-        {
-            for (int i = 0; i < length - 1; i++)
-            {
-                data[i] = (byte)(data[i] >> bitShift | data[i + 1] << (8 - bitShift));
-            }
-
-            data[length - 1] >>= bitShift;
-        }
-    }
-
-    /// <summary>
-    /// Computes the greatest common divisor (GCD) of two <see cref="SecureBigInteger"/> instances.
-    /// </summary>
-    /// <param name="left">The first <see cref="SecureBigInteger"/> instance for which to compute the GCD.</param>
-    /// <param name="right">The second <see cref="SecureBigInteger"/> instance for which to compute the GCD.</param>
-    /// <returns>A new <see cref="SecureBigInteger"/> representing the greatest common divisor of the two input instances.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if either <paramref name="left"/> or <paramref name="right"/> is <see langword="null"/>.</exception>
-    public static SecureBigInteger Gcd(SecureBigInteger left, SecureBigInteger right)
-    {
-        if (left is null)
-        {
-            throw new ArgumentNullException(nameof(left));
-        }
-
-        if (right is null)
-        {
-            throw new ArgumentNullException(nameof(right));
-        }
-
-        left.ThrowIfDisposed();
-        right.ThrowIfDisposed();
-
-        // Both `a` and `b` are heap-allocated and live across multiple iterations;
-        // catch on exception releases whichever is still live. Pattern parallels the
-        // constructor / ModPow.
-        SecureBigInteger a = null;
-        SecureBigInteger b = null;
-        try
-        {
-            a = left.Abs();
-            b = right.Abs();
-            while (!b.IsZeroInternal())
-            {
-                using var temp = Remainder(a, b);
-                a.Dispose();
-                a = new SecureBigInteger(b);
-
-                b.Dispose();
-                b = new SecureBigInteger(temp);
-            }
-
-            b.Dispose();
-            return a;
-        }
-        catch
-        {
-            a?.Dispose();
-            b?.Dispose();
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Computes the modular exponentiation of a <see cref="SecureBigInteger"/> value.
-    /// </summary>
-    /// <param name="value">The base <see cref="SecureBigInteger"/> value for the exponentiation operation.</param>
-    /// <param name="exponent">The exponent <see cref="SecureBigInteger"/> value for the exponentiation operation.</param>
-    /// <param name="modulus">The modulus <see cref="SecureBigInteger"/> value for the exponentiation operation.</param>
-    /// <returns>A new <see cref="SecureBigInteger"/> representing the result of the modular exponentiation operation.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if any of the input parameters (<paramref name="value"/>, <paramref name="exponent"/>, or <paramref name="modulus"/>) is <see langword="null"/>.</exception>
-    /// <exception cref="DivideByZeroException">Thrown if the modulus is zero.</exception>
-    /// <exception cref="ArgumentException">Thrown if the exponent is negative.</exception>
-    public static SecureBigInteger ModPow(SecureBigInteger value, SecureBigInteger exponent, SecureBigInteger modulus)
-    {
-        if (value is null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        if (exponent is null)
-        {
-            throw new ArgumentNullException(nameof(exponent));
-        }
-
-        if (modulus is null)
-        {
-            throw new ArgumentNullException(nameof(modulus));
-        }
-
-        value.ThrowIfDisposed();
-        exponent.ThrowIfDisposed();
-        modulus.ThrowIfDisposed();
-
-        if (modulus.IsZeroInternal())
-        {
-            throw new DivideByZeroException(ErrorMessages.ModulusMustNotBeZero);
-        }
-
-        if (exponent.isNegative)
-        {
-            throw new ArgumentException(ErrorMessages.ExponentMustBeNonNegative, nameof(exponent));
-        }
-
-        var result = new SecureBigInteger(1);
-        SecureBigInteger baseValue = null;
-        try
-        {
-            baseValue = Remainder(value, modulus);
-            using var exp = new SecureBigInteger(exponent);
-            while (!exp.IsZeroInternal())
-            {
-                if ((exp.data[0] & 1) == 1)
-                {
-                    using var temp = Multiply(result, baseValue);
-                    using var tempMod = Remainder(temp, modulus);
-                    result.Dispose();
-                    result = new SecureBigInteger(tempMod);
-                }
-
-                ShiftRightInPlace(exp, 1);
-
-                if (!exp.IsZeroInternal())
-                {
-                    using var temp = Multiply(baseValue, baseValue);
-                    using var tempMod = Remainder(temp, modulus);
-                    baseValue.Dispose();
-                    baseValue = new SecureBigInteger(tempMod);
-                }
-            }
-
-            return result;
-        }
-        catch
-        {
-            result.Dispose();
-            throw;
-        }
-        finally
-        {
-            baseValue?.Dispose();
-        }
-    }
-
-    /// <summary>
     /// Addition operator for <see cref="SecureBigInteger"/>.
     /// </summary>
     /// <param name="left">1st summand</param>
@@ -2449,85 +1986,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Calculates the bit length of the specified <see cref="SecureBigInteger"/> instance.
-    /// </summary>
-    /// <param name="secureBigInteger">The <see cref="SecureBigInteger"/> whose bit length is to be calculated.</param>
-    /// <returns>The number of bits required to represent the value of the <see cref="SecureBigInteger"/>.</returns>
-    private static int GetBitLength(SecureBigInteger secureBigInteger)
-    {
-        var len = GetActualLength(secureBigInteger);
-        if (len == 0 || (len == 1 && secureBigInteger.data[0] == 0))
-        {
-            return 0;
-        }
-
-        var highByte = secureBigInteger.data[len - 1];
-        var bits = (len - 1) * 8;
-
-        while (highByte > 0)
-        {
-            bits++;
-            highByte >>= 1;
-        }
-
-        return bits;
-    }
-
-
-    private static void ShiftRightInPlace(SecureBigInteger value, int bits)
-    {
-        if (bits <= 0)
-        {
-            return;
-        }
-
-        var byteShift = bits / 8;
-        var bitShift = bits % 8;
-
-        if (byteShift >= value.Length)
-        {
-            value.data.SecureClear();
-            value.Length = 1;
-            value.data[0] = 0;
-            value.isNegative = false;
-            return;
-        }
-
-        // Byte-Shift
-        if (byteShift > 0)
-        {
-            for (int i = 0; i < value.Length - byteShift; i++)
-            {
-                value.data[i] = value.data[i + byteShift];
-            }
-
-            for (int i = value.Length - byteShift; i < value.Length; i++)
-            {
-                value.data[i] = 0;
-            }
-
-            value.Length -= byteShift;
-        }
-
-        // Bit-Shift
-        if (bitShift > 0)
-        {
-            for (int i = 0; i < value.Length - 1; i++)
-            {
-                value.data[i] = (byte)(value.data[i] >> bitShift | value.data[i + 1] << (8 - bitShift));
-            }
-
-            value.data[value.Length - 1] >>= bitShift;
-        }
-
-        value.TrimLeadingZerosInPlace();
-        if (value.IsZeroInternal())
-        {
-            value.isNegative = false;
-        }
-    }
-
-    /// <summary>
     /// Determines whether the current <see cref="SecureBigInteger"/> instance represents the value zero.
     /// </summary>
     /// <returns>
@@ -2750,6 +2208,48 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
+    /// Counts the decimal-digit length of the magnitude of <paramref name="value"/>
+    /// (sign-independent). Used by <see cref="ToPinnedCharArray"/> to size the output
+    /// buffer. Integer-only; replaces the previous <c>Log10</c>-based estimate, which
+    /// performed double-precision floating-point arithmetic on operand-derived
+    /// quantities and was therefore unsuitable for a CT-conscious backend.
+    /// </summary>
+    /// <param name="value">The value whose magnitude's decimal-digit length is wanted.</param>
+    /// <returns><c>0</c> when <paramref name="value"/> is zero, otherwise the
+    /// decimal-digit count of <c>|value|</c>.</returns>
+    private static int CountDecimalDigits(SecureBigInteger value)
+    {
+        if (value.IsZeroInternal())
+        {
+            return 0;
+        }
+
+        SecureBigInteger temp = null;
+        try
+        {
+            temp = new SecureBigInteger(value);
+            temp.isNegative = false;
+            using var ten = new SecureBigInteger(10);
+            using var zero = new SecureBigInteger(0);
+            int count = 0;
+            while (CompareUnsigned(temp.data.PoolArray, temp.Length, zero.data.PoolArray, 1) > 0)
+            {
+                count++;
+                var quotient = DivideUnsigned(temp, ten, out var rem);
+                rem.Dispose();
+                temp.Dispose();
+                temp = quotient;
+            }
+
+            return count;
+        }
+        finally
+        {
+            temp?.Dispose();
+        }
+    }
+
+    /// <summary>
     /// Converts the current <see cref="SecureBigInteger"/> instance to a character array representation.
     /// </summary>
     /// <returns>A character array containing the string representation of the current instance.</returns>
@@ -2764,8 +2264,11 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             return zeroArray;
         }
 
-        using var negatedValue = this.Negate();
-        var digitCount = (int)(Log10(this.isNegative ? negatedValue : this) + 1);
+        // Determine digit count by counting repeated divisions by 10. The previous
+        // implementation called Log10 (removed in the CT refactor — its double-arithmetic
+        // path was not constant-time on the operand value). Two-pass counting is integer-only
+        // and uses the same DivideUnsigned helper as the digit-extraction loop below.
+        int digitCount = CountDecimalDigits(this);
         var totalLength = this.isNegative ? digitCount + 1 : digitCount;
 
         // `result` ownership transfers to caller on success; catch disposes it on
