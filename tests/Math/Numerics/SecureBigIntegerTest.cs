@@ -486,12 +486,62 @@ public class SecureBigIntegerTests
         // Arrange
         using var num1 = new SecureBigInteger(10);
         using var num2 = new SecureBigInteger(0);
-        
+
         // Act & Assert
         Assert.Throws<DivideByZeroException>(() =>
         {
             using var _ = SecureBigInteger.Remainder(num1, num2);
         });
+    }
+
+    [Theory]
+    // Mixed-sign Divide where the magnitude of the dividend is smaller than the
+    // divisor, producing a zero quotient. Without H4 fix, the result has
+    // isNegative=true on a magnitude-0 result ("negative zero"), and Equals
+    // against a clean +0 returns false.
+    [InlineData(3, -5)]
+    [InlineData(-3, 5)]
+    [InlineData(-7, 11)]
+    [InlineData(1, -1000000)]
+    public void Divide_MixedSignWithZeroQuotient_EqualsCleanZero(int a, int b)
+    {
+        // Arrange
+        using var dividend = new SecureBigInteger(a);
+        using var divisor = new SecureBigInteger(b);
+        using var cleanZero = new SecureBigInteger(0);
+
+        // Act
+        using var quotient = SecureBigInteger.Divide(dividend, divisor);
+
+        // Assert
+        Assert.True(quotient.IsZero);
+        Assert.Equal(0, quotient.Sign);
+        Assert.Equal(cleanZero, quotient);
+        Assert.Equal(cleanZero.GetHashCode(), quotient.GetHashCode());
+    }
+
+    [Theory]
+    // Exact divisions with non-positive dividend produce a zero remainder.
+    // Without H4 fix, the remainder inherits dividend.isNegative=true on a
+    // magnitude-0 result ("negative zero"); Equals(rem, +0) returns false.
+    [InlineData(-10, 5)]
+    [InlineData(-100, 25)]
+    [InlineData(-1, 1)]
+    public void Remainder_ExactDivisionNegativeDividend_EqualsCleanZero(int a, int b)
+    {
+        // Arrange
+        using var dividend = new SecureBigInteger(a);
+        using var divisor = new SecureBigInteger(b);
+        using var cleanZero = new SecureBigInteger(0);
+
+        // Act
+        using var remainder = SecureBigInteger.Remainder(dividend, divisor);
+
+        // Assert
+        Assert.True(remainder.IsZero);
+        Assert.Equal(0, remainder.Sign);
+        Assert.Equal(cleanZero, remainder);
+        Assert.Equal(cleanZero.GetHashCode(), remainder.GetHashCode());
     }
 
     [Fact]

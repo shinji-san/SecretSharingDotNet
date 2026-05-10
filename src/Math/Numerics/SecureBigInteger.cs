@@ -603,7 +603,14 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         // until pool-level finalization runs.
         var quotient = DivideUnsigned(dividend, divisor, out var remainder);
         remainder.Dispose();
-        quotient.isNegative = dividend.isNegative != divisor.isNegative;
+        // Only assign the sign if the quotient is non-zero. Otherwise we would
+        // create a "negative zero" — a magnitude-0 result with isNegative=true —
+        // which violates the class invariant that zero is canonically positive
+        // and would make Equals(zeroResult, +0) return false.
+        if (!quotient.IsZeroInternal())
+        {
+            quotient.isNegative = dividend.isNegative != divisor.isNegative;
+        }
 
         return quotient;
     }
@@ -649,7 +656,15 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         // (none of the operations in this short tail can throw realistically),
         // the using ensures cleanup as well.
         using var quotient = DivideUnsigned(dividend, divisor, out var remainder);
-        remainder.isNegative = dividend.isNegative;
+        // Only assign the sign if the remainder is non-zero — otherwise an exact
+        // division (e.g. -10 % 5 = 0) would produce a "negative zero" with
+        // isNegative=true on a magnitude-0 result, breaking the canonical-zero
+        // invariant and Equals against +0.
+        if (!remainder.IsZeroInternal())
+        {
+            remainder.isNegative = dividend.isNegative;
+        }
+
         return remainder;
     }
 
