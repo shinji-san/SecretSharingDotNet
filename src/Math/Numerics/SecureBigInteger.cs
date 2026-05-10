@@ -33,17 +33,11 @@
 
 namespace SecretSharingDotNet.Math.Numerics;
 
-#if (!NET8_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER)
-using Extension;
-#endif
 using Cryptography.SecureArray;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
-using System.Security.Cryptography;
-#endif
 using System.Threading;
 
 
@@ -89,19 +83,14 @@ using System.Threading;
 public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>, IComparable<SecureBigInteger>
 {
     /// <summary>
-    /// The byte array representing the absolute value of the integer in little-endian
-    /// order — <c>data[0]</c> is the least-significant byte.
+    /// The 64-bit-limb array representing the absolute value of the integer in
+    /// little-endian order — <c>limbs[0]</c> is the least-significant limb.
+    /// Canonical storage as of D9. The logical limb count is
+    /// <c>limbs.Length</c>; trimmed to the highest non-zero limb except for
+    /// the value zero, which is stored as a single zero limb
+    /// (<c>limbs.Length == 1</c>, <c>limbs[0] == 0</c>).
     /// </summary>
-    private PinnedPoolArray<byte> data;
-
-    /// <summary>
-    /// The actual length of the data in the <see cref="data"/> array.
-    /// </summary>
-    private int Length
-    {
-        get => this.data.Length;
-        set => this.data.Length = value;
-    } 
+    private PinnedPoolArray<ulong> limbs;
 
     /// <summary>
     /// Indicates whether the current instance represents a negative value.
@@ -118,8 +107,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// </summary>
     public SecureBigInteger()
     {
-        this.data = new PinnedPoolArray<byte>(1);
-        this.data[0] = 0;
+        this.limbs = new PinnedPoolArray<ulong>(length: 1);
     }
 
     /// <summary>
@@ -136,31 +124,17 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="value">The <see cref="long"/> value to initialize from.</param>
     public SecureBigInteger(long value)
     {
+        this.limbs = new PinnedPoolArray<ulong>(length: 1);
+
         if (value == 0)
         {
-            this.data = new PinnedPoolArray<byte>(1);
             return;
         }
 
         this.isNegative = value < 0;
         // unchecked: -long.MinValue overflows back to long.MinValue, whose ulong
         // reinterpretation is 0x8000_0000_0000_0000 — exactly the magnitude we want.
-        ulong absoluteValue = unchecked((ulong)(this.isNegative ? -value : value));
-
-        int byteCount = 0;
-        ulong temp = absoluteValue;
-        while (temp > 0)
-        {
-            byteCount++;
-            temp >>= 8;
-        }
-
-        this.data = new PinnedPoolArray<byte>(byteCount);
-        for (int i = 0; i < byteCount; i++)
-        {
-            this.data[i] = (byte)(absoluteValue & 0xFF);
-            absoluteValue >>= 8;
-        }
+        this.limbs[0] = unchecked((ulong)(this.isNegative ? -value : value));
     }
 
     /// <summary>
@@ -174,29 +148,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// </remarks>
     public SecureBigInteger(ulong value)
     {
-        if (value == 0)
-        {
-            this.data = new PinnedPoolArray<byte>(1);
-            return;
-        }
-
-        this.isNegative = false;
-
-        int byteCount = 0;
-        ulong temp = value;
-        while (temp > 0)
-        {
-            byteCount++;
-            temp >>= 8;
-        }
-
-        this.data = new PinnedPoolArray<byte>(byteCount);
-        ulong remaining = value;
-        for (int i = 0; i < byteCount; i++)
-        {
-            this.data[i] = (byte)(remaining & 0xFF);
-            remaining >>= 8;
-        }
+        this.limbs = new PinnedPoolArray<ulong>(length: 1);
+        this.limbs[0] = value;
     }
 
     /// <summary>
@@ -212,8 +165,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         }
 
         other.ThrowIfDisposed();
-        this.data = new PinnedPoolArray<byte>(other.Length);
-        Array.Copy(other.data.PoolArray, this.data.PoolArray, other.Length);
+        this.limbs = new PinnedPoolArray<ulong>(length: other.limbs.Length);
+        Array.Copy(other.limbs.PoolArray, this.limbs.PoolArray, other.limbs.Length);
         this.isNegative = other.isNegative;
     }
 
@@ -253,14 +206,14 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             throw new ArgumentOutOfRangeException(nameof(length), string.Format(ErrorMessages.CountExceedsArrayLength, length, data.Length));
         }
 
-        if (length == 0)
+        int allocLimbs = length <= 0 ? 1 : (length + 7) / 8;
+        this.limbs = new PinnedPoolArray<ulong>(length: allocLimbs);
+
+        if (length > 0)
         {
-            this.data = new PinnedPoolArray<byte>(1);
-            return;
+            BytesToLimbs(data, length, this.limbs);
         }
 
-        this.data = new PinnedPoolArray<byte>(length);
-        Array.Copy(data, this.data.PoolArray, length);
         this.isNegative = isNegative;
         this.TrimLeadingZerosInPlace();
         if (this.IsZeroInternal())
@@ -306,22 +259,26 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (length == 0)
         {
-            this.data = new PinnedPoolArray<byte>(1);
+            this.limbs = new PinnedPoolArray<ulong>(length: 1);
             return;
         }
 
         var isNegativeRepresentation = IsNegativeRepresentation(data, length);
         this.isNegative = isNegativeRepresentation;
-        var trimmedLength = GetActualLength(data, length);
-        this.data = new PinnedPoolArray<byte>(trimmedLength);
+
+        // The two's-complement decoding stays at byte level — its semantics are
+        // defined on the byte representation. The result is then converted to
+        // the canonical limb storage in one shot.
+        int allocLimbs = (length + 7) / 8;
+        this.limbs = new PinnedPoolArray<ulong>(length: allocLimbs);
         if (isNegativeRepresentation)
         {
-            using var normalizedData = TwosComplement(data, this.Length);
-            Array.Copy(normalizedData.PoolArray, this.data.PoolArray, this.Length);
+            using var normalizedData = TwosComplement(data, length);
+            BytesToLimbs(normalizedData.PoolArray, length, this.limbs);
         }
         else
         {
-            Array.Copy(data, this.data.PoolArray, this.Length);
+            BytesToLimbs(data, length, this.limbs);
         }
 
         this.TrimLeadingZerosInPlace();
@@ -347,15 +304,44 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     private const char DigitOffset = '0';
 
     /// <summary>
-    /// Gets the number of bytes used to represent the internal data of the SecureBigInteger.
+    /// Gets the number of bytes used to represent the magnitude of this <see cref="SecureBigInteger"/>.
     /// </summary>
+    /// <remarks>
+    /// Derived from the canonical limb storage: <c>(limbs.Length - 1) * 8 + bytesInLimb(highLimb)</c>,
+    /// or 1 if the value is zero (preserving the historical convention from byte storage).
+    /// Variable-time on the value of the highest limb — acceptable because <c>ByteCount</c>
+    /// is documented as a public observable in the threat model.
+    /// </remarks>
     public int ByteCount
     {
         get
         {
             this.ThrowIfDisposed();
-            return this.Length;
+            ulong highLimb = this.limbs[this.limbs.Length - 1];
+            if (highLimb == 0)
+            {
+                return 1;
+            }
+
+            return ((this.limbs.Length - 1) * 8) + BytesInLimb(highLimb);
         }
+    }
+
+    /// <summary>
+    /// Counts the number of significant bytes in <paramref name="limb"/>.
+    /// Returns 0 when <paramref name="limb"/> is zero. Variable-time on the
+    /// limb value — only used to derive public observables (<see cref="ByteCount"/>).
+    /// </summary>
+    private static int BytesInLimb(ulong limb)
+    {
+        int count = 0;
+        while (limb != 0)
+        {
+            count++;
+            limb >>= 8;
+        }
+
+        return count;
     }
 
     /// <summary>
@@ -374,11 +360,11 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// Gets a value indicating whether the current <see cref="SecureBigInteger"/> instance represents the value one.
     /// </summary>
     /// <remarks>
-    /// Constant-time on the magnitude bytes: the sign is observable per the threat
+    /// Constant-time on the magnitude limbs: the sign is observable per the threat
     /// model and may legitimately short-circuit to <see langword="false"/>; the
-    /// magnitude check XOR-folds the expected pattern (low byte = 1, all higher
-    /// bytes = 0) into a single byte that is compared against zero. The byte-level
-    /// length <see cref="Length"/> is a public observable and may bound the loop.
+    /// magnitude check XOR-folds the expected pattern (low limb = 1, all higher
+    /// limbs = 0) into a single ulong that is compared against zero. The limb-level
+    /// limb count <c>limbs.Length</c> is a public observable and may bound the loop.
     /// </remarks>
     public bool IsOne
     {
@@ -390,16 +376,10 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
                 return false;
             }
 
-            int len = this.Length;
-            if (len == 0)
+            ulong acc = this.limbs[0] ^ 1UL;
+            for (int i = 1; i < this.limbs.Length; i++)
             {
-                return false;
-            }
-
-            byte acc = (byte)(this.data[0] ^ 1);
-            for (int i = 1; i < len; i++)
-            {
-                acc |= this.data[i];
+                acc |= this.limbs[i];
             }
 
             return acc == 0;
@@ -410,7 +390,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// Gets a value indicating whether the current <see cref="SecureBigInteger"/> instance represents an even number.
     /// </summary>
     /// <remarks>
-    /// Constant-time bit-test on the magnitude's least-significant byte. The sign flag is
+    /// Constant-time bit-test on the magnitude's least-significant limb. The sign flag is
     /// irrelevant: the parity of <c>-x</c> matches the parity of <c>x</c>, and the magnitude
     /// stored here is always non-negative regardless of <c>isNegative</c>.
     /// </remarks>
@@ -419,7 +399,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         get
         {
             this.ThrowIfDisposed();
-            return (this.data[0] & 0x01) == 0;
+            return (this.limbs[0] & 1UL) == 0;
         }
     }
 
@@ -721,7 +701,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         int pBitInLimb = (p - 1) % 64;
         ulong pLimbMask = pBitInLimb == 63 ? ulong.MaxValue : (1UL << (pBitInLimb + 1)) - 1;
 
-        using var srcLimbs = this.ToLimbs();
         int srcLimbCount = this.LimbCount;
 
         int workLimbCount = srcLimbCount >= outLimbCount + 1 ? srcLimbCount : outLimbCount + 1;
@@ -730,7 +709,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         for (int i = 0; i < srcLimbCount; i++)
         {
-            work[i] = srcLimbs[i];
+            work[i] = this.limbs[i];
         }
 
         // Each fold pass shifts bits-above-p down by p, halving the bit-length
@@ -872,9 +851,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public SecureBigInteger Abs()
     {
         this.ThrowIfDisposed();
-        var secureBigInteger = new SecureBigInteger(this);
-        secureBigInteger.isNegative = false;
-        return secureBigInteger;
+        return new SecureBigInteger(this.limbs, this.LimbCount, isNegative: false);
     }
 
     /// <summary>
@@ -890,8 +867,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public SecureBigInteger Negate()
     {
         this.ThrowIfDisposed();
-        using var limbs = this.ToLimbs();
-        return new SecureBigInteger(limbs, this.LimbCount, !this.isNegative);
+        return new SecureBigInteger(this.limbs, this.LimbCount, !this.isNegative);
     }
 
     /// <summary>
@@ -971,25 +947,50 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public PinnedPoolArray<byte> ToByteArray()
     {
         this.ThrowIfDisposed();
-        if (this.isNegative)
+
+        // limbs.Length is trimmed to the highest non-zero limb (or 1 for zero by
+        // convention), so ByteCount derives from the high limb's BytesInLimb plus
+        // the lower limbs' full 8-byte width.
+        int actualByteLength;
+        ulong highLimb = this.limbs[this.limbs.Length - 1];
+        if (highLimb == 0)
         {
-            return TwosComplement(this.data.PoolArray, this.Length);
+            // Zero — single zero byte (preserves the historical convention).
+            actualByteLength = 1;
+        }
+        else
+        {
+            actualByteLength = ((this.limbs.Length - 1) * 8) + BytesInLimb(highLimb);
         }
 
-        bool needsPadding = this.Length > 0 && (this.data[this.Length - 1] & 0x80) != 0;
-        var result = new PinnedPoolArray<byte>(needsPadding ? this.Length + 1 : this.Length);
-        Array.Copy(this.data.PoolArray, result.PoolArray, this.Length);
+        if (this.isNegative)
+        {
+            using var rawBytes = new PinnedPoolArray<byte>(length: actualByteLength);
+            LimbsToBytes(this.limbs, rawBytes);
+            return TwosComplement(rawBytes.PoolArray, actualByteLength);
+        }
+
+        // Pad with one trailing zero byte if the magnitude's high bit is set,
+        // so the unsigned interpretation survives a round-trip through
+        // sign-aware decoders (matching System.Numerics.BigInteger semantics).
+        bool needsPadding = highLimb != 0
+            && ((highLimb >> (((BytesInLimb(highLimb) - 1) * 8) + 7)) & 1UL) != 0;
+        int resultLen = needsPadding ? actualByteLength + 1 : actualByteLength;
+        var result = new PinnedPoolArray<byte>(length: resultLen);
+        // LimbsToBytes is output-driven on bytesOut.Length — temporarily shrink
+        // result.Length so only the magnitude bytes are written; the optional
+        // trailing pad byte stays zero from the ctor's buffer initialisation.
+        result.Length = actualByteLength;
+        LimbsToBytes(this.limbs, result);
+        result.Length = resultLen;
         return result;
     }
 
-    #region D2 — ulong-limb interop (transitional dual-rail)
+    #region Limb conversion helpers
 
-    // The byte-array representation (`this.data`) remains canonical until D9.
-    // The methods in this region expose the magnitude as 64-bit limbs in
-    // little-endian order so that constant-time operations introduced in
-    // D3–D9 can iterate over machine-word limbs instead of bytes — both for
-    // performance (Multiply scales O(n²) in the limb width) and to ease the
-    // safegcd implementation in D7, which is naturally limb-oriented.
+    // Limb storage is canonical as of D9. The helpers below convert to/from
+    // the byte representation when callers (serialisation, two's-complement
+    // ctor) need a byte-oriented view.
     //
     // The byte-to-limb assembly is explicit (not MemoryMarshal.Cast), so the
     // representation is host-endian-independent: limb[i] stores the byte at
@@ -999,42 +1000,43 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Returns the magnitude of this instance as a freshly allocated sequence of
     /// 64-bit limbs in little-endian order: <c>limb[0]</c> holds magnitude bytes
-    /// 0..7, <c>limb[1]</c> holds bytes 8..15, etc. The high limb is zero-padded
-    /// if the magnitude byte length is not a multiple of 8. The sign bit is not
-    /// included; query <see cref="Sign"/> separately.
+    /// 0..7, <c>limb[1]</c> holds bytes 8..15, etc. The sign bit is not included;
+    /// query <see cref="Sign"/> separately.
     /// </summary>
     /// <returns>
     /// A new <see cref="PinnedPoolArray{T}"/> of <see cref="ulong"/> with
     /// <c>Length == <see cref="LimbCount"/></c>. Caller takes ownership and
     /// must dispose to wipe the buffer.
     /// </returns>
+    /// <remarks>
+    /// Direct copy from the canonical limb storage as of D9 — no byte-to-limb
+    /// conversion any more.
+    /// </remarks>
     internal PinnedPoolArray<ulong> ToLimbs()
     {
         this.ThrowIfDisposed();
-        int limbCount = this.LimbCount;
-        var limbs = new PinnedPoolArray<ulong>(limbCount);
-        BytesToLimbs(this.data.PoolArray, this.Length, limbs);
-        return limbs;
+        int count = this.limbs.Length;
+        var copy = new PinnedPoolArray<ulong>(count);
+        Array.Copy(this.limbs.PoolArray, copy.PoolArray, count);
+        return copy;
     }
 
     /// <summary>
-    /// Number of 64-bit limbs required to represent this instance's magnitude.
-    /// Always at least 1; equivalent to <c>max(1, ceil(byteLength / 8))</c>.
+    /// Number of 64-bit limbs in the canonical limb storage of this instance.
+    /// Always at least 1.
     /// </summary>
     internal int LimbCount
     {
         get
         {
             this.ThrowIfDisposed();
-            int byteLength = this.Length;
-            return byteLength <= 0 ? 1 : (byteLength + 7) / 8;
+            return this.limbs.Length;
         }
     }
 
     /// <summary>
     /// Initializes a new instance from a magnitude expressed as 64-bit limbs
-    /// (little-endian) plus an explicit sign flag. Inverse of
-    /// <see cref="ToLimbs"/>.
+    /// (little-endian) plus an explicit sign flag.
     /// </summary>
     /// <param name="limbs">Limbs representing the magnitude.</param>
     /// <param name="limbCount">
@@ -1050,8 +1052,9 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <c>limbs.Length</c>.
     /// </exception>
     /// <remarks>
-    /// The constructor securely wipes its transient byte buffer before
-    /// returning. Caller retains ownership of <paramref name="limbs"/>.
+    /// As of D9 limbs are the canonical storage — this constructor copies the
+    /// caller-supplied limbs directly into the field and trims to the highest
+    /// non-zero limb. Caller retains ownership of <paramref name="limbs"/>.
     /// </remarks>
     internal SecureBigInteger(PinnedPoolArray<ulong> limbs, int limbCount, bool isNegative)
     {
@@ -1070,15 +1073,11 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             throw new ArgumentOutOfRangeException(nameof(limbCount), string.Format(ErrorMessages.CountExceedsArrayLength, limbCount, limbs.Length));
         }
 
-        int byteCapacity = limbCount * 8;
-        using var byteBuf = new PinnedPoolArray<byte>(byteCapacity);
-        LimbsToBytes(limbs, limbCount, byteBuf.PoolArray);
-
-        int actualByteLength = GetActualLength(byteBuf.PoolArray, byteCapacity);
-        this.data = new PinnedPoolArray<byte>(actualByteLength);
-        Array.Copy(byteBuf.PoolArray, this.data.PoolArray, actualByteLength);
+        this.limbs = new PinnedPoolArray<ulong>(length: limbCount);
+        Array.Copy(limbs.PoolArray, this.limbs.PoolArray, limbCount);
 
         this.isNegative = isNegative;
+        this.TrimLeadingZerosInPlace();
         if (this.IsZeroInternal())
         {
             this.isNegative = false;
@@ -1107,16 +1106,26 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         }
     }
 
-    private static void LimbsToBytes(PinnedPoolArray<ulong> limbs, int limbCount, byte[] bytesOut)
+    /// <summary>
+    /// Writes the magnitude in <paramref name="limbs"/> as little-endian bytes
+    /// into <paramref name="bytesOut"/>. The output length is governed by
+    /// <c>bytesOut.Length</c> — only that many bytes are written, even if
+    /// <paramref name="limbs"/> contains higher-order data.
+    /// </summary>
+    /// <remarks>
+    /// Output-driven loop: iterates exactly <c>bytesOut.Length</c> times with
+    /// a straight-line per-iteration body (shift + mask + write). No inner
+    /// branch on operand content. Caller precondition:
+    /// <c>bytesOut.Length &lt;= limbs.Length * 8</c>.
+    /// </remarks>
+    private static void LimbsToBytes(PinnedPoolArray<ulong> limbs, PinnedPoolArray<byte> bytesOut)
     {
-        for (int i = 0; i < limbCount; i++)
+        int byteCount = bytesOut.Length;
+        for (int byteIdx = 0; byteIdx < byteCount; byteIdx++)
         {
-            ulong limb = limbs[i];
-            int offset = i * 8;
-            for (int j = 0; j < 8; j++)
-            {
-                bytesOut[offset + j] = (byte)(limb >> (j * 8));
-            }
+            int limbIdx = byteIdx >> 3;
+            int byteInLimb = byteIdx & 7;
+            bytesOut[byteIdx] = (byte)(limbs[limbIdx] >> (byteInLimb * 8));
         }
     }
 
@@ -1444,16 +1453,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         value.ThrowIfDisposed();
 
-        if (value.Length > 4)
+        if (value.limbs.Length > 1 || value.limbs[0] > uint.MaxValue)
         {
             throw new OverflowException(ErrorMessages.ValueTooLargeForInt);
         }
 
-        uint result = 0;
-        for (var i = Math.Min(3, value.Length - 1); i >= 0; i--)
-        {
-            result = (result << 8) | value.data[i];
-        }
+        uint result = (uint)value.limbs[0];
 
         if (result > int.MaxValue && !(value.isNegative && result == (uint)int.MaxValue + 1))
         {
@@ -1479,16 +1484,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         value.ThrowIfDisposed();
 
-        if (value.Length > 8)
+        if (value.limbs.Length > 1)
         {
             throw new OverflowException(ErrorMessages.ValueTooLargeForLong);
         }
 
-        var result = 0UL;
-        for (var i = Math.Min(7, value.Length - 1); i >= 0; i--)
-        {
-            result = result << 8 | value.data[i];
-        }
+        ulong result = value.limbs[0];
 
         if (result > long.MaxValue && !(value.isNegative && result == (ulong)long.MaxValue + 1))
         {
@@ -1513,20 +1514,18 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// </remarks>
     private static SecureBigInteger AddUnsigned(SecureBigInteger left, SecureBigInteger right)
     {
-        using var leftLimbs = left.ToLimbs();
-        using var rightLimbs = right.ToLimbs();
         int leftCount = left.LimbCount;
         int rightCount = right.LimbCount;
         int maxCount = leftCount >= rightCount ? leftCount : rightCount;
         int resultCount = maxCount + 1;
 
-        using var result = new PinnedPoolArray<ulong>(resultCount);
+        using var result = new PinnedPoolArray<ulong>(length: resultCount);
         ulong carry = 0;
 
         for (int i = 0; i < resultCount; i++)
         {
-            ulong l = i < leftCount ? leftLimbs[i] : 0UL;
-            ulong r = i < rightCount ? rightLimbs[i] : 0UL;
+            ulong l = i < leftCount ? left.limbs[i] : 0UL;
+            ulong r = i < rightCount ? right.limbs[i] : 0UL;
 
             ulong sum = l + r + carry;
             // Branchless carry-out from a 64-bit add: bit 63 of
@@ -1556,19 +1555,17 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// </remarks>
     private static SecureBigInteger SubtractUnsigned(SecureBigInteger minuend, SecureBigInteger subtrahend)
     {
-        using var mLimbs = minuend.ToLimbs();
-        using var sLimbs = subtrahend.ToLimbs();
         int mCount = minuend.LimbCount;
         int sCount = subtrahend.LimbCount;
         int maxCount = mCount >= sCount ? mCount : sCount;
 
-        using var result = new PinnedPoolArray<ulong>(maxCount);
+        using var result = new PinnedPoolArray<ulong>(length: maxCount);
         ulong borrow = 0;
 
         for (int i = 0; i < maxCount; i++)
         {
-            ulong m = i < mCount ? mLimbs[i] : 0UL;
-            ulong s = i < sCount ? sLimbs[i] : 0UL;
+            ulong m = i < mCount ? minuend.limbs[i] : 0UL;
+            ulong s = i < sCount ? subtrahend.limbs[i] : 0UL;
 
             // Step 1: combine subtrahend limb with incoming borrow.
             ulong sb = s + borrow;
@@ -1603,21 +1600,19 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// </remarks>
     private static SecureBigInteger MultiplyUnsigned(SecureBigInteger left, SecureBigInteger right)
     {
-        using var leftLimbs = left.ToLimbs();
-        using var rightLimbs = right.ToLimbs();
         int leftCount = left.LimbCount;
         int rightCount = right.LimbCount;
         int resultCount = leftCount + rightCount;
 
-        using var result = new PinnedPoolArray<ulong>(resultCount);
+        using var result = new PinnedPoolArray<ulong>(length: resultCount);
 
         for (int i = 0; i < leftCount; i++)
         {
             ulong carry = 0;
-            ulong leftLimb = leftLimbs[i];
+            ulong leftLimb = left.limbs[i];
             for (int j = 0; j < rightCount; j++)
             {
-                MultiplyToHighLow(leftLimb, rightLimbs[j], out ulong productHigh, out ulong productLow);
+                MultiplyToHighLow(leftLimb, right.limbs[j], out ulong productHigh, out ulong productLow);
 
                 // Three-way add with branchless carry capture:
                 //   result[i+j] += productLow (carry1 if it wrapped)
@@ -1729,8 +1724,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     private static SecureBigInteger DivideUnsigned(SecureBigInteger dividend, SecureBigInteger divisor,
         out SecureBigInteger remainder)
     {
-        using var dividendLimbs = dividend.ToLimbs();
-        using var divisorLimbs = divisor.ToLimbs();
         int dividendLimbCount = dividend.LimbCount;
         int divisorLimbCount = divisor.LimbCount;
         int totalBits = dividendLimbCount * 64;
@@ -1740,8 +1733,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         // divisor.LimbCount + 1 limbs. The +1 absorbs the shift overflow from
         // the high limb of the post-shift value.
         int remainderLimbCount = divisorLimbCount + 1;
-        using var rem = new PinnedPoolArray<ulong>(remainderLimbCount);
-        using var quot = new PinnedPoolArray<ulong>(dividendLimbCount);
+        using var rem = new PinnedPoolArray<ulong>(length: remainderLimbCount);
+        using var quot = new PinnedPoolArray<ulong>(length: dividendLimbCount);
 
         for (int bit = totalBits - 1; bit >= 0; bit--)
         {
@@ -1749,10 +1742,10 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
             // OR in the dividend bit at position `bit` (LSB-indexed; bit/64
             // selects the limb, bit%64 the bit within it).
-            ulong dividendBit = (dividendLimbs[bit >> 6] >> (bit & 63)) & 1UL;
+            ulong dividendBit = (dividend.limbs[bit >> 6] >> (bit & 63)) & 1UL;
             rem[0] |= dividendBit;
 
-            ulong borrow = SubtractInPlace(rem, remainderLimbCount, divisorLimbs, divisorLimbCount);
+            ulong borrow = SubtractInPlace(rem, remainderLimbCount, divisor.limbs, divisorLimbCount);
 
             // canSubtract = NOT borrow (1 if rem ≥ divisor, 0 if rem < divisor).
             // undoMask    = all-ones if the trial subtract underflowed (need to
@@ -1760,7 +1753,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             ulong canSubtract = borrow ^ 1UL;
             ulong undoMask = 0UL - borrow;
 
-            AddMaskedInPlace(rem, remainderLimbCount, divisorLimbs, divisorLimbCount, undoMask);
+            AddMaskedInPlace(rem, remainderLimbCount, divisor.limbs, divisorLimbCount, undoMask);
 
             // Set quotient bit to canSubtract — an unconditional OR works
             // because quot[qLimbIdx] starts at zero (PinnedPoolArray ctor
@@ -1890,8 +1883,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// </remarks>
     private static int CompareUnsigned(SecureBigInteger left, SecureBigInteger right)
     {
-        using var leftLimbs = left.ToLimbs();
-        using var rightLimbs = right.ToLimbs();
         int leftCount = left.LimbCount;
         int rightCount = right.LimbCount;
         int maxCount = leftCount >= rightCount ? leftCount : rightCount;
@@ -1899,8 +1890,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         long result = 0;
         for (int i = 0; i < maxCount; i++)
         {
-            ulong l = i < leftCount ? leftLimbs[i] : 0UL;
-            ulong r = i < rightCount ? rightLimbs[i] : 0UL;
+            ulong l = i < leftCount ? left.limbs[i] : 0UL;
+            ulong r = i < rightCount ? right.limbs[i] : 0UL;
 
             // l > r and l < r as 0/1 ulongs. The C# `<`/`>` operators on ulong
             // lower to `setb`/`seta` on x86 RyuJIT — branchless. The naive
@@ -1921,65 +1912,27 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Compares two unsigned byte arrays representing large integer values.
-    /// </summary>
-    /// <param name="left">The byte array representing the first unsigned integer.</param>
-    /// <param name="leftLen">The number of significant bytes in the first unsigned integer.</param>
-    /// <param name="right">The byte array representing the second unsigned integer.</param>
-    /// <param name="rightLen">The number of significant bytes in the second unsigned integer.</param>
-    /// <returns>
-    /// Returns 1 if the first unsigned integer is greater than the second,
-    /// -1 if the first unsigned integer is less than the second, and 0 if they are equal.
-    /// </returns>
-    private static int CompareUnsigned(byte[] left, int leftLen, byte[] right, int rightLen)
-    {
-        if (leftLen > rightLen)
-        {
-            return 1;
-        }
-
-        if (leftLen < rightLen)
-        {
-            return -1;
-        }
-
-        for (var i = leftLen - 1; i >= 0; i--)
-        {
-            if (left[i] > right[i])
-            {
-                return 1;
-            }
-
-            if (left[i] < right[i])
-            {
-                return -1;
-            }
-        }
-
-        return 0;
-    }
-
-    /// <summary>
-    /// Removes leading zeros from the internal representation of the <see cref="SecureBigInteger"/> instance.
-    /// Adjusts the length property to accurately reflect the number of significant bytes.
+    /// Trims leading-zero limbs from the canonical limb storage, leaving exactly
+    /// one zero limb when the value is zero. Adjusts <c>limbs.Length</c> to reflect
+    /// the trimmed count without touching the underlying capacity (the unused
+    /// high limbs remain zero from the buffer's initialisation).
     /// </summary>
     private void TrimLeadingZerosInPlace()
     {
-        this.Length = GetActualLength(this);
+        this.limbs.Length = GetActualLength(this);
     }
 
     /// <summary>
-    /// Computes the actual length of the given byte array excluding leading zero bytes.
+    /// Returns the index-based limb count after trimming leading-zero limbs from
+    /// <paramref name="secureBigInteger"/>'s canonical storage, with a minimum of
+    /// 1 (the single zero limb representing the value zero).
     /// </summary>
-    /// <param name="data">The byte array for which the actual length is to be determined.</param>
-    /// <param name="length">The length of the byte array to consider.</param>
-    /// <returns>The actual length of the byte array, excluding leading zero bytes. If the array contains only zeros,
-    /// it returns 1.</returns>
-    private static int GetActualLength(byte[] data, int length)
+    private static int GetActualLength(SecureBigInteger secureBigInteger)
     {
-        for (var i = length - 1; i >= 0; i--)
+        var src = secureBigInteger.limbs;
+        for (int i = src.Length - 1; i >= 0; i--)
         {
-            if (data[i] != 0)
+            if (src[i] != 0)
             {
                 return i + 1;
             }
@@ -1989,39 +1942,28 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
-    /// Calculates the actual length of significant data in the specified <see cref="SecureBigInteger"/> instance,
-    /// excluding leading zeros.
-    /// </summary>
-    /// <param name="secureBigInteger">The <see cref="SecureBigInteger"/> instance for which to calculate the actual length.</param>
-    /// <returns>The number of significant bytes in the <paramref name="secureBigInteger"/> instance.</returns>
-    private static int GetActualLength(SecureBigInteger secureBigInteger)
-    {
-        return GetActualLength(secureBigInteger.data.PoolArray, secureBigInteger.Length);
-    }
-
-    /// <summary>
     /// Determines whether the current <see cref="SecureBigInteger"/> instance represents the value zero.
     /// </summary>
     /// <returns>
     /// True if the instance represents the value zero; otherwise, false.
     /// </returns>
     /// <summary>
-    /// Returns <see langword="true"/> iff the magnitude bytes are all zero,
+    /// Returns <see langword="true"/> iff the magnitude limbs are all zero,
     /// independent of the sign flag.
     /// </summary>
     /// <remarks>
-    /// Branchless on the magnitude: ORs every byte of <see cref="data"/> into a
-    /// single accumulator, then compares against zero. The <c>acc == 0</c>
-    /// final test compiles to <c>setz</c> on x86 RyuJIT, branchless. Loop bound
-    /// is <see cref="Length"/>, a public observable.
+    /// Branchless on the magnitude: ORs every limb into a single ulong
+    /// accumulator, then compares against zero. The <c>acc == 0</c> final test
+    /// compiles to <c>setz</c> on x86 RyuJIT, branchless. Loop bound is
+    /// <c>limbs.Length</c>, a public observable.
     /// </remarks>
     private bool IsZeroInternal()
     {
-        byte acc = 0;
-        int len = this.Length;
+        ulong acc = 0;
+        int len = this.limbs.Length;
         for (int i = 0; i < len; i++)
         {
-            acc |= this.data[i];
+            acc |= this.limbs[i];
         }
 
         return acc == 0;
@@ -2068,8 +2010,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         }
 
         // Release managed resources if any
-        this.data?.Dispose();
-        this.data = null;
+        this.limbs?.Dispose();
+        this.limbs = null;
     }
 
     /// <summary>
@@ -2080,29 +2022,28 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// otherwise, <see langword="false"/>.</returns>
     /// <remarks>
     /// <para>
-    /// The byte-by-byte comparison is constant-time per the operands' configured byte lengths.
+    /// The limb-by-limb comparison is constant-time per the operands' configured limb lengths.
     /// Both magnitudes are first zero-padded into pinned pool buffers of size
-    /// <c>max(this.Length, other.Length)</c>, then compared with a fixed-time primitive that
-    /// runs the full padded length on every call — there is no early exit on the first
-    /// differing byte and no length-mismatch fast path.
+    /// <c>max(this.limbs.Length, other.limbs.Length)</c>, then compared with a fixed-time
+    /// XOR-OR-fold primitive that runs the full padded length on every call — there is no
+    /// early exit on the first differing limb and no length-mismatch fast path.
     /// </para>
     /// <para>
     /// The sign flag is folded into the result via a non-short-circuiting bitwise AND, so the
-    /// runtime does not branch on whether the signs match before the byte compare. The
-    /// remaining length-only observable (the loop runs <c>max(this.Length, other.Length)</c>
-    /// iterations) reflects already-public buffer sizing, not byte content.
+    /// runtime does not branch on whether the signs match before the magnitude compare. The
+    /// remaining length-only observable (the loop runs
+    /// <c>max(this.limbs.Length, other.limbs.Length)</c> iterations) reflects already-public
+    /// buffer sizing, not limb content.
     /// </para>
     /// <para>
-    /// Pre-padding to equal length is what makes this strict CT on every target framework.
-    /// On legacy targets <see cref="Extension.ArrayExtensions.FixedTimeEquals(byte[], byte[], int, int)"/>
-    /// would tolerate unequal lengths via internal zero-padding, but that introduces
-    /// length-dependent ternaries and memory-access asymmetries inside its hot loop that we
-    /// avoid here by feeding both arrays at the same length.
+    /// As of D9 the comparison runs uniformly across all target frameworks via
+    /// <see cref="FixedTimeLimbsEqual"/> — no TFM-conditional path. The 8× factor over a
+    /// byte-level fold reflects one ulong-XOR covering 8 bytes per loop iteration.
     /// </para>
     /// </remarks>
     [SuppressMessage("SonarQube", "S2178",
         Justification = "Non-short-circuit AND is intentional in this constant-time context. " +
-                        "Using && would emit a conditional branch on `bytesEqual` to skip the " +
+                        "Using && would emit a conditional branch on `limbsEqual` to skip the " +
                         "second operand; while both operands here are pre-computed bool values " +
                         "so today the branch carries no secret data, the `&` form documents the " +
                         "CT-design intent and is resilient to future refactors that inline " +
@@ -2124,23 +2065,19 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         bool signsEqual = this.isNegative == other.isNegative;
 
-        int maxLen = Math.Max(this.Length, other.Length);
-        using var leftBuf = new PinnedPoolArray<byte>(maxLen);
-        using var rightBuf = new PinnedPoolArray<byte>(maxLen);
+        int leftLen = this.limbs.Length;
+        int rightLen = other.limbs.Length;
+        int maxLen = leftLen >= rightLen ? leftLen : rightLen;
+        using var leftBuf = new PinnedPoolArray<ulong>(length: maxLen);
+        using var rightBuf = new PinnedPoolArray<ulong>(length: maxLen);
         Array.Clear(leftBuf.PoolArray, 0, maxLen);
         Array.Clear(rightBuf.PoolArray, 0, maxLen);
-        Array.Copy(this.data.PoolArray, leftBuf.PoolArray, this.Length);
-        Array.Copy(other.data.PoolArray, rightBuf.PoolArray, other.Length);
+        Array.Copy(this.limbs.PoolArray, leftBuf.PoolArray, leftLen);
+        Array.Copy(other.limbs.PoolArray, rightBuf.PoolArray, rightLen);
 
-#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
-        bool bytesEqual = CryptographicOperations.FixedTimeEquals(
-            leftBuf.PoolArray.AsSpan(0, maxLen),
-            rightBuf.PoolArray.AsSpan(0, maxLen));
-#else
-        bool bytesEqual = leftBuf.PoolArray.FixedTimeEquals(rightBuf.PoolArray, maxLen, maxLen);
-#endif
+        bool limbsEqual = FixedTimeLimbsEqual(leftBuf, rightBuf);
 
-        return bytesEqual & signsEqual;
+        return limbsEqual & signsEqual;
     }
 
     /// <summary>
@@ -2154,6 +2091,30 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public override bool Equals(object obj) => obj is SecureBigInteger other && this.Equals(other);
 
     /// <summary>
+    /// Constant-time equality compare on two equal-length limb buffers via
+    /// XOR-OR-fold into a single ulong accumulator. Returns <see langword="true"/>
+    /// iff every limb pair is bitwise-identical.
+    /// </summary>
+    /// <remarks>
+    /// CT-helper. The loop runs <c>left.Length</c> iterations (caller invariant:
+    /// equal lengths); per-iteration body is straight-line XOR + OR with no
+    /// branches. <c>NoInlining | NoOptimization</c> mirrors the BCL precedent
+    /// of <c>CryptographicOperations.FixedTimeEquals</c>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+    private static bool FixedTimeLimbsEqual(PinnedPoolArray<ulong> left, PinnedPoolArray<ulong> right)
+    {
+        int len = left.Length;
+        ulong accumulator = 0;
+        for (int i = 0; i < len; i++)
+        {
+            accumulator |= left[i] ^ right[i];
+        }
+
+        return accumulator == 0;
+    }
+
+    /// <summary>
     /// Returns the hash code for the current instance of the <see cref="SecureBigInteger"/> class.
     /// </summary>
     /// <returns>An integer representing the hash code of the current instance.</returns>
@@ -2162,28 +2123,26 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public override int GetHashCode()
     {
         this.ThrowIfDisposed();
+        int len = this.limbs.Length;
 #if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
         var hash = new HashCode();
         hash.Add(this.Sign);
-        hash.Add(this.Length);
-#if NET8_0_OR_GREATER
-        hash.AddBytes(this.data.PoolArray.AsSpan(0, this.Length));
-#else
-        for (int i = 0; i < this.Length; i++)
+        hash.Add(len);
+        for (int i = 0; i < len; i++)
         {
-            hash.Add(this.data[i]);
+            hash.Add(this.limbs[i]);
         }
-#endif
+
         return hash.ToHashCode();
 #else
         unchecked
         {
             var hash = 17;
             hash = hash * 31 + this.Sign.GetHashCode();
-            hash = hash * 31 + this.Length.GetHashCode();
-            for (int i = 0; i < this.Length; i++)
+            hash = hash * 31 + len.GetHashCode();
+            for (int i = 0; i < len; i++)
             {
-                hash = hash * 31 + this.data[i].GetHashCode();
+                hash = hash * 31 + this.limbs[i].GetHashCode();
             }
 
             return hash;
@@ -2217,7 +2176,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             return this.isNegative ? -1 : 1;
         }
 
-        int comparison = CompareUnsigned(this.data.PoolArray, this.Length, other.data.PoolArray, other.Length);
+        int comparison = CompareUnsigned(this, other);
         return this.isNegative ? -comparison : comparison;
     }
 
@@ -2246,7 +2205,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             using var ten = new SecureBigInteger(10);
             using var zero = new SecureBigInteger(0);
             int count = 0;
-            while (CompareUnsigned(temp.data.PoolArray, temp.Length, zero.data.PoolArray, 1) > 0)
+            while (CompareUnsigned(temp, zero) > 0)
             {
                 count++;
                 var quotient = DivideUnsigned(temp, ten, out var rem);
@@ -2306,12 +2265,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             using var zero = new SecureBigInteger(0);
             using var ten = new SecureBigInteger(10);
 
-            while (CompareUnsigned(temp.data.PoolArray, temp.Length, zero.data.PoolArray, 1) > 0)
+            while (CompareUnsigned(temp, zero) > 0)
             {
                 var quotient = DivideUnsigned(temp, ten, out var rem);
                 try
                 {
-                    result[index--] = (char)(DigitOffset + rem.data[0]);
+                    result[index--] = (char)(DigitOffset + (byte)(rem.limbs[0] & 0xFF));
                     temp.Dispose();
                     temp = quotient;
                     quotient = null; // ownership transferred to temp
@@ -2374,19 +2333,25 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     {
         this.ThrowIfDisposed();
 
-        var hexLength = this.Length * 2;
-        var totalLength = this.isNegative ? hexLength + 1 : hexLength;
-        var result = new PinnedPoolArray<char>(totalLength);
-        var index = 0;
+        // Match the historical contract: 2 hex chars per *significant* magnitude
+        // byte (i.e. ByteCount, not limbs.Length * 8). This keeps Share's
+        // GetHexLength predictor in sync with the actual output length.
+        int byteLength = this.ByteCount;
+        int hexLength = byteLength * 2;
+        int totalLength = this.isNegative ? hexLength + 1 : hexLength;
+        var result = new PinnedPoolArray<char>(length: totalLength);
+        int index = 0;
 
         if (this.isNegative)
         {
             result[index++] = '-';
         }
 
-        for (int i = this.Length - 1; i >= 0; i--)
+        for (int byteIdx = byteLength - 1; byteIdx >= 0; byteIdx--)
         {
-            byte b = this.data[i];
+            int limbIdx = byteIdx >> 3;
+            int byteInLimb = byteIdx & 7;
+            byte b = (byte)(this.limbs[limbIdx] >> (byteInLimb * 8));
             result[index++] = GetHexChar((b >> 4) & 0xF);
             result[index++] = GetHexChar(b & 0xF);
         }
