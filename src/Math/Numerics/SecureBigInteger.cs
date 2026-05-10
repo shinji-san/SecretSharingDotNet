@@ -574,13 +574,15 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         multiplicand.ThrowIfDisposed();
         multiplier.ThrowIfDisposed();
 
-        if (multiplicand.IsZeroInternal() || multiplier.IsZeroInternal())
-        {
-            return new SecureBigInteger(0);
-        }
-
+        // No zero-operand short-circuit: branching on `IsZeroInternal()` would leak
+        // 1 bit of operand-content (a public-API timing distinction between a zero
+        // operand and a non-zero one). MultiplyUnsigned on a zero operand yields a
+        // magnitude-0 result naturally — we simply normalize the sign at the end.
         var result = MultiplyUnsigned(multiplicand, multiplier);
-        result.isNegative = multiplicand.isNegative != multiplier.isNegative;
+        if (!result.IsZeroInternal())
+        {
+            result.isNegative = multiplicand.isNegative != multiplier.isNegative;
+        }
 
         return result;
     }
@@ -611,14 +613,17 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (divisor.IsZeroInternal())
         {
+            // The DivideByZeroException branch is structurally required by the public
+            // contract — it cannot be hidden, and its predicate (divisor.IsZeroInternal)
+            // is the same operand-content read that any caller would do anyway.
             throw new DivideByZeroException(ErrorMessages.DivisionByZero);
         }
 
-        if (dividend.IsZeroInternal())
-        {
-            return new SecureBigInteger(0);
-        }
-
+        // No dividend-zero short-circuit: branching on `dividend.IsZeroInternal()` would
+        // leak 1 bit of operand-content. DivideUnsigned with a zero dividend produces a
+        // magnitude-0 quotient and remainder naturally; the post-call sign normalization
+        // (only assigning isNegative when result is non-zero) keeps the canonical-zero
+        // invariant intact.
         // DivideUnsigned allocates BOTH the quotient (return) and the remainder
         // (out-param) as fresh SecureBigInteger instances. The remainder is not
         // needed here, but must be disposed explicitly — discarding it via
@@ -666,14 +671,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (divisor.IsZeroInternal())
         {
+            // See Divide for the contractual reason this branch is necessary.
             throw new DivideByZeroException(ErrorMessages.DivisionByZero);
         }
 
-        if (dividend.IsZeroInternal())
-        {
-            return new SecureBigInteger(0);
-        }
-
+        // No dividend-zero short-circuit — see Divide for the rationale. DivideUnsigned
+        // produces a magnitude-0 remainder naturally when the dividend is zero.
         // Symmetric to Divide above: DivideUnsigned allocates both outputs, but
         // here the quotient is the unused half. Dispose it via `using` so that
         // its pinned-pool slot is released and its plaintext bytes wiped on the

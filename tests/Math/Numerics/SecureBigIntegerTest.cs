@@ -542,6 +542,72 @@ public class SecureBigIntegerTests
     }
 
     [Theory]
+    // After H2 (zero-operand short-circuit removal), zero-operand inputs flow
+    // through MultiplyUnsigned/DivideUnsigned. Verify the result is still
+    // numerically correct AND a canonical +0.
+    [InlineData(0, 5)]
+    [InlineData(0, -5)]
+    [InlineData(5, 0)]
+    [InlineData(-5, 0)]
+    [InlineData(0, 0)]
+    public void Multiply_WithZeroOperand_EqualsCleanZero(int a, int b)
+    {
+        // Arrange
+        using var left = new SecureBigInteger(a);
+        using var right = new SecureBigInteger(b);
+        using var cleanZero = new SecureBigInteger(0);
+
+        // Act
+        using var product = SecureBigInteger.Multiply(left, right);
+
+        // Assert
+        Assert.True(product.IsZero);
+        Assert.Equal(0, product.Sign);
+        Assert.Equal(cleanZero, product);
+        Assert.Equal(cleanZero.GetHashCode(), product.GetHashCode());
+    }
+
+    [Theory]
+    [InlineData(0, 5)]
+    [InlineData(0, -5)]
+    public void Divide_ZeroDividend_EqualsCleanZero(int a, int b)
+    {
+        // Arrange
+        using var dividend = new SecureBigInteger(a);
+        using var divisor = new SecureBigInteger(b);
+        using var cleanZero = new SecureBigInteger(0);
+
+        // Act
+        using var quotient = SecureBigInteger.Divide(dividend, divisor);
+
+        // Assert
+        Assert.True(quotient.IsZero);
+        Assert.Equal(0, quotient.Sign);
+        Assert.Equal(cleanZero, quotient);
+        Assert.Equal(cleanZero.GetHashCode(), quotient.GetHashCode());
+    }
+
+    [Theory]
+    [InlineData(0, 5)]
+    [InlineData(0, -5)]
+    public void Remainder_ZeroDividend_EqualsCleanZero(int a, int b)
+    {
+        // Arrange
+        using var dividend = new SecureBigInteger(a);
+        using var divisor = new SecureBigInteger(b);
+        using var cleanZero = new SecureBigInteger(0);
+
+        // Act
+        using var remainder = SecureBigInteger.Remainder(dividend, divisor);
+
+        // Assert
+        Assert.True(remainder.IsZero);
+        Assert.Equal(0, remainder.Sign);
+        Assert.Equal(cleanZero, remainder);
+        Assert.Equal(cleanZero.GetHashCode(), remainder.GetHashCode());
+    }
+
+    [Theory]
     // Mixed-sign Divide where the magnitude of the dividend is smaller than the
     // divisor, producing a zero quotient. Without H4 fix, the result has
     // isNegative=true on a magnitude-0 result ("negative zero"), and Equals
