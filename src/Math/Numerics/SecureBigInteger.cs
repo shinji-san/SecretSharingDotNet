@@ -1207,6 +1207,15 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <param name="data">The byte array representing the number to compute the two's complement for.</param>
     /// <param name="length">The length of the byte array.</param>
     /// <returns>A new byte array representing the two's complement of the given number.</returns>
+    /// <remarks>
+    /// Constant-time on the input bytes: both the bitwise-NOT loop and the carry-add
+    /// loop iterate the full <paramref name="length"/> unconditionally. The previous
+    /// implementation aborted the carry-add as soon as <c>carry == 0</c>, which made
+    /// the iteration count vary with the bit pattern of the input — a content-derived
+    /// timing distinction we close here. Once the carry naturally becomes zero, every
+    /// subsequent iteration adds 0 and is a true no-op, so extending the loop to the
+    /// full length is a correctness-preserving CT-stiffening change.
+    /// </remarks>
     private static PinnedPoolArray<byte> TwosComplement(byte[] data, int length)
     {
         if (length == 0 || data is null || (length == 1 && data[0] == 0))
@@ -1223,7 +1232,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         }
 
         int carry = 1;
-        for (int i = 0; i < length && carry != 0; i++)
+        for (int i = 0; i < length; i++)
         {
             int sum = twosCompArray[i] + carry;
             twosCompArray[i] = (byte)sum;
