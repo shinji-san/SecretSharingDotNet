@@ -660,6 +660,154 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
+    /// Reduces a non-negative value modulo a Mersenne prime <c>M_p = 2^p - 1</c>
+    /// using the classical fold-and-add identity: since
+    /// <c>2^p ≡ 1 (mod M_p)</c>, the value <c>(high * 2^p + low)</c> reduces to
+    /// <c>(high + low) mod M_p</c> in a single step. Two folds suffice to
+    /// shrink any value below <c>2^(2p)</c> down to <c>≤ 2^p</c>; one final
+    /// conditional subtract canonicalises the result into <c>[0, M_p - 1]</c>.
+    /// </summary>
+    /// <param name="exponent">The Mersenne exponent <c>p</c>. Must be positive.
+    /// Treated as public information per the threat model: the iteration count
+    /// derives from <paramref name="exponent"/> and the operand's limb count,
+    /// both observable.</param>
+    /// <returns>A new non-negative <see cref="SecureBigInteger"/> representing
+    /// <c>this mod (2^exponent - 1)</c>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="exponent"/> is not positive.
+    /// </exception>
+    /// <exception cref="ArgumentException">The instance is negative.</exception>
+    /// <remarks>
+    /// Significantly faster than the generic <see cref="Remainder"/> when the
+    /// modulus is a Mersenne prime: each fold pass is linear in the operand's
+    /// limb count and avoids the bit-by-bit long division of
+    /// <see cref="DivideUnsigned"/>. The Shamir hot path's <c>% prime</c> is
+    /// always Mersenne, so this is the perf win planned in D7. Constant-time
+    /// on operand content; the iteration count is fixed per call from the
+    /// public <paramref name="exponent"/> and <see cref="LimbCount"/>.
+    /// </remarks>
+    internal SecureBigInteger MersenneModulo(int exponent)
+    {
+        this.ThrowIfDisposed();
+        if (exponent <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(exponent), exponent, string.Format(ErrorMessages.ValueLowerThanX, 1));
+        }
+
+        if (this.isNegative)
+        {
+            throw new ArgumentException(ErrorMessages.OperandMustBeNonNegative);
+        }
+
+        int p = exponent;
+        int outLimbCount = (p + 63) / 64;
+        int pLimbIdx = (p - 1) / 64;
+        int pBitInLimb = (p - 1) % 64;
+        ulong pLimbMask = pBitInLimb == 63 ? ulong.MaxValue : (1UL << (pBitInLimb + 1)) - 1;
+
+        using var srcLimbs = this.ToLimbs();
+        int srcLimbCount = this.LimbCount;
+
+        int workLimbCount = srcLimbCount >= outLimbCount + 1 ? srcLimbCount : outLimbCount + 1;
+        using var work = new PinnedPoolArray<ulong>(workLimbCount);
+        using var scratch = new PinnedPoolArray<ulong>(workLimbCount);
+
+        for (int i = 0; i < srcLimbCount; i++)
+        {
+            work[i] = srcLimbs[i];
+        }
+
+        // Each fold pass shifts bits-above-p down by p, halving the bit-length
+        // above p. iterations = (srcBits / p) + 2 covers the worst case
+        // (post-multiply 2p-bit input ⇒ 4 iterations, well over the 2 needed
+        // to converge), with the +2 safety margin keeping the count public.
+        int iterations = (srcLimbCount * 64) / p + 2;
+
+        for (int iter = 0; iter < iterations; iter++)
+        {
+            ShiftRightByPLimbs(work, workLimbCount, p, scratch, workLimbCount);
+
+            // Mask `work` to its low p bits — keeps only bits 0..p-1, zeros
+            // every higher position. The high limb is masked with pLimbMask;
+            // limbs above pLimbIdx are zeroed wholesale.
+            if (pLimbIdx < workLimbCount)
+            {
+                work[pLimbIdx] &= pLimbMask;
+            }
+
+            for (int i = pLimbIdx + 1; i < workLimbCount; i++)
+            {
+                work[i] = 0;
+            }
+
+            // work += scratch  (mask = all-ones reuses AddMaskedInPlace as a
+            // plain limb-add).
+            AddMaskedInPlace(work, workLimbCount, scratch, workLimbCount, ulong.MaxValue);
+        }
+
+        // After folding, work ≤ 2^p, contained in `outLimbCount` limbs (the
+        // top fold iteration drives bit p down via a final `+ 1`). Build M_p
+        // and conditionally subtract: if work ≥ M_p, the trial subtract
+        // succeeds; otherwise the borrow flag drives an undo via mask-add.
+        using var mersennePrime = new PinnedPoolArray<ulong>(outLimbCount);
+        for (int i = 0; i < outLimbCount - 1; i++)
+        {
+            mersennePrime[i] = ulong.MaxValue;
+        }
+
+        mersennePrime[outLimbCount - 1] = pLimbMask;
+
+        ulong borrow = SubtractInPlace(work, outLimbCount, mersennePrime, outLimbCount);
+        ulong undoMask = 0UL - borrow;
+        AddMaskedInPlace(work, outLimbCount, mersennePrime, outLimbCount, undoMask);
+
+        return new SecureBigInteger(work, outLimbCount, isNegative: false);
+    }
+
+    /// <summary>
+    /// Right-shifts a pinned ulong-limb buffer by <paramref name="shiftBits"/>
+    /// bits into a separate destination buffer. Used by
+    /// <see cref="MersenneModulo"/> to extract the high <c>(N - p)</c> bits
+    /// of the working value into the fold accumulator.
+    /// </summary>
+    /// <remarks>
+    /// CT-helper. The <c>shiftBitsInLimb == 0</c> branch is on the public
+    /// <paramref name="shiftBits"/> exponent (constant per call), not on
+    /// operand data, so the per-call timing is data-independent. Out-of-range
+    /// source reads return zero — required because the destination may walk
+    /// past <c>sourceCount</c> when <c>workLimbCount > srcLimbCount</c>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+    private static void ShiftRightByPLimbs(
+        PinnedPoolArray<ulong> source, int sourceCount,
+        int shiftBits,
+        PinnedPoolArray<ulong> destination, int destinationCount)
+    {
+        int shiftLimbs = shiftBits / 64;
+        int shiftBitsInLimb = shiftBits % 64;
+
+        if (shiftBitsInLimb == 0)
+        {
+            for (int i = 0; i < destinationCount; i++)
+            {
+                int srcIdx = i + shiftLimbs;
+                destination[i] = srcIdx < sourceCount ? source[srcIdx] : 0UL;
+            }
+        }
+        else
+        {
+            int invBits = 64 - shiftBitsInLimb;
+            for (int i = 0; i < destinationCount; i++)
+            {
+                int srcIdx = i + shiftLimbs;
+                ulong lo = srcIdx < sourceCount ? source[srcIdx] : 0UL;
+                ulong hi = srcIdx + 1 < sourceCount ? source[srcIdx + 1] : 0UL;
+                destination[i] = (lo >> shiftBitsInLimb) | (hi << invBits);
+            }
+        }
+    }
+
+    /// <summary>
     /// Computes the square of the current <see cref="SecureBigInteger"/> instance.
     /// </summary>
     /// <returns>A new <see cref="SecureBigInteger"/> representing <c>this * this</c>.</returns>

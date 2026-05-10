@@ -2319,4 +2319,72 @@ public class SecureBigIntegerTests
         // Assert
         Assert.Equal(original, roundTripped);
     }
+
+    [Theory]
+    // Cross-check MersenneModulo against the generic Modulo (= Remainder)
+    // path for representative Mersenne exponents and operand magnitudes.
+    // Operand values: zero, one, p-1 bits set, exact M_p, M_p + 1 (≡ 1),
+    // 2*M_p (≡ M_p), and a 2p-bit value (post-multiply scale).
+    [InlineData(13, "0")]
+    [InlineData(13, "1")]
+    [InlineData(13, "8190")]
+    [InlineData(13, "8191")]
+    [InlineData(13, "8192")]
+    [InlineData(13, "16382")]
+    [InlineData(13, "67108863")]
+    [InlineData(31, "0")]
+    [InlineData(31, "2147483647")]
+    [InlineData(31, "2147483648")]
+    [InlineData(61, "2305843009213693951")]
+    [InlineData(127, "0")]
+    [InlineData(127, "170141183460469231731687303715884105727")]
+    [InlineData(127, "170141183460469231731687303715884105728")]
+    [InlineData(127, "340282366920938463463374607431768211454")]
+    [InlineData(127, "28948022309329048855892746252171976962977213799489202546401021394546514198529")]
+    public void MersenneModulo_MatchesGenericModulo(int exponent, string operandDecimal)
+    {
+        // Arrange
+        BigInteger operandBig = BigInteger.Parse(operandDecimal);
+        BigInteger mersennePrimeBig = (BigInteger.One << exponent) - BigInteger.One;
+        BigInteger expectedBig = operandBig % mersennePrimeBig;
+
+        using var operand = operandBig.ToSecureBigInteger();
+        using var expected = expectedBig.ToSecureBigInteger();
+
+        // Act
+        using var actual = operand.MersenneModulo(exponent);
+
+        // Assert
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void MersenneModulo_NonPositiveExponent_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        using var operand = new SecureBigInteger(42);
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            using var _ = operand.MersenneModulo(0);
+        });
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            using var _ = operand.MersenneModulo(-1);
+        });
+    }
+
+    [Fact]
+    public void MersenneModulo_NegativeOperand_ThrowsArgumentException()
+    {
+        // Arrange
+        using var operand = new SecureBigInteger(-1);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+        {
+            using var _ = operand.MersenneModulo(127);
+        });
+    }
 }

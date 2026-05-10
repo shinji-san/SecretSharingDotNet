@@ -136,6 +136,9 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="ExponentMustBeNonNegative" xml:space="preserve">
         <value>Exponent must be non-negative.</value>
     </data>
+    <data name="OperandMustBeNonNegative" xml:space="preserve">
+        <value>Operand must be non-negative.</value>
+    </data>
     <data name="LengthOutOfRangeForUlong" xml:space="preserve">
         <value>Length must be in [0, 8].</value>
     </data>

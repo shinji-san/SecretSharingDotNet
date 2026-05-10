@@ -129,6 +129,9 @@
     <data name="ExponentMustBeNonNegative" xml:space="preserve">
         <value>Der Exponent darf nicht negativ sein.</value>
     </data>
+    <data name="OperandMustBeNonNegative" xml:space="preserve">
+        <value>Der Operand darf nicht negativ sein.</value>
+    </data>
     <data name="LengthOutOfRangeForUlong" xml:space="preserve">
         <value>Die Länge muss im Bereich [0, 8] liegen.</value>
     </data>

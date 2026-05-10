@@ -282,6 +282,12 @@ namespace SecretSharingDotNet {
             }
         }
 
+        internal static string OperandMustBeNonNegative {
+            get {
+                return ResourceManager.GetString("OperandMustBeNonNegative", resourceCulture);
+            }
+        }
+
         internal static string LengthOutOfRangeForUlong {
             get {
                 return ResourceManager.GetString("LengthOutOfRangeForUlong", resourceCulture);
