@@ -2375,16 +2375,38 @@ public class SecureBigIntegerTests
         });
     }
 
-    [Fact]
-    public void MersenneModulo_NegativeOperand_ThrowsArgumentException()
+    [Theory]
+    // Mathematical-modulo semantics for negative operands: every row's
+    // expected value is the canonical non-negative representative in
+    // [0, M_p - 1] of the negative input, computed via
+    // ((operand % M_p) + M_p) % M_p on the BCL side and cross-checked
+    // against the limb-CT path. The all-zero-after-mod corner case
+    // (-M_p, -2*M_p, ...) must canonicalise back to 0 and is tested
+    // alongside the typical M_p - residue pattern.
+    [InlineData(127, "-1")]
+    [InlineData(127, "-3000")]
+    [InlineData(127, "-170141183460469231731687303715884105727")]
+    [InlineData(127, "-170141183460469231731687303715884105728")]
+    [InlineData(127, "-340282366920938463463374607431768211454")]
+    [InlineData(31, "-2147483647")]
+    [InlineData(31, "-2147483648")]
+    [InlineData(13, "-8190")]
+    [InlineData(13, "-8191")]
+    [InlineData(13, "-8192")]
+    public void MersenneModulo_NegativeOperand_ReturnsMathematicalModulo(int exponent, string operandDecimal)
     {
         // Arrange
-        using var operand = new SecureBigInteger(-1);
+        BigInteger operandBig = BigInteger.Parse(operandDecimal);
+        BigInteger mersennePrimeBig = (BigInteger.One << exponent) - BigInteger.One;
+        BigInteger expectedBig = ((operandBig % mersennePrimeBig) + mersennePrimeBig) % mersennePrimeBig;
 
-        // Act & Assert
-        Assert.Throws<ArgumentException>(() =>
-        {
-            using var _ = operand.MersenneModulo(127);
-        });
+        using var operand = operandBig.ToSecureBigInteger();
+        using var expected = expectedBig.ToSecureBigInteger();
+
+        // Act
+        using var actual = operand.MersenneModulo(exponent);
+
+        // Assert
+        Assert.Equal(expected, actual);
     }
 }

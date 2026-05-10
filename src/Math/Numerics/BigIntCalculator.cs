@@ -274,13 +274,18 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     public override Calculator<BigInteger> Pow(int expo) => BigInteger.Pow(this.Value, expo);
 
     /// <summary>
-    /// Reduces this value modulo <c>2^<paramref name="mersenneExponent"/> - 1</c>.
+    /// Reduces this value modulo <c>2^<paramref name="mersenneExponent"/> - 1</c>
+    /// with mathematical-modulo semantics for negative operands.
     /// </summary>
     /// <param name="mersenneExponent">Positive Mersenne exponent.</param>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="mersenneExponent"/> is not positive.
     /// </exception>
-    /// <exception cref="ArgumentException">The current instance is negative.</exception>
+    /// <remarks>
+    /// BCL <c>BigInteger.%</c> returns the same sign as the dividend, so an
+    /// extra <c>+ modulus</c> step is required when the input is negative to
+    /// produce the canonical non-negative representative in <c>[0, M_p - 1]</c>.
+    /// </remarks>
     public override Calculator<BigInteger> MersenneModulo(int mersenneExponent)
     {
         if (mersenneExponent <= 0)
@@ -288,13 +293,14 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
             throw new ArgumentOutOfRangeException(nameof(mersenneExponent), mersenneExponent, string.Format(ErrorMessages.ValueLowerThanX, 1));
         }
 
-        if (this.Value.Sign < 0)
+        BigInteger modulus = (BigInteger.One << mersenneExponent) - BigInteger.One;
+        BigInteger remainder = this.Value % modulus;
+        if (remainder.Sign < 0)
         {
-            throw new ArgumentException(ErrorMessages.OperandMustBeNonNegative);
+            remainder += modulus;
         }
 
-        BigInteger modulus = (BigInteger.One << mersenneExponent) - BigInteger.One;
-        return new BigIntCalculator(this.Value % modulus);
+        return new BigIntCalculator(remainder);
     }
 
     /// <summary>

@@ -156,17 +156,14 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// and <see cref="Share{TNumber}.Value"/> but never disposes them. Ownership of the shares remains
     /// with the caller (typically a <see cref="Shares{TNumber}"/> collection).
     /// </remarks>
-    private Secret<TNumber> LagrangeInterpolate(IReadOnlyList<Share<TNumber>> shares, Calculator<TNumber> prime)
+    private Secret<TNumber> LagrangeInterpolate(IReadOnlyList<Share<TNumber>> shares)
     {
         if (shares is null)
         {
             throw new ArgumentNullException(nameof(shares));
         }
 
-        if (prime is null)
-        {
-            throw new ArgumentNullException(nameof(prime));
-        }
+        int mersenneExponent = this.securityLevelManager.SecurityLevel;
 
         int numberOfPoints = shares.Count;
         if (numberOfPoints < 2)
@@ -233,9 +230,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             for (int i = 0; i < numberOfPoints; i++)
             {
                 using var weightedNumerator = numeratorProducts[i] * denominator;
-                using var normalizedYCoordinate = shares[i].Value.MathematicalModulo(prime);
+                using var normalizedYCoordinate = shares[i].Value.MersenneModulo(mersenneExponent);
                 using var currentNumerator = weightedNumerator * normalizedYCoordinate;
-                using var modInversePerPoint = this.DivMod(currentNumerator, denominatorProducts[i], prime);
+                using var modInversePerPoint = this.DivMod(currentNumerator, denominatorProducts[i]);
                 var numeratorTemp = numerator;
                 numerator += modInversePerPoint;
                 numeratorTemp.Dispose();
@@ -243,7 +240,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
 
             // DivMod returns the result already reduced into [0, p-1], so it is the
             // normalised secret coefficient a0 directly.
-            using var a0 = this.DivMod(numerator, denominator, prime);
+            using var a0 = this.DivMod(numerator, denominator);
 
             return Secret<TNumber>.FromCoefficient(a0);
         }
@@ -293,18 +290,22 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         this.securityLevelManager.AdjustSecurityLevel(maximumY);
-        return this.LagrangeInterpolate(shareList, this.securityLevelManager.MersennePrime);
+        return this.LagrangeInterpolate(shareList);
     }
 
     /// <summary>
-    /// Performs division in a finite field, returning the modular result of dividing the numerator by the denominator modulo a given prime.
+    /// Performs division in the finite field defined by the configured Mersenne
+    /// prime, returning the modular result of dividing the numerator by the
+    /// denominator. The prime modulus and exponent are sourced from
+    /// <see cref="securityLevelManager"/>; callers must ensure the manager is
+    /// configured before invoking this method (the public
+    /// <see cref="Reconstruction"/> entry point handles that automatically).
     /// </summary>
     /// <param name="numerator">The value to be divided.</param>
     /// <param name="denominator">The value by which the numerator is divided.</param>
-    /// <param name="prime">The prime modulus for the finite field operations.</param>
     /// <returns>The result of the division operation in the finite field, reduced modulo the prime.</returns>
     /// <exception cref="System.ArgumentNullException">
-    /// Thrown when the <paramref name="numerator"/>, <paramref name="denominator"/> or <paramref name="prime"/> parameter is null.
+    /// Thrown when the <paramref name="numerator"/> or <paramref name="denominator"/> parameter is null.
     /// </exception>
     /// <exception cref="System.ArgumentException">
     /// Thrown when the <paramref name="denominator"/> is zero (its modular inverse does not exist) or
@@ -313,8 +314,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     internal Calculator<TNumber> DivMod(
         Calculator<TNumber> numerator,
-        Calculator<TNumber> denominator,
-        Calculator<TNumber> prime)
+        Calculator<TNumber> denominator)
     {
         this.ThrowIfDisposed();
         if (numerator is null)
@@ -327,18 +327,19 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentNullException(nameof(denominator));
         }
 
-        if (prime is null)
-        {
-            throw new ArgumentNullException(nameof(prime));
-        }
+        var prime = this.securityLevelManager.MersennePrime;
+        int mersenneExponent = this.securityLevelManager.SecurityLevel;
 
         // Normalize denominator into [0, p-1]
-        using var normalizedDenominator = denominator.MathematicalModulo(prime);
+        using var normalizedDenominator = denominator.MersenneModulo(mersenneExponent);
         if (normalizedDenominator.IsZero)
         {
             throw new ArgumentException(ErrorMessages.InverseOfZeroDoesNotExist, nameof(denominator));
         }
 
+        // The extended GCD still operates on the prime VALUE: the algorithm is
+        // generic and does not exploit the Mersenne structure. Mersenne-fold
+        // optimisation only kicks in for the modulo reductions below.
         using var result = this.extendedGcd.Compute(normalizedDenominator, prime);
         // Check whether the denominator is invertible modulo the prime
         if (!result.GreatestCommonDivisor.IsOne)
@@ -346,15 +347,15 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentException(ErrorMessages.DenominatorIsNotInvertibleModuloPrime, nameof(denominator));
         }
 
-        // Normalize inverse: x mod prime
-        using var inverse = result.BezoutCoefficients[0].MathematicalModulo(prime);
+        // Normalize inverse: x mod M_p (Bezout coefficient may be negative)
+        using var inverse = result.BezoutCoefficients[0].MersenneModulo(mersenneExponent);
 
-        // Normalize numerator: numerator mod prime
-        using var normalizedNumerator = numerator.MathematicalModulo(prime);
+        // Normalize numerator: numerator mod M_p (caller may pass signed values)
+        using var normalizedNumerator = numerator.MersenneModulo(mersenneExponent);
 
-        // (numerator * inverse) mod prime
+        // (numerator * inverse) mod M_p
         using var modInverse = normalizedNumerator * inverse;
-        return modInverse.MathematicalModulo(prime);
+        return modInverse.MersenneModulo(mersenneExponent);
     }
 
     /// <summary>

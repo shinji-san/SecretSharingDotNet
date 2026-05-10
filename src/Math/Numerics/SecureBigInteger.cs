@@ -694,10 +694,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             throw new ArgumentOutOfRangeException(nameof(exponent), exponent, string.Format(ErrorMessages.ValueLowerThanX, 1));
         }
 
-        if (this.isNegative)
-        {
-            throw new ArgumentException(ErrorMessages.OperandMustBeNonNegative);
-        }
+        // Negative operands produce mathematical-modulo semantics: the post-fold
+        // canonicalisation block at the end of this method transforms |value|
+        // mod M_p into M_p - (|value| mod M_p) when the input was negative and
+        // the result is non-zero. The sign branch itself is allowed (sign is
+        // observable per the threat model); the per-limb work that follows
+        // stays branchless on operand content.
 
         int p = exponent;
         int outLimbCount = (p + 63) / 64;
@@ -760,6 +762,37 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         ulong borrow = SubtractInPlace(work, outLimbCount, mersennePrime, outLimbCount);
         ulong undoMask = 0UL - borrow;
         AddMaskedInPlace(work, outLimbCount, mersennePrime, outLimbCount, undoMask);
+
+        // Mathematical-modulo correction for negative input: if the operand
+        // was negative AND the canonical magnitude result is non-zero, the
+        // representative in [0, M_p - 1] is M_p - work. For zero result the
+        // mathematical modulo of any negative is also zero, so leave work
+        // unchanged. The "result is non-zero" check is a fixed-iter OR-fold
+        // followed by a branchless 0/all-ones mask.
+        if (this.isNegative)
+        {
+            ulong nonZeroAcc = 0;
+            for (int i = 0; i < outLimbCount; i++)
+            {
+                nonZeroAcc |= work[i];
+            }
+
+            // selectMask = all-ones if work != 0, 0 if work == 0.
+            ulong selectMask = 0UL - ((nonZeroAcc | (0UL - nonZeroAcc)) >> 63);
+
+            using var negated = new PinnedPoolArray<ulong>(outLimbCount);
+            for (int i = 0; i < outLimbCount; i++)
+            {
+                negated[i] = mersennePrime[i];
+            }
+
+            SubtractInPlace(negated, outLimbCount, work, outLimbCount);
+
+            for (int i = 0; i < outLimbCount; i++)
+            {
+                work[i] = (work[i] & ~selectMask) | (negated[i] & selectMask);
+            }
+        }
 
         return new SecureBigInteger(work, outLimbCount, isNegative: false);
     }

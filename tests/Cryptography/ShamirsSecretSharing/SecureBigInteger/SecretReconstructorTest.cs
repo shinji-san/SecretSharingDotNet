@@ -111,19 +111,26 @@ public class SecretReconstructorTest
         var reconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
         using var d = (Calculator<SecureBigInteger>)(SecureBigInteger)3;
         using var n = (Calculator<SecureBigInteger>)(SecureBigInteger)5;
-        using var p = Calculator<SecureBigInteger>.Two.Pow(13) - Calculator<SecureBigInteger>.One;
         reconstructor.Dispose();
 
         // Act & Assert
-        Assert.Throws<ObjectDisposedException>(() => reconstructor.DivMod(n, d, p));
+        Assert.Throws<ObjectDisposedException>(() => reconstructor.DivMod(n, d));
     }
 
     [Fact]
     public void DivMod_RoundTrip_DenominatorTimesQuotientModPrime_EqualsNumerator()
     {
-        // Arrange — checks `d * DivMod(d, n, p) % p == n` with the M127 Mersenne prime.
+        // Arrange — checks `d * DivMod(d, n) % p == n` with the M127 Mersenne prime.
+        // DivMod sources prime + exponent from the security-level manager, so the
+        // test injects a manager pre-configured to security level 127 (= the
+        // Mersenne exponent for M127).
+        var manager = new SecurityLevelManager<SecureBigInteger>
+        {
+            SecurityLevel = 127,
+        };
         using var reconstructor = new SecretReconstructor<SecureBigInteger>(
-            new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+            new ExtendedEuclideanAlgorithm<SecureBigInteger>(),
+            manager);
         using Calculator<SecureBigInteger> d = (SecureBigInteger)3000;
         using Calculator<SecureBigInteger> n = (SecureBigInteger)3000;
         using var two       = Calculator<SecureBigInteger>.Two;
@@ -132,7 +139,7 @@ public class SecretReconstructorTest
         using var p         = twoPow127 - one;
 
         // Act
-        using var divModResult = reconstructor.DivMod(d, n, p);
+        using var divModResult = reconstructor.DivMod(d, n);
         using var dTimesDivMod = d * divModResult;
         using var modulo       = dTimesDivMod % p;
 

@@ -156,12 +156,13 @@ public abstract class Calculator<TNumber> :
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="mersenneExponent"/> is not positive.
     /// </exception>
-    /// <exception cref="ArgumentException">
-    /// The current instance is negative. Negative-operand handling will be
-    /// folded into this API in D7b-step-2; callers that need mathematical-
-    /// modulo semantics for signed values must continue to use
-    /// <see cref="MathematicalModulo"/> for now.
-    /// </exception>
+    /// <remarks>
+    /// Mathematical-modulo semantics: negative operands return the canonical
+    /// non-negative representative in <c>[0, M_p - 1]</c>. Equivalent to
+    /// <see cref="MathematicalModulo"/> with the modulus implicitly fixed at
+    /// <c>2^mersenneExponent - 1</c>, but specialised to the Mersenne fold
+    /// algorithm on the SecureBigInteger backend.
+    /// </remarks>
     /// <remarks>
     /// On the SecureBigInteger backend this routes to a fold-and-conditional-
     /// subtract algorithm that exploits <c>2^p ≡ 1 (mod M_p)</c>; on the

@@ -112,19 +112,26 @@ public class SecretReconstructorTest
         var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         using var d = (Calculator<BigInteger>)(BigInteger)3;
         using var n = (Calculator<BigInteger>)(BigInteger)5;
-        using var p = Calculator<BigInteger>.Two.Pow(13) - Calculator<BigInteger>.One;
         reconstructor.Dispose();
 
         // Act & Assert
-        Assert.Throws<ObjectDisposedException>(() => reconstructor.DivMod(n, d, p));
+        Assert.Throws<ObjectDisposedException>(() => reconstructor.DivMod(n, d));
     }
 
     [Fact]
     public void DivMod_RoundTrip_DenominatorTimesQuotientModPrime_EqualsNumerator()
     {
-        // Arrange — checks `d * DivMod(d, n, p) % p == n` with the M127 Mersenne prime.
+        // Arrange — checks `d * DivMod(d, n) % p == n` with the M127 Mersenne prime.
+        // DivMod sources prime + exponent from the security-level manager, so the
+        // test injects a manager pre-configured to security level 127 (= the
+        // Mersenne exponent for M127).
+        var manager = new SecurityLevelManager<BigInteger>
+        {
+            SecurityLevel = 127,
+        };
         using var reconstructor = new SecretReconstructor<BigInteger>(
-            new ExtendedEuclideanAlgorithm<BigInteger>());
+            new ExtendedEuclideanAlgorithm<BigInteger>(),
+            manager);
         using Calculator<BigInteger> d = (BigInteger)3000;
         using Calculator<BigInteger> n = (BigInteger)3000;
         using var two       = Calculator<BigInteger>.Two;
@@ -133,7 +140,7 @@ public class SecretReconstructorTest
         using var p         = twoPow127 - one;
 
         // Act
-        using var divModResult = reconstructor.DivMod(d, n, p);
+        using var divModResult = reconstructor.DivMod(d, n);
         using var dTimesDivMod = d * divModResult;
         using var modulo       = dTimesDivMod % p;
 
