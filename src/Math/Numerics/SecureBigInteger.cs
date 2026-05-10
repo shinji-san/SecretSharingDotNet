@@ -701,7 +701,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         int pBitInLimb = (p - 1) % 64;
         ulong pLimbMask = pBitInLimb == 63 ? ulong.MaxValue : (1UL << (pBitInLimb + 1)) - 1;
 
-        int srcLimbCount = this.LimbCount;
+        int srcLimbCount = this.limbs.Length;
 
         int workLimbCount = srcLimbCount >= outLimbCount + 1 ? srcLimbCount : outLimbCount + 1;
         using var work = new PinnedPoolArray<ulong>(workLimbCount);
@@ -851,7 +851,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public SecureBigInteger Abs()
     {
         this.ThrowIfDisposed();
-        return new SecureBigInteger(this.limbs, this.LimbCount, isNegative: false);
+        return new SecureBigInteger(this.limbs, this.limbs.Length, isNegative: false);
     }
 
     /// <summary>
@@ -867,7 +867,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public SecureBigInteger Negate()
     {
         this.ThrowIfDisposed();
-        return new SecureBigInteger(this.limbs, this.LimbCount, !this.isNegative);
+        return new SecureBigInteger(this.limbs, this.limbs.Length, !this.isNegative);
     }
 
     /// <summary>
