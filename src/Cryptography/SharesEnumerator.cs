@@ -83,6 +83,15 @@ public sealed class SharesEnumerator<TNumber> : IEnumerator<Share<TNumber>>
     /// <summary>
     /// Performs tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
+    /// <remarks>
+    /// Intentionally a no-op. The enumerator does not own any disposable
+    /// resources of its own: <see cref="shareList"/> is a borrowed
+    /// <see cref="ReadOnlyCollection{T}"/> wrapper around the caller-supplied
+    /// <see cref="Collection{T}"/>, and the enumerated <see cref="Share{TNumber}"/>
+    /// instances are owned by the parent <see cref="Shares{TNumber}"/>.
+    /// Disposing them here would leave the parent container holding
+    /// references to disposed shares.
+    /// </remarks>
     public void Dispose() { }
 
     /// <summary>
