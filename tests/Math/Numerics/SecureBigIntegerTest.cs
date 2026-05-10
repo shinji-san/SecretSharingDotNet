@@ -1215,6 +1215,15 @@ public class SecureBigIntegerTests
         Assert.Throws<ObjectDisposedException>(() => num.Equals((object)live));
         Assert.Throws<ObjectDisposedException>(() => num.GetHashCode());
         Assert.Throws<ObjectDisposedException>(() => num.CompareTo(live));
+
+        // Self-equality on a disposed instance must throw, not silently return true
+        // via the ReferenceEquals fast-path (L1 fix — disposal check now runs before
+        // the reference-equality short-circuit in both Equals and operator==).
+        Assert.Throws<ObjectDisposedException>(() => num.Equals(num));
+        Assert.Throws<ObjectDisposedException>(() =>
+        {
+            var _ = num == num;
+        });
     }
 
     [Theory]

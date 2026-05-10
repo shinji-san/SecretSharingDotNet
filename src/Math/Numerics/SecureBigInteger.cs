@@ -49,31 +49,83 @@ using System.Threading;
 /// <para>
 /// <b>Threat model.</b> The "secure" qualifier covers a specific subset of side channels:
 /// </para>
+/// <para>
+/// <b>Protected:</b>
+/// </para>
 /// <list type="bullet">
 /// <item><description>
-/// <b>Protected:</b> passive memory disclosure (the underlying buffer is GC-pinned and wiped
-/// with a 3-pass overwrite plus <c>CryptographicOperations.ZeroMemory</c> on dispose, so heap
-/// snapshots, swap files, and reuse-after-free cannot recover plaintext); equality leaks
-/// (<see cref="Equals(SecureBigInteger)"/> pre-pads to <c>max(left, right)</c> and uses
-/// fixed-time comparison, so timing does not leak prefix-match length).
+/// <b>Passive memory disclosure.</b> The canonical limb buffer is GC-pinned via
+/// <see cref="PinnedPoolArray{T}"/> and wiped with a 3-pass overwrite plus
+/// <c>CryptographicOperations.ZeroMemory</c> on dispose. Heap snapshots, swap files, and
+/// reuse-after-free of the same physical pages cannot recover plaintext. The wipe runs on
+/// both the explicit <see cref="Dispose()"/> path and the finalizer, with idempotent
+/// short-circuit if both fire.
 /// </description></item>
 /// <item><description>
-/// <b>Not protected:</b> timing side channels in arithmetic. <see cref="op_Addition"/>,
+/// <b>Length-vs-content equality leak.</b> <see cref="Equals(SecureBigInteger)"/> pre-pads
+/// both magnitudes to <c>max(this.limbs.Length, other.limbs.Length)</c> and runs the
+/// XOR-OR-fold helper <c>FixedTimeLimbsEqual</c> across the full padded length on every
+/// call — no early exit on the first differing limb, no length-mismatch fast path, no
+/// TFM-conditional code path.
+/// </description></item>
+/// <item><description>
+/// <b>Operand-value timing in core arithmetic.</b> <see cref="op_Addition"/>,
 /// <see cref="op_Subtraction"/>, <see cref="op_Multiply"/>, <see cref="op_Division"/>,
-/// <see cref="op_Modulus"/>, <see cref="Pow"/>, and the comparison
-/// operators are variable-time — runtime depends on operand bit length, carry
-/// propagation, and quotient-iteration count. An attacker who can measure the runtime of
-/// these operations (cross-VM cache attack, browser high-resolution timer, network-RTT
-/// measurement on a server endpoint that performs arithmetic on attacker-influenced inputs)
-/// can in principle infer magnitude information about secret-derived values.
+/// <see cref="op_Modulus"/>, <see cref="Square"/>, and <see cref="MersenneModulo"/>
+/// iterate a fixed number of limbs equal to the public
+/// <c>max(left.LimbCount, right.LimbCount)</c> (or the public Mersenne exponent for
+/// <see cref="MersenneModulo"/>). Per-limb work uses branchless carry/borrow formulas;
+/// no zero-operand short-circuit, no magnitude-equality short-circuit, no
+/// content-dependent loop bounds. The byte-decoding helper <c>TwosComplement</c> runs
+/// its carry-add for the full input length unconditionally.
+/// </description></item>
+/// <item><description>
+/// <b>RNG quality.</b> Caller responsibility — this type does not generate random data;
+/// see <c>Cryptography.SecureRandom</c> for the project's RNG layer.
 /// </description></item>
 /// </list>
 /// <para>
-/// Constant-time arithmetic in pure managed .NET is non-trivial and is on the future-work
-/// list, not the current contract. Consumers whose threat model includes co-located active
-/// timing attackers should layer the operation through a constant-time crypto stack
-/// (libsodium-net, hardware-backed enclaves) rather than rely on this type's naming alone.
+/// <b>Public-input dependence (treated as public, not secret):</b>
 /// </para>
+/// <list type="bullet">
+/// <item><description>
+/// <see cref="Pow(int)"/> is variable-time <i>on the exponent value</i> — iteration count
+/// is <c>O(log₂(exponent))</c> with a per-iteration branch on the current bit. The base
+/// instance is treated as secret and the per-iteration arithmetic on it goes through the
+/// constant-time-on-bit-length <see cref="op_Multiply"/>. <b>Callers must not pass
+/// secret-derived exponents through this method.</b>
+/// </description></item>
+/// <item><description>
+/// <see cref="ByteCount"/>, <see cref="ToByteArray"/>, <see cref="ToHexadecimal"/>, and
+/// <see cref="ToPinnedCharArray"/> derive their output size from the operand magnitude;
+/// their runtime is therefore variable-time on the operand value. Hex/decimal parsing
+/// throws variable-time on malformed input. All of these are documented public observables
+/// — output size is necessarily revealed by the call's contract.
+/// </description></item>
+/// </list>
+/// <para>
+/// <b>Not protected (intentional gaps):</b>
+/// </para>
+/// <list type="bullet">
+/// <item><description>
+/// <b>Active co-located timing attackers.</b> Cross-VM cache attacks, browser
+/// high-resolution timers, and network-RTT measurements against attacker-controlled
+/// endpoints may still leak operand magnitudes through micro-architectural side channels
+/// (cache-line patterns, branch predictor state, allocator behaviour) that pure managed
+/// .NET cannot fully suppress. Consumers in those threat models should layer through a
+/// constant-time crypto stack (libsodium-net, hardware-backed enclaves) rather than rely
+/// on this type's naming alone.
+/// </description></item>
+/// <item><description>
+/// <b>Concurrent mutating operations.</b> The arithmetic path-internal pattern of
+/// <c>result.isNegative = …;</c> after construction is single-threaded. <see cref="Dispose()"/>
+/// is the only operation guarded against concurrent invocation (via
+/// <see cref="System.Threading.Interlocked.Exchange(ref int, int)"/>); concurrent reads
+/// of the same instance are safe iff no thread is mutating, but parallel writes to the
+/// same instance from multiple threads are not supported. Treat each
+/// <see cref="SecureBigInteger"/> instance as owned by one thread at a time.
+/// </description></item>
+/// </list>
 /// </remarks>
 #if DEBUG
 [DebuggerDisplay("{ToString(),nq}")]
@@ -747,8 +799,8 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         int srcLimbCount = this.limbs.Length;
 
         int workLimbCount = srcLimbCount >= outLimbCount + 1 ? srcLimbCount : outLimbCount + 1;
-        using var work = new PinnedPoolArray<ulong>(workLimbCount);
-        using var scratch = new PinnedPoolArray<ulong>(workLimbCount);
+        using var work = new PinnedPoolArray<ulong>(length: workLimbCount);
+        using var scratch = new PinnedPoolArray<ulong>(length: workLimbCount);
 
         for (int i = 0; i < srcLimbCount; i++)
         {
@@ -787,7 +839,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         // top fold iteration drives bit p down via a final `+ 1`). Build M_p
         // and conditionally subtract: if work ≥ M_p, the trial subtract
         // succeeds; otherwise the borrow flag drives an undo via mask-add.
-        using var mersennePrime = new PinnedPoolArray<ulong>(outLimbCount);
+        using var mersennePrime = new PinnedPoolArray<ulong>(length: outLimbCount);
         for (int i = 0; i < outLimbCount - 1; i++)
         {
             mersennePrime[i] = ulong.MaxValue;
@@ -816,7 +868,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             // selectMask = all-ones if work != 0, 0 if work == 0.
             ulong selectMask = 0UL - ((nonZeroAcc | (0UL - nonZeroAcc)) >> 63);
 
-            using var negated = new PinnedPoolArray<ulong>(outLimbCount);
+            using var negated = new PinnedPoolArray<ulong>(length: outLimbCount);
             for (int i = 0; i < outLimbCount; i++)
             {
                 negated[i] = mersennePrime[i];
@@ -1059,7 +1111,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     {
         this.ThrowIfDisposed();
         int count = this.limbs.Length;
-        var copy = new PinnedPoolArray<ulong>(count);
+        var copy = new PinnedPoolArray<ulong>(length: count);
         Array.Copy(this.limbs.PoolArray, copy.PoolArray, count);
         return copy;
     }
@@ -1220,12 +1272,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     {
         if (length == 0 || data is null || (length == 1 && data[0] == 0))
         {
-            var zeroArray = new PinnedPoolArray<byte>(1);
+            var zeroArray = new PinnedPoolArray<byte>(length: 1);
             zeroArray[0] = 0;
             return zeroArray;
         }
 
-        var twosCompArray = new PinnedPoolArray<byte>(length);
+        var twosCompArray = new PinnedPoolArray<byte>(length: length);
         for (int i = 0; i < length; i++)
         {
             twosCompArray[i] = (byte)~data[i];
@@ -1331,12 +1383,15 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <paramref name="right"/> instance; otherwise, <see langword="false"/>.</returns>
     public static bool operator ==(SecureBigInteger left, SecureBigInteger right)
     {
-        if (ReferenceEquals(left, right))
+        // Both-null fast path stays — null is not disposed and matches the standard
+        // operator== contract. The ReferenceEquals fast path for two non-null operands
+        // moves into Equals, after the disposal check.
+        if (left is null)
         {
-            return true;
+            return right is null;
         }
 
-        if (left is null || right is null)
+        if (right is null)
         {
             return false;
         }
@@ -2047,8 +2102,32 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// <summary>
     /// Releases the resources used by the <see cref="SecureBigInteger"/> instance.
     /// </summary>
-    /// <param name="disposing">A boolean value indicating whether to release managed resources (true) or
-    /// only unmanaged resources (false).</param>
+    /// <param name="disposing"><see langword="true"/> when called from the explicit
+    /// <see cref="Dispose()"/> path; <see langword="false"/> when called from the
+    /// finalizer.</param>
+    /// <remarks>
+    /// Both paths dispose <see cref="limbs"/> identically. The standard "skip managed
+    /// resources from the finalizer" guidance is rejected here because:
+    /// <list type="bullet">
+    ///   <item><see cref="PinnedPoolArray{T}.Dispose"/> is finalizer-safe (it touches
+    ///   only its own GCHandle, the static <c>ArrayPool&lt;T&gt;.Shared</c> singleton,
+    ///   and a private buffer — none of which depend on other managed objects that may
+    ///   already have been finalized).</item>
+    ///   <item>If a caller forgets to <see cref="Dispose()"/>, deferring the secure
+    ///   wipe until <see cref="PinnedPoolArray{T}"/>'s own finalizer eventually runs
+    ///   creates a non-deterministic window where pinned plaintext is reachable from
+    ///   a heap-snapshot attacker. Forcing the wipe in our finalizer path closes that
+    ///   window to a single GC cycle.</item>
+    ///   <item>The disposal is idempotent — <see cref="PinnedPoolArray{T}.Dispose"/>
+    ///   returns early if already disposed, so the cascade
+    ///   (SecureBigInteger.Finalize → PinnedPoolArray.Dispose → PinnedPoolArray.Finalize
+    ///   no-ops) is correct regardless of finalizer ordering.</item>
+    /// </list>
+    /// The <paramref name="disposing"/> parameter is therefore retained only for
+    /// API-shape compatibility with the conventional Dispose pattern.
+    /// </remarks>
+    [SuppressMessage("ReSharper", "UnusedParameter.Local",
+        Justification = "Retained for the conventional Dispose-pattern shape; both paths intentionally take the same release route — see remarks.")]
     private void Dispose(bool disposing)
     {
         if (Interlocked.Exchange(ref this.disposed, 1) == 1)
@@ -2056,12 +2135,9 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             return;
         }
 
-        if (!disposing)
-        {
-            return;
-        }
-
-        // Release managed resources if any
+        // Wipe pinned plaintext on both paths. PinnedPoolArray.Dispose is idempotent
+        // and finalizer-safe, so even when invoked twice (once from here, once from
+        // PinnedPoolArray's own finalizer) the second call short-circuits.
         this.limbs?.Dispose();
         this.limbs = null;
     }
@@ -2107,13 +2183,16 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             return false;
         }
 
+        // Disposal check before the ReferenceEquals fast-path: comparing two
+        // disposed instances (or self-comparing a disposed instance) must throw
+        // ObjectDisposedException, not silently return true.
+        this.ThrowIfDisposed();
+        other.ThrowIfDisposed();
+
         if (ReferenceEquals(this, other))
         {
             return true;
         }
-
-        this.ThrowIfDisposed();
-        other.ThrowIfDisposed();
 
         bool signsEqual = this.isNegative == other.isNegative;
 
@@ -2290,7 +2369,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
         if (this.IsZeroInternal())
         {
-            var zeroArray = new PinnedPoolArray<char>(1);
+            var zeroArray = new PinnedPoolArray<char>(length: 1);
             zeroArray[0] = DigitOffset;
             return zeroArray;
         }
@@ -2309,7 +2388,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         SecureBigInteger temp = null;
         try
         {
-            result = new PinnedPoolArray<char>(totalLength);
+            result = new PinnedPoolArray<char>(length: totalLength);
             var index = totalLength - 1;
 
             temp = new SecureBigInteger(this);
@@ -2546,7 +2625,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         }
 
         int byteCount = (hexCharCount + 1) / 2;
-        using var bytes = new PinnedPoolArray<byte>(byteCount);
+        using var bytes = new PinnedPoolArray<byte>(length: byteCount);
 
         for (int i = 0; i < hexCharCount; i++)
         {
