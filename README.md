@@ -445,24 +445,46 @@ for hardened native crypto stacks.
 - **Insecure RNG.** Every random draw goes through
   `System.Security.Cryptography.RandomNumberGenerator` via the internal
   `Cryptography.SecureRandom` helper. No `System.Random`, no PRNG seeds.
+- **Operand-value timing leaks in core arithmetic.** `Add`, `Subtract`, `Multiply`,
+  `Square`, `Divide`, and `Remainder` iterate a fixed number of limbs equal to the public
+  `max(left.LimbCount, right.LimbCount)` and use branchless carry/borrow propagation;
+  their timing depends only on the public operand bit length, not on operand values.
+  `MersenneModulo` is constant-time on the public Mersenne exponent and operand limb
+  count.
+- **Timing leaks in modular inversion** (when the consumer opts in). The
+  Bernstein–Yang divstep recurrence in `SafeGcd` and its Mersenne-aware adapter
+  `MersenneSafeGcdAlgorithm` provide a constant-time modular inverse for use inside
+  `SecretReconstructor.DivMod`. The iteration count is fixed at the public Mersenne
+  exponent, independent of operand values. To wire it in, construct
+  `SecretReconstructor` via the 3-generic-argument overload with
+  `MersenneSafeGcdAlgorithm` as the GCD strategy.
+
+**Public-input dependence (treated as public, not secret):**
+
+- **`Pow(int exponent)`** is variable-time *on the exponent value* (iteration count is
+  `O(log₂(exponent))`). The exponent is **not** treated as secret; the per-iteration
+  arithmetic on the secret base goes through the constant-time-on-bit-length `Multiply`.
+  Callers must not pass secret-derived exponents through this method.
 
 **`SecureBigInteger` does *not* protect against:**
 
-- **Timing side channels in arithmetic.** `Add`, `Subtract`, `Multiply`, `Divide`,
-  `Modulo`, `Pow`, `Sqrt`, and the comparison operators are variable-time — runtime
-  depends on operand bit length, carry propagation, and quotient-iteration count. A
-  co-located attacker (cross-VM cache attack, browser high-resolution timer,
-  network-RTT measurement on a server endpoint that performs `SecureBigInteger`
-  arithmetic on attacker-influenced inputs) can in principle infer magnitude
-  information about secret-derived values.
+- **Variable-time modular inverse on the default reconstruction path.** When
+  `SecretReconstructor` is constructed without an explicit GCD strategy, it falls
+  back to `ExtendedEuclideanAlgorithm`, whose iteration count is variable on the
+  operand values. Consumers whose threat model includes timing analysis of
+  reconstruction must inject `MersenneSafeGcdAlgorithm` explicitly. A convenience
+  overload routing the SecureBigInteger backend to `MersenneSafeGcdAlgorithm` by
+  default is planned future work.
 
-  Constant-time big-integer arithmetic in pure managed .NET is non-trivial; canonical
-  implementations (libsodium, BoringSSL) rely on fixed-width representation,
-  branchless conditional moves, and hand-tuned cache-pattern audits. **This is on
-  the future-work list, not the current contract.** Consumers whose threat model
-  includes co-located active timing attackers should layer the operation through a
-  constant-time crypto stack (e.g. libsodium-net, hardware-backed enclaves) rather
-  than rely on the `SecureBigInteger` naming alone.
+Constant-time big-integer arithmetic in pure managed .NET is non-trivial; canonical
+implementations (libsodium, BoringSSL) rely on fixed-width representation, branchless
+conditional moves, and hand-tuned cache-pattern audits. The constant-time primitives
+exposed here approximate that approach within the constraints of managed .NET — they
+are best-effort against passive timing analysis and have *not* been audited against
+active co-located attackers (cross-VM cache attacks, browser high-resolution timers,
+network-RTT measurements). Consumers whose threat model includes such attackers should
+layer the operation through a constant-time crypto stack (e.g. libsodium-net,
+hardware-backed enclaves) rather than rely on the `SecureBigInteger` naming alone.
 
 # CLI building instructions
 ## Prerequisites
