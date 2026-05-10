@@ -38,6 +38,7 @@ using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using Xunit;
 
@@ -108,7 +109,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
         using var pinnedPassword = password.ToPinnedSecure();
         using var passwordSecret = Secret<SecureBigInteger>.FromText(pinnedPassword);
 
@@ -138,7 +139,7 @@ public class ShamirsSecretSharingTest
     // {
     //     // Arrange
     //     var secretSplitter = new SecretSplitter<SecureBigInteger>();
-    //     var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+    //     var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
     //
     //     // Act
     //     var shares = secretSplitter.MakeShares(3, 7, number, splitSecurityLevel);
@@ -165,7 +166,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
 
         // Act
         using var shares = secretSplitter.MakeShares(3, 7, splitSecurityLevel, out var originalSecret);
@@ -207,7 +208,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
 
         // Act & Assert
         using var shares = secretSplitter.MakeShares(2, 7, 13, out var discardedSecret);
@@ -228,7 +229,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
 
         // Act
         using var shares = secretSplitter.MakeShares(3, 7, 51, out var originalSecret);
@@ -253,7 +254,7 @@ public class ShamirsSecretSharingTest
         const string longSecret =
             "-----BEGIN EC PRIVATE KEY-----MIIBUQIBAQQgxq7AWG9L6uleuTB9q5FGqnHjXF+kD4y9154SLYYKMDqggeMwgeACAQEwLAYHKoZIzj0BAQIhAP////////////////////////////////////7///wvMEQEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwRBBHm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeYSDradyajxGVdpPv8DhEIqP0XtEimhVQZnEfQj/sQ1LgCIQD////////////////////+uq7c5q9IoDu/0l6M0DZBQQIBAaFEA0IABE0XO6I8lZYzXqRQnHP/knSwLex7q77g4J2AN0cVyrADicGlUr6QjVIlIu9NXCHxD2i++ToWjO1zLVdxgNJbUUc=-----END EC PRIVATE KEY-----";
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
         using var pinnedLong = longSecret.ToPinnedSecure();
         using var longSecretValue = Secret<SecureBigInteger>.FromText(pinnedLong);
 
@@ -277,7 +278,7 @@ public class ShamirsSecretSharingTest
     public void TestReconstructFromStringArray()
     {
         // Arrange
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
 
         // Act
@@ -302,7 +303,7 @@ public class ShamirsSecretSharingTest
             sharesChunk.AppendLine(share);
         }
 
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
         using var blob = sharesChunk.ToString().ToPinnedSecure();
 
         // Act
@@ -324,7 +325,7 @@ public class ShamirsSecretSharingTest
         int ok = 0;
         const int total = 1000;
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new ExtendedEuclideanAlgorithm<SecureBigInteger>());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
         var rng = new Random();
 
         // Act
