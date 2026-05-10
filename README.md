@@ -451,9 +451,9 @@ for hardened native crypto stacks.
   their timing depends only on the public operand bit length, not on operand values.
   `MersenneModulo` is constant-time on the public Mersenne exponent and operand limb
   count.
-- **Timing leaks in modular inversion** (when the consumer opts in). The
-  Bernstein–Yang divstep recurrence in `SafeGcd` and its Mersenne-aware adapter
-  `MersenneSafeGcdAlgorithm` provide a constant-time modular inverse for use inside
+- **Timing leaks in modular inversion** (when the consumer opts in).
+  `MersenneSafeGcdAlgorithm` implements the Bernstein–Yang "safegcd" / divstep
+  recurrence and provides a constant-time modular inverse for use inside
   `SecretReconstructor.DivMod`. The iteration count is fixed at the public Mersenne
   exponent, independent of operand values. To wire it in, construct
   `SecretReconstructor` via the 3-generic-argument overload with

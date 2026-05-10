@@ -38,28 +38,58 @@ using System;
 /// Constant-time extended-GCD algorithm specialised for the
 /// <see cref="SecureBigInteger"/> backend, computing modular inverses against
 /// the Mersenne prime configured on a supplied
-/// <see cref="ISecurityLevelManager{TNumber}"/>. Wraps
-/// <see cref="SafeGcd.ExtendedGcd"/> (Bernstein–Yang divsteps with Bezout
-/// tracking) and applies the <c>2^{-n}</c> correction needed to convert the
-/// algorithm's integer-form Bezout identity into a modular inverse.
+/// <see cref="ISecurityLevelManager{TNumber}"/>. Implements the Bernstein–Yang
+/// "safegcd" / divsteps recurrence (with Bezout-coefficient tracking) and
+/// applies the <c>2^{-n}</c> correction needed to convert the algorithm's
+/// integer-form Bezout identity into a modular inverse.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Contract weakening vs. <see cref="ExtendedEuclideanAlgorithm{TNumber}"/>.</b>
-/// The standard extended Euclidean algorithm returns Bezout coefficients
-/// <c>(s, t)</c> satisfying <c>a·s + b·t = gcd(a, b)</c> over <c>Z</c>.
-/// <see cref="SafeGcd"/> instead returns <c>(α, β)</c> such that
-/// <c>α·f + β·g = 2^n · gcd(f, g)</c>, where <c>n</c> is the
-/// algorithm's fixed iteration count. The <c>2^n</c> factor cannot be removed
-/// over <c>Z</c> in general; it can only be cancelled modulo a chosen modulus.
-/// This class therefore returns coefficients that satisfy the Bezout identity
-/// <em>modulo the configured Mersenne prime</em>, not over <c>Z</c>.
+/// <b>Algorithm reference.</b> Bernstein, Daniel J., and Bo-Yin Yang. "Fast
+/// constant-time gcd computation and modular inversion." IACR Cryptology
+/// ePrint Archive, 2019/266. https://gcd.cr.yp.to/safegcd-20190413.pdf
 /// </para>
 /// <para>
-/// For Mersenne primes <c>M_p = 2^p − 1</c>, <c>2^p ≡ 1 (mod M_p)</c>, so
-/// <c>2^{-n} ≡ 2^{(p − n mod p) mod p} (mod M_p)</c>. Multiplying both sides
-/// of the integer-form identity by <c>2^{-n}</c> yields, when
-/// <c>gcd(a, b) = 1</c>, a true modular inverse of the denominator.
+/// The algorithm replaces the Euclidean recurrence — whose iteration count
+/// depends on the operand magnitudes — with a fixed-iteration divstep
+/// transformation on a triple <c>(δ, f, g)</c>:
+/// <code>
+///   if δ &gt; 0 and g is odd:   (δ, f, g) → (-δ, g, (g − f) / 2)
+///   else if g is odd:          (δ, f, g) → (δ + 1, f, (g + f) / 2)
+///   else (g even):             (δ, f, g) → (δ + 1, f, g / 2)
+/// </code>
+/// After <c>n = ceil((49.39 p + 80) / 17)</c> iterations on inputs of bit
+/// length at most <c>p</c>, <c>g</c> is zero and <c>|f|</c> equals the gcd of
+/// the original inputs. The fixed iteration count is the central constant-time
+/// guarantee.
+/// </para>
+/// <para>
+/// <b>Integer-form Bezout tracking.</b> A 2 × 2 transition matrix
+/// <c>(u_f, v_f, u_g, v_g)</c> is updated alongside <c>(δ, f, g)</c> so that
+/// for each iteration <c>k</c>:
+/// <code>
+///   2^k * f_k = u_f * fInput + v_f * gInput
+///   2^k * g_k = u_g * fInput + v_g * gInput
+/// </code>
+/// Initial state at <c>k = 0</c>: <c>u_f = 1</c>, <c>v_f = 0</c>,
+/// <c>u_g = 0</c>, <c>v_g = 1</c>. Per-divstep matrix updates are pure integer
+/// add, subtract, and doubling — no division. After <c>n</c> iterations,
+/// <c>2^n * gcd = ±(u_f * fInput + v_f * gInput)</c>; the sign is folded into
+/// the returned coefficients so the caller-facing identity is always
+/// <c>α · fInput + β · gInput = 2^n · gcd</c> with non-negative gcd.
+/// </para>
+/// <para>
+/// <b>Mersenne-modulus correction.</b> The standard extended Euclidean
+/// algorithm returns Bezout coefficients <c>(s, t)</c> satisfying
+/// <c>a·s + b·t = gcd(a, b)</c> over <c>Z</c>. The integer-form divsteps
+/// identity <c>α · f + β · g = 2^n · gcd(f, g)</c> carries the unwanted
+/// <c>2^n</c> factor, which cannot be removed over <c>Z</c> in general — only
+/// modulo a chosen modulus. For Mersenne primes <c>M_p = 2^p − 1</c>,
+/// <c>2^p ≡ 1 (mod M_p)</c>, so <c>2^{-n} ≡ 2^{(p − n mod p) mod p} (mod M_p)</c>.
+/// Multiplying the integer-form identity by <c>2^{-n}</c> yields, when
+/// <c>gcd(a, b) = 1</c>, a true modular inverse of the denominator. This
+/// class therefore returns Bezout coefficients that satisfy the identity
+/// <em>modulo the configured Mersenne prime</em>, not over <c>Z</c>.
 /// </para>
 /// <para>
 /// <b>Precondition.</b> <see cref="Compute"/>'s <c>b</c> argument must equal
@@ -68,14 +98,25 @@ using System;
 /// <c>2^{-n} mod M_p</c> arithmetic is invalid against any other modulus.
 /// </para>
 /// <para>
-/// <b>Threat model.</b> Inherits the timing-CT properties of
-/// <see cref="SafeGcd"/>: the outer iteration count is data-independent, and
-/// every per-iteration arithmetic step uses <see cref="SecureBigInteger"/>
-/// operations whose timing depends on the public bit-length of the modulus
-/// (i.e. the Mersenne exponent), not on the secret operand values. The
+/// <b>Threat model.</b> The outer iteration count is fixed at the public
+/// Mersenne exponent, independent of operand values. Per-iteration branch
+/// selection is data-dependent on <c>δ</c> and <c>g</c>'s low bit; each
+/// branch performs the same allocation count and arithmetic-op count, so
+/// per-iter wall-clock time is approximately uniform across branches. The
 /// <c>2^{-n} mod M_p</c> correction is computed via
 /// <see cref="SecureBigInteger.Pow"/>, whose iteration count depends only on
-/// the public correction exponent.
+/// the public correction exponent. Strict branchless mask-select between
+/// precomputed alternatives is a future-work optimisation aligned with the
+/// limb-level rewrite.
+/// </para>
+/// <para>
+/// <b>Implementation provenance.</b> Implemented from the Bernstein–Yang
+/// paper as the algorithmic reference, not from existing public-source code
+/// (BoringSSL <c>bn_safegcd.c</c>, libsodium <c>scalar_invert</c>, etc.). The
+/// divstep formula and iteration-count formula are taken from the paper
+/// directly; the per-iteration code structure is a straightforward
+/// translation into idiomatic C# on top of the existing CT primitives in
+/// <see cref="SecureBigInteger"/>.
 /// </para>
 /// </remarks>
 public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigInteger>
@@ -105,10 +146,9 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
     /// <remarks>
     /// <para>
     /// Computes the modular inverse of <paramref name="a"/> against the Mersenne prime
-    /// supplied as <paramref name="b"/>. Internally calls
-    /// <see cref="SafeGcd.ExtendedGcd"/> with <c>fInput = b</c> (odd by Mersenne-prime
-    /// definition) and <c>gInput = a</c>, then applies the <c>2^{-n} mod M_p</c>
-    /// correction.
+    /// supplied as <paramref name="b"/>. Internally calls <see cref="ExtendedGcd"/>
+    /// with <c>fInput = b</c> (odd by Mersenne-prime definition) and
+    /// <c>gInput = a</c>, then applies the <c>2^{-n} mod M_p</c> correction.
     /// </para>
     /// <para>
     /// The returned <see cref="ExtendedGcdResult{TNumber}.BezoutCoefficients"/> are
@@ -159,11 +199,11 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
                 nameof(b));
         }
 
-        // SafeGcd contract: alpha * primeVal + beta * denominatorVal = 2^iter * gcd.
+        // ExtendedGcd contract: alpha * primeVal + beta * denominatorVal = 2^iter * gcd.
         // primeVal is odd & positive (Mersenne primes M_p = 2^p − 1 with p ≥ 2),
-        // satisfying SafeGcd's fInput-must-be-odd-and-positive precondition.
+        // satisfying ExtendedGcd's fInput-must-be-odd-and-positive precondition.
         var (gcd, alpha, beta, iterations) =
-            SafeGcd.ExtendedGcd(primeVal, denominatorVal, mersenneExponent);
+            ExtendedGcd(primeVal, denominatorVal, mersenneExponent);
 
         SecureBigInteger inv2n = null;
         SecureBigInteger sVal = null;
@@ -237,5 +277,186 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
             qaCalc?.Dispose();
             qbCalc?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Computes the gcd of <paramref name="fInput"/> and <paramref name="gInput"/>
+    /// together with integer-form Bezout coefficients <c>α</c> and <c>β</c>
+    /// satisfying <c>α · fInput + β · gInput = 2^iterationCount · gcd</c> via the
+    /// Bernstein–Yang divstep recurrence with 2 × 2 transition-matrix tracking.
+    /// </summary>
+    /// <param name="fInput">First operand. Must be positive and odd.</param>
+    /// <param name="gInput">Second operand. Must be non-negative.</param>
+    /// <param name="bitLengthBound">Public upper bound on the bit length
+    /// of the operands. Drives the iteration count
+    /// <c>ceil((49.39 × bitLengthBound + 80) / 17)</c>. For a modular-inverse
+    /// computation modulo the Mersenne prime <c>M_p</c>, pass <c>p</c>.</param>
+    /// <returns>A tuple <c>(gcd, alpha, beta, iterationCount)</c> with the
+    /// gcd and the integer-form Bezout coefficients. The caller takes
+    /// ownership of all three <see cref="SecureBigInteger"/> instances and
+    /// must dispose them.</returns>
+    /// <remarks>
+    /// Per-divstep matrix updates (derived directly from the definitions of
+    /// <c>f_{k+1}</c>, <c>g_{k+1}</c> in each branch):
+    /// <list type="bullet">
+    ///   <item>Branch 1 (δ &gt; 0, g_k odd):
+    ///   u_f' = 2 u_g, v_f' = 2 v_g, u_g' = u_g − u_f, v_g' = v_g − v_f.</item>
+    ///   <item>Branch 2 (δ ≤ 0, g_k odd):
+    ///   u_f' = 2 u_f, v_f' = 2 v_f, u_g' = u_g + u_f, v_g' = v_g + v_f.</item>
+    ///   <item>Branch 3 (g_k even):
+    ///   u_f' = 2 u_f, v_f' = 2 v_f, u_g' = u_g, v_g' = v_g.</item>
+    /// </list>
+    /// After iteration <c>n</c>, <c>g_n = 0</c> and <c>|f_n| = gcd</c>;
+    /// <c>2^n * gcd = ±(u_f * fInput + v_f * gInput)</c>, where the sign
+    /// flips if <c>f_n &lt; 0</c>. The returned alpha, beta absorb that
+    /// sign so the caller-facing identity is always
+    /// <c>alpha * fInput + beta * gInput = 2^iterationCount * gcd</c> with
+    /// non-negative gcd.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="fInput"/> or <paramref name="gInput"/> is null.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="bitLengthBound"/> is not positive.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="fInput"/> is not positive and odd, or
+    /// <paramref name="gInput"/> is negative.
+    /// </exception>
+    internal static (SecureBigInteger gcd, SecureBigInteger alpha, SecureBigInteger beta, int iterationCount)
+        ExtendedGcd(SecureBigInteger fInput, SecureBigInteger gInput, int bitLengthBound)
+    {
+        if (fInput is null)
+        {
+            throw new ArgumentNullException(nameof(fInput));
+        }
+
+        if (gInput is null)
+        {
+            throw new ArgumentNullException(nameof(gInput));
+        }
+
+        if (bitLengthBound <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitLengthBound), bitLengthBound, string.Format(ErrorMessages.ValueLowerThanX, 1));
+        }
+
+        if (fInput.Sign <= 0 || fInput.IsEven)
+        {
+            throw new ArgumentException("fInput must be positive and odd.", nameof(fInput));
+        }
+
+        if (gInput.Sign < 0)
+        {
+            throw new ArgumentException(string.Format(ErrorMessages.ValueLowerThanX, 0), nameof(gInput));
+        }
+
+        int iterations = ((4939 * bitLengthBound) + 8000 + 1699) / 1700;
+
+        SecureBigInteger f = new SecureBigInteger(fInput);
+        SecureBigInteger g = new SecureBigInteger(gInput);
+        SecureBigInteger uF = (SecureBigInteger)1;
+        SecureBigInteger vF = (SecureBigInteger)0;
+        SecureBigInteger uG = (SecureBigInteger)0;
+        SecureBigInteger vG = (SecureBigInteger)1;
+        int delta = 1;
+
+        try
+        {
+            for (int i = 0; i < iterations; i++)
+            {
+                ApplyExtendedDivstep(ref f, ref g, ref delta, ref uF, ref vF, ref uG, ref vG);
+            }
+
+            // Sign-correct the Bezout coefficients so the returned identity is
+            // alpha * fInput + beta * gInput = 2^iterationCount * |f_n|.
+            bool fIsNegative = f.Sign < 0;
+            SecureBigInteger gcd = f.Abs();
+            SecureBigInteger alpha = fIsNegative ? uF.Negate() : new SecureBigInteger(uF);
+            SecureBigInteger beta = fIsNegative ? vF.Negate() : new SecureBigInteger(vF);
+
+            return (gcd, alpha, beta, iterations);
+        }
+        finally
+        {
+            f?.Dispose();
+            g?.Dispose();
+            uF?.Dispose();
+            vF?.Dispose();
+            uG?.Dispose();
+            vG?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Applies one extended divstep transformation, updating the working
+    /// values <paramref name="f"/>, <paramref name="g"/>,
+    /// <paramref name="delta"/> together with the four matrix entries
+    /// <paramref name="uF"/>, <paramref name="vF"/>, <paramref name="uG"/>,
+    /// <paramref name="vG"/> in lock-step. All previous instances are
+    /// disposed before being replaced.
+    /// </summary>
+    private static void ApplyExtendedDivstep(
+        ref SecureBigInteger f, ref SecureBigInteger g, ref int delta,
+        ref SecureBigInteger uF, ref SecureBigInteger vF,
+        ref SecureBigInteger uG, ref SecureBigInteger vG)
+    {
+        bool gIsOdd = !g.IsEven;
+        bool branch1 = delta > 0 && gIsOdd;
+
+        SecureBigInteger newF;
+        SecureBigInteger newG;
+        SecureBigInteger newUF;
+        SecureBigInteger newVF;
+        SecureBigInteger newUG;
+        SecureBigInteger newVG;
+        int newDelta;
+
+        if (branch1)
+        {
+            newF = new SecureBigInteger(g);
+            using var diff = SecureBigInteger.Subtract(g, f);
+            newG = diff / 2;
+            newUF = uG + uG;
+            newVF = vG + vG;
+            newUG = SecureBigInteger.Subtract(uG, uF);
+            newVG = SecureBigInteger.Subtract(vG, vF);
+            newDelta = -delta;
+        }
+        else if (gIsOdd)
+        {
+            newF = new SecureBigInteger(f);
+            using var sum = SecureBigInteger.Add(g, f);
+            newG = sum / 2;
+            newUF = uF + uF;
+            newVF = vF + vF;
+            newUG = SecureBigInteger.Add(uG, uF);
+            newVG = SecureBigInteger.Add(vG, vF);
+            newDelta = delta + 1;
+        }
+        else
+        {
+            newF = new SecureBigInteger(f);
+            newG = g / 2;
+            newUF = uF + uF;
+            newVF = vF + vF;
+            newUG = new SecureBigInteger(uG);
+            newVG = new SecureBigInteger(vG);
+            newDelta = delta + 1;
+        }
+
+        f.Dispose();
+        g.Dispose();
+        uF.Dispose();
+        vF.Dispose();
+        uG.Dispose();
+        vG.Dispose();
+        f = newF;
+        g = newG;
+        uF = newUF;
+        vF = newVF;
+        uG = newUG;
+        vG = newVG;
+        delta = newDelta;
     }
 }

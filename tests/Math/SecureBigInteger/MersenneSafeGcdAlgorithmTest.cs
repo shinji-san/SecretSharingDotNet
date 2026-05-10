@@ -196,4 +196,143 @@ public class MersenneSafeGcdAlgorithmTest
         // Assert
         Assert.Null(ex);
     }
+
+    // -------------------------------------------------------------------------
+    // Internal helper tests: MersenneSafeGcdAlgorithm.ExtendedGcd
+    //
+    // These tests target the internal Bernstein–Yang divsteps helper directly
+    // (visible to the test assembly via InternalsVisibleTo) rather than going
+    // through Compute(). Compute() requires `b == manager.MersennePrime`, so
+    // testing the algorithm against arbitrary non-Mersenne pairs
+    // (e.g. 15/10 with shared factor 5) is only possible at the helper level.
+    // -------------------------------------------------------------------------
+
+    [Theory]
+    // Small inputs verifying the divstep algorithm reaches the correct gcd.
+    [InlineData("7", "5", "1", 3)]
+    [InlineData("7", "14", "7", 3)]
+    [InlineData("7", "0", "7", 3)]
+    [InlineData("31", "10", "1", 5)]
+    [InlineData("127", "100", "1", 7)]
+    [InlineData("127", "0", "127", 7)]
+    // Inputs with a non-trivial shared factor (f need not be prime).
+    [InlineData("15", "10", "5", 4)]
+    [InlineData("15", "9", "3", 4)]
+    [InlineData("21", "14", "7", 5)]
+    // Mersenne-prime moduli — the modular-inverse use case. Mersenne primes
+    // are coprime to every value in [1, M_p − 1].
+    [InlineData("8191", "12345", "1", 13)]
+    [InlineData("8191", "0", "8191", 13)]
+    [InlineData("2147483647", "2", "1", 31)]
+    [InlineData("2147483647", "999999937", "1", 31)]
+    [InlineData("170141183460469231731687303715884105727", "1", "1", 127)]
+    [InlineData("170141183460469231731687303715884105727", "3000", "1", 127)]
+    [InlineData("170141183460469231731687303715884105727", "0", "170141183460469231731687303715884105727", 127)]
+    public void ExtendedGcd_MatchesBclBigInteger(string fDec, string gDec, string expectedGcdDec, int bitLengthBound)
+    {
+        // Arrange
+        using var f = BigInteger.Parse(fDec).ToSecureBigInteger();
+        using var g = BigInteger.Parse(gDec).ToSecureBigInteger();
+        using var expected = BigInteger.Parse(expectedGcdDec).ToSecureBigInteger();
+
+        // Act
+        var (gcd, alpha, beta, _) = MersenneSafeGcdAlgorithm.ExtendedGcd(f, g, bitLengthBound);
+
+        try
+        {
+            // Assert
+            Assert.Equal(expected, gcd);
+        }
+        finally
+        {
+            gcd.Dispose();
+            alpha.Dispose();
+            beta.Dispose();
+        }
+    }
+
+    [Theory]
+    // Verifies the integer-form Bezout identity:
+    //   alpha * fInput + beta * gInput = 2^iterationCount * gcd
+    // for representative inputs across small primes, common-factor pairs,
+    // and Mersenne-prime moduli (M_3, M_5, M_13, M_31).
+    [InlineData("7", "5", 3)]
+    [InlineData("7", "0", 3)]
+    [InlineData("31", "10", 5)]
+    [InlineData("31", "30", 5)]
+    [InlineData("127", "100", 7)]
+    [InlineData("127", "1", 7)]
+    [InlineData("15", "10", 4)]
+    [InlineData("15", "9", 4)]
+    [InlineData("21", "14", 5)]
+    // Note: bitLengthBound must upper-bound BOTH inputs. Below, 12345 has 14 bits,
+    // larger than M_13 = 8191 (13 bits), so the bound is 14 not 13.
+    [InlineData("8191", "12345", 14)]
+    [InlineData("8191", "0", 13)]
+    [InlineData("2147483647", "1", 31)]
+    [InlineData("2147483647", "999999937", 31)]
+    public void ExtendedGcd_AlphaTimesFPlusBetaTimesG_Equals2ToTheNTimesGcd(string fDec, string gDec, int bitLengthBound)
+    {
+        // Arrange
+        BigInteger fBig = BigInteger.Parse(fDec);
+        BigInteger gBig = BigInteger.Parse(gDec);
+        BigInteger expectedGcd = BigInteger.GreatestCommonDivisor(fBig, gBig);
+        using var f = fBig.ToSecureBigInteger();
+        using var g = gBig.ToSecureBigInteger();
+
+        // Act
+        var (gcd, alpha, beta, iterations) = MersenneSafeGcdAlgorithm.ExtendedGcd(f, g, bitLengthBound);
+
+        try
+        {
+            BigInteger gcdActual = gcd.ToBigInteger();
+            BigInteger alphaActual = alpha.ToBigInteger();
+            BigInteger betaActual = beta.ToBigInteger();
+            BigInteger expectedRhs = (BigInteger.One << iterations) * expectedGcd;
+            BigInteger actualLhs = (alphaActual * fBig) + (betaActual * gBig);
+
+            // Assert
+            Assert.Equal(expectedGcd, gcdActual);
+            Assert.Equal(expectedRhs, actualLhs);
+        }
+        finally
+        {
+            gcd.Dispose();
+            alpha.Dispose();
+            beta.Dispose();
+        }
+    }
+
+    [Fact]
+    public void ExtendedGcd_FInputNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var g = new SecureBigInteger(5);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => MersenneSafeGcdAlgorithm.ExtendedGcd(null!, g, 8));
+    }
+
+    [Fact]
+    public void ExtendedGcd_GInputNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var f = new SecureBigInteger(7);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => MersenneSafeGcdAlgorithm.ExtendedGcd(f, null!, 8));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ExtendedGcd_NonPositiveBitLengthBound_ThrowsArgumentOutOfRangeException(int bitLengthBound)
+    {
+        // Arrange
+        using var f = new SecureBigInteger(7);
+        using var g = new SecureBigInteger(5);
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() => MersenneSafeGcdAlgorithm.ExtendedGcd(f, g, bitLengthBound));
+    }
 }
