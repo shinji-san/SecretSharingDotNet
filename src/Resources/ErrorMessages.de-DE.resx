@@ -132,11 +132,17 @@
     <data name="OperandMustBeNonNegative" xml:space="preserve">
         <value>Der Operand darf nicht negativ sein.</value>
     </data>
+    <data name="OperandMustBePositiveAndOdd" xml:space="preserve">
+        <value>Der Operand muss positiv und ungerade sein.</value>
+    </data>
     <data name="LengthOutOfRangeForUlong" xml:space="preserve">
         <value>Die Länge muss im Bereich [0, 8] liegen.</value>
     </data>
     <data name="ModulusMustNotBeZero" xml:space="preserve">
         <value>Der Modul darf nicht null sein.</value>
+    </data>
+    <data name="ModulusMustEqualConfiguredMersennePrime" xml:space="preserve">
+        <value>Der Modul muss mit der aktuell auf dem Security-Level-Manager konfigurierten Mersenne-Primzahl übereinstimmen.</value>
     </data>
     <data name="ValueTooLargeForInt" xml:space="preserve">
         <value>Der Wert ist zu groß für 'int'.</value>

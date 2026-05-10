@@ -195,7 +195,7 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
         if (!primeVal.Equals(expectedPrime))
         {
             throw new ArgumentException(
-                "Modulus must equal the Mersenne prime currently configured on the security-level manager.",
+                ErrorMessages.ModulusMustEqualConfiguredMersennePrime,
                 nameof(b));
         }
 
@@ -343,7 +343,7 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
 
         if (fInput.Sign <= 0 || fInput.IsEven)
         {
-            throw new ArgumentException("fInput must be positive and odd.", nameof(fInput));
+            throw new ArgumentException(ErrorMessages.OperandMustBePositiveAndOdd, nameof(fInput));
         }
 
         if (gInput.Sign < 0)

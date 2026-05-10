@@ -288,6 +288,12 @@ namespace SecretSharingDotNet {
             }
         }
 
+        internal static string OperandMustBePositiveAndOdd {
+            get {
+                return ResourceManager.GetString("OperandMustBePositiveAndOdd", resourceCulture);
+            }
+        }
+
         internal static string LengthOutOfRangeForUlong {
             get {
                 return ResourceManager.GetString("LengthOutOfRangeForUlong", resourceCulture);
@@ -297,6 +303,12 @@ namespace SecretSharingDotNet {
         internal static string ModulusMustNotBeZero {
             get {
                 return ResourceManager.GetString("ModulusMustNotBeZero", resourceCulture);
+            }
+        }
+
+        internal static string ModulusMustEqualConfiguredMersennePrime {
+            get {
+                return ResourceManager.GetString("ModulusMustEqualConfiguredMersennePrime", resourceCulture);
             }
         }
 
