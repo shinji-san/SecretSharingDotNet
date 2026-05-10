@@ -41,22 +41,29 @@ internal static class Polynomial
 {
     /// <summary>
     /// Evaluates the polynomial with the given <paramref name="coefficients"/> at <paramref name="x"/>
-    /// modulo <paramref name="prime"/>, using Horner's scheme.
+    /// modulo the Mersenne prime <c>M_p = 2^<paramref name="mersenneExponent"/> - 1</c>,
+    /// using Horner's scheme.
     /// </summary>
     /// <typeparam name="TNumber">Numeric data type.</typeparam>
     /// <param name="x">The x-coordinate (share index).</param>
     /// <param name="coefficients">Polynomial coefficients ordered from constant term upwards (index 0 = a0).</param>
-    /// <param name="prime">The prime modulus defining the finite field.</param>
-    /// <returns>A newly allocated <see cref="Calculator{TNumber}"/> representing <c>p(x) mod prime</c>. The caller owns and must dispose it.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when any parameter is <see langword="null"/>.</exception>
+    /// <param name="mersenneExponent">
+    /// Positive Mersenne-prime exponent. The reduction at every Horner step
+    /// routes through <see cref="Calculator{TNumber}.MersenneModulo(int)"/>,
+    /// which on the SecureBigInteger backend is the constant-time fold-and-
+    /// add specialisation introduced in D7.
+    /// </param>
+    /// <returns>A newly allocated <see cref="Calculator{TNumber}"/> representing <c>p(x) mod M_p</c>. The caller owns and must dispose it.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="x"/> or <paramref name="coefficients"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="x"/> is zero. Evaluating the polynomial at <c>x = 0</c> would return
-    /// the constant term <c>a₀</c> — i.e. the secret — and is therefore disallowed.
+    /// <paramref name="x"/> is zero (evaluating at <c>x = 0</c> would return
+    /// the constant term <c>a₀</c> — i.e. the secret — and is disallowed); or
+    /// <paramref name="mersenneExponent"/> is not positive.
     /// </exception>
     public static Calculator<TNumber> EvaluateAt<TNumber>(
         Calculator<TNumber> x,
         IEnumerable<Calculator<TNumber>> coefficients,
-        Calculator<TNumber> prime)
+        int mersenneExponent)
     {
         if (x is null)
         {
@@ -68,9 +75,9 @@ internal static class Polynomial
             throw new ArgumentNullException(nameof(coefficients));
         }
 
-        if (prime is null)
+        if (mersenneExponent <= 0)
         {
-            throw new ArgumentNullException(nameof(prime));
+            throw new ArgumentOutOfRangeException(nameof(mersenneExponent), mersenneExponent, string.Format(ErrorMessages.ValueLowerThanX, 1));
         }
 
         if (x.IsZero)
@@ -85,7 +92,7 @@ internal static class Polynomial
             using var intermediateResult = accumulator * x;
             using var y = intermediateResult + coefficientArray[index];
             var accumulatorTemp = accumulator;
-            accumulator = y % prime;
+            accumulator = y.MersenneModulo(mersenneExponent);
             accumulatorTemp.Dispose();
         }
 

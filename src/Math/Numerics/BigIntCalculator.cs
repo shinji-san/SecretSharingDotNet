@@ -274,6 +274,30 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     public override Calculator<BigInteger> Pow(int expo) => BigInteger.Pow(this.Value, expo);
 
     /// <summary>
+    /// Reduces this value modulo <c>2^<paramref name="mersenneExponent"/> - 1</c>.
+    /// </summary>
+    /// <param name="mersenneExponent">Positive Mersenne exponent.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="mersenneExponent"/> is not positive.
+    /// </exception>
+    /// <exception cref="ArgumentException">The current instance is negative.</exception>
+    public override Calculator<BigInteger> MersenneModulo(int mersenneExponent)
+    {
+        if (mersenneExponent <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(mersenneExponent), mersenneExponent, string.Format(ErrorMessages.ValueLowerThanX, 1));
+        }
+
+        if (this.Value.Sign < 0)
+        {
+            throw new ArgumentException(ErrorMessages.OperandMustBeNonNegative);
+        }
+
+        BigInteger modulus = (BigInteger.One << mersenneExponent) - BigInteger.One;
+        return new BigIntCalculator(this.Value % modulus);
+    }
+
+    /// <summary>
     /// Gets the number of elements of the byte representation of the <see cref="BigIntCalculator"/> object.
     /// </summary>
     public override int ByteCount => this.byteCountLazy.Value;

@@ -239,6 +239,18 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     public override Calculator<SecureBigInteger> Pow(int expo) => this.Value.Pow(expo);
 
     /// <summary>
+    /// Reduces this value modulo <c>2^<paramref name="mersenneExponent"/> - 1</c>
+    /// using the constant-time fold algorithm in <see cref="SecureBigInteger.MersenneModulo"/>.
+    /// </summary>
+    /// <param name="mersenneExponent">Positive Mersenne exponent.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="mersenneExponent"/> is not positive.
+    /// </exception>
+    /// <exception cref="ArgumentException">The current instance is negative.</exception>
+    public override Calculator<SecureBigInteger> MersenneModulo(int mersenneExponent)
+        => this.Value.MersenneModulo(mersenneExponent);
+
+    /// <summary>
     /// Gets the number of elements of the byte representation of the <see cref="SecureBigIntCalculator"/> object.
     /// </summary>
     public override int ByteCount => this.byteCountLazy.Value;

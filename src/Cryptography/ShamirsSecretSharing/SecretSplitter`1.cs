@@ -454,7 +454,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
                 {
                     x = Calculator.Create(bytes, bytes.Length, typeof(TNumber)) as Calculator<TNumber>
                         ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
-                    y = Polynomial.EvaluateAt(x, polynomial, prime);
+                    y = Polynomial.EvaluateAt(x, polynomial, this.securityLevelManager.SecurityLevel);
                     shares[i - 1] = new Share<TNumber>(x, y);
                     // Ownership transferred to Share -- null out so the catch does not double-dispose.
                     x = null;

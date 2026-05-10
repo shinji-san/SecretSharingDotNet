@@ -140,6 +140,38 @@ public abstract class Calculator<TNumber> :
     }
 
     /// <summary>
+    /// Computes the modulo of the current value by the Mersenne prime
+    /// <c>M_p = 2^<paramref name="mersenneExponent"/> - 1</c>. The exponent
+    /// is treated as public information and may legitimately drive the
+    /// iteration count of the underlying fold-and-add algorithm.
+    /// </summary>
+    /// <param name="mersenneExponent">
+    /// Positive Mersenne-prime exponent. Caller is responsible for ensuring
+    /// the corresponding <c>2^exp - 1</c> is actually prime; the method does
+    /// not verify primality.
+    /// </param>
+    /// <returns>
+    /// A new <see cref="Calculator{TNumber}"/> in <c>[0, M_p - 1]</c>.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="mersenneExponent"/> is not positive.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// The current instance is negative. Negative-operand handling will be
+    /// folded into this API in D7b-step-2; callers that need mathematical-
+    /// modulo semantics for signed values must continue to use
+    /// <see cref="MathematicalModulo"/> for now.
+    /// </exception>
+    /// <remarks>
+    /// On the SecureBigInteger backend this routes to a fold-and-conditional-
+    /// subtract algorithm that exploits <c>2^p ≡ 1 (mod M_p)</c>; on the
+    /// BigInteger backend it lowers to BCL <c>%</c> after one shift to build
+    /// the modulus. Both backends produce identical results for non-negative
+    /// inputs.
+    /// </remarks>
+    public abstract Calculator<TNumber> MersenneModulo(int mersenneExponent);
+
+    /// <summary>
     /// Returns the absolute value of the current <see cref="Calculator{TNumber}"/> object.
     /// </summary>
     /// <returns>The absolute value of this instance.</returns>

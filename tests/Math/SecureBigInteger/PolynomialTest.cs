@@ -33,23 +33,22 @@ namespace SecretSharingDotNetTest.Math.SecureBigInteger;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
-using System.Numerics;
 using Xunit;
 
 public class PolynomialTest
 {
     [Fact]
-    public void EvaluateAt_ConstantPolynomial_ReturnsConstantModPrime()
+    public void EvaluateAt_ConstantPolynomial_ReturnsConstantModMersennePrime()
     {
-        // Arrange
-        // p(x) = 7 evaluated at x=100 with prime=13 → 7 mod 13 = 7
+        // Arrange — p(x) = 7 evaluated at x=100 with M_5 = 31 → 7 mod 31 = 7.
+        // No reduction occurs (constant < modulus); preserves the original
+        // "7 mod 13 = 7" no-reduction character.
         using var xCalc = new SecureBigIntCalculator(100);
-        using var primeCalc = new SecureBigIntCalculator(13);
         using var constant = new SecureBigIntCalculator(7);
         var coeffs = new Calculator<SecureBigInteger>[] { constant };
 
         // Act
-        using var result = Polynomial.EvaluateAt(xCalc, coeffs, primeCalc);
+        using var result = Polynomial.EvaluateAt(xCalc, coeffs, mersenneExponent: 5);
 
         // Assert
         using var expected = new SecureBigIntCalculator(7);
@@ -59,10 +58,11 @@ public class PolynomialTest
     [Fact]
     public void EvaluateAt_LinearPolynomial_ComputesCorrectly()
     {
-        // Arrange
-        // p(x) = 3 + 5x evaluated at x=4 with prime=17 → 23 mod 17 = 6
+        // Arrange — p(x) = 3 + 5x evaluated at x=4 with M_3 = 7 →
+        // 23 mod 7 = 2. Modulus chosen below the polynomial result so the
+        // reduction step is genuinely exercised (preserves the original
+        // "23 mod 17 = 6" reduction-tested character).
         using var xCalc = new SecureBigIntCalculator(4);
-        using var primeCalc = new SecureBigIntCalculator(17);
         var coeffs = new Calculator<SecureBigInteger>[]
         {
             new SecureBigIntCalculator(3),
@@ -72,10 +72,10 @@ public class PolynomialTest
         try
         {
             // Act
-            using var result = Polynomial.EvaluateAt(xCalc, coeffs, primeCalc);
+            using var result = Polynomial.EvaluateAt(xCalc, coeffs, mersenneExponent: 3);
 
             // Assert
-            using var expected = new SecureBigIntCalculator(6);
+            using var expected = new SecureBigIntCalculator(2);
             Assert.Equal(expected, result);
         }
         finally
@@ -90,10 +90,11 @@ public class PolynomialTest
     [Fact]
     public void EvaluateAt_QuadraticPolynomial_ComputesCorrectly()
     {
-        // Arrange
-        // p(x) = 2 + 3x + x² evaluated at x=5 with prime=23 → 42 mod 23 = 19
+        // Arrange — p(x) = 2 + 3x + x² evaluated at x=5 with M_5 = 31 →
+        // 42 mod 31 = 11. Modulus chosen below the polynomial result so the
+        // reduction step is genuinely exercised (preserves the original
+        // "42 mod 23 = 19" reduction-tested character).
         using var xCalc = new SecureBigIntCalculator(5);
-        using var primeCalc = new SecureBigIntCalculator(23);
         var coeffs = new Calculator<SecureBigInteger>[]
         {
             new SecureBigIntCalculator(2),
@@ -104,10 +105,10 @@ public class PolynomialTest
         try
         {
             // Act
-            using var result = Polynomial.EvaluateAt(xCalc, coeffs, primeCalc);
+            using var result = Polynomial.EvaluateAt(xCalc, coeffs, mersenneExponent: 5);
 
             // Assert
-            using var expected = new SecureBigIntCalculator(19);
+            using var expected = new SecureBigIntCalculator(11);
             Assert.Equal(expected, result);
         }
         finally
@@ -123,13 +124,12 @@ public class PolynomialTest
     public void EvaluateAt_NullX_ThrowsArgumentNullException()
     {
         // Arrange
-        using var primeCalc = new SecureBigIntCalculator(17);
         var coeffs = new Calculator<SecureBigInteger>[] { new SecureBigIntCalculator(1) };
 
         try
         {
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(null, coeffs, primeCalc));
+            Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(null, coeffs, mersenneExponent: 5));
         }
         finally
         {
@@ -141,24 +141,29 @@ public class PolynomialTest
     public void EvaluateAt_NullCoefficients_ThrowsArgumentNullException()
     {
         // Arrange
-        using var xCalc = new BigIntCalculator(1);
-        using var primeCalc = new BigIntCalculator(17);
+        using var xCalc = new SecureBigIntCalculator(1);
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(xCalc, null, primeCalc));
+        Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt<SecureBigInteger>(xCalc, null, mersenneExponent: 5));
     }
 
-    [Fact]
-    public void EvaluateAt_NullPrime_ThrowsArgumentNullException()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void EvaluateAt_NonPositiveExponent_ThrowsArgumentOutOfRangeException(int mersenneExponent)
     {
         // Arrange
-        using var xCalc = new BigIntCalculator(1);
-        var coeffs = new Calculator<BigInteger>[] { new BigIntCalculator(1) };
+        using var xCalc = new SecureBigIntCalculator(1);
+        var coeffs = new Calculator<SecureBigInteger>[] { new SecureBigIntCalculator(1) };
 
         try
         {
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt(xCalc, coeffs, null));
+            // Act
+            var ex = Assert.Throws<ArgumentOutOfRangeException>(
+                () => Polynomial.EvaluateAt(xCalc, coeffs, mersenneExponent));
+
+            // Assert
+            Assert.Equal("mersenneExponent", ex.ParamName);
         }
         finally
         {
@@ -169,18 +174,16 @@ public class PolynomialTest
     [Fact]
     public void EvaluateAt_WithZero_ThrowsArgumentOutOfRangeException()
     {
-        // Arrange
-        // Evaluating at x=0 would return the constant term — i.e. the secret a₀.
-        // The method must reject this regardless of valid null/non-null arguments.
+        // Arrange — evaluating at x=0 would return the constant term (the secret a₀).
+        // M_13 = 8191 mirrors the original test's `prime = 8191` modulus value.
         using var xCalc = new SecureBigIntCalculator(0);
-        using var primeCalc = new SecureBigIntCalculator(8191);
         using var a0 = new SecureBigIntCalculator(42);
         using var a1 = new SecureBigIntCalculator(7);
         var coeffs = new Calculator<SecureBigInteger>[] { a0, a1 };
 
         // Act
         var ex = Assert.Throws<ArgumentOutOfRangeException>(
-            () => Polynomial.EvaluateAt(xCalc, coeffs, primeCalc));
+            () => Polynomial.EvaluateAt(xCalc, coeffs, mersenneExponent: 13));
 
         // Assert
         Assert.Equal("x", ex.ParamName);
