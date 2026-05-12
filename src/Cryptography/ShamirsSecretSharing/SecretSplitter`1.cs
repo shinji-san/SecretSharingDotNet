@@ -35,6 +35,7 @@ using Extension;
 using Math;
 using SecureArray;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -430,7 +431,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         // (x_i - x_j); a collision yields denominator = 0 and a misleading
         // "inverse of zero" deep in DivMod). Reject early with a clean
         // ArgumentOutOfRangeException naming the actual misconfigured argument.
-        using var maxIndex = Calculator.Create(BitConverter.GetBytes(numberOfShares), sizeof(int), typeof(TNumber)) as Calculator<TNumber>
+        using var maxIndex = Calculator.Create(Int32ToLittleEndianBytes(numberOfShares), sizeof(int), typeof(TNumber)) as Calculator<TNumber>
                              ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
         if (maxIndex >= prime)
         {
@@ -447,7 +448,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         {
             for (var i = 1; i < size; i++)
             {
-                var bytes = BitConverter.GetBytes(i);
+                var bytes = Int32ToLittleEndianBytes(i);
                 Calculator<TNumber> x = null;
                 Calculator<TNumber> y = null;
                 try
@@ -475,6 +476,28 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         return shares;
+    }
+
+    /// <summary>
+    /// Encodes <paramref name="value"/> as a freshly allocated 4-byte array in
+    /// little-endian order, independent of the host's native endianness.
+    /// </summary>
+    /// <remarks>
+    /// Share x-coordinates and the <c>numberOfShares</c> validation bound are
+    /// converted to <see cref="Calculator{TNumber}"/> instances via
+    /// <see cref="Calculator.Create(byte[], int, Type)"/>, which forwards to
+    /// <c>System.Numerics.BigInteger(ReadOnlySpan&lt;byte&gt;)</c> /
+    /// <c>SecureBigInteger(byte[], int)</c>. Both ctors interpret their input as
+    /// little-endian two's-complement. Using <see cref="BitConverter.GetBytes(int)"/>
+    /// (platform-endian) would silently produce wrong magnitudes on big-endian
+    /// hosts; <see cref="BinaryPrimitives.WriteInt32LittleEndian"/> pins the
+    /// encoding to LE on every CPU.
+    /// </remarks>
+    internal static byte[] Int32ToLittleEndianBytes(int value)
+    {
+        var bytes = new byte[sizeof(int)];
+        BinaryPrimitives.WriteInt32LittleEndian(bytes, value);
+        return bytes;
     }
 
     /// <summary>

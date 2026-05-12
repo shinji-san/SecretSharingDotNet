@@ -177,4 +177,44 @@ public class SecretSplitterTest
             () => splitter.MakeShares(2, SecretSplitter<BigInteger>.MaxAllowedNumberOfShares + 1, secret));
         Assert.Equal("numberOfShares", ex.ParamName);
     }
+
+    [Theory]
+    [InlineData(0,             new byte[] { 0x00, 0x00, 0x00, 0x00 })]
+    [InlineData(1,             new byte[] { 0x01, 0x00, 0x00, 0x00 })]
+    [InlineData(5,             new byte[] { 0x05, 0x00, 0x00, 0x00 })]
+    [InlineData(255,           new byte[] { 0xFF, 0x00, 0x00, 0x00 })]
+    [InlineData(256,           new byte[] { 0x00, 0x01, 0x00, 0x00 })]
+    [InlineData(0x12345678,    new byte[] { 0x78, 0x56, 0x34, 0x12 })]
+    [InlineData(int.MaxValue,  new byte[] { 0xFF, 0xFF, 0xFF, 0x7F })]
+    public void Int32ToLittleEndianBytes_ProducesCanonicalLittleEndianEncoding(int value, byte[] expected)
+    {
+        // Act
+        byte[] actual = SecretSplitter<BigInteger>.Int32ToLittleEndianBytes(value);
+
+        // Assert
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void MakeShares_AssignsShareIndices_AsConsecutivePositiveIntegers()
+    {
+        // Arrange — Secret/security-level combination is incidental; the test
+        // only inspects the x-coordinates assigned by the splitter.
+        using var splitter = new SecretSplitter<BigInteger>();
+        using var secret = (Secret<BigInteger>)(BigInteger)42;
+
+        // Act — 5 shares, threshold 3.
+        using var shares = splitter.MakeShares(3, 5, secret);
+
+        // Assert — x-coordinates are 1, 2, 3, 4, 5 in order. On a big-endian
+        // host with platform-endian encoding they would be 0x01000000 etc.
+        var actualIndices = new BigInteger[5];
+        int j = 0;
+        foreach (var s in shares)
+        {
+            actualIndices[j++] = (BigInteger)s.Index;
+        }
+
+        Assert.Equal(new BigInteger[] { 1, 2, 3, 4, 5 }, actualIndices);
+    }
 }
