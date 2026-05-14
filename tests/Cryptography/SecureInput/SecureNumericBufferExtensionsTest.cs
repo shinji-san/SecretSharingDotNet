@@ -33,6 +33,7 @@ namespace SecretSharingDotNetTest.Cryptography.SecureInput;
 
 using System;
 using System.Numerics;
+using SecretSharingDotNet.Cryptography.SecureArray;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 
@@ -175,5 +176,137 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(0x01, pinned[0]);
         Assert.Equal(0x02, pinned[1]);
         Assert.Equal(0x03, pinned[2]);
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00 }, 0)]
+    [InlineData(new byte[] { 0x01, 0x00, 0x00, 0x00 }, 1)]
+    [InlineData(new byte[] { 0x2A, 0x00, 0x00, 0x00 }, 42)]
+    [InlineData(new byte[] { 0xFF, 0x00, 0x00, 0x00 }, 255)]
+    [InlineData(new byte[] { 0x00, 0x01, 0x00, 0x00 }, 256)]
+    [InlineData(new byte[] { 0x78, 0x56, 0x34, 0x12 }, 0x12345678)]
+    [InlineData(new byte[] { 0xFF, 0xFF, 0xFF, 0x7F }, int.MaxValue)]
+    [InlineData(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF }, -1)]
+    [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x80 }, int.MinValue)]
+    public void ToInt32Unprotected_FromValidLength4_DecodesLittleEndian(byte[] sourceBytes, int expected)
+    {
+        // Arrange
+        using var source = sourceBytes.ToPinnedSecureBytesClearing();
+
+        // Act
+        int actual = source.ToInt32Unprotected();
+
+        // Assert
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(5)]
+    [InlineData(8)]
+    public void ToInt32Unprotected_FromWrongLength_ThrowsArgumentException(int badLength)
+    {
+        // Arrange
+        using var source = new PinnedPoolArray<byte>(badLength);
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() => source.ToInt32Unprotected());
+        Assert.Equal("source", ex.ParamName);
+    }
+
+    [Fact]
+    public void ToInt32Unprotected_FromNull_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => ((PinnedPoolArray<byte>)null).ToInt32Unprotected());
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0x2A },                         42L)]
+    [InlineData(new byte[] { 0x7F },                         127L)]
+    [InlineData(new byte[] { 0x80, 0x00 },                   128L)]
+    [InlineData(new byte[] { 0xFF, 0x00 },                   255L)]
+    [InlineData(new byte[] { 0x00, 0x01 },                   256L)]
+    [InlineData(new byte[] { 0xFF },                         -1L)]
+    [InlineData(new byte[] { 0x80 },                         -128L)]
+    [InlineData(new byte[] { 0xEF, 0xBE, 0xAD, 0xDE, 0x00 }, 0xDEADBEEFL)]
+    public void ToBigIntegerUnprotected_FromValidBytes_DecodesLittleEndianTwosComplement(byte[] sourceBytes, long expectedLong)
+    {
+        // Arrange
+        using var source = sourceBytes.ToPinnedSecureBytesClearing();
+        BigInteger expected = expectedLong;
+
+        // Act
+        BigInteger actual = source.ToBigIntegerUnprotected();
+
+        // Assert
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void ToBigIntegerUnprotected_FromEmptyBuffer_ReturnsZero()
+    {
+        // Arrange
+        using var source = new PinnedPoolArray<byte>(0);
+
+        // Act
+        BigInteger actual = source.ToBigIntegerUnprotected();
+
+        // Assert
+        Assert.Equal(BigInteger.Zero, actual);
+    }
+
+    [Fact]
+    public void ToBigIntegerUnprotected_FromNull_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => ((PinnedPoolArray<byte>)null).ToBigIntegerUnprotected());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(42)]
+    [InlineData(-1)]
+    [InlineData(int.MaxValue)]
+    [InlineData(int.MinValue)]
+    public void Int32_RoundTripsThroughPinnedBytes(int value)
+    {
+        // Arrange & Act
+        using var pinned = value.ToPinnedSecureBytes();
+        int roundTripped = pinned.ToInt32Unprotected();
+
+        // Assert
+        Assert.Equal(value, roundTripped);
+    }
+
+    [Fact]
+    public void BigInteger_RoundTripsThroughPinnedBytes_PositiveLarge()
+    {
+        // Arrange
+        BigInteger value = BigInteger.Parse("123456789012345678901234567890");
+
+        // Act
+        using var pinned = value.ToPinnedSecureBytes();
+        BigInteger roundTripped = pinned.ToBigIntegerUnprotected();
+
+        // Assert
+        Assert.Equal(value, roundTripped);
+    }
+
+    [Fact]
+    public void BigInteger_RoundTripsThroughPinnedBytes_NegativeLarge()
+    {
+        // Arrange
+        BigInteger value = BigInteger.Parse("-987654321098765432109876543210");
+
+        // Act
+        using var pinned = value.ToPinnedSecureBytes();
+        BigInteger roundTripped = pinned.ToBigIntegerUnprotected();
+
+        // Assert
+        Assert.Equal(value, roundTripped);
     }
 }

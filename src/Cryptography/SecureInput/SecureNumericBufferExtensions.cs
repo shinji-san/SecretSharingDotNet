@@ -156,4 +156,101 @@ public static class SecureNumericBufferExtensions
 
         return pinned;
     }
+
+    /// <summary>
+    /// Decodes <paramref name="source"/> as a fixed 4-byte little-endian <see cref="int"/>.
+    /// </summary>
+    /// <param name="source">The source pinned buffer. Must have <c>Length == 4</c>.</param>
+    /// <returns>The decoded <see cref="int"/> value.</returns>
+    /// <remarks>
+    /// <b>Security warning — leaks pinned secret into unpinned memory.</b> The returned
+    /// <see cref="int"/> lives on the caller's stack (or as a managed field), neither of
+    /// which is pinned. Register spilling, stack unwinding, and GC relocation of any
+    /// containing reference type can leave residue elsewhere in process memory. This
+    /// method undoes the protection that <see cref="ToPinnedSecureBytes(int)"/> set up.
+    /// <para>
+    /// <b>Safer alternatives:</b>
+    /// <list type="bullet">
+    ///   <item><description>Keep the value as a pinned buffer and pass <paramref name="source"/>
+    ///   directly to the rest of the library — every consumer that accepts a
+    ///   <c>PinnedPoolArray&lt;byte&gt;</c> or wraps it in <see cref="Secret{TNumber}"/> reads
+    ///   pinned memory end to end.</description></item>
+    ///   <item><description>For equality checks against a known reference value, encode the
+    ///   reference via <see cref="ToPinnedSecureBytes(int)"/> and compare byte buffers in
+    ///   constant time instead of decoding.</description></item>
+    /// </list>
+    /// </para>
+    /// Only call this method at trust boundaries where the value must surface as a primitive
+    /// (e.g. a verification API that explicitly contracts to disclose the integer).
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="source"/> length is not exactly 4.</exception>
+    public static int ToInt32Unprotected(this PinnedPoolArray<byte> source)
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (source.Length != sizeof(int))
+        {
+            throw new ArgumentException(
+                string.Format(ErrorMessages.PinnedBufferLengthMismatch, sizeof(int), source.Length),
+                nameof(source));
+        }
+
+        return BinaryPrimitives.ReadInt32LittleEndian(source.PoolArray.AsSpan(0, sizeof(int)));
+    }
+
+    /// <summary>
+    /// Decodes <paramref name="source"/> as a little-endian two's-complement
+    /// <see cref="BigInteger"/>. Mirrors the byte contract of
+    /// <see cref="ToPinnedSecureBytes(BigInteger)"/>.
+    /// </summary>
+    /// <param name="source">The source pinned buffer holding LE two's-complement bytes.</param>
+    /// <returns>The decoded <see cref="BigInteger"/>. Returns <see cref="BigInteger.Zero"/>
+    /// when <paramref name="source"/> is empty.</returns>
+    /// <remarks>
+    /// <b>Security warning — leaks pinned secret into unpinned heap memory.</b> The returned
+    /// <see cref="BigInteger"/> is a value type, but its internal <c>uint[]</c> magnitude
+    /// storage is allocated on the GC heap, unpinned. The runtime may have relocated it
+    /// during marshalling, and there is no <see cref="IDisposable.Dispose"/> path that can
+    /// wipe it. The intermediate <see cref="byte"/> array this method allocates is wiped
+    /// best-effort before return, but the <see cref="BigInteger"/>'s own internal storage
+    /// stays.
+    /// <para>
+    /// <b>Safer alternative:</b> route the bytes through
+    /// <see cref="SecretSharingDotNet.Math.Numerics.SecureBigInteger(byte[], int)"/> instead.
+    /// <c>SecureBigInteger</c> consumes the exact same LE two's-complement contract, stores
+    /// its limbs in pinned <c>PinnedPoolArray&lt;ulong&gt;</c>, and wipes them on dispose —
+    /// no unpinned residue. Only call <c>ToBigIntegerUnprotected</c> when interop with the
+    /// BCL <see cref="BigInteger"/> type is unavoidable (e.g. comparing against a reference
+    /// computation in a test, or crossing a public API that contracts in
+    /// <see cref="BigInteger"/>).
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> is <see langword="null"/>.</exception>
+    public static BigInteger ToBigIntegerUnprotected(this PinnedPoolArray<byte> source)
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (source.Length == 0)
+        {
+            return BigInteger.Zero;
+        }
+
+        byte[] managed = new byte[source.Length];
+        try
+        {
+            Array.Copy(source.PoolArray, 0, managed, 0, source.Length);
+            return new BigInteger(managed);
+        }
+        finally
+        {
+            Array.Clear(managed, 0, managed.Length);
+        }
+    }
 }

@@ -175,4 +175,7 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="RandomValueGenerationFailed" xml:space="preserve">
         <value>Random value generation failed.</value>
     </data>
+    <data name="PinnedBufferLengthMismatch" xml:space="preserve">
+        <value>Expected a pinned buffer of length {0}, but was {1}.</value>
+    </data>
 </root>

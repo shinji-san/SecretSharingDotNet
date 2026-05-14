@@ -359,5 +359,11 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("RandomValueGenerationFailed", resourceCulture);
             }
         }
+
+        internal static string PinnedBufferLengthMismatch {
+            get {
+                return ResourceManager.GetString("PinnedBufferLengthMismatch", resourceCulture);
+            }
+        }
     }
 }

@@ -168,4 +168,7 @@
     <data name="RandomValueGenerationFailed" xml:space="preserve">
         <value>Die Erzeugung des Zufallswerts ist fehlgeschlagen.</value>
     </data>
+    <data name="PinnedBufferLengthMismatch" xml:space="preserve">
+        <value>Erwartet wurde ein pinned Buffer mit Länge {0}, war jedoch {1}.</value>
+    </data>
 </root>
