@@ -250,6 +250,94 @@ public class SecureNumericBufferExtensionsTest
     }
 
     [Theory]
+    [InlineData(0L,                  new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })]
+    [InlineData(1L,                  new byte[] { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })]
+    [InlineData(42L,                 new byte[] { 0x2A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })]
+    [InlineData(0x12345678L,         new byte[] { 0x78, 0x56, 0x34, 0x12, 0x00, 0x00, 0x00, 0x00 })]
+    [InlineData((long)int.MaxValue,  new byte[] { 0xFF, 0xFF, 0xFF, 0x7F, 0x00, 0x00, 0x00, 0x00 })]
+    [InlineData(1L + int.MaxValue,   new byte[] { 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00 })]
+    [InlineData(long.MaxValue,       new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F })]
+    [InlineData(-1L,                 new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF })]
+    [InlineData(long.MinValue,       new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80 })]
+    public void ToPinnedSecureBytes_FromLong_ProducesEightByteLittleEndianEncoding(long source, byte[] expected)
+    {
+        // Act
+        using var pinned = source.ToPinnedSecureBytes();
+
+        // Assert
+        Assert.Equal(sizeof(long), pinned.Length);
+        for (int i = 0; i < expected.Length; i++)
+        {
+            Assert.Equal(expected[i], pinned[i]);
+        }
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }, 0L)]
+    [InlineData(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }, 1L)]
+    [InlineData(new byte[] { 0x2A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }, 42L)]
+    [InlineData(new byte[] { 0x78, 0x56, 0x34, 0x12, 0x00, 0x00, 0x00, 0x00 }, 0x12345678L)]
+    [InlineData(new byte[] { 0xFF, 0xFF, 0xFF, 0x7F, 0x00, 0x00, 0x00, 0x00 }, (long)int.MaxValue)]
+    [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00 }, 1L + int.MaxValue)]
+    [InlineData(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F }, long.MaxValue)]
+    [InlineData(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, -1L)]
+    [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80 }, long.MinValue)]
+    public void ToInt64Unprotected_FromValidLength8_DecodesLittleEndian(byte[] sourceBytes, long expected)
+    {
+        // Arrange
+        using var source = sourceBytes.ToPinnedSecureBytesClearing();
+
+        // Act
+        long actual = source.ToInt64Unprotected();
+
+        // Assert
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(4)]
+    [InlineData(7)]
+    [InlineData(9)]
+    [InlineData(16)]
+    public void ToInt64Unprotected_FromWrongLength_ThrowsArgumentException(int badLength)
+    {
+        // Arrange
+        using var source = new PinnedPoolArray<byte>(badLength);
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() => source.ToInt64Unprotected());
+        Assert.Equal("source", ex.ParamName);
+    }
+
+    [Fact]
+    public void ToInt64Unprotected_FromNull_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => ((PinnedPoolArray<byte>)null).ToInt64Unprotected());
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(1L)]
+    [InlineData(42L)]
+    [InlineData(-1L)]
+    [InlineData((long)int.MaxValue)]
+    [InlineData(1L + int.MaxValue)]
+    [InlineData(long.MaxValue)]
+    [InlineData(long.MinValue)]
+    public void Int64_RoundTripsThroughPinnedBytes(long value)
+    {
+        // Arrange & Act
+        using var pinned = value.ToPinnedSecureBytes();
+        long roundTripped = pinned.ToInt64Unprotected();
+
+        // Assert
+        Assert.Equal(value, roundTripped);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(42)]

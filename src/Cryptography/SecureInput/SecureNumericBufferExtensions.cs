@@ -77,6 +77,37 @@ public static class SecureNumericBufferExtensions
     }
 
     /// <summary>
+    /// Encodes <paramref name="source"/> as a fixed 8-byte little-endian sequence in a new
+    /// pinned <see cref="PinnedPoolArray{T}"/>.
+    /// </summary>
+    /// <param name="source">The source <see cref="long"/> to encode.</param>
+    /// <returns>
+    /// A new <see cref="PinnedPoolArray{T}"/> of <see cref="byte"/> with exactly eight
+    /// little-endian bytes. The caller is responsible for disposing the returned instance.
+    /// </returns>
+    /// <remarks>
+    /// <b>Security warning:</b> the 64-bit space is large enough that the brute-force
+    /// concern raised for <see cref="ToPinnedSecureBytes(int)"/> does not generally apply,
+    /// but entropy is a property of the source — pinning the byte representation does not
+    /// lift a low-entropy <c>long</c> (a monotonic timestamp, a sequence number, a small
+    /// counter) into a hard-to-guess secret. Treat this helper as protection against
+    /// passive memory disclosure of the encoded buffer, not as a defence against an
+    /// attacker who can guess the source distribution.
+    /// <para>
+    /// The encoding is fixed at little-endian to match the byte ordering the rest of the
+    /// library uses on the wire (<see cref="BinaryPrimitives.WriteInt64LittleEndian"/> rather
+    /// than the platform-endian <see cref="BitConverter.GetBytes(long)"/>), so callers on
+    /// big-endian hosts do not silently produce shares with reversed coordinates.
+    /// </para>
+    /// </remarks>
+    public static PinnedPoolArray<byte> ToPinnedSecureBytes(this long source)
+    {
+        var pinned = new PinnedPoolArray<byte>(sizeof(long));
+        BinaryPrimitives.WriteInt64LittleEndian(pinned.PoolArray.AsSpan(0, sizeof(long)), source);
+        return pinned;
+    }
+
+    /// <summary>
     /// Copies the two's-complement little-endian byte representation of
     /// <paramref name="source"/> into a new pinned <see cref="PinnedPoolArray{T}"/>.
     /// </summary>
@@ -200,6 +231,51 @@ public static class SecureNumericBufferExtensions
         }
 
         return BinaryPrimitives.ReadInt32LittleEndian(source.PoolArray.AsSpan(0, sizeof(int)));
+    }
+
+    /// <summary>
+    /// Decodes <paramref name="source"/> as a fixed 8-byte little-endian <see cref="long"/>.
+    /// </summary>
+    /// <param name="source">The source pinned buffer. Must have <c>Length == 8</c>.</param>
+    /// <returns>The decoded <see cref="long"/> value.</returns>
+    /// <remarks>
+    /// <b>Security warning — leaks pinned secret into unpinned memory.</b> The returned
+    /// <see cref="long"/> lives on the caller's stack (or as a managed field), neither of
+    /// which is pinned. Register spilling, stack unwinding, and GC relocation of any
+    /// containing reference type can leave residue elsewhere in process memory. This
+    /// method undoes the protection that <see cref="ToPinnedSecureBytes(long)"/> set up.
+    /// <para>
+    /// <b>Safer alternatives:</b>
+    /// <list type="bullet">
+    ///   <item><description>Keep the value as a pinned buffer and pass <paramref name="source"/>
+    ///   directly to the rest of the library — every consumer that accepts a
+    ///   <c>PinnedPoolArray&lt;byte&gt;</c> or wraps it in <see cref="Secret{TNumber}"/> reads
+    ///   pinned memory end to end.</description></item>
+    ///   <item><description>For equality checks against a known reference value, encode the
+    ///   reference via <see cref="ToPinnedSecureBytes(long)"/> and compare byte buffers in
+    ///   constant time instead of decoding.</description></item>
+    /// </list>
+    /// </para>
+    /// Only call this method at trust boundaries where the value must surface as a primitive
+    /// (e.g. a verification API that explicitly contracts to disclose the integer).
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="source"/> length is not exactly 8.</exception>
+    public static long ToInt64Unprotected(this PinnedPoolArray<byte> source)
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (source.Length != sizeof(long))
+        {
+            throw new ArgumentException(
+                string.Format(ErrorMessages.PinnedBufferLengthMismatch, sizeof(long), source.Length),
+                nameof(source));
+        }
+
+        return BinaryPrimitives.ReadInt64LittleEndian(source.PoolArray.AsSpan(0, sizeof(long)));
     }
 
     /// <summary>
