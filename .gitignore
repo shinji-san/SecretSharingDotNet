@@ -24,3 +24,8 @@
 
 # Ignore swap files
 *.swp
+
+# Ignore Mono runtime crash reports — written when net472/net48/net481
+# test executables crash under Mono on non-Windows hosts. Diagnostic
+# artefacts, not test failures (the tests themselves still pass).
+mono_crash.*.json
