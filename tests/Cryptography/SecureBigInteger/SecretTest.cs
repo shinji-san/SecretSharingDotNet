@@ -1121,6 +1121,33 @@ public class SecretTest
         }
     }
 
+    /// <summary>
+    /// Tests that the implicit <see cref="SecureBigInteger"/>-to-<see cref="Secret{TNumber}"/>
+    /// cast does <b>not</b> dispose the caller-owned <see cref="SecureBigInteger"/> instance.
+    /// </summary>
+    /// <remarks>
+    /// Symmetric counterpart to <see cref="CastToSecureBigInteger_FromSecret_ReturnsLiveCallerOwnedInstance"/>.
+    /// The wrapping operator constructs a <c>SecureBigIntCalculator</c> internally and disposes it
+    /// via <c>using</c>; if the calculator stored its input by reference, dispose would wipe the
+    /// caller's instance. The defensive deep-copy in the <c>SecureBigIntCalculator(SecureBigInteger)</c>
+    /// constructor isolates ownership. Probing <see cref="SecureBigInteger.IsZero"/> on the original
+    /// after the wrap proves it survived — reading any property on a disposed instance throws.
+    /// </remarks>
+    [Fact]
+    public void CastToSecret_FromSecureBigInteger_LeavesOriginalUsable()
+    {
+        // Arrange
+        using var original = new SecureBigInteger(42L);
+
+        // Act
+        using var secret = (Secret<SecureBigInteger>)original;
+
+        // Assert — original survived the wrap.
+        Assert.False(original.IsZero);
+        using var expected = new SecureBigInteger(42L);
+        Assert.Equal(expected, original);
+    }
+
 #if NET8_0_OR_GREATER
     /// <summary>
     /// Tests ReadOnlySpan cast of the <see cref="Secret{TNumber}"/> class.

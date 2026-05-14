@@ -72,8 +72,19 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <c>default(TNumber)</c> evaluates to <see langword="null"/> and the implicit
     /// <see cref="SecureBigInteger"/>-to-<see cref="Calculator{TNumber}"/> conversion
     /// routes through this constructor.
+    /// <para>
+    /// The constructor takes a <b>defensive deep copy</b> of <paramref name="val"/>
+    /// via <see cref="SecureBigInteger(SecureBigInteger)"/>; the caller retains
+    /// ownership of the passed-in instance and is responsible for disposing it
+    /// independently. Required because <see cref="Dispose(bool)"/> wipes
+    /// <see cref="Calculator{TNumber}.Value"/> — without the defensive copy any
+    /// <c>using var calc = (Calculator&lt;SecureBigInteger&gt;)someValue;</c> idiom
+    /// (e.g. the implicit <see cref="SecureBigInteger"/>-to-<c>Secret</c> wrapping
+    /// operator) would destroy the caller's instance on calculator dispose.
+    /// </para>
     /// </param>
-    public SecureBigIntCalculator(SecureBigInteger val) : base(val ?? 0)
+    public SecureBigIntCalculator(SecureBigInteger val)
+        : base(val is null ? new SecureBigInteger() : new SecureBigInteger(val))
     {
         this.byteCountLazy = this.InitializeByteCountLazy();
     }
@@ -100,7 +111,7 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// Creates a new instance of the <see cref="SecureBigIntCalculator"/> class with the same value as the current instance.
     /// </summary>
     /// <returns>A new <see cref="Calculator{SecureBigInteger}"/> object that is a copy of the current instance.</returns>
-    public override Calculator<SecureBigInteger> Clone() => new SecureBigIntCalculator(new SecureBigInteger(this.Value));
+    public override Calculator<SecureBigInteger> Clone() => new SecureBigIntCalculator(this.Value);
 
     /// <summary>
     /// Determines whether this instance and an <paramref name="other"/> specified <see cref="Calculator{SecureBigInteger}"/> instance are equal.

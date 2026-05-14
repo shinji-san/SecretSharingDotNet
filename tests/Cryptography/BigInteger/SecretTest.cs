@@ -1083,6 +1083,25 @@ public class SecretTest
         Assert.Equal(new BigInteger(42), extracted);
     }
 
+    /// <summary>
+    /// Mirror of <c>SecureBigInteger.SecretTest.CastToSecret_FromSecureBigInteger_LeavesOriginalUsable</c>.
+    /// For the value-type <see cref="BigInteger"/> backend the wrap operates on a struct copy, so the
+    /// dispose-of-caller hazard is structurally absent. Mirror kept so a future change that broke the
+    /// extracted-value contract would fail on both sides.
+    /// </summary>
+    [Fact]
+    public void CastToSecret_FromBigInteger_LeavesOriginalUsable()
+    {
+        // Arrange
+        BigInteger original = 42;
+
+        // Act
+        using var secret = (Secret<BigInteger>)original;
+
+        // Assert
+        Assert.Equal(new BigInteger(42), original);
+    }
+
 #if NET8_0_OR_GREATER
     /// <summary>
     /// Tests ReadOnlySpan cast of the <see cref="Secret{TNumber}"/> class.

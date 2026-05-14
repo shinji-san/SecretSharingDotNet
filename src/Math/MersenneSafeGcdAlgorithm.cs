@@ -228,12 +228,12 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
                 tVal = tProduct.MersenneModulo(mersenneExponent);
             }
 
+            // SecureBigIntCalculator defensively deep-copies its operand, so the
+            // local gcd / sVal / tVal handles remain owners and are disposed by
+            // the finally block — no manual ownership transfer required here.
             gcdCalc = new SecureBigIntCalculator(gcd);
-            gcd = null;
             sCalc = new SecureBigIntCalculator(sVal);
-            sVal = null;
             tCalc = new SecureBigIntCalculator(tVal);
-            tVal = null;
 
             // Quotients are zero placeholders: the divsteps recurrence does not
             // expose the trailing Euclidean-quotient pair. See class remarks.
