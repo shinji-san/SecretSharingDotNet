@@ -32,6 +32,7 @@
 namespace SecretSharingDotNetTest.Cryptography.SecureInput;
 
 using System;
+using System.Linq;
 using System.Numerics;
 using SecretSharingDotNet.Cryptography.SecureArray;
 using SecretSharingDotNet.Cryptography.SecureInput;
@@ -55,11 +56,7 @@ public class SecureNumericBufferExtensionsTest
         using var pinned = source.ToPinnedSecureBytes();
 
         // Assert
-        Assert.Equal(sizeof(int), pinned.Length);
-        for (int i = 0; i < expected.Length; i++)
-        {
-            Assert.Equal(expected[i], pinned[i]);
-        }
+        Assert.Equal(expected, pinned.PoolArray.Take(pinned.Length));
     }
 
     [Fact]
@@ -94,11 +91,7 @@ public class SecureNumericBufferExtensionsTest
         using var pinned = source.ToPinnedSecureBytes();
 
         // Assert
-        Assert.Equal(expected.Length, pinned.Length);
-        for (int i = 0; i < expected.Length; i++)
-        {
-            Assert.Equal(expected[i], pinned[i]);
-        }
+        Assert.Equal(expected, pinned.PoolArray.Take(pinned.Length));
     }
 
     [Fact]
@@ -112,16 +105,8 @@ public class SecureNumericBufferExtensionsTest
         using var pinned = source.ToPinnedSecureBytesClearing();
 
         // Assert — destination matches originals; source is zeroed.
-        Assert.Equal(originalCopy.Length, pinned.Length);
-        for (int i = 0; i < originalCopy.Length; i++)
-        {
-            Assert.Equal(originalCopy[i], pinned[i]);
-        }
-
-        for (int i = 0; i < source.Length; i++)
-        {
-            Assert.Equal(0x00, source[i]);
-        }
+        Assert.Equal(originalCopy, pinned.PoolArray.Take(pinned.Length));
+        Assert.Equal(new byte[originalCopy.Length], source);
     }
 
     [Fact]
@@ -265,11 +250,7 @@ public class SecureNumericBufferExtensionsTest
         using var pinned = source.ToPinnedSecureBytes();
 
         // Assert
-        Assert.Equal(sizeof(long), pinned.Length);
-        for (int i = 0; i < expected.Length; i++)
-        {
-            Assert.Equal(expected[i], pinned[i]);
-        }
+        Assert.Equal(expected, pinned.PoolArray.Take(pinned.Length));
     }
 
     [Theory]

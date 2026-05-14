@@ -32,6 +32,7 @@
 namespace SecretSharingDotNetTest.Cryptography.SecureInput;
 
 using System;
+using System.Linq;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 
@@ -47,11 +48,7 @@ public class SecureCharBufferExtensionsTest
         using var pinned = source.ToPinnedSecure();
 
         // Assert
-        Assert.Equal(source.Length, pinned.Length);
-        for (int i = 0; i < source.Length; i++)
-        {
-            Assert.Equal(source[i], pinned[i]);
-        }
+        Assert.Equal(source, new string(pinned.PoolArray, 0, pinned.Length));
     }
 
     [Fact]
@@ -89,17 +86,14 @@ public class SecureCharBufferExtensionsTest
     public void ToPinnedSecure_FromReadOnlySpan_CopiesAllChars()
     {
         // Arrange
-        ReadOnlySpan<char> source = "Hello, World!".AsSpan();
+        const string sourceText = "Hello, World!";
+        ReadOnlySpan<char> source = sourceText.AsSpan();
 
         // Act
         using var pinned = source.ToPinnedSecure();
 
         // Assert
-        Assert.Equal(source.Length, pinned.Length);
-        for (int i = 0; i < source.Length; i++)
-        {
-            Assert.Equal(source[i], pinned[i]);
-        }
+        Assert.Equal(sourceText, new string(pinned.PoolArray, 0, pinned.Length));
     }
 
     [Fact]
@@ -123,18 +117,9 @@ public class SecureCharBufferExtensionsTest
         // Act
         using var pinned = source.ToPinnedSecureClearing();
 
-        // Assert — copy is correct.
-        Assert.Equal(snapshot.Length, pinned.Length);
-        for (int i = 0; i < snapshot.Length; i++)
-        {
-            Assert.Equal(snapshot[i], pinned[i]);
-        }
-
-        // Assert — source is wiped.
-        for (int i = 0; i < source.Length; i++)
-        {
-            Assert.Equal('\0', source[i]);
-        }
+        // Assert — copy is correct; source is wiped.
+        Assert.Equal(snapshot, pinned.PoolArray.Take(pinned.Length));
+        Assert.Equal(new char[snapshot.Length], source);
     }
 
     [Fact]
@@ -186,14 +171,8 @@ public class SecureCharBufferExtensionsTest
 
         // Assert — each input string ends up in its own pinned buffer, character-for-character.
         Assert.Equal(3, lines.Count);
-        for (int i = 0; i < input.Length; i++)
-        {
-            Assert.Equal(input[i].Length, lines[i].Length);
-            for (int j = 0; j < input[i].Length; j++)
-            {
-                Assert.Equal(input[i][j], lines[i].PoolArray[j]);
-            }
-        }
+        Assert.All(Enumerable.Range(0, input.Length), i =>
+            Assert.Equal(input[i], new string(lines[i].PoolArray, 0, lines[i].Length)));
     }
 
     [Fact]

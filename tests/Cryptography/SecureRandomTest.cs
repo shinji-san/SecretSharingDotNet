@@ -36,6 +36,7 @@ namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
 using System;
+using System.Linq;
 using Xunit;
 
 public class SecureRandomTest
@@ -74,25 +75,14 @@ public class SecureRandomTest
     public void Fill_WritesOnlyTheRequestedRange()
     {
         // Arrange — sentinel-fill the surrounding bytes so we can verify Fill leaves them alone.
-        var buffer = new byte[16];
-        for (int i = 0; i < buffer.Length; i++)
-        {
-            buffer[i] = 0xCD;
-        }
+        var buffer = Enumerable.Repeat((byte)0xCD, 16).ToArray();
 
         // Act
         SecureRandom.Fill(buffer, 4, 8);
 
         // Assert — bytes outside [4, 12) untouched.
-        for (int i = 0; i < 4; i++)
-        {
-            Assert.Equal((byte)0xCD, buffer[i]);
-        }
-
-        for (int i = 12; i < buffer.Length; i++)
-        {
-            Assert.Equal((byte)0xCD, buffer[i]);
-        }
+        Assert.Equal(Enumerable.Repeat((byte)0xCD, 4), buffer.Take(4));
+        Assert.Equal(Enumerable.Repeat((byte)0xCD, 4), buffer.Skip(12));
     }
 
     [Fact]
@@ -116,31 +106,20 @@ public class SecureRandomTest
     {
         // Act & Assert — [1, 32) is the small-mark-byte termination range. Sample many draws
         // and confirm every result lies in the requested range.
-        for (int i = 0; i < 1024; i++)
-        {
-            int value = SecureRandom.NextInt32(1, 32);
-            Assert.InRange(value, 1, 31);
-        }
+        Assert.All(Enumerable.Range(0, 1024), _ => Assert.InRange(SecureRandom.NextInt32(1, 32), 1, 31));
     }
 
     [Fact]
     public void NextInt32_StaysWithinRange_TerminationByteLarge()
     {
         // Act & Assert — [1, 128) is the large-mark-byte termination range.
-        for (int i = 0; i < 1024; i++)
-        {
-            int value = SecureRandom.NextInt32(1, 128);
-            Assert.InRange(value, 1, 127);
-        }
+        Assert.All(Enumerable.Range(0, 1024), _ => Assert.InRange(SecureRandom.NextInt32(1, 128), 1, 127));
     }
 
     [Fact]
     public void NextInt32_SingletonRange_AlwaysReturnsLowerBound()
     {
         // Act & Assert — [42, 43) has exactly one valid result.
-        for (int i = 0; i < 16; i++)
-        {
-            Assert.Equal(42, SecureRandom.NextInt32(42, 43));
-        }
+        Assert.All(Enumerable.Range(0, 16), _ => Assert.Equal(42, SecureRandom.NextInt32(42, 43)));
     }
 }

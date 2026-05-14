@@ -172,12 +172,12 @@ public class SharesTest
         var entries = TestData.GetPredefinedShares();
 
         // Act & Assert
-        for (int i = 0; i < entries.Length; i++)
+        Assert.All(Enumerable.Range(0, entries.Length), i =>
         {
             using var p = entries[i].ToPinnedSecure();
             using var expected = new Share<BigInteger>(p);
             Assert.Equal(expected, shares[i]);
-        }
+        });
     }
 
     [Fact]
@@ -192,10 +192,7 @@ public class SharesTest
         shares.CopyTo(sharesArray, 0);
 
         // Assert
-        for (int i = 0; i < shares.Count; i++)
-        {
-            Assert.Equal(shares[i], sharesArray[i]);
-        }
+        Assert.Equal(shares, sharesArray);
     }
 
     [Fact]
@@ -212,10 +209,7 @@ public class SharesTest
         // Assert
         Assert.Null(target[0]);
         Assert.Null(target[1]);
-        for (int i = 0; i < shares.Count; i++)
-        {
-            Assert.Equal(shares[i], target[i + 2]);
-        }
+        Assert.Equal(shares, target.Skip(2));
     }
 
     [Fact]
@@ -270,12 +264,12 @@ public class SharesTest
 
         // Assert
         Assert.Equal(stringArray.Length, shares.Count);
-        for (int i = 0; i < stringArray.Length; i++)
+        Assert.All(Enumerable.Range(0, stringArray.Length), i =>
         {
             using var p = stringArray[i].ToPinnedSecure();
             using var expected = new Share<BigInteger>(p);
             Assert.Equal(expected, shares[i]);
-        }
+        });
     }
 
     [Fact]
@@ -365,12 +359,11 @@ public class SharesTest
         using var result = shares.ToCharArray(uppercase, withPrefix);
 
         // Assert — build expected output per share, honoring sort-by-index
-        var lines = new string[shares.Count];
-        for (int i = 0; i < shares.Count; i++)
+        var lines = shares.Select(s =>
         {
-            using var chars = shares[i].ToCharArray(uppercase, withPrefix);
-            lines[i] = new string(chars.PoolArray, 0, chars.Length);
-        }
+            using var chars = s.ToCharArray(uppercase, withPrefix);
+            return new string(chars.PoolArray, 0, chars.Length);
+        }).ToArray();
         var expected = string.Join(Environment.NewLine, lines) + Environment.NewLine;
         Assert.Equal(expected, new string(result.PoolArray, 0, result.Length));
     }
@@ -432,11 +425,7 @@ public class SharesTest
         using var reparsed = Shares<BigInteger>.FromText(serialized);
 
         // Assert
-        Assert.Equal(original.Count, reparsed.Count);
-        for (int i = 0; i < original.Count; i++)
-        {
-            Assert.Equal(original[i], reparsed[i]);
-        }
+        Assert.Equal(original, reparsed);
     }
 
     [Fact]

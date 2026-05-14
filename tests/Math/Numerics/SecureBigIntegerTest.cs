@@ -36,6 +36,7 @@ namespace SecretSharingDotNetTest.Math.Numerics;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math.Numerics;
 using System;
+using System.Linq;
 using System.Numerics;
 using Xunit;
 
@@ -1528,11 +1529,7 @@ public class SecureBigIntegerTests
         using var bytes = num.ToByteArray();
 
         // Assert
-        Assert.Equal(expected.Length, bytes.Length);
-        for (int i = 0; i < expected.Length; i++)
-        {
-            Assert.Equal(expected[i], bytes[i]);
-        }
+        Assert.Equal(expected, bytes.PoolArray.Take(bytes.Length));
     }
 
     [Theory]
@@ -1725,14 +1722,14 @@ public class SecureBigIntegerTests
         // Arrange — none beyond the parameterised invalid input.
 
         // Act & Assert
-        for (int i = 0; i < 100; i++)
+        Assert.All(Enumerable.Range(0, 100), _ =>
         {
             using var hex = invalidHex.ToPinnedSecure();
             Assert.Throws<FormatException>(() =>
             {
-                using var _ = SecureBigInteger.FromHexadecimal(hex);
+                using var inner = SecureBigInteger.FromHexadecimal(hex);
             });
-        }
+        });
     }
 
     [Theory]
@@ -1763,12 +1760,12 @@ public class SecureBigIntegerTests
         using var value = new SecureBigInteger(-12345);
 
         // Act & Assert
-        for (int i = 0; i < 100; i++)
+        Assert.All(Enumerable.Range(0, 100), _ =>
         {
             using var arr = value.ToPinnedCharArray();
             var s = new string(arr.PoolArray, 0, arr.Length);
             Assert.Equal("-12345", s);
-        }
+        });
     }
 
     [Fact]

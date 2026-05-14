@@ -38,6 +38,7 @@ using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 using Xunit;
@@ -491,11 +492,7 @@ public class SecretTest
         using var charArray = secret.ToCharArray();
 
         // Assert
-        Assert.Equal(expectedChars.Length, charArray.Length);
-        for (int i = 0; i < expectedChars.Length; i++)
-        {
-            Assert.Equal(expectedChars[i], charArray[i]);
-        }
+        Assert.Equal(expectedChars, charArray.PoolArray.Take(charArray.Length));
     }
 
     /// <summary>
@@ -565,11 +562,7 @@ public class SecretTest
         using var roundTrip = secret.ToCharArray(Encoding.Unicode);
 
         // Assert
-        Assert.Equal(secretText.Length, roundTrip.Length);
-        for (int i = 0; i < secretText.Length; i++)
-        {
-            Assert.Equal(secretText[i], roundTrip[i]);
-        }
+        Assert.Equal(secretText, new string(roundTrip.PoolArray, 0, roundTrip.Length));
     }
 
     /// <summary>
@@ -619,11 +612,7 @@ public class SecretTest
         using var charArray = secret.ToBase64CharArray();
 
         // Assert
-        Assert.Equal(expectedChars.Length, charArray.Length);
-        for (int i = 0; i < expectedChars.Length; i++)
-        {
-            Assert.Equal(expectedChars[i], charArray[i]);
-        }
+        Assert.Equal(expectedChars, charArray.PoolArray.Take(charArray.Length));
     }
 
     /// <summary>
@@ -726,11 +715,7 @@ public class SecretTest
         using var roundTrip = secret.ToCharArray();
 
         // Assert
-        Assert.Equal(secretText.Length, roundTrip.Length);
-        for (int i = 0; i < secretText.Length; i++)
-        {
-            Assert.Equal(secretText[i], roundTrip[i]);
-        }
+        Assert.Equal(secretText, new string(roundTrip.PoolArray, 0, roundTrip.Length));
     }
 
     /// <summary>
@@ -750,11 +735,7 @@ public class SecretTest
         using var roundTrip = secret.ToCharArray();
 
         // Assert
-        Assert.Equal(secretText.Length, roundTrip.Length);
-        for (int i = 0; i < secretText.Length; i++)
-        {
-            Assert.Equal(secretText[i], roundTrip[i]);
-        }
+        Assert.Equal(secretText, new string(roundTrip.PoolArray, 0, roundTrip.Length));
     }
 
     /// <summary>
@@ -777,11 +758,7 @@ public class SecretTest
 
         // Assert — bytes must match UTF-16 encoding, not UTF-8.
         byte[] expected = encoding.GetBytes(secretText);
-        Assert.Equal(expected.Length, rawBytes.Length);
-        for (int i = 0; i < expected.Length; i++)
-        {
-            Assert.Equal(expected[i], rawBytes[i]);
-        }
+        Assert.Equal(expected, rawBytes.PoolArray.Take(rawBytes.Length));
     }
 
     /// <summary>
@@ -800,11 +777,7 @@ public class SecretTest
         using (Secret<SecureBigInteger>.FromText(pinnedText))
 
         // Assert — input buffer remains intact and usable.
-        Assert.Equal(secretText.Length, pinnedText.Length);
-        for (int i = 0; i < secretText.Length; i++)
-        {
-            Assert.Equal(secretText[i], pinnedText[i]);
-        }
+        Assert.Equal(secretText, new string(pinnedText.PoolArray, 0, pinnedText.Length));
     }
 
     /// <summary>
@@ -876,11 +849,7 @@ public class SecretTest
         using var roundTrip = secret.ToBase64CharArray();
 
         // Assert
-        Assert.Equal(base64.Length, roundTrip.Length);
-        for (int i = 0; i < base64.Length; i++)
-        {
-            Assert.Equal(base64[i], roundTrip[i]);
-        }
+        Assert.Equal(base64, new string(roundTrip.PoolArray, 0, roundTrip.Length));
     }
 
     [Fact]
@@ -908,11 +877,7 @@ public class SecretTest
         using var roundTrip = secret.ToBase64CharArray();
 
         // Assert
-        Assert.Equal(raw.Length, roundTrip.Length);
-        for (int i = 0; i < raw.Length; i++)
-        {
-            Assert.Equal(raw[i], roundTrip[i]);
-        }
+        Assert.Equal(raw, new string(roundTrip.PoolArray, 0, roundTrip.Length));
     }
 
     [Fact]
@@ -929,11 +894,7 @@ public class SecretTest
         using var bytes = secret.ToByteArray();
 
         // Assert
-        Assert.Equal(expected.Length, bytes.Length);
-        for (int i = 0; i < expected.Length; i++)
-        {
-            Assert.Equal(expected[i], bytes[i]);
-        }
+        Assert.Equal(expected, bytes.PoolArray.Take(bytes.Length));
     }
 
     [Fact]
@@ -1031,11 +992,7 @@ public class SecretTest
         using (Secret<SecureBigInteger>.FromBase64(pinnedBase64))
 
         // Assert — input buffer must remain intact and usable.
-        Assert.Equal(base64.Length, pinnedBase64.Length);
-        for (int i = 0; i < base64.Length; i++)
-        {
-            Assert.Equal(base64[i], pinnedBase64[i]);
-        }
+        Assert.Equal(base64, new string(pinnedBase64.PoolArray, 0, pinnedBase64.Length));
     }
 
     private static int CountNonWhitespace(string s)

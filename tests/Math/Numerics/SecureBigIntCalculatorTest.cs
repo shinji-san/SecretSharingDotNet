@@ -271,7 +271,7 @@ public class SecureBigIntCalculatorTest
         using var expected49 = new SecureBigInteger(49);
 
         // Act & Assert
-        for (int i = 0; i < 100; i++)
+        Assert.All(Enumerable.Range(0, 100), _ =>
         {
             Calculator<SecureBigInteger> working = source;
             using (var incremented = ++working)
@@ -286,7 +286,7 @@ public class SecureBigIntCalculatorTest
             }
 
             Assert.Equal(expected50, source.Value);
-        }
+        });
     }
 
     [Fact]
@@ -408,7 +408,7 @@ public class SecureBigIntCalculatorTest
         // single winner; the loser observes `disposed == 1` and returns.
 
         // Act & Assert
-        for (int iteration = 0; iteration < 50; iteration++)
+        Assert.All(Enumerable.Range(0, 50), _ =>
         {
             var calculator = new SecureBigIntCalculator(new SecureBigInteger(42));
 
@@ -432,6 +432,6 @@ public class SecureBigIntCalculatorTest
 
             Assert.Null(ex1);
             Assert.Null(ex2);
-        }
+        });
     }
 }
