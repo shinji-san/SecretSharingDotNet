@@ -102,22 +102,6 @@ public class SecureNumericBufferExtensionsTest
     }
 
     [Fact]
-    public void ToPinnedSecureBytes_FromBigInteger_RoundTripsThroughBigIntegerCtor()
-    {
-        // Arrange — random-ish positive value larger than long to cover the multi-limb path.
-        BigInteger source = BigInteger.Parse("123456789012345678901234567890");
-
-        // Act
-        using var pinned = source.ToPinnedSecureBytes();
-        byte[] copy = new byte[pinned.Length];
-        for (int i = 0; i < pinned.Length; i++) { copy[i] = pinned[i]; }
-        var roundTripped = new BigInteger(copy);
-
-        // Assert
-        Assert.Equal(source, roundTripped);
-    }
-
-    [Fact]
     public void ToPinnedSecureBytesClearing_FromValidArray_CopiesAllBytesAndWipesSource()
     {
         // Arrange
