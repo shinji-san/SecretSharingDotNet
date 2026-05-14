@@ -48,53 +48,66 @@ using Xunit;
 /// </summary>
 public class ShamirsSecretSharingTest
 {
-    // /// <summary>
-    // /// Tests the security level auto-detection of <see cref="SecretSplitter{TNumber}"/>.
-    // /// </summary>
-    // [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-    // [Theory]
-    // [MemberData(nameof(TestData.SecurityLevelAutoDetectionData), MemberType = typeof(TestData))]
-    // public void TestSecurityLevelAutoDetection(object secret, int expectedSecurityLevel)
-    // {
-    //     // Arrange
-    //     var secretSplitter = new SecretSplitter<BigInteger>();
-    //     var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
-    //
-    //     // Act & Assert
-    //     Secret<BigInteger> s;
-    //     switch (secret)
-    //     {
-    //         case string password:
-    //             s = password;
-    //             break;
-    //         case BigInteger number:
-    //             s = number;
-    //             break;
-    //         case null:
-    //             return;
-    //     }
-    //     var shares = secretSplitter.MakeShares(3, 7, s);
-    //
-    //     Assert.NotNull(shares);
-    //     var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
-    //     var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
-    //     var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
-    //     var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
-    //
-    //     switch (secret)
-    //     {
-    //         case string password:
-    //             Assert.Equal(password, recoveredSecret1);
-    //             break;
-    //         case BigInteger number:
-    //             Assert.Equal(number, (BigInteger)recoveredSecret1);
-    //             break;
-    //     }
-    //
-    //     Assert.Equal(s, recoveredSecret1);
-    //     Assert.Equal(s, recoveredSecret2);
-    //     Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
-    // }
+    /// <summary>
+    /// Tests the security level auto-detection of <see cref="SecretSplitter{TNumber}"/>.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Theory]
+    [MemberData(nameof(TestData.SecurityLevelAutoDetectionData), MemberType = typeof(TestData))]
+    public void TestSecurityLevelAutoDetection(object secret, int expectedSecurityLevel)
+    {
+        // Arrange
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+
+        // Act & Assert
+        switch (secret)
+        {
+            case string password:
+                using (var pinnedText = password.ToPinnedSecure())
+                using (var s = Secret<SecureBigInteger>.FromText(pinnedText))
+                {
+                    RunAutoDetectionRoundTrip(secretSplitter, secretReconstructor, s, expectedSecurityLevel,
+                        recovered => SecretAssertions.AssertSecretEqualsString(password, recovered));
+                }
+                break;
+            case BigInteger number:
+                using (var secretNumber = number.ToSecureBigInteger())
+                using (var s = (Secret<SecureBigInteger>)secretNumber)
+                {
+                    RunAutoDetectionRoundTrip(secretSplitter, secretReconstructor, s, expectedSecurityLevel,
+                        recovered =>
+                        {
+                            using var secureBigInteger = (SecureBigInteger)recovered;
+                            var bigInteger = secureBigInteger.ToBigInteger();
+                            Assert.Equal(number, bigInteger);
+                        });
+                }
+                break;
+            case null:
+                return;
+        }
+    }
+
+    private static void RunAutoDetectionRoundTrip(
+        SecretSplitter<SecureBigInteger> secretSplitter,
+        SecretReconstructor<SecureBigInteger> secretReconstructor,
+        Secret<SecureBigInteger> s,
+        int expectedSecurityLevel,
+        Action<Secret<SecureBigInteger>> typeAssert)
+    {
+        using var shares = secretSplitter.MakeShares(3, 7, s);
+        Assert.NotNull(shares);
+        var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
+        using var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+        var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
+        using var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
+
+        typeAssert(recoveredSecret1);
+        Assert.Equal(s, recoveredSecret1);
+        Assert.Equal(s, recoveredSecret2);
+        Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
+    }
     
     /// <summary>
     /// Tests <see cref="SecretSplitter{TNumber}"/> with <see cref="string"/> as secret.
@@ -126,34 +139,33 @@ public class ShamirsSecretSharingTest
         Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
     }
 
-    // /// <summary>
-    // /// Tests <see cref="SecretSplitter{TNumber}"/> with <see cref="BigInteger"/> as secret.
-    // /// </summary>
-    // /// <param name="splitSecurityLevel">Initial security level for secret split phase</param>
-    // /// <param name="expectedSecurityLevel">Expected security level after secret reconstruction</param>
-    // /// <param name="number">An integer number as secret to test with</param>
-    // [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-    // [Theory]
-    // [MemberData(nameof(TestData.TestNumberData), MemberType = typeof(TestData))]
-    // public void TestWithNumber(int splitSecurityLevel, int expectedSecurityLevel, SecureBigInteger number)
-    // {
-    //     // Arrange
-    //     var secretSplitter = new SecretSplitter<SecureBigInteger>();
-    //     var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
-    //
-    //     // Act
-    //     var shares = secretSplitter.MakeShares(3, 7, number, splitSecurityLevel);
-    //     var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
-    //     var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
-    //     var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
-    //     var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
-    //
-    //     // Assert
-    //     Assert.Equal(number, (SecureBigInteger)recoveredSecret1);
-    //     Assert.Equal(number, (SecureBigInteger)recoveredSecret2);
-    //     Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
-    // }
-    
+    /// <summary>
+    /// Tests <see cref="SecretSplitter{TNumber}"/> with <see cref="SecureBigInteger"/> as secret.
+    /// </summary>
+    /// <param name="splitSecurityLevel">Initial security level for secret split phase</param>
+    /// <param name="expectedSecurityLevel">Expected security level after secret reconstruction</param>
+    /// <param name="number">An integer number as secret to test with</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Theory]
+    [MemberData(nameof(TestData.TestNumberData), MemberType = typeof(TestData))]
+    public void TestWithNumber(int splitSecurityLevel, int expectedSecurityLevel, BigInteger number)
+    {
+        // Arrange
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretNumber = number.ToSecureBigInteger();
+
+        // Act
+        using var shares = secretSplitter.MakeShares(3, 7, secretNumber, splitSecurityLevel);
+        var subSet1 = shares.Where(p => p.IsIndexOdd).ToArray();
+        using var recoveredSecret1 = secretReconstructor.Reconstruction(subSet1);
+        var subSet2 = shares.Where(p => p.IsIndexEven).ToArray();
+        using var recoveredSecret2 = secretReconstructor.Reconstruction(subSet2);
+
+        // Assert
+        Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
+    }
+
     /// <summary>
     /// Tests <see cref="SecretSplitter{TNumber}"/> with random <see cref="SecureBigInteger"/> value as secret.
     /// </summary>
