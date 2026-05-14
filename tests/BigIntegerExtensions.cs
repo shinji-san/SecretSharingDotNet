@@ -47,22 +47,15 @@ internal static class BigIntegerExtensions
 {
     /// <summary>
     /// Converts a <see cref="BigInteger"/> into a <see cref="SecureBigInteger"/>
-    /// via the public <see cref="SecureBigInteger.FromHexadecimal"/> API.
+    /// via the canonical little-endian two's-complement byte bridge. Both
+    /// <see cref="BigInteger.ToByteArray()"/> and
+    /// <see cref="SecureBigInteger(byte[], int)"/> agree on that encoding, so
+    /// sign is preserved end to end without a special case.
     /// </summary>
-    /// <remarks>
-    /// <see cref="BigInteger.ToString(string)"/> with format <c>"X"</c> emits
-    /// two's-complement hex for negative values, which is incompatible with
-    /// <see cref="SecureBigInteger.FromHexadecimal"/>'s sign-magnitude
-    /// convention. We therefore split the sign and format the absolute
-    /// magnitude separately, then prepend an explicit <c>'-'</c>.
-    /// </remarks>
     public static SecureBigInteger ToSecureBigInteger(this BigInteger value)
     {
-        string hex = value < 0
-            ? "-" + (-value).ToString("X")
-            : value.ToString("X");
-        using var pinned = hex.ToPinnedSecure();
-        return SecureBigInteger.FromHexadecimal(pinned);
+        using var pinned = value.ToPinnedSecureBytes();
+        return new SecureBigInteger(pinned.PoolArray, pinned.Length);
     }
 
     /// <summary>
