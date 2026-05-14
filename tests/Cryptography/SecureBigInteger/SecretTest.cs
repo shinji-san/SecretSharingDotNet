@@ -657,45 +657,49 @@ public class SecretTest
     }
 
     /// <summary>
-    /// Tests the cast of the <see cref="Secret{TNumber}"/> class.
+    /// Tests that a <see cref="string"/> password constructed via
+    /// <see cref="Secret{TNumber}.FromText(PinnedPoolArray{char})"/> round-trips back to the
+    /// original. Mirror of the BigInteger-side test of the same name.
     /// </summary>
-    /// <param name="secretSource">Secret as string, BigInteger, int or byte array</param>
-    /// <remarks>
-    /// <see cref="TestData.MixedSecrets"/> mixes <see cref="string"/>,
-    /// <see cref="BigInteger"/>, <see langword="int"/>, and <see cref="byte"/>[] sources.
-    /// Only the string and byte-array branches are exercised on the SecureBigInteger
-    /// backend: <see cref="Secret{TNumber}"/> exposes an implicit
-    /// <c>System.Numerics.BigInteger -&gt; Secret&lt;BigInteger&gt;</c> conversion that
-    /// has no SecureBigInteger analogue. The numeric construction surface for
-    /// SecureBigInteger is covered separately under
-    /// <c>tests/Math/Numerics/SecureBigIntegerTest.cs</c>.
-    /// </remarks>
+    /// <param name="password">A <see cref="string"/> source secret.</param>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Theory]
-    [MemberData(nameof(TestData.MixedSecrets), MemberType = typeof(TestData))]
-    public void CastObjectToSecret_FromSupportedType_ReturnsSecret(object secretSource)
+    [MemberData(nameof(TestData.StringSecrets), MemberType = typeof(TestData))]
+    public void CastObjectToSecret_FromString_RestoresAfterTextRoundTrip(string password)
     {
-        switch (secretSource)
-        {
-            case string password:
-                using (var pinnedPassword = password.ToPinnedSecure())
-                using (var secret = Secret<SecureBigInteger>.FromText(pinnedPassword))
-                {
-                    SecretAssertions.AssertSecretEqualsString(password, secret);
-                }
-                break;
-            case byte[] byteArray:
-                using (var secret = new Secret<SecureBigInteger>(byteArray, byteArray.Length))
-                using (var pinnedPoolArray = secret.ToByteArray())
-                {
-                    var countedEqualityComparer = new CountedEqualityComparer<byte>(count: byteArray.Length);
-                    Assert.True(pinnedPoolArray.Equals(byteArray, countedEqualityComparer));
-                }
-                break;
-            default:
-                // BigInteger and int sources are skipped on this backend; see remarks.
-                return;
-        }
+        // Arrange & Act
+        using var pinnedPassword = password.ToPinnedSecure();
+        using var secret = Secret<SecureBigInteger>.FromText(pinnedPassword);
+
+        // Assert
+        SecretAssertions.AssertSecretEqualsString(password, secret);
+    }
+
+    /// <summary>
+    /// Tests that a <see cref="byte"/> array constructed via
+    /// <see cref="Secret{TNumber}(byte[], int)"/> round-trips back through
+    /// <see cref="Secret{TNumber}.ToByteArray()"/>. Mirror of the BigInteger-side test.
+    /// </summary>
+    /// <remarks>
+    /// The BigInteger backend additionally exercises <see cref="BigInteger"/> and
+    /// <see langword="int"/> source types via an implicit cast; that cast has no
+    /// <see cref="SecureBigInteger"/> analogue. The numeric construction surface for
+    /// <see cref="SecureBigInteger"/> is covered in
+    /// <c>tests/Math/Numerics/SecureBigIntegerTest.cs</c>.
+    /// </remarks>
+    /// <param name="byteArray">A <see cref="byte"/>[] source secret.</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
+    [Theory]
+    [MemberData(nameof(TestData.ByteArraySecrets), MemberType = typeof(TestData))]
+    public void CastObjectToSecret_FromByteArray_RestoresAfterReadBack(byte[] byteArray)
+    {
+        // Arrange & Act
+        using var secret = new Secret<SecureBigInteger>(byteArray, byteArray.Length);
+        using var pinnedPoolArray = secret.ToByteArray();
+
+        // Assert
+        var countedEqualityComparer = new CountedEqualityComparer<byte>(count: byteArray.Length);
+        Assert.True(pinnedPoolArray.Equals(byteArray, countedEqualityComparer));
     }
 
     /// <summary>

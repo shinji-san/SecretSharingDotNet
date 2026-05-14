@@ -168,20 +168,44 @@ public static class TestData
         };
 
     /// <summary>
-    /// Gets a list of secrets of different data types
+    /// Gets a list of <see cref="string"/> secrets for the FromText construction path.
     /// </summary>
-    public static IEnumerable<object[]> MixedSecrets =>
+    public static IEnumerable<object[]> StringSecrets =>
         new List<object[]>
         {
-            new object[] { 333331},
-            new object[] { -333331},
-            new object[] { 2007671},
-            new object[] { new BigInteger(2007671)},
-            new object[] { new BigInteger(-2007671)},
-            new object[] { DefaultPosTestNumber},
-            new object[] { DefaultNegTestNumber},
-            new object[] { DefaultTestPassword},
-            new object[] { new byte[] {0x00}},
-            new object[] { new byte[] {0xFF, 0XFF}},
+            new object[] { DefaultTestPassword },
+        };
+
+    /// <summary>
+    /// Gets a list of <see cref="int"/> secrets for the implicit-cast construction path.
+    /// </summary>
+    public static IEnumerable<object[]> IntSecrets =>
+        new List<object[]>
+        {
+            new object[] { 333331 },
+            new object[] { -333331 },
+            new object[] { 2007671 },
+        };
+
+    /// <summary>
+    /// Gets a list of <see cref="BigInteger"/> secrets for the implicit-cast construction path.
+    /// </summary>
+    public static IEnumerable<object[]> BigIntegerSecrets =>
+        new List<object[]>
+        {
+            new object[] { new BigInteger(2007671) },
+            new object[] { new BigInteger(-2007671) },
+            new object[] { DefaultPosTestNumber },
+            new object[] { DefaultNegTestNumber },
+        };
+
+    /// <summary>
+    /// Gets a list of <see cref="byte"/>[] secrets for the byte-array construction path.
+    /// </summary>
+    public static IEnumerable<object[]> ByteArraySecrets =>
+        new List<object[]>
+        {
+            new object[] { new byte[] { 0x00 } },
+            new object[] { new byte[] { 0xFF, 0xFF } },
         };
 }
