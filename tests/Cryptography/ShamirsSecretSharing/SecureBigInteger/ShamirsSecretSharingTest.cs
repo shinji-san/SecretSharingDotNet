@@ -327,15 +327,65 @@ public class ShamirsSecretSharingTest
     }
 
     /// <summary>
-    /// Tests whether or not bug #60 occurs [Reconstruction fails at random].
+    /// Deterministic Tier-1 regression for bug #60. The original bug was that
+    /// <see cref="SecureBigInteger"/>'s ctor reads the top bit of the last byte
+    /// as the two's-complement sign bit, so any random message whose last byte
+    /// was <c>&gt;= 0x80</c> was decoded as a negative value and broke modular
+    /// reconstruction. The fix appends a random termination byte in
+    /// <c>[1, 0x7F]</c> to the secret's pinned buffer; the inline data here are
+    /// byte patterns that would deterministically trigger the original bug if
+    /// the termination-byte invariant ever regressed, so this theory catches
+    /// such a regression on every run rather than relying on Monte Carlo luck.
+    /// Mirror of the BigInteger-side theory of the same name.
     /// </summary>
-    [Theory(Skip = "Takes to long to run. SecureBigInteger is not performant enough.")]
+    /// <param name="message">Byte pattern with the top bit set in its last byte
+    /// (or otherwise designed to trip the sign-bit path under the legacy code).</param>
+    [Theory]
+    [InlineData(new byte[] { 0xFF })]
+    [InlineData(new byte[] { 0xFF, 0xFF })]
+    [InlineData(new byte[] { 0x00, 0x80 })]
+    [InlineData(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF })]
+    [InlineData(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE })]
+    public void ReconstructionRoundTrip_FromTopBitSetMessage_RestoresOriginal(byte[] message)
+    {
+        // Arrange
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>();
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        const int n = 5;
+        var base64 = Convert.ToBase64String(message);
+        using var pinnedBase64 = base64.ToPinnedSecure();
+
+        // Act
+        using var secret = Secret<SecureBigInteger>.FromBase64(pinnedBase64);
+        using var shares = secretSplitter.MakeShares((n + 1) / 2, n, secret);
+        using var reconstructedSecret = secretReconstructor.Reconstruction(shares.Take((n + 1) / 2).ToArray());
+        using var reconstructedBase64 = reconstructedSecret.ToBase64CharArray();
+        var reconstructed =
+            Convert.FromBase64String(new string(reconstructedBase64.PoolArray, 0, reconstructedBase64.Length));
+
+        // Assert
+        Assert.Equal(message, reconstructed);
+    }
+
+    /// <summary>
+    /// Tests whether or not bug #60 occurs [Reconstruction fails at random].
+    /// Reduced Tier-2 Monte-Carlo loop (20 iters per byte size, down from the
+    /// 1000 on the BigInteger backend) — the SecureBigInteger arithmetic and
+    /// the constant-time Bernstein-Yang divsteps in <c>MersenneSafeGcdAlgorithm</c>
+    /// are deliberately slower than the value-type backend, so the iteration
+    /// budget is scaled to keep the test in a tolerable runtime. The deterministic
+    /// Tier-1 vectors in <c>ReconstructionRoundTrip_FromTopBitSetMessage_RestoresOriginal</c>
+    /// catch the specific #60 pattern with probability 1; this Tier-2 loop is
+    /// defense-in-depth against subtler related regressions (a 10%-per-iter bug
+    /// is still caught with probability 1-0.9^20 ≈ 0.88 across the 10 byte sizes).
+    /// </summary>
+    [Theory]
     [MemberData(nameof(TestData.ByteArraySize), MemberType = typeof(TestData))]
     public void ReconstructionFailsAtRnd(int byteArraySize)
     {
         // Arrange
         int ok = 0;
-        const int total = 1000;
+        const int total = 20;
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
         using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
         var rng = new Random();

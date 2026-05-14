@@ -321,6 +321,47 @@ public class ShamirsSecretSharingTest
     }
 
     /// <summary>
+    /// Deterministic Tier-1 regression for bug #60. The original bug was that
+    /// <see cref="System.Numerics.BigInteger"/>'s ctor reads the top bit of the
+    /// last byte as the two's-complement sign bit, so any random message whose
+    /// last byte was <c>&gt;= 0x80</c> was decoded as a negative value and broke
+    /// modular reconstruction. The fix appends a random termination byte in
+    /// <c>[1, 0x7F]</c> to the secret's pinned buffer; the inline data here are
+    /// byte patterns that would deterministically trigger the original bug if
+    /// the termination-byte invariant ever regressed, so this theory catches
+    /// such a regression on every run rather than relying on Monte Carlo luck.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="message">Byte pattern with the top bit set in its last byte
+    /// (or otherwise designed to trip the sign-bit path under the legacy code).</param>
+    [Theory]
+    [InlineData(new byte[] { 0xFF })]
+    [InlineData(new byte[] { 0xFF, 0xFF })]
+    [InlineData(new byte[] { 0x00, 0x80 })]
+    [InlineData(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF })]
+    [InlineData(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE })]
+    public void ReconstructionRoundTrip_FromTopBitSetMessage_RestoresOriginal(byte[] message)
+    {
+        // Arrange
+        using var secretSplitter = new SecretSplitter<BigInteger>();
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        const int n = 5;
+        var base64 = Convert.ToBase64String(message);
+        using var pinnedBase64 = base64.ToPinnedSecure();
+
+        // Act
+        using var secret = Secret<BigInteger>.FromBase64(pinnedBase64);
+        using var shares = secretSplitter.MakeShares((n + 1) / 2, n, secret);
+        using var reconstructedSecret = secretReconstructor.Reconstruction(shares.Take((n + 1) / 2).ToArray());
+        using var reconstructedBase64 = reconstructedSecret.ToBase64CharArray();
+        var reconstructed =
+            Convert.FromBase64String(new string(reconstructedBase64.PoolArray, 0, reconstructedBase64.Length));
+
+        // Assert
+        Assert.Equal(message, reconstructed);
+    }
+
+    /// <summary>
     /// Tests whether or not bug #60 occurs [Reconstruction fails at random].
     /// </summary>
     [Theory]
