@@ -302,6 +302,17 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <returns>The <see cref="System.String"/> representation of the current <see cref="SecureBigIntCalculator"/> value.</returns>
     public override string ToString() => this.Value.ToString();
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Returns <c>new SecureBigInteger(this.Value)</c> via the copy constructor so
+    /// the caller owns an independent pinned-limb buffer. Required because
+    /// <see cref="Dispose(bool)"/> disposes <see cref="Calculator{TNumber}.Value"/>
+    /// directly — without this deep copy, the implicit <c>Secret&lt;SecureBigInteger&gt;
+    /// → SecureBigInteger</c> cast would hand the caller a reference whose limb
+    /// buffer is wiped and returned to the pool before they can read it.
+    /// </remarks>
+    protected internal override SecureBigInteger ExtractValue() => new SecureBigInteger(this.Value);
+
     /// <summary>
     /// Releases the resources used by the <see cref="SecureBigIntCalculator"/> instance.
     /// </summary>

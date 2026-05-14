@@ -446,7 +446,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         }
 
         using var calc = (Calculator<TNumber>)secret;
-        return calc.Value;
+        return calc.ExtractValue();
     }
 
     /// <summary>

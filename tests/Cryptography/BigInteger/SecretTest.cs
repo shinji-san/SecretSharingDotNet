@@ -1058,6 +1058,31 @@ public class SecretTest
         return n;
     }
 
+    /// <summary>
+    /// Mirror of <c>SecureBigInteger.SecretTest.CastToSecureBigInteger_FromSecret_ReturnsLiveCallerOwnedInstance</c>.
+    /// For the value-type <see cref="BigInteger"/> backend the implicit op already returns a struct
+    /// copy, so the SecureBigInteger-side "still live after the Calculator was disposed" hazard does
+    /// not apply here — the mirror is kept anyway so a future src-side drift that breaks the
+    /// extracted-value contract trips both backend hierarchies at once. The "independent instances"
+    /// test from the SecureBigInteger side is intentionally not mirrored: <c>Assert.NotSame</c>
+    /// against a struct is a category error.
+    /// </summary>
+    [Fact]
+    public void CastToBigInteger_FromSecret_ReturnsExtractedValue()
+    {
+        // Arrange — byte-built Secret keeps the construction pattern in sync with the
+        // SecureBigInteger mirror, which has to avoid the symmetric wrapping-direction
+        // dispose bug. The expected value follows from LE two's-complement of {0x2A}.
+        byte[] valueBytes = { 0x2A };
+        using var secret = new Secret<BigInteger>(valueBytes, valueBytes.Length);
+
+        // Act
+        BigInteger extracted = secret;
+
+        // Assert
+        Assert.Equal(new BigInteger(42), extracted);
+    }
+
 #if NET8_0_OR_GREATER
     /// <summary>
     /// Tests ReadOnlySpan cast of the <see cref="Secret{TNumber}"/> class.

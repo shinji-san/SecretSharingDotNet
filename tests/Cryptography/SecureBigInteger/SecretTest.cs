@@ -1052,6 +1052,75 @@ public class SecretTest
         return n;
     }
 
+    /// <summary>
+    /// Tests that the implicit <see cref="Secret{TNumber}"/>-to-<see cref="SecureBigInteger"/>
+    /// cast returns a live, caller-owned instance. The implicit operator constructs a
+    /// <see cref="Calculator{TNumber}"/> internally and disposes it via <c>using</c>; for the
+    /// reference-type <see cref="SecureBigInteger"/> backend that dispose would wipe the wrapped
+    /// limb buffer unless the operator goes through <c>Calculator&lt;TNumber&gt;.ExtractValue()</c>,
+    /// which deep-copies via the copy constructor. The first read of any property on a disposed
+    /// <see cref="SecureBigInteger"/> throws <see cref="ObjectDisposedException"/>, so probing
+    /// <see cref="SecureBigInteger.IsZero"/> here is a positive liveness check.
+    /// </summary>
+    /// <remarks>
+    /// The <see cref="Secret{TNumber}"/> is built from a raw byte representation rather than from
+    /// a caller-owned <see cref="SecureBigInteger"/> on purpose — the wrapping direction
+    /// (<c>(Secret&lt;SecureBigInteger&gt;)tNumber</c>) is currently symmetric to this bug and
+    /// disposes its input; isolating that hazard from the cast under test keeps the failure
+    /// signal here unambiguous.
+    /// </remarks>
+    [Fact]
+    public void CastToSecureBigInteger_FromSecret_ReturnsLiveCallerOwnedInstance()
+    {
+        // Arrange — single value byte 0x2A (= 42, LE/positive); the Secret ctor appends
+        // a random termination byte that the (Calculator)secret cast strips back off.
+        byte[] valueBytes = { 0x2A };
+        using var secret = new Secret<SecureBigInteger>(valueBytes, valueBytes.Length);
+        using var expected = new SecureBigInteger(42L);
+
+        // Act
+        SecureBigInteger extracted = secret;
+        try
+        {
+            // Assert — value preserved, instance not disposed.
+            Assert.Equal(expected, extracted);
+            Assert.False(extracted.IsZero);
+        }
+        finally
+        {
+            extracted.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that consecutive implicit casts of the same <see cref="Secret{TNumber}"/> return
+    /// independent <see cref="SecureBigInteger"/> instances. Disposing one extraction must not
+    /// affect the other — proves the caller, not the internally-disposed
+    /// <see cref="Calculator{TNumber}"/>, owns the returned instance.
+    /// </summary>
+    [Fact]
+    public void CastToSecureBigInteger_FromSecret_TwiceReturnsIndependentInstances()
+    {
+        // Arrange
+        byte[] valueBytes = { 0x2A };
+        using var secret = new Secret<SecureBigInteger>(valueBytes, valueBytes.Length);
+
+        // Act
+        SecureBigInteger first = secret;
+        SecureBigInteger second = secret;
+        try
+        {
+            // Assert — distinct objects, independent lifetimes.
+            Assert.NotSame(first, second);
+            first.Dispose();
+            Assert.False(second.IsZero);
+        }
+        finally
+        {
+            second.Dispose();
+        }
+    }
+
 #if NET8_0_OR_GREATER
     /// <summary>
     /// Tests ReadOnlySpan cast of the <see cref="Secret{TNumber}"/> class.

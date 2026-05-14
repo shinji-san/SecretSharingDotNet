@@ -410,6 +410,22 @@ public abstract class Calculator<TNumber> :
     public TNumber Value { get; set; }
 
     /// <summary>
+    /// Returns a caller-owned snapshot of <see cref="Value"/> that survives this
+    /// <see cref="Calculator{TNumber}"/>'s <see cref="IDisposable.Dispose"/>.
+    /// </summary>
+    /// <returns>A <typeparamref name="TNumber"/> instance independent of this
+    /// calculator's lifetime.</returns>
+    /// <remarks>
+    /// The default implementation is a plain field read, which is correct for
+    /// value-type backends (e.g. <see cref="System.Numerics.BigInteger"/>).
+    /// Reference-type backends that wrap disposable state (e.g.
+    /// <c>SecureBigInteger</c>) <b>must</b> override this method to return a
+    /// deep copy — otherwise the caller receives a reference to storage that
+    /// is wiped and/or recycled the moment this calculator is disposed.
+    /// </remarks>
+    protected internal virtual TNumber ExtractValue() => this.Value;
+
+    /// <summary>
     /// Gets a value that represents the number zero (0).
     /// </summary>
     public static Calculator<TNumber> Zero  => default(TNumber);
