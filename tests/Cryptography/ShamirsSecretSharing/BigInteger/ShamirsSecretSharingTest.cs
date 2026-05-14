@@ -53,7 +53,7 @@ public class ShamirsSecretSharingTest
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Theory]
     [MemberData(nameof(TestData.SecurityLevelAutoDetectionData), MemberType = typeof(TestData))]
-    public void TestSecurityLevelAutoDetection(object secret, int expectedSecurityLevel)
+    public void MakeShares_AutoUpgradesSecurityLevel_MatchesExpectedLevel(object secret, int expectedSecurityLevel)
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<BigInteger>();
@@ -111,7 +111,7 @@ public class ShamirsSecretSharingTest
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Theory]
     [MemberData(nameof(TestData.TestPasswordData), MemberType = typeof(TestData))]
-    public void TestWithPassword(int splitSecurityLevel, int expectedSecurityLevel, string password)
+    public void MakeAndReconstruct_FromPassword_RestoresOriginalString(int splitSecurityLevel, int expectedSecurityLevel, string password)
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<BigInteger>();
@@ -141,7 +141,7 @@ public class ShamirsSecretSharingTest
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Theory]
     [MemberData(nameof(TestData.TestNumberData), MemberType = typeof(TestData))]
-    public void TestWithNumber(int splitSecurityLevel, int expectedSecurityLevel, BigInteger number)
+    public void MakeAndReconstruct_FromBigIntegerSecret_RestoresOriginalNumber(int splitSecurityLevel, int expectedSecurityLevel, BigInteger number)
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<BigInteger>();
@@ -168,7 +168,7 @@ public class ShamirsSecretSharingTest
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Theory]
     [MemberData(nameof(TestData.TestRandomSecretData), MemberType = typeof(TestData))]
-    public void TestWithRandomSecret(int splitSecurityLevel, int expectedSecurityLevel)
+    public void MakeAndReconstruct_FromRandomSecret_RestoresOriginal(int splitSecurityLevel, int expectedSecurityLevel)
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<BigInteger>();
@@ -196,7 +196,7 @@ public class ShamirsSecretSharingTest
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Fact]
-    public void TestMinimumSharedSecretsMake()
+    public void MakeShares_MinimumThresholdBelowTwo_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<BigInteger>();
@@ -210,7 +210,7 @@ public class ShamirsSecretSharingTest
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Fact]
-    public void TestMinimumSharedSecretsReconstruction()
+    public void Reconstruction_BelowMinimumThreshold_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<BigInteger>();
@@ -231,7 +231,7 @@ public class ShamirsSecretSharingTest
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Fact]
-    public void TestShareThreshold()
+    public void Reconstruction_FewerSharesThanThreshold_ProducesIncorrectSecret()
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<BigInteger>();
@@ -281,7 +281,7 @@ public class ShamirsSecretSharingTest
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Fact]
-    public void TestReconstructFromStringArray()
+    public void Reconstruction_FromTextLines_RestoresDefaultPassword()
     {
         // Arrange
         using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
@@ -300,7 +300,7 @@ public class ShamirsSecretSharingTest
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
     [Fact]
-    public void TestReconstructFromString()
+    public void Reconstruction_FromConcatenatedText_RestoresDefaultPassword()
     {
         // Arrange
         var sharesChunk = new StringBuilder();

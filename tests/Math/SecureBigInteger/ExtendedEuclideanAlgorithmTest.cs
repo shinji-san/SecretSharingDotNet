@@ -41,7 +41,7 @@ public class ExtendedEuclideanAlgorithmTest
     private readonly ExtendedEuclideanAlgorithm<SecureBigInteger> gcd = new ExtendedEuclideanAlgorithm<SecureBigInteger>();
 
     [Fact]
-    public void TestSimpleGcd()
+    public void Compute_SmallComposites_ReturnsGreatestCommonDivisor()
     {
         // Arrange
         using Calculator<SecureBigInteger> expected = (SecureBigInteger)3;

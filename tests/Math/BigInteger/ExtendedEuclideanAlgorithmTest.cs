@@ -41,7 +41,7 @@ public class ExtendedEuclideanAlgorithmTest
     private readonly ExtendedEuclideanAlgorithm<BigInteger> gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
 
     [Fact]
-    public void TestSimpleGcd()
+    public void Compute_SmallComposites_ReturnsGreatestCommonDivisor()
     {
         // Arrange
         using Calculator<BigInteger> expected = (BigInteger)3;
@@ -54,7 +54,7 @@ public class ExtendedEuclideanAlgorithmTest
     }
 
     [Fact]
-    public void TestPositiveBoth()
+    public void Compute_TwoPositiveOperands_ReturnsExpectedBezoutCoefficients()
     {
         // Act
         using var result = this.gcd.Compute(BigInteger.Parse("2", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
