@@ -36,8 +36,17 @@ using System.Linq;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="SecureCharBufferExtensions"/> — the bridge that copies character
+/// secrets from unpinned containers (<see cref="string"/>, <see cref="char"/>[],
+/// <see cref="ReadOnlySpan{T}"/>) into pinned <see cref="PinnedPoolArray{Char}"/> buffers.
+/// </summary>
 public class SecureCharBufferExtensionsTest
 {
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecure(string)"/> copies the
+    /// source string's characters into a pinned buffer character-for-character.
+    /// </summary>
     [Fact]
     public void ToPinnedSecure_FromString_CopiesAllChars()
     {
@@ -51,6 +60,10 @@ public class SecureCharBufferExtensionsTest
         Assert.Equal(source, new string(pinned.PoolArray, 0, pinned.Length));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecure(string)"/> returns a
+    /// zero-length pinned buffer for <see cref="string.Empty"/> without throwing.
+    /// </summary>
     [Fact]
     public void ToPinnedSecure_FromEmptyString_ReturnsEmptyBuffer()
     {
@@ -61,12 +74,22 @@ public class SecureCharBufferExtensionsTest
         Assert.Equal(0, pinned.Length);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecure(string)"/> rejects a
+    /// <see langword="null"/> source with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void ToPinnedSecure_FromNullString_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() => ((string)null).ToPinnedSecure());
     }
 
+    /// <summary>
+    /// Tests that the pinned buffer returned by
+    /// <see cref="SecureCharBufferExtensions.ToPinnedSecure(string)"/> has its own backing
+    /// store — mutating the pinned <c>PoolArray</c> must not reach the source string (strings
+    /// are immutable, so this is structural confirmation that no aliasing exists).
+    /// </summary>
     [Fact]
     public void ToPinnedSecure_FromString_DoesNotShareBackingStore()
     {
@@ -82,6 +105,12 @@ public class SecureCharBufferExtensionsTest
     }
 
 #if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecure(ReadOnlySpan{char})"/>
+    /// copies a <see cref="ReadOnlySpan{Char}"/> source's characters into a pinned buffer
+    /// character-for-character. Only available on TFMs that support
+    /// <see cref="ReadOnlySpan{T}"/> on the public API surface.
+    /// </summary>
     [Fact]
     public void ToPinnedSecure_FromReadOnlySpan_CopiesAllChars()
     {
@@ -96,6 +125,11 @@ public class SecureCharBufferExtensionsTest
         Assert.Equal(sourceText, new string(pinned.PoolArray, 0, pinned.Length));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecure(ReadOnlySpan{char})"/>
+    /// returns a zero-length pinned buffer for <see cref="ReadOnlySpan{Char}.Empty"/>
+    /// without throwing.
+    /// </summary>
     [Fact]
     public void ToPinnedSecure_FromEmptySpan_ReturnsEmptyBuffer()
     {
@@ -107,6 +141,12 @@ public class SecureCharBufferExtensionsTest
     }
 #endif
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecureClearing(char[])"/>
+    /// copies every source character into a pinned destination and then zeros the source
+    /// array in place — the contract that makes this helper safe for caller-owned buffers
+    /// holding secret material.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureClearing_FromCharArray_CopiesAndClearsSource()
     {
@@ -122,6 +162,10 @@ public class SecureCharBufferExtensionsTest
         Assert.Equal(new char[snapshot.Length], source);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecureClearing(char[])"/>
+    /// handles an empty source array gracefully — returning a zero-length pinned buffer.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureClearing_FromEmptyArray_ReturnsEmptyBuffer()
     {
@@ -135,18 +179,31 @@ public class SecureCharBufferExtensionsTest
         Assert.Equal(0, pinned.Length);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecureClearing(char[])"/>
+    /// throws <see cref="ArgumentNullException"/> for a <see langword="null"/> source rather
+    /// than silently producing a zero-length buffer.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureClearing_FromNullArray_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() => ((char[])null).ToPinnedSecureClearing());
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecureShareLines(string[])"/>
+    /// throws <see cref="ArgumentNullException"/> for a <see langword="null"/> source.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureShareLines_FromNullArray_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() => ((string[])null).ToPinnedSecureShareLines());
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecureShareLines(string[])"/>
+    /// returns a zero-count <see cref="PinnedPoolArrayList{Char}"/> for an empty input array.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureShareLines_EmptyArray_ReturnsEmptyList()
     {
@@ -160,6 +217,11 @@ public class SecureCharBufferExtensionsTest
         Assert.Equal(0, lines.Count);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecureShareLines(string[])"/>
+    /// pins each input string into its own dedicated <see cref="PinnedPoolArray{Char}"/>
+    /// entry, character-for-character — no concatenation across line boundaries.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureShareLines_PinsEachLineWithoutConcatenation()
     {
@@ -175,6 +237,11 @@ public class SecureCharBufferExtensionsTest
             Assert.Equal(input[i], new string(lines[i].PoolArray, 0, lines[i].Length)));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureCharBufferExtensions.ToPinnedSecureShareLines(string[])"/>
+    /// tolerates <see langword="null"/> entries inside the source array — they materialise
+    /// as zero-length pinned buffers, preserving the index alignment of the surrounding entries.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureShareLines_NullEntry_PinsAsZeroLengthBuffer()
     {
@@ -191,6 +258,12 @@ public class SecureCharBufferExtensionsTest
         Assert.Equal(6, lines[2].Length);
     }
 
+    /// <summary>
+    /// Tests that disposing the <see cref="PinnedPoolArrayList{Char}"/> returned by
+    /// <see cref="SecureCharBufferExtensions.ToPinnedSecureShareLines(string[])"/> cascades
+    /// to every contained <see cref="PinnedPoolArray{Char}"/> entry — so a single
+    /// <c>using</c> on the list is enough to release the whole batch.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureShareLines_DisposesEveryEntryOnListDispose()
     {
@@ -207,6 +280,11 @@ public class SecureCharBufferExtensionsTest
         Assert.Throws<ObjectDisposedException>(() => _ = entries[1].Length);
     }
 
+    /// <summary>
+    /// Tests that disposing the <see cref="PinnedPoolArrayList{Char}"/> returned by
+    /// <see cref="SecureCharBufferExtensions.ToPinnedSecureShareLines(string[])"/> multiple
+    /// times is safe — repeated <see cref="IDisposable.Dispose"/> calls do not throw.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureShareLines_DoubleDispose_IsIdempotent()
     {
