@@ -36,8 +36,18 @@ using System;
 using System.Numerics;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="Polynomial"/> on the <see cref="BigInteger"/> backend —
+/// Horner-style polynomial evaluation under a Mersenne-prime modulus, the building
+/// block for Shamir share generation.
+/// </summary>
 public class PolynomialTest
 {
+    /// <summary>
+    /// Tests that <see cref="Polynomial.EvaluateAt{TNumber}"/> on a constant polynomial
+    /// returns the constant itself when it is already less than the Mersenne modulus
+    /// (no reduction step engaged).
+    /// </summary>
     [Fact]
     public void EvaluateAt_ConstantPolynomial_ReturnsConstantModMersennePrime()
     {
@@ -56,6 +66,11 @@ public class PolynomialTest
         Assert.Equal(expected, result);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Polynomial.EvaluateAt{TNumber}"/> on a linear polynomial
+    /// (<c>p(x) = a₀ + a₁x</c>) computes correctly when the modulus genuinely engages the
+    /// reduction step (polynomial result &gt; modulus).
+    /// </summary>
     [Fact]
     public void EvaluateAt_LinearPolynomial_ComputesCorrectly()
     {
@@ -88,6 +103,11 @@ public class PolynomialTest
         }
     }
 
+    /// <summary>
+    /// Tests that <see cref="Polynomial.EvaluateAt{TNumber}"/> on a quadratic polynomial
+    /// (<c>p(x) = a₀ + a₁x + a₂x²</c>) computes correctly through Horner's scheme, again with
+    /// the modulus below the unreduced polynomial result so the reduction step is exercised.
+    /// </summary>
     [Fact]
     public void EvaluateAt_QuadraticPolynomial_ComputesCorrectly()
     {
@@ -121,6 +141,10 @@ public class PolynomialTest
         }
     }
 
+    /// <summary>
+    /// Tests that <see cref="Polynomial.EvaluateAt{TNumber}"/> throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> <c>x</c>.
+    /// </summary>
     [Fact]
     public void EvaluateAt_NullX_ThrowsArgumentNullException()
     {
@@ -138,6 +162,10 @@ public class PolynomialTest
         }
     }
 
+    /// <summary>
+    /// Tests that <see cref="Polynomial.EvaluateAt{TNumber}"/> throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> coefficient array.
+    /// </summary>
     [Fact]
     public void EvaluateAt_NullCoefficients_ThrowsArgumentNullException()
     {
@@ -148,6 +176,12 @@ public class PolynomialTest
         Assert.Throws<ArgumentNullException>(() => Polynomial.EvaluateAt<BigInteger>(xCalc, null, mersenneExponent: 5));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Polynomial.EvaluateAt{TNumber}"/> rejects non-positive
+    /// Mersenne exponents (0 or negative) with <see cref="ArgumentOutOfRangeException"/>,
+    /// catching pre-call misuse before the modular reduction tries to run.
+    /// </summary>
+    /// <param name="mersenneExponent">A non-positive exponent value to feed to the call.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

@@ -43,11 +43,21 @@ using System;
 using System.Numerics;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="SecretReconstructor{TNumber}"/> on the <see cref="BigInteger"/>
+/// backend — disposal contract, share-distinctness validation, and the modular-inverse
+/// <c>DivMod</c> round-trip used by Lagrange interpolation.
+/// </summary>
 public class SecretReconstructorTest
 {
     private static SecretReconstructor<BigInteger> CreateWithMock(Mock<ISecurityLevelManager<BigInteger>> managerMock) =>
         new(new ExtendedEuclideanAlgorithm<BigInteger>(), managerMock.Object);
 
+    /// <summary>
+    /// Tests that disposing a <see cref="SecretReconstructor{TNumber}"/> built around a
+    /// caller-supplied <see cref="ISecurityLevelManager{TNumber}"/> does NOT cascade dispose
+    /// to the injected manager — ownership stays with the caller.
+    /// </summary>
     [Fact]
     public void Dispose_WithInjectedManager_DoesNotDisposeIt()
     {
@@ -64,6 +74,10 @@ public class SecretReconstructorTest
         managerMock.Verify(m => m.Dispose(), Times.Never);
     }
 
+    /// <summary>
+    /// Tests that calling <see cref="SecretReconstructor{TNumber}.Dispose"/> repeatedly is
+    /// idempotent — second and third calls do not throw.
+    /// </summary>
     [Fact]
     public void Dispose_CalledMultipleTimes_IsIdempotent()
     {
@@ -82,6 +96,10 @@ public class SecretReconstructorTest
         Assert.Null(ex);
     }
 
+    /// <summary>
+    /// Tests that reading <see cref="SecretReconstructor{TNumber}.SecurityLevel"/> after
+    /// disposal throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Get_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -93,6 +111,10 @@ public class SecretReconstructorTest
         Assert.Throws<ObjectDisposedException>(() => _ = reconstructor.SecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecretReconstructor{TNumber}.Reconstruction"/> rejects calls
+    /// after the reconstructor was disposed with <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Reconstruction_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -105,6 +127,11 @@ public class SecretReconstructorTest
         Assert.Throws<ObjectDisposedException>(() => reconstructor.Reconstruction(emptyShares));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecretReconstructor{TNumber}.DivMod"/> (the modular-inverse
+    /// helper used by Lagrange interpolation) rejects calls after the reconstructor was
+    /// disposed with <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void DivMod_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -118,6 +145,11 @@ public class SecretReconstructorTest
         Assert.Throws<ObjectDisposedException>(() => reconstructor.DivMod(n, d));
     }
 
+    /// <summary>
+    /// Tests the algebraic round-trip <c>d · DivMod(d, n) mod p ≡ n</c> with the
+    /// Mersenne prime <c>M127</c>. The security-level manager is injected pre-configured
+    /// to exponent 127 so <c>DivMod</c> reads the matching prime.
+    /// </summary>
     [Fact]
     public void DivMod_RoundTrip_DenominatorTimesQuotientModPrime_EqualsNumerator()
     {
@@ -148,6 +180,11 @@ public class SecretReconstructorTest
         Assert.Equal(n, modulo);
     }
 
+    /// <summary>
+    /// Tests that the <c>using</c> pattern over a default-constructed
+    /// <see cref="SecretReconstructor{TNumber}"/> (which internally owns its
+    /// security-level manager) completes without exception.
+    /// </summary>
     [Fact]
     public void UsingPattern_WithOwnedManager_DoesNotThrow()
     {
@@ -160,6 +197,13 @@ public class SecretReconstructorTest
         // Assert — implicit: no exception escaped.
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecretReconstructor{TNumber}.Reconstruction"/> rejects share
+    /// arrays that contain two entries with the same x-coordinate but inconsistent values
+    /// at the input-validation layer (<see cref="ArgumentException"/> with
+    /// <see cref="ArgumentException.ParamName"/> = <c>shares</c>), rather than failing
+    /// deep inside <c>DivMod</c> with a misleading "inverse of zero" diagnostic.
+    /// </summary>
     [Fact]
     public void Reconstruction_WithDuplicateShareIndices_ThrowsArgumentException()
     {
@@ -186,6 +230,14 @@ public class SecretReconstructorTest
         Assert.Equal("shares", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecretReconstructor{TNumber}.Reconstruction"/> with distinct
+    /// share indices but identical y-values does not trip the share-distinctness validation
+    /// — the validation is by x-coordinate only, since duplicate y-values are legitimate
+    /// on a polynomial that happens to be locally flat. Reconstruction may legitimately
+    /// fail later (the shares are not on a real polynomial), but never with the
+    /// share-distinctness ArgumentException.
+    /// </summary>
     [Fact]
     public void Reconstruction_WithDistinctIndicesAndDuplicateValues_DoesNotThrowAtValidation()
     {
