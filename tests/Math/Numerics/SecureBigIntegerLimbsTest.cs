@@ -48,6 +48,12 @@ using Xunit;
 /// </remarks>
 public sealed class SecureBigIntegerLimbsTest
 {
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.ToLimbs"/> followed by the
+    /// <c>(limbs, limbCount, isNegative)</c> constructor reproduces the original value
+    /// across positive/negative/zero/boundary samples spanning the <see cref="long"/> range.
+    /// </summary>
+    /// <param name="value">The seed <see cref="long"/> value for the round-trip.</param>
     [Theory]
     [InlineData(0L)]
     [InlineData(1L)]
@@ -77,6 +83,10 @@ public sealed class SecureBigIntegerLimbsTest
         Assert.Equal(original, roundtripped);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.LimbCount"/> reports a single limb for the
+    /// zero value (canonical zero is one zero-limb, not an empty buffer).
+    /// </summary>
     [Fact]
     public void LimbCount_OfZero_IsOne()
     {
@@ -90,6 +100,10 @@ public sealed class SecureBigIntegerLimbsTest
         Assert.Equal(1, limbCount);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.LimbCount"/> reports a single limb for a
+    /// value (<c>0xFF</c>) that fits inside one byte — far below the 64-bit limb boundary.
+    /// </summary>
     [Fact]
     public void LimbCount_OfSingleByteValue_IsOne()
     {
@@ -103,6 +117,10 @@ public sealed class SecureBigIntegerLimbsTest
         Assert.Equal(1, limbCount);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.LimbCount"/> reports a single limb for
+    /// <see cref="long.MaxValue"/> — the largest value that still fits inside one 64-bit limb.
+    /// </summary>
     [Fact]
     public void LimbCount_OfLongMaxValue_IsOne()
     {
@@ -116,6 +134,11 @@ public sealed class SecureBigIntegerLimbsTest
         Assert.Equal(1, limbCount);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.LimbCount"/> jumps to two for the smallest
+    /// value that exceeds a single 64-bit limb (<c>2^64</c>) — boundary crossing into the
+    /// multi-limb representation.
+    /// </summary>
     [Fact]
     public void LimbCount_OfNineByteMagnitude_IsTwo()
     {
@@ -131,6 +154,12 @@ public sealed class SecureBigIntegerLimbsTest
         Assert.Equal(2, limbCount);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.ToLimbs"/> places the full <see cref="ulong"/>
+    /// value in <c>limbs[0]</c> when the value fits in one limb — covers byte/word/qword
+    /// boundary values up to <see cref="ulong.MaxValue"/>.
+    /// </summary>
+    /// <param name="value">The <see cref="ulong"/> seed value.</param>
     [Theory]
     [InlineData(7UL)]
     [InlineData(0xDEADBEEFUL)]
@@ -149,6 +178,11 @@ public sealed class SecureBigIntegerLimbsTest
         Assert.Equal(value, limbs[0]);
     }
 
+    /// <summary>
+    /// Tests the exact boundary <c>2^64</c>: <see cref="SecureBigInteger.ToLimbs"/> must
+    /// emit <c>limbs[0] = 0</c> and <c>limbs[1] = 1</c>, confirming the carry into the
+    /// upper limb.
+    /// </summary>
     [Fact]
     public void ToLimbs_OfTwoToThe64_PlacesHighBitInSecondLimb()
     {
@@ -166,6 +200,10 @@ public sealed class SecureBigIntegerLimbsTest
         Assert.Equal(1UL, limbs[1]);
     }
 
+    /// <summary>
+    /// Tests that the <c>(limbs, limbCount, isNegative)</c> constructor rejects a
+    /// <see langword="null"/> <c>limbs</c> argument with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void FromLimbs_NullLimbs_ThrowsArgumentNullException()
     {
@@ -178,6 +216,11 @@ public sealed class SecureBigIntegerLimbsTest
         });
     }
 
+    /// <summary>
+    /// Tests that the <c>(limbs, limbCount, isNegative)</c> constructor rejects a
+    /// <c>limbCount</c> of zero (or negative) with <see cref="ArgumentOutOfRangeException"/> —
+    /// canonical zero is represented as one zero-limb, never as zero limbs.
+    /// </summary>
     [Fact]
     public void FromLimbs_LimbCountBelowOne_ThrowsArgumentOutOfRangeException()
     {
@@ -191,6 +234,11 @@ public sealed class SecureBigIntegerLimbsTest
         });
     }
 
+    /// <summary>
+    /// Tests that the <c>(limbs, limbCount, isNegative)</c> constructor rejects a
+    /// <c>limbCount</c> greater than the buffer's length with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void FromLimbs_LimbCountExceedsLength_ThrowsArgumentOutOfRangeException()
     {
@@ -204,6 +252,11 @@ public sealed class SecureBigIntegerLimbsTest
         });
     }
 
+    /// <summary>
+    /// Tests that the <c>(limbs, limbCount, isNegative)</c> constructor canonicalises an
+    /// all-zero magnitude tagged as <c>isNegative: true</c> to positive zero (i.e.
+    /// <see cref="SecureBigInteger.Sign"/> == 0). Matches the byte-array ctors' zero-clamping.
+    /// </summary>
     [Fact]
     public void FromLimbs_AllZeroMagnitudeWithNegativeFlag_NormalisesToZero()
     {

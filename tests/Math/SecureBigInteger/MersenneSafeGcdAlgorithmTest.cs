@@ -36,8 +36,23 @@ using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="MersenneSafeGcdAlgorithm"/> — the constant-time Bernstein–Yang
+/// divsteps implementation that backs modular inversion on the
+/// <see cref="SecureBigInteger"/> backend. Covers the public <c>Compute</c> surface plus
+/// the internal <c>ExtendedGcd</c> helper exposed via
+/// <c>InternalsVisibleTo</c> for direct testing on non-Mersenne operand pairs.
+/// </summary>
 public class MersenneSafeGcdAlgorithmTest
 {
+    /// <summary>
+    /// Tests that <see cref="MersenneSafeGcdAlgorithm.Compute"/> returns the modular
+    /// inverse of a non-zero denominator under several Mersenne-prime moduli (M13, M31,
+    /// M127). Cross-checks against Fermat's little theorem
+    /// (<c>a^{p-2} mod p ≡ a^{-1} mod p</c>) computed via BCL <c>BigInteger.ModPow</c>.
+    /// </summary>
+    /// <param name="denominatorDec">The denominator as a decimal string.</param>
+    /// <param name="mersenneExponent">The Mersenne exponent picking the prime field.</param>
     [Theory]
     // (denominator, mersenneExponent). For each row:
     //   gcd       = 1
@@ -80,6 +95,11 @@ public class MersenneSafeGcdAlgorithmTest
         Assert.Equal(BigInteger.One, product);
     }
 
+    /// <summary>
+    /// Tests that <c>gcd(0, M_p) = M_p</c> — the boundary case where the denominator is
+    /// zero. <see cref="MersenneSafeGcdAlgorithm.Compute"/> must surface the prime itself
+    /// as the GCD rather than producing an undefined inverse.
+    /// </summary>
     [Fact]
     public void Compute_ZeroDenominator_GcdEqualsPrime()
     {
@@ -98,6 +118,11 @@ public class MersenneSafeGcdAlgorithmTest
         Assert.Equal(primeBig, gcdActual);
     }
 
+    /// <summary>
+    /// Tests that <see cref="MersenneSafeGcdAlgorithm.Compute"/> rejects a
+    /// <see langword="null"/> first operand (<c>a</c>) with
+    /// <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void Compute_NullA_ThrowsArgumentNullException()
     {
@@ -110,6 +135,11 @@ public class MersenneSafeGcdAlgorithmTest
         Assert.Throws<ArgumentNullException>(() => algorithm.Compute(null!, bCalc));
     }
 
+    /// <summary>
+    /// Tests that <see cref="MersenneSafeGcdAlgorithm.Compute"/> rejects a
+    /// <see langword="null"/> second operand (<c>b</c>) with
+    /// <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void Compute_NullB_ThrowsArgumentNullException()
     {
@@ -121,6 +151,14 @@ public class MersenneSafeGcdAlgorithmTest
         Assert.Throws<ArgumentNullException>(() => algorithm.Compute(aCalc, null!));
     }
 
+    /// <summary>
+    /// Cross-checks <see cref="MersenneSafeGcdAlgorithm.Compute"/> against the variable-time
+    /// <see cref="ExtendedEuclideanAlgorithm{TNumber}.Compute"/>: both algorithms must
+    /// produce the same modular inverse modulo <c>M_p</c> after reducing the Euclidean
+    /// result into the <c>[0, M_p − 1]</c> range.
+    /// </summary>
+    /// <param name="denominatorDec">The denominator as a decimal string.</param>
+    /// <param name="mersenneExponent">The Mersenne exponent picking the prime field.</param>
     [Theory]
     [InlineData("3", 13)]
     [InlineData("999999937", 31)]
@@ -150,6 +188,11 @@ public class MersenneSafeGcdAlgorithmTest
         Assert.Equal(euclideanInverseReduced, safegcdInverse);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="ExtendedGcdResult{TNumber}"/> returned by
+    /// <see cref="MersenneSafeGcdAlgorithm.Compute"/> tolerates repeated
+    /// <see cref="IDisposable.Dispose"/> calls without throwing — idempotent disposal.
+    /// </summary>
     [Fact]
     public void Compute_ResultDispose_IsIdempotent()
     {
@@ -178,6 +221,17 @@ public class MersenneSafeGcdAlgorithmTest
     // (e.g. 15/10 with shared factor 5) is only possible at the helper level.
     // -------------------------------------------------------------------------
 
+    /// <summary>
+    /// Tests the internal <c>ExtendedGcd</c> helper directly against the BCL's
+    /// <see cref="BigInteger.GreatestCommonDivisor(BigInteger, BigInteger)"/>. Covers
+    /// coprime pairs, pairs with non-trivial shared factors (impossible to test via
+    /// <c>Compute</c>, which restricts <c>b</c> to a Mersenne prime), and Mersenne
+    /// moduli M13/M31/M127.
+    /// </summary>
+    /// <param name="fDec">First operand as a decimal string.</param>
+    /// <param name="gDec">Second operand as a decimal string.</param>
+    /// <param name="expectedGcdDec">The expected GCD as a decimal string.</param>
+    /// <param name="bitLengthBound">Public upper bound on the bit length of the operands.</param>
     [Theory]
     // Small inputs verifying the divstep algorithm reaches the correct gcd.
     [InlineData("7", "5", "1", 3)]
@@ -222,6 +276,15 @@ public class MersenneSafeGcdAlgorithmTest
         }
     }
 
+    /// <summary>
+    /// Tests the integer-form Bezout identity
+    /// <c>α · f + β · g = 2^iterationCount · gcd</c> for representative input pairs.
+    /// Confirms the divsteps recurrence preserves the algebraic invariant the
+    /// modular-inverse derivation rests on.
+    /// </summary>
+    /// <param name="fDec">First operand as a decimal string.</param>
+    /// <param name="gDec">Second operand as a decimal string.</param>
+    /// <param name="bitLengthBound">Public upper bound on the bit length of the operands.</param>
     [Theory]
     // Verifies the integer-form Bezout identity:
     //   alpha * fInput + beta * gInput = 2^iterationCount * gcd
@@ -274,6 +337,10 @@ public class MersenneSafeGcdAlgorithmTest
         }
     }
 
+    /// <summary>
+    /// Tests that <c>ExtendedGcd</c> rejects a <see langword="null"/> first operand
+    /// (<c>fInput</c>) with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void ExtendedGcd_FInputNull_ThrowsArgumentNullException()
     {
@@ -284,6 +351,10 @@ public class MersenneSafeGcdAlgorithmTest
         Assert.Throws<ArgumentNullException>(() => MersenneSafeGcdAlgorithm.ExtendedGcd(null!, g, 8));
     }
 
+    /// <summary>
+    /// Tests that <c>ExtendedGcd</c> rejects a <see langword="null"/> second operand
+    /// (<c>gInput</c>) with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void ExtendedGcd_GInputNull_ThrowsArgumentNullException()
     {
@@ -294,6 +365,12 @@ public class MersenneSafeGcdAlgorithmTest
         Assert.Throws<ArgumentNullException>(() => MersenneSafeGcdAlgorithm.ExtendedGcd(f, null!, 8));
     }
 
+    /// <summary>
+    /// Tests that <c>ExtendedGcd</c> rejects a non-positive <c>bitLengthBound</c>
+    /// (0 or negative) with <see cref="ArgumentOutOfRangeException"/> — the bound drives
+    /// the constant-time iteration count, so a non-positive value is meaningless.
+    /// </summary>
+    /// <param name="bitLengthBound">A non-positive bound value.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

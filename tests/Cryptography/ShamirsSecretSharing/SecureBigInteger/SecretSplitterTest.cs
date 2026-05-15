@@ -41,8 +41,18 @@ using SecretSharingDotNet.Math.Numerics;
 using System;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="SecretSplitter{TNumber}"/> on the <see cref="SecureBigInteger"/>
+/// backend — disposal contract, share-count guards, and the LE share-index encoding
+/// helper. Mirror of the BigInteger-side test class.
+/// </summary>
 public class SecretSplitterTest
 {
+    /// <summary>
+    /// Tests that disposing a <see cref="SecretSplitter{TNumber}"/> built around a
+    /// caller-supplied <see cref="ISecurityLevelManager{TNumber}"/> does NOT cascade dispose
+    /// to the injected manager — ownership stays with the caller.
+    /// </summary>
     [Fact]
     public void Dispose_WithInjectedManager_DoesNotDisposeIt()
     {
@@ -59,6 +69,10 @@ public class SecretSplitterTest
         managerMock.Verify(m => m.Dispose(), Times.Never);
     }
 
+    /// <summary>
+    /// Tests that calling <see cref="SecretSplitter{TNumber}.Dispose"/> repeatedly is
+    /// idempotent — second and third calls do not throw.
+    /// </summary>
     [Fact]
     public void Dispose_CalledMultipleTimes_IsIdempotent()
     {
@@ -77,6 +91,10 @@ public class SecretSplitterTest
         Assert.Null(ex);
     }
 
+    /// <summary>
+    /// Tests that reading <see cref="SecretSplitter{TNumber}.SecurityLevel"/> after
+    /// disposal throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Get_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -88,6 +106,10 @@ public class SecretSplitterTest
         Assert.Throws<ObjectDisposedException>(() => _ = splitter.SecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that writing <see cref="SecretSplitter{TNumber}.SecurityLevel"/> after
+    /// disposal throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Set_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -99,6 +121,10 @@ public class SecretSplitterTest
         Assert.Throws<ObjectDisposedException>(() => splitter.SecurityLevel = 31);
     }
 
+    /// <summary>
+    /// Tests that the random-secret <see cref="SecretSplitter{TNumber}.MakeShares(int, int, int, out Secret{TNumber})"/>
+    /// overload rejects calls after disposal with <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void MakeShares_RandomSecret_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -110,6 +136,11 @@ public class SecretSplitterTest
         Assert.Throws<ObjectDisposedException>(() => splitter.MakeShares(2, 3, 13, out _));
     }
 
+    /// <summary>
+    /// Tests that the <c>(min, n, secret, securityLevel)</c>
+    /// <see cref="SecretSplitter{TNumber}.MakeShares(int, int, Secret{TNumber}, int)"/>
+    /// overload rejects calls after disposal with <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void MakeShares_WithSecretAndSecurityLevel_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -122,6 +153,11 @@ public class SecretSplitterTest
         Assert.Throws<ObjectDisposedException>(() => splitter.MakeShares(2, 3, secret, 13));
     }
 
+    /// <summary>
+    /// Tests that the <c>(min, n, secret)</c>
+    /// <see cref="SecretSplitter{TNumber}.MakeShares(int, int, Secret{TNumber})"/>
+    /// overload rejects calls after disposal with <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void MakeShares_WithSecret_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -134,6 +170,11 @@ public class SecretSplitterTest
         Assert.Throws<ObjectDisposedException>(() => splitter.MakeShares(2, 3, secret));
     }
 
+    /// <summary>
+    /// Tests that the <c>using</c> pattern over a default-constructed
+    /// <see cref="SecretSplitter{TNumber}"/> (which internally owns its security-level
+    /// manager) completes without exception.
+    /// </summary>
     [Fact]
     public void UsingPattern_WithOwnedManager_DoesNotThrow()
     {
@@ -146,6 +187,11 @@ public class SecretSplitterTest
         // Assert — implicit: no exception escaped.
     }
 
+    /// <summary>
+    /// Tests the H3 prime guard: <see cref="SecretSplitter{TNumber}.MakeShares(int, int, Secret{TNumber})"/>
+    /// rejects a share count <c>≥ M_p</c> with <see cref="ArgumentOutOfRangeException"/>
+    /// before share indices collapse modulo the prime in any subsequent reconstruction.
+    /// </summary>
     [Fact]
     public void MakeShares_NumberOfSharesExceedsMersennePrime_ThrowsArgumentOutOfRangeException()
     {
@@ -163,6 +209,13 @@ public class SecretSplitterTest
         Assert.Equal("numberOfShares", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests the M3 implementation cap: even when the auto-upgraded prime is large enough
+    /// that the H3 guard does not fire, <see cref="SecretSplitter{TNumber}.MakeShares(int, int, Secret{TNumber})"/>
+    /// still rejects a share count above
+    /// <c>SecretSplitter&lt;TNumber&gt;.MaxAllowedNumberOfShares</c> with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void MakeShares_NumberOfSharesExceedsImplementationCap_ThrowsArgumentOutOfRangeException()
     {
@@ -178,6 +231,15 @@ public class SecretSplitterTest
         Assert.Equal("numberOfShares", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests the internal <c>Int32ToLittleEndianBytes</c> helper that drives share-index
+    /// encoding — produces a canonical 4-byte little-endian sequence regardless of host
+    /// endianness. The helper is TNumber-independent; the
+    /// <see cref="SecureBigInteger"/>-bound instantiation is kept as a mirror of the
+    /// BigInteger-side test for parity with the rest of the hierarchy.
+    /// </summary>
+    /// <param name="value">The <see cref="int"/> value to encode.</param>
+    /// <param name="expected">The expected 4-byte LE encoding.</param>
     [Theory]
     [InlineData(0,             new byte[] { 0x00, 0x00, 0x00, 0x00 })]
     [InlineData(1,             new byte[] { 0x01, 0x00, 0x00, 0x00 })]
@@ -197,6 +259,12 @@ public class SecretSplitterTest
         Assert.Equal(expected, actual);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecretSplitter{TNumber}.MakeShares(int, int, Secret{TNumber})"/>
+    /// assigns share x-coordinates <c>1, 2, ..., n</c> in order on the
+    /// <see cref="SecureBigInteger"/> backend — end-to-end counterpart to the
+    /// <c>Int32ToLittleEndianBytes</c> theory.
+    /// </summary>
     [Fact]
     public void MakeShares_AssignsShareIndices_AsConsecutivePositiveIntegers()
     {
