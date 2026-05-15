@@ -38,8 +38,21 @@ using SecretSharingDotNet.Cryptography.SecureArray;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="SecureNumericBufferExtensions"/> — the forward
+/// (<c>numeric → pinned</c>) and reverse (<c>pinned → numeric</c>) bridge
+/// between primitive integer types, <see cref="BigInteger"/>, and
+/// <see cref="PinnedPoolArray{Byte}"/>.
+/// </summary>
 public class SecureNumericBufferExtensionsTest
 {
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytes(int)"/>
+    /// produces a fixed 4-byte little-endian encoding, independent of the host's native
+    /// endianness. The expected bytes for negative inputs exercise the two's-complement path.
+    /// </summary>
+    /// <param name="source">The <see cref="int"/> value to encode.</param>
+    /// <param name="expected">The expected 4-byte little-endian encoding.</param>
     [Theory]
     [InlineData(0,             new byte[] { 0x00, 0x00, 0x00, 0x00 })]
     [InlineData(1,             new byte[] { 0x01, 0x00, 0x00, 0x00 })]
@@ -59,6 +72,12 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(expected, pinned.PoolArray.Take(pinned.Length));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytes(BigInteger)"/>
+    /// returns a single zero byte for <see cref="BigInteger.Zero"/>, matching the BCL's own
+    /// <see cref="BigInteger.ToByteArray()"/> convention (zero is encoded as <c>{0x00}</c>,
+    /// not as an empty buffer).
+    /// </summary>
     [Fact]
     public void ToPinnedSecureBytes_FromBigIntegerZero_ReturnsSingleZeroByte()
     {
@@ -73,6 +92,16 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(0x00, pinned[0]);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytes(BigInteger)"/>
+    /// produces the minimal little-endian two's-complement encoding consistent with
+    /// <see cref="BigInteger.ToByteArray()"/>, including the high-byte zero pad that
+    /// keeps positive values from being misread as negative (e.g. 128 → <c>{0x80, 0x00}</c>).
+    /// </summary>
+    /// <param name="sourceLong">The source value as <see cref="long"/> (widened to
+    /// <see cref="BigInteger"/> inside the test, since <c>BigInteger</c> is not a valid
+    /// <see cref="InlineDataAttribute"/> argument type).</param>
+    /// <param name="expected">The expected minimal LE 2c encoding.</param>
     [Theory]
     [InlineData(42,       new byte[] { 0x2A })]
     [InlineData(127,      new byte[] { 0x7F })]
@@ -94,6 +123,12 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(expected, pinned.PoolArray.Take(pinned.Length));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytesClearing(byte[])"/>
+    /// copies every source byte into a pinned destination and then zeros the source array
+    /// in place — the contract that makes this helper safe to call on caller-owned buffers
+    /// holding secret material.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureBytesClearing_FromValidArray_CopiesAllBytesAndWipesSource()
     {
@@ -109,6 +144,11 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(new byte[originalCopy.Length], source);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytesClearing(byte[])"/>
+    /// handles an empty source array gracefully — returning a zero-length pinned buffer
+    /// without throwing.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureBytesClearing_FromEmptyArray_ReturnsEmptyBuffer()
     {
@@ -122,6 +162,11 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(0, pinned.Length);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytesClearing(byte[])"/>
+    /// throws <see cref="ArgumentNullException"/> for a <see langword="null"/> source rather
+    /// than silently producing a zero-length buffer.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureBytesClearing_FromNullArray_ThrowsArgumentNullException()
     {
@@ -129,6 +174,12 @@ public class SecureNumericBufferExtensionsTest
         Assert.Throws<ArgumentNullException>(() => ((byte[])null).ToPinnedSecureBytesClearing());
     }
 
+    /// <summary>
+    /// Tests that the pinned buffer returned by
+    /// <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytesClearing(byte[])"/> has
+    /// its own backing store independent of the source array — so a post-call mutation of
+    /// the source (after the helper has already wiped it) cannot reach the pinned copy.
+    /// </summary>
     [Fact]
     public void ToPinnedSecureBytesClearing_FromValidArray_DoesNotShareBackingStore()
     {
@@ -147,6 +198,14 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(0x03, pinned[2]);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToInt32Unprotected"/> decodes a
+    /// 4-byte little-endian pinned buffer back into the matching <see cref="int"/> value —
+    /// the reverse of the <see cref="ToPinnedSecureBytes_FromInt_ProducesFourByteLittleEndianEncoding"/>
+    /// forward direction.
+    /// </summary>
+    /// <param name="sourceBytes">The LE-encoded source bytes.</param>
+    /// <param name="expected">The expected decoded <see cref="int"/>.</param>
     [Theory]
     [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00 }, 0)]
     [InlineData(new byte[] { 0x01, 0x00, 0x00, 0x00 }, 1)]
@@ -169,6 +228,12 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(expected, actual);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToInt32Unprotected"/> rejects
+    /// any pinned buffer whose length is not exactly 4 with
+    /// <see cref="ArgumentException"/> — no implicit padding or truncation.
+    /// </summary>
+    /// <param name="badLength">A buffer length other than 4.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -185,6 +250,10 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal("source", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToInt32Unprotected"/> throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> source.
+    /// </summary>
     [Fact]
     public void ToInt32Unprotected_FromNull_ThrowsArgumentNullException()
     {
@@ -192,6 +261,15 @@ public class SecureNumericBufferExtensionsTest
         Assert.Throws<ArgumentNullException>(() => ((PinnedPoolArray<byte>)null).ToInt32Unprotected());
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToBigIntegerUnprotected"/> decodes
+    /// a little-endian two's-complement pinned buffer back into the matching
+    /// <see cref="BigInteger"/> value — the reverse of
+    /// <see cref="ToPinnedSecureBytes_FromBigInteger_ProducesMinimalLittleEndianTwosComplement"/>.
+    /// </summary>
+    /// <param name="sourceBytes">The LE 2c-encoded source bytes.</param>
+    /// <param name="expectedLong">The expected decoded value, as <see cref="long"/>
+    /// (widened to <see cref="BigInteger"/> inside the test).</param>
     [Theory]
     [InlineData(new byte[] { 0x2A },                         42L)]
     [InlineData(new byte[] { 0x7F },                         127L)]
@@ -214,6 +292,10 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(expected, actual);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToBigIntegerUnprotected"/> maps
+    /// an empty pinned buffer to <see cref="BigInteger.Zero"/> rather than throwing.
+    /// </summary>
     [Fact]
     public void ToBigIntegerUnprotected_FromEmptyBuffer_ReturnsZero()
     {
@@ -227,6 +309,10 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(BigInteger.Zero, actual);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToBigIntegerUnprotected"/> throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> source.
+    /// </summary>
     [Fact]
     public void ToBigIntegerUnprotected_FromNull_ThrowsArgumentNullException()
     {
@@ -234,6 +320,15 @@ public class SecureNumericBufferExtensionsTest
         Assert.Throws<ArgumentNullException>(() => ((PinnedPoolArray<byte>)null).ToBigIntegerUnprotected());
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytes(long)"/>
+    /// produces a fixed 8-byte little-endian encoding, mirroring the
+    /// <see cref="ToPinnedSecureBytes_FromInt_ProducesFourByteLittleEndianEncoding"/> contract
+    /// at 64-bit width. Bridge values across the 32-bit boundary (e.g. <c>int.MaxValue + 1</c>)
+    /// confirm the upper half is populated correctly.
+    /// </summary>
+    /// <param name="source">The <see cref="long"/> value to encode.</param>
+    /// <param name="expected">The expected 8-byte little-endian encoding.</param>
     [Theory]
     [InlineData(0L,                  new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })]
     [InlineData(1L,                  new byte[] { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })]
@@ -253,6 +348,13 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(expected, pinned.PoolArray.Take(pinned.Length));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToInt64Unprotected"/> decodes an
+    /// 8-byte little-endian pinned buffer back into the matching <see cref="long"/> value —
+    /// the reverse of <see cref="ToPinnedSecureBytes_FromLong_ProducesEightByteLittleEndianEncoding"/>.
+    /// </summary>
+    /// <param name="sourceBytes">The LE-encoded source bytes.</param>
+    /// <param name="expected">The expected decoded <see cref="long"/>.</param>
     [Theory]
     [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }, 0L)]
     [InlineData(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }, 1L)]
@@ -275,6 +377,12 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(expected, actual);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToInt64Unprotected"/> rejects
+    /// any pinned buffer whose length is not exactly 8 with
+    /// <see cref="ArgumentException"/> — no implicit padding or truncation.
+    /// </summary>
+    /// <param name="badLength">A buffer length other than 8.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -292,6 +400,10 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal("source", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureNumericBufferExtensions.ToInt64Unprotected"/> throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> source.
+    /// </summary>
     [Fact]
     public void ToInt64Unprotected_FromNull_ThrowsArgumentNullException()
     {
@@ -299,6 +411,13 @@ public class SecureNumericBufferExtensionsTest
         Assert.Throws<ArgumentNullException>(() => ((PinnedPoolArray<byte>)null).ToInt64Unprotected());
     }
 
+    /// <summary>
+    /// Tests the forward+reverse round trip for <see cref="long"/>: encoding via
+    /// <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytes(long)"/> and then decoding
+    /// via <see cref="SecureNumericBufferExtensions.ToInt64Unprotected"/> must yield the
+    /// original value, including across the int boundary and at <c>long.Max/MinValue</c>.
+    /// </summary>
+    /// <param name="value">The source <see cref="long"/> to round-trip.</param>
     [Theory]
     [InlineData(0L)]
     [InlineData(1L)]
@@ -318,6 +437,13 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(value, roundTripped);
     }
 
+    /// <summary>
+    /// Tests the forward+reverse round trip for <see cref="int"/>: encoding via
+    /// <see cref="SecureNumericBufferExtensions.ToPinnedSecureBytes(int)"/> and then decoding
+    /// via <see cref="SecureNumericBufferExtensions.ToInt32Unprotected"/> must yield the
+    /// original value, including <c>int.Max/MinValue</c>.
+    /// </summary>
+    /// <param name="value">The source <see cref="int"/> to round-trip.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -335,6 +461,11 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(value, roundTripped);
     }
 
+    /// <summary>
+    /// Tests the forward+reverse round trip for a large positive <see cref="BigInteger"/>
+    /// that exceeds the <see cref="long"/> range — verifying the multi-byte LE 2c path
+    /// preserves the value end-to-end.
+    /// </summary>
     [Fact]
     public void BigInteger_RoundTripsThroughPinnedBytes_PositiveLarge()
     {
@@ -349,6 +480,11 @@ public class SecureNumericBufferExtensionsTest
         Assert.Equal(value, roundTripped);
     }
 
+    /// <summary>
+    /// Tests the forward+reverse round trip for a large negative <see cref="BigInteger"/>
+    /// that exceeds the <see cref="long"/> range — verifying sign propagation through the
+    /// LE 2c encoding survives the multi-byte path.
+    /// </summary>
     [Fact]
     public void BigInteger_RoundTripsThroughPinnedBytes_NegativeLarge()
     {
