@@ -46,6 +46,15 @@ using Xunit;
 /// </summary>
 public sealed class HarnessSelfTest
 {
+    /// <summary>
+    /// Tests that the dudect-style classifier flags
+    /// <see cref="SecureBigInteger"/>'s <c>Multiply</c> as variable-time when the
+    /// harness samples it on two operand-size classes (tiny vs 512-bit). Multiply
+    /// is intentionally not constant-time on operand width (its schoolbook inner
+    /// loop iterates over both widths), so this is a negative-control self-test
+    /// for the harness — if it passes as "constant-time", the harness is producing
+    /// false negatives and the CT validation tests downstream cannot be trusted.
+    /// </summary>
     [Fact]
     [Trait(TimingTraits.CategoryKey, TimingTraits.CategoryValue)]
     public void Multiply_OnDistinctOperandSizes_DetectedAsVariableTime()

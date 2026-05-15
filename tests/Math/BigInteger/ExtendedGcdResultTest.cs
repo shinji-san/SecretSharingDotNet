@@ -41,8 +41,16 @@ using System.Collections.Generic;
 using System.Numerics;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="ExtendedGcdResult{TNumber}"/> on the <see cref="BigInteger"/>
+/// backend — argument validation in the constructor plus the disposable lifecycle.
+/// </summary>
 public class ExtendedGcdResultTest
 {
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}"/>'s constructor throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> <c>gcd</c> argument.
+    /// </summary>
     [Fact]
     public void Constructor_NullGcd_ThrowsArgumentNullException()
     {
@@ -56,6 +64,11 @@ public class ExtendedGcdResultTest
         Assert.Equal("gcd", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}"/>'s constructor throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> <c>coefficients</c>
+    /// list.
+    /// </summary>
     [Fact]
     public void Constructor_NullCoefficients_ThrowsArgumentNullException()
     {
@@ -69,6 +82,11 @@ public class ExtendedGcdResultTest
         Assert.Equal("coefficients", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}"/>'s constructor throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> <c>quotients</c>
+    /// list.
+    /// </summary>
     [Fact]
     public void Constructor_NullQuotients_ThrowsArgumentNullException()
     {
@@ -82,6 +100,10 @@ public class ExtendedGcdResultTest
         Assert.Equal("quotients", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}.Dispose"/> on a default-initialised
+    /// struct (all components <see langword="null"/>) does not throw.
+    /// </summary>
     [Fact]
     public void Dispose_OnDefaultStruct_DoesNotThrow()
     {
@@ -92,6 +114,12 @@ public class ExtendedGcdResultTest
         result.Dispose();
     }
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}.Dispose"/> can be invoked repeatedly
+    /// on a fully populated result without throwing. The <see cref="BigInteger"/> backend
+    /// has no observable post-dispose state, so this is the only feasible assertion form
+    /// for the cascade-dispose contract (see <c>feedback_post_dispose_asymmetry</c>).
+    /// </summary>
     [Fact]
     public void Dispose_OnPopulatedResult_IsIdempotent()
     {

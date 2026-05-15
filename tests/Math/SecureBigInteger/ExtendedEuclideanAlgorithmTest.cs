@@ -36,10 +36,20 @@ using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="ExtendedEuclideanAlgorithm{TNumber}"/> on the
+/// <see cref="SecureBigInteger"/> backend — Euclidean GCD plus the Bezout coefficients used
+/// downstream for modular inversion during share reconstruction.
+/// </summary>
 public class ExtendedEuclideanAlgorithmTest
 {
     private readonly ExtendedEuclideanAlgorithm<SecureBigInteger> gcd = new ExtendedEuclideanAlgorithm<SecureBigInteger>();
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedEuclideanAlgorithm{TNumber}.Compute"/> returns
+    /// <c>gcd(6, 9) = 3</c> for two small composites. Sanity check for the basic
+    /// Euclidean recurrence on the <see cref="SecureBigInteger"/> backend.
+    /// </summary>
     [Fact]
     public void Compute_SmallComposites_ReturnsGreatestCommonDivisor()
     {
@@ -55,6 +65,21 @@ public class ExtendedEuclideanAlgorithmTest
         Assert.Equal(expected, gcdResult.GreatestCommonDivisor);
     }
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedEuclideanAlgorithm{TNumber}.Compute"/> produces the
+    /// expected Bezout coefficients for several operand pairs involving the Mersenne prime
+    /// <c>M127</c> and small companions. Negative operands exercise the sign-propagation
+    /// path on the <see cref="SecureBigInteger"/> backend.
+    /// </summary>
+    /// <param name="operandA">First operand as a decimal string (the
+    /// <see cref="SecureBigInteger"/>(string) decimal ctor was removed in D3, so test
+    /// constants are routed through
+    /// <see cref="BigInteger.Parse(string)"/> + <c>ToSecureBigInteger()</c>).</param>
+    /// <param name="operandB">Second operand as a decimal string.</param>
+    /// <param name="expectedCoefficientForA">Expected Bezout coefficient paired with operand A
+    /// (i.e. <c>BezoutCoefficients[0]</c>).</param>
+    /// <param name="expectedCoefficientForB">Expected Bezout coefficient paired with operand B
+    /// (i.e. <c>BezoutCoefficients[1]</c>).</param>
     [Theory]
     // Originally 5 separate [Fact]s in this class. The InlineData rows preserve
     // every original decimal test value verbatim — large constants are routed

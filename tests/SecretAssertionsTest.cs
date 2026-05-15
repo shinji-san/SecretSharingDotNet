@@ -37,8 +37,17 @@ using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 using Xunit.Sdk;
 
+/// <summary>
+/// Tests for the test-only <see cref="SecretAssertions"/> helper, which compares a
+/// <see cref="Secret{TNumber}"/> against an expected <see cref="string"/> without
+/// surfacing the secret bytes in the failure diagnostic.
+/// </summary>
 public class SecretAssertionsTest
 {
+    /// <summary>
+    /// Tests that <see cref="SecretAssertions.AssertSecretEqualsString{TNumber}"/> succeeds
+    /// silently when the secret's text content equals the expected string.
+    /// </summary>
     [Fact]
     public void AssertSecretEqualsString_EqualValues_DoesNotThrow()
     {
@@ -51,6 +60,11 @@ public class SecretAssertionsTest
         SecretAssertions.AssertSecretEqualsString(text, secret);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecretAssertions.AssertSecretEqualsString{TNumber}"/> throws
+    /// xUnit's <see cref="EqualException"/> when the secret's text content differs from the
+    /// expected string — exposing the mismatch through the standard test-framework path.
+    /// </summary>
     [Fact]
     public void AssertSecretEqualsString_DifferentValues_ThrowsEqualException()
     {
@@ -63,6 +77,11 @@ public class SecretAssertionsTest
             () => SecretAssertions.AssertSecretEqualsString("expected", secret));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecretAssertions.AssertSecretEqualsString{TNumber}"/> rejects a
+    /// <see langword="null"/> expected string with <see cref="ArgumentNullException"/>
+    /// before attempting any comparison.
+    /// </summary>
     [Fact]
     public void AssertSecretEqualsString_NullExpected_ThrowsArgumentNullException()
     {

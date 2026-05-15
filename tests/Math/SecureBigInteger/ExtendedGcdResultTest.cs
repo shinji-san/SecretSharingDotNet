@@ -40,8 +40,18 @@ using System;
 using System.Collections.Generic;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="ExtendedGcdResult{TNumber}"/> on the <see cref="SecureBigInteger"/>
+/// backend — argument validation in the constructor plus the cascade-dispose contract that
+/// is directly observable here (the SecureBigInteger backend throws
+/// <see cref="ObjectDisposedException"/> on post-dispose property access).
+/// </summary>
 public class ExtendedGcdResultTest
 {
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}"/>'s constructor throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> <c>gcd</c> argument.
+    /// </summary>
     [Fact]
     public void Constructor_NullGcd_ThrowsArgumentNullException()
     {
@@ -55,6 +65,11 @@ public class ExtendedGcdResultTest
         Assert.Equal("gcd", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}"/>'s constructor throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> <c>coefficients</c>
+    /// list.
+    /// </summary>
     [Fact]
     public void Constructor_NullCoefficients_ThrowsArgumentNullException()
     {
@@ -68,6 +83,11 @@ public class ExtendedGcdResultTest
         Assert.Equal("coefficients", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}"/>'s constructor throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> <c>quotients</c>
+    /// list.
+    /// </summary>
     [Fact]
     public void Constructor_NullQuotients_ThrowsArgumentNullException()
     {
@@ -81,6 +101,10 @@ public class ExtendedGcdResultTest
         Assert.Equal("quotients", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}.Dispose"/> on a default-initialised
+    /// struct (all components <see langword="null"/>) does not throw.
+    /// </summary>
     [Fact]
     public void Dispose_OnDefaultStruct_DoesNotThrow()
     {
@@ -91,6 +115,12 @@ public class ExtendedGcdResultTest
         result.Dispose();
     }
 
+    /// <summary>
+    /// Tests that <see cref="ExtendedGcdResult{TNumber}.Dispose"/> cascades disposal to every
+    /// contained <see cref="Calculator{TNumber}"/> (gcd + coefficient + quotient).
+    /// Directly observable on the <see cref="SecureBigInteger"/> backend because property
+    /// access on a disposed <c>SecureBigInteger</c> throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Dispose_OnPopulatedResult_DisposesAllCalculators()
     {
