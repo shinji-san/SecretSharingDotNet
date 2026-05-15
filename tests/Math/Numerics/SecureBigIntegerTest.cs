@@ -40,8 +40,22 @@ using System.Linq;
 using System.Numerics;
 using Xunit;
 
+/// <summary>
+/// Unit tests for <see cref="SecureBigInteger"/>: pinned-memory, secure-erase big integer
+/// covering constructors (byte array, int/long/ulong, copy, two's-complement boundary),
+/// arithmetic (+/-/*/Divide/Remainder/Square/Pow/MersenneModulo), equality and comparison
+/// surface, conversions (int/long, ToString, ToHexadecimal, ToPinnedCharArray), and full
+/// disposed-state guards on every public member.
+/// </summary>
 public class SecureBigIntegerTests
 {
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[])"/> constructor parses the given
+    /// little-endian two's-complement byte array into the expected numeric value, including
+    /// positive, zero, and negative cases.
+    /// </summary>
+    /// <param name="byteArray">Little-endian two's-complement byte representation.</param>
+    /// <param name="expected">The expected decoded value.</param>
     [Theory]
     [InlineData(new byte[] {5, 4, 3, 2, 1}, 4328719365L)]
     [InlineData(new byte[] {0}, 0L)]
@@ -55,6 +69,11 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, num);
     }
 
+    /// <summary>
+    /// Tests that the parameterless <see cref="SecureBigInteger()"/> constructor produces
+    /// a canonical zero: <see cref="SecureBigInteger.IsZero"/> is <c>true</c>,
+    /// <see cref="SecureBigInteger.Sign"/> is <c>0</c>, and the decimal string is <c>"0"</c>.
+    /// </summary>
     [Fact]
     public void Constructor_Default_CreatesZero()
     {
@@ -69,6 +88,12 @@ public class SecureBigIntegerTests
         Assert.Equal("0", s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger(int)"/> round-trips through
+    /// <see cref="SecureBigInteger.ToPinnedCharArray()"/> as the matching decimal
+    /// representation across the full <see cref="int"/> range.
+    /// </summary>
+    /// <param name="value">The seed <see cref="int"/> value.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -88,6 +113,12 @@ public class SecureBigIntegerTests
         Assert.Equal(value.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger(long)"/> round-trips through
+    /// <see cref="SecureBigInteger.ToPinnedCharArray()"/> as the matching decimal
+    /// representation across the full <see cref="long"/> range.
+    /// </summary>
+    /// <param name="value">The seed <see cref="long"/> value.</param>
     [Theory]
     [InlineData(0L)]
     [InlineData(1L)]
@@ -107,6 +138,13 @@ public class SecureBigIntegerTests
         Assert.Equal(value.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger(ulong)"/> round-trips through
+    /// <see cref="SecureBigInteger.ToPinnedCharArray()"/> across the full
+    /// <see cref="ulong"/> range — including values above <see cref="long.MaxValue"/>
+    /// that the <see cref="long"/> ctor cannot represent.
+    /// </summary>
+    /// <param name="value">The seed <see cref="ulong"/> value.</param>
     [Theory]
     [InlineData(0UL)]
     [InlineData(1UL)]
@@ -126,6 +164,12 @@ public class SecureBigIntegerTests
         Assert.Equal(value.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that the implicit <see cref="ulong"/> → <see cref="SecureBigInteger"/>
+    /// conversion is routed through the <see cref="ulong"/> constructor and produces
+    /// the matching decimal representation.
+    /// </summary>
+    /// <param name="value">The seed <see cref="ulong"/> value.</param>
     [Theory]
     [InlineData(0UL)]
     [InlineData(123456789UL)]
@@ -142,6 +186,11 @@ public class SecureBigIntegerTests
         Assert.Equal(value.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that the copy constructor produces a value-equal but reference-distinct
+    /// <see cref="SecureBigInteger"/> instance — the copy owns an independent pinned
+    /// buffer.
+    /// </summary>
     [Fact]
     public void Constructor_Copy_CreatesIndependentCopy()
     {
@@ -156,6 +205,11 @@ public class SecureBigIntegerTests
         Assert.NotSame(original, copy);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.IsZero"/> is <see langword="true"/> for
+    /// instances constructed from a zero seed (both <see cref="int"/> and
+    /// <see cref="long"/> overloads).
+    /// </summary>
     [Fact]
     public void IsZero_WithZero_ReturnsTrue()
     {
@@ -168,6 +222,11 @@ public class SecureBigIntegerTests
         Assert.True(num2.IsZero);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.IsZero"/> is <see langword="false"/> for
+    /// positive and negative non-zero seed values.
+    /// </summary>
+    /// <param name="value">A non-zero seed value.</param>
     [Theory]
     [InlineData(1)]
     [InlineData(-1)]
@@ -181,6 +240,11 @@ public class SecureBigIntegerTests
         Assert.False(num.IsZero);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.IsOne"/> is <see langword="true"/> for
+    /// instances constructed from a seed of one (both <see cref="int"/> and
+    /// <see cref="long"/> overloads).
+    /// </summary>
     [Fact]
     public void IsOne_WithOne_ReturnsTrue()
     {
@@ -193,6 +257,11 @@ public class SecureBigIntegerTests
         Assert.True(num2.IsOne);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.IsOne"/> is <see langword="false"/> for
+    /// values other than <c>1</c>, including <c>0</c>, <c>-1</c>, and larger magnitudes.
+    /// </summary>
+    /// <param name="value">A non-one seed value.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
@@ -210,6 +279,13 @@ public class SecureBigIntegerTests
         Assert.False(num.IsOne);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.IsEven"/> returns the expected parity for
+    /// representative values including signed boundaries (<see cref="int.MaxValue"/>,
+    /// <see cref="int.MinValue"/>, <see cref="long.MaxValue"/>, <see cref="long.MinValue"/>).
+    /// </summary>
+    /// <param name="value">The seed value.</param>
+    /// <param name="expectedEven">Whether the value is even.</param>
     [Theory]
     [InlineData(0, true)]
     [InlineData(1, false)]
@@ -230,6 +306,10 @@ public class SecureBigIntegerTests
         Assert.Equal(expectedEven, num.IsEven);
     }
 
+    /// <summary>
+    /// Tests that reading <see cref="SecureBigInteger.IsEven"/> after
+    /// <see cref="IDisposable.Dispose"/> throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void IsEven_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -241,6 +321,12 @@ public class SecureBigIntegerTests
         Assert.Throws<ObjectDisposedException>(() => num.IsEven);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Sign"/> returns <c>0</c> for zero,
+    /// <c>1</c> for positive values, and <c>-1</c> for negative values.
+    /// </summary>
+    /// <param name="value">The seed value.</param>
+    /// <param name="expectedSign">The expected sign (-1, 0, or 1).</param>
     [Theory]
     [InlineData(0, 0)]
     [InlineData(1, 1)]
@@ -256,6 +342,13 @@ public class SecureBigIntegerTests
         Assert.Equal(expectedSign, num.Sign);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Add(SecureBigInteger, SecureBigInteger)"/>
+    /// computes the correct sum across positive, negative, mixed-sign, and zero cases.
+    /// </summary>
+    /// <param name="a">The left summand.</param>
+    /// <param name="b">The right summand.</param>
+    /// <param name="expected">The expected sum.</param>
     [Theory]
     [InlineData(0, 0, 0)]
     [InlineData(1, 1, 2)]
@@ -279,6 +372,10 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that the <c>operator +</c> overload computes the same sum as the static
+    /// <see cref="SecureBigInteger.Add(SecureBigInteger, SecureBigInteger)"/> method.
+    /// </summary>
     [Fact]
     public void AddOperator_ReturnsCorrectSum()
     {
@@ -295,6 +392,14 @@ public class SecureBigIntegerTests
         Assert.Equal("5555", s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Subtract(SecureBigInteger, SecureBigInteger)"/>
+    /// computes the correct difference across positive, negative, mixed-sign, zero, and
+    /// boundary-near-<see cref="int.MaxValue"/> cases.
+    /// </summary>
+    /// <param name="a">The minuend.</param>
+    /// <param name="b">The subtrahend.</param>
+    /// <param name="expected">The expected difference.</param>
     [Theory]
     [InlineData(0, 0, 0)]
     [InlineData(10000, 1, 9999)]
@@ -324,6 +429,11 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that the <c>operator -</c> overload computes the same difference as the
+    /// static <see cref="SecureBigInteger.Subtract(SecureBigInteger, SecureBigInteger)"/>
+    /// method.
+    /// </summary>
     [Fact]
     public void SubtractOperator_ReturnsCorrectDifference()
     {
@@ -340,6 +450,14 @@ public class SecureBigIntegerTests
         Assert.Equal("20", s);
     }
 
+    /// <summary>
+    /// H1 regression guard: mixed-sign Add on equal magnitudes used to take a distinct
+    /// early-return path. The result must be a canonical <c>+0</c> —
+    /// <see cref="SecureBigInteger.IsZero"/>, <see cref="SecureBigInteger.Sign"/>,
+    /// <c>Equals</c>, and <c>GetHashCode</c> all agree with a clean zero.
+    /// </summary>
+    /// <param name="a">A signed operand.</param>
+    /// <param name="b">The opposite-sign equal-magnitude operand.</param>
     [Theory]
     // Mixed-sign Add and same-sign Subtract on equal magnitudes used to take a
     // distinct early-return path (H1 fix). Verify the result is a canonical +0
@@ -365,6 +483,14 @@ public class SecureBigIntegerTests
         Assert.Equal(cleanZero.GetHashCode(), sum.GetHashCode());
     }
 
+    /// <summary>
+    /// H1 regression guard: same-sign Subtract on equal magnitudes used to take a
+    /// distinct early-return path. The result must be a canonical <c>+0</c> —
+    /// <c>IsZero</c>, <c>Sign</c>, <c>Equals</c>, and <c>GetHashCode</c> all agree with a
+    /// clean zero.
+    /// </summary>
+    /// <param name="a">The minuend.</param>
+    /// <param name="b">The same-sign equal-magnitude subtrahend.</param>
     [Theory]
     [InlineData(5, 5)]
     [InlineData(-5, -5)]
@@ -387,6 +513,14 @@ public class SecureBigIntegerTests
         Assert.Equal(cleanZero.GetHashCode(), diff.GetHashCode());
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Multiply(SecureBigInteger, SecureBigInteger)"/>
+    /// computes the correct product across positive, negative, mixed-sign, zero, and
+    /// near-<see cref="int.MaxValue"/> squared cases.
+    /// </summary>
+    /// <param name="a">The left factor.</param>
+    /// <param name="b">The right factor.</param>
+    /// <param name="expected">The expected product.</param>
     [Theory]
     [InlineData(0, 5, 0)]
     [InlineData(5, 0, 0)]
@@ -413,6 +547,14 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests <see cref="SecureBigInteger.Multiply(SecureBigInteger, SecureBigInteger)"/>
+    /// across full-32-bit operands, half-and-half magnitudes, and a 20-decimal × 20-decimal
+    /// case that exceeds the original test window.
+    /// </summary>
+    /// <param name="leftFactor">Decimal representation of the left factor.</param>
+    /// <param name="rightFactor">Decimal representation of the right factor.</param>
+    /// <param name="expectedProduct">Decimal representation of the expected product.</param>
     [Theory]
     // First row preserves the original Multiply_LargeNumbers test values
     // (123456789 × 987654321 = 121932631112635269) verbatim. Subsequent rows
@@ -438,6 +580,10 @@ public class SecureBigIntegerTests
         Assert.Equal(expectedProduct, actualProduct);
     }
 
+    /// <summary>
+    /// Tests that the <c>operator *</c> overload computes the same product as the static
+    /// <see cref="SecureBigInteger.Multiply(SecureBigInteger, SecureBigInteger)"/> method.
+    /// </summary>
     [Fact]
     public void MultiplyOperator_ReturnsCorrectProduct()
     {
@@ -454,6 +600,14 @@ public class SecureBigIntegerTests
         Assert.Equal("42", s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Divide(SecureBigInteger, SecureBigInteger)"/>
+    /// computes the correct quotient across positive, negative, mixed-sign, and zero-dividend
+    /// cases.
+    /// </summary>
+    /// <param name="a">The dividend.</param>
+    /// <param name="b">The divisor.</param>
+    /// <param name="expected">The expected quotient.</param>
     [Theory]
     [InlineData(10, 2, 5)]
     [InlineData(10, 3, 3)]
@@ -477,6 +631,10 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Divide(SecureBigInteger, SecureBigInteger)"/>
+    /// throws <see cref="DivideByZeroException"/> when the divisor is zero.
+    /// </summary>
     [Fact]
     public void Divide_ByZero_ThrowsDivideByZeroException()
     {
@@ -491,6 +649,10 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that the <c>operator /</c> overload computes the same quotient as the static
+    /// <see cref="SecureBigInteger.Divide(SecureBigInteger, SecureBigInteger)"/> method.
+    /// </summary>
     [Fact]
     public void DivideOperator_ReturnsCorrectQuotient()
     {
@@ -507,6 +669,14 @@ public class SecureBigIntegerTests
         Assert.Equal("5", s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Remainder(SecureBigInteger, SecureBigInteger)"/>
+    /// returns the truncated-division remainder across positive, negative, mixed-sign, and
+    /// exact-division cases.
+    /// </summary>
+    /// <param name="a">The dividend.</param>
+    /// <param name="b">The divisor.</param>
+    /// <param name="expected">The expected remainder.</param>
     [Theory]
     [InlineData(10, 3, 1)]
     [InlineData(10, 5, 0)]
@@ -528,6 +698,10 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Remainder(SecureBigInteger, SecureBigInteger)"/>
+    /// throws <see cref="DivideByZeroException"/> when the divisor is zero.
+    /// </summary>
     [Fact]
     public void Remainder_ByZero_ThrowsDivideByZeroException()
     {
@@ -542,6 +716,13 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// H2 regression guard: after zero-operand short-circuit removal, zero-operand inputs
+    /// flow through <c>MultiplyUnsigned</c>/<c>DivideUnsigned</c>. The product must be
+    /// numerically correct AND a canonical <c>+0</c>.
+    /// </summary>
+    /// <param name="a">The left factor.</param>
+    /// <param name="b">The right factor.</param>
     [Theory]
     // After H2 (zero-operand short-circuit removal), zero-operand inputs flow
     // through MultiplyUnsigned/DivideUnsigned. Verify the result is still
@@ -568,6 +749,13 @@ public class SecureBigIntegerTests
         Assert.Equal(cleanZero.GetHashCode(), product.GetHashCode());
     }
 
+    /// <summary>
+    /// Tests that dividing a zero dividend by any non-zero divisor produces a canonical
+    /// <c>+0</c> quotient (<c>IsZero</c>, <c>Sign</c>, <c>Equals</c>, <c>GetHashCode</c>
+    /// all agree with a clean zero).
+    /// </summary>
+    /// <param name="a">The zero dividend.</param>
+    /// <param name="b">A non-zero divisor (positive or negative).</param>
     [Theory]
     [InlineData(0, 5)]
     [InlineData(0, -5)]
@@ -588,6 +776,12 @@ public class SecureBigIntegerTests
         Assert.Equal(cleanZero.GetHashCode(), quotient.GetHashCode());
     }
 
+    /// <summary>
+    /// Tests that taking the remainder of a zero dividend by any non-zero divisor
+    /// produces a canonical <c>+0</c> result.
+    /// </summary>
+    /// <param name="a">The zero dividend.</param>
+    /// <param name="b">A non-zero divisor (positive or negative).</param>
     [Theory]
     [InlineData(0, 5)]
     [InlineData(0, -5)]
@@ -608,6 +802,14 @@ public class SecureBigIntegerTests
         Assert.Equal(cleanZero.GetHashCode(), remainder.GetHashCode());
     }
 
+    /// <summary>
+    /// H4 regression guard: mixed-sign Divide where the dividend magnitude is smaller
+    /// than the divisor magnitude produces a zero quotient. Without the H4 fix, the
+    /// result carried <c>isNegative=true</c> on a magnitude-0 ("negative zero"), and
+    /// <c>Equals</c> against a clean <c>+0</c> returned <see langword="false"/>.
+    /// </summary>
+    /// <param name="a">The dividend.</param>
+    /// <param name="b">The opposite-sign larger-magnitude divisor.</param>
     [Theory]
     // Mixed-sign Divide where the magnitude of the dividend is smaller than the
     // divisor, producing a zero quotient. Without H4 fix, the result has
@@ -634,6 +836,14 @@ public class SecureBigIntegerTests
         Assert.Equal(cleanZero.GetHashCode(), quotient.GetHashCode());
     }
 
+    /// <summary>
+    /// H4 regression guard: exact divisions with a non-positive dividend produce a
+    /// zero remainder. Without the fix, the remainder inherits
+    /// <c>dividend.isNegative=true</c> on a magnitude-0 result ("negative zero") and
+    /// <c>Equals(rem, +0)</c> returns <see langword="false"/>.
+    /// </summary>
+    /// <param name="a">The negative dividend.</param>
+    /// <param name="b">A positive exact divisor.</param>
     [Theory]
     // Exact divisions with non-positive dividend produce a zero remainder.
     // Without H4 fix, the remainder inherits dividend.isNegative=true on a
@@ -658,6 +868,11 @@ public class SecureBigIntegerTests
         Assert.Equal(cleanZero.GetHashCode(), remainder.GetHashCode());
     }
 
+    /// <summary>
+    /// Tests that the <c>operator %</c> overload computes the same remainder as the
+    /// static <see cref="SecureBigInteger.Remainder(SecureBigInteger, SecureBigInteger)"/>
+    /// method.
+    /// </summary>
     [Fact]
     public void ModuloOperator_ReturnsCorrectRemainder()
     {
@@ -674,6 +889,12 @@ public class SecureBigIntegerTests
         Assert.Equal("2", s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Square()"/> computes the value's square
+    /// across zero, one, and positive/negative bases — the result is always non-negative.
+    /// </summary>
+    /// <param name="value">The base value.</param>
+    /// <param name="expected">The expected square.</param>
     [Theory]
     [InlineData(0, 0)]
     [InlineData(1, 1)]
@@ -696,6 +917,12 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Abs()"/> returns the absolute value across
+    /// zero, positive, and negative inputs.
+    /// </summary>
+    /// <param name="value">The input value.</param>
+    /// <param name="expected">The expected absolute value.</param>
     [Theory]
     [InlineData(0, 0)]
     [InlineData(5, 5)]
@@ -716,6 +943,12 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Negate()"/> flips the sign — including
+    /// the fixed-point case <c>Negate(0) == 0</c>.
+    /// </summary>
+    /// <param name="value">The input value.</param>
+    /// <param name="expected">The expected negated value.</param>
     [Theory]
     [InlineData(0, 0)]
     [InlineData(5, -5)]
@@ -735,6 +968,9 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that the unary <c>operator -</c> overload negates the value as expected.
+    /// </summary>
     [Fact]
     public void NegateOperator_ReturnsNegatedValue()
     {
@@ -750,6 +986,11 @@ public class SecureBigIntegerTests
         Assert.Equal("-42", s);
     }
 
+    /// <summary>
+    /// Tests that the unary <c>operator -</c> rejects a <see langword="null"/> operand
+    /// with <see cref="ArgumentNullException"/> and reports <c>"value"</c> as the
+    /// <see cref="ArgumentException.ParamName"/>.
+    /// </summary>
     [Fact]
     public void NegateOperator_NullInput_ThrowsArgumentNullException()
     {
@@ -766,6 +1007,14 @@ public class SecureBigIntegerTests
         Assert.Equal("value", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Pow(int)"/> computes the correct power
+    /// across zero, one, large, and negative-base exponents — including the sign rules
+    /// for odd vs. even exponents over a negative base.
+    /// </summary>
+    /// <param name="baseValue">The base.</param>
+    /// <param name="exponent">The non-negative exponent.</param>
+    /// <param name="expected">The expected power.</param>
     [Theory]
     [InlineData(2, 0, 1)]
     [InlineData(2, 1, 2)]
@@ -791,6 +1040,10 @@ public class SecureBigIntegerTests
         Assert.Equal(expected.ToString(), s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Pow(int)"/> rejects a negative exponent
+    /// with <see cref="ArgumentException"/>.
+    /// </summary>
     [Fact]
     public void Pow_NegativeExponent_ThrowsArgumentException()
     {
@@ -804,6 +1057,11 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Pow(int)"/> handles a larger exponent
+    /// (<c>2^20 = 1048576</c>) correctly, exercising more than one repeated-squaring
+    /// iteration than the parameterised cases above.
+    /// </summary>
     [Fact]
     public void Pow_LargeExponent_ReturnsCorrectPower()
     {
@@ -819,6 +1077,13 @@ public class SecureBigIntegerTests
         Assert.Equal("1048576", s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Equals(SecureBigInteger)"/> returns the
+    /// expected result across equal, unequal, zero, and signed-boundary values.
+    /// </summary>
+    /// <param name="a">The left operand.</param>
+    /// <param name="b">The right operand.</param>
+    /// <param name="expected">The expected equality result.</param>
     [Theory]
     [InlineData(5, 5, true)]
     [InlineData(5, 3, false)]
@@ -837,6 +1102,11 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, num1.Equals(num2));
     }
 
+    /// <summary>
+    /// Tests that <c>operator ==</c> returns the same equality result as
+    /// <see cref="SecureBigInteger.Equals(SecureBigInteger)"/> for both equal and
+    /// unequal operand pairs.
+    /// </summary>
     [Fact]
     public void EqualsOperator_ReturnsCorrectResult()
     {
@@ -850,6 +1120,11 @@ public class SecureBigIntegerTests
         Assert.False(num1 == num3);
     }
 
+    /// <summary>
+    /// Tests that <c>operator !=</c> returns the negation of
+    /// <see cref="SecureBigInteger.Equals(SecureBigInteger)"/> for both equal and
+    /// unequal operand pairs.
+    /// </summary>
     [Fact]
     public void NotEqualsOperator_ReturnsCorrectResult()
     {
@@ -863,6 +1138,13 @@ public class SecureBigIntegerTests
         Assert.False(num1 != num3);
     }
 
+    /// <summary>
+    /// Tests that <c>operator &lt;</c> returns the expected result across less-than,
+    /// greater-than, equal, and negative-vs-positive operand combinations.
+    /// </summary>
+    /// <param name="a">The left operand.</param>
+    /// <param name="b">The right operand.</param>
+    /// <param name="expected">The expected comparison result.</param>
     [Theory]
     [InlineData(3, 5, true)]
     [InlineData(5, 3, false)]
@@ -878,6 +1160,13 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, num1 < num2);
     }
 
+    /// <summary>
+    /// Tests that <c>operator &gt;</c> returns the expected result across greater-than,
+    /// less-than, equal, and positive-vs-negative operand combinations.
+    /// </summary>
+    /// <param name="a">The left operand.</param>
+    /// <param name="b">The right operand.</param>
+    /// <param name="expected">The expected comparison result.</param>
     [Theory]
     [InlineData(5, 3, true)]
     [InlineData(3, 5, false)]
@@ -893,6 +1182,13 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, num1 > num2);
     }
 
+    /// <summary>
+    /// Tests that <c>operator &lt;=</c> returns the expected result across less-than,
+    /// greater-than, and equal operand combinations.
+    /// </summary>
+    /// <param name="a">The left operand.</param>
+    /// <param name="b">The right operand.</param>
+    /// <param name="expected">The expected comparison result.</param>
     [Theory]
     [InlineData(3, 5, true)]
     [InlineData(5, 3, false)]
@@ -907,6 +1203,10 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, num1 <= num2);
     }
 
+    /// <summary>
+    /// Tests that <c>operator &lt;=</c> rejects a <see langword="null"/> left operand
+    /// with <see cref="ArgumentNullException"/> (<c>ParamName == "left"</c>).
+    /// </summary>
     [Fact]
     public void LessThanOrEqualOperator_NullLeft_ThrowsArgumentNullException()
     {
@@ -921,6 +1221,10 @@ public class SecureBigIntegerTests
         Assert.Equal("left", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <c>operator &lt;=</c> rejects a <see langword="null"/> right operand
+    /// with <see cref="ArgumentNullException"/> (<c>ParamName == "right"</c>).
+    /// </summary>
     [Fact]
     public void LessThanOrEqualOperator_NullRight_ThrowsArgumentNullException()
     {
@@ -935,6 +1239,10 @@ public class SecureBigIntegerTests
         Assert.Equal("right", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <c>operator &gt;=</c> rejects a <see langword="null"/> left operand
+    /// with <see cref="ArgumentNullException"/> (<c>ParamName == "left"</c>).
+    /// </summary>
     [Fact]
     public void GreaterThanOrEqualOperator_NullLeft_ThrowsArgumentNullException()
     {
@@ -949,6 +1257,10 @@ public class SecureBigIntegerTests
         Assert.Equal("left", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <c>operator &gt;=</c> rejects a <see langword="null"/> right operand
+    /// with <see cref="ArgumentNullException"/> (<c>ParamName == "right"</c>).
+    /// </summary>
     [Fact]
     public void GreaterThanOrEqualOperator_NullRight_ThrowsArgumentNullException()
     {
@@ -963,6 +1275,13 @@ public class SecureBigIntegerTests
         Assert.Equal("right", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that <c>operator &gt;=</c> returns the expected result across greater-than,
+    /// less-than, and equal operand combinations.
+    /// </summary>
+    /// <param name="a">The left operand.</param>
+    /// <param name="b">The right operand.</param>
+    /// <param name="expected">The expected comparison result.</param>
     [Theory]
     [InlineData(5, 3, true)]
     [InlineData(3, 5, false)]
@@ -977,6 +1296,13 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, num1 >= num2);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.CompareTo(SecureBigInteger)"/> returns the
+    /// expected sign across less-than, greater-than, equal, and mixed-sign cases.
+    /// </summary>
+    /// <param name="a">The left operand.</param>
+    /// <param name="b">The right operand.</param>
+    /// <param name="expected">The expected sign of the comparison (-1, 0, or 1).</param>
     [Theory]
     [InlineData(3, 5, -1)]
     [InlineData(5, 3, 1)]
@@ -996,6 +1322,9 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, Math.Sign(result));
     }
 
+    /// <summary>
+    /// Tests that <c>operator ++</c> increases the value by one (pre-increment form).
+    /// </summary>
     [Fact]
     public void Increment_IncreasesValueByOne()
     {
@@ -1012,6 +1341,9 @@ public class SecureBigIntegerTests
         num.Dispose();
     }
 
+    /// <summary>
+    /// Tests that <c>operator --</c> decreases the value by one (pre-decrement form).
+    /// </summary>
     [Fact]
     public void Decrement_DecreasesValueByOne()
     {
@@ -1028,6 +1360,11 @@ public class SecureBigIntegerTests
         num.Dispose();
     }
 
+    /// <summary>
+    /// Tests that the explicit <see cref="SecureBigInteger"/> → <see cref="int"/>
+    /// conversion round-trips across the full <see cref="int"/> range.
+    /// </summary>
+    /// <param name="value">The seed <see cref="int"/> value.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(42)]
@@ -1046,6 +1383,11 @@ public class SecureBigIntegerTests
         Assert.Equal(value, result);
     }
 
+    /// <summary>
+    /// Tests that the explicit <see cref="SecureBigInteger"/> → <see cref="int"/>
+    /// conversion throws <see cref="OverflowException"/> when the value does not fit
+    /// in <see cref="int"/>.
+    /// </summary>
     [Fact]
     public void ExplicitCastToInt_WithTooLargeValue_ThrowsOverflowException()
     {
@@ -1056,6 +1398,11 @@ public class SecureBigIntegerTests
         Assert.Throws<OverflowException>(() => (int)num);
     }
 
+    /// <summary>
+    /// Tests that the explicit <see cref="SecureBigInteger"/> → <see cref="long"/>
+    /// conversion round-trips across the full <see cref="long"/> range.
+    /// </summary>
+    /// <param name="value">The seed <see cref="long"/> value.</param>
     [Theory]
     [InlineData(0L)]
     [InlineData(42L)]
@@ -1074,6 +1421,11 @@ public class SecureBigIntegerTests
         Assert.Equal(value, result);
     }
 
+    /// <summary>
+    /// Tests that the explicit <see cref="SecureBigInteger"/> → <see cref="long"/>
+    /// conversion throws <see cref="OverflowException"/> when the value does not fit
+    /// in <see cref="long"/>.
+    /// </summary>
     [Fact]
     public void ExplicitCastToLong_WithTooLargeValue_ThrowsOverflowException()
     {
@@ -1085,6 +1437,13 @@ public class SecureBigIntegerTests
         Assert.Throws<OverflowException>(() => (long)bigNum);
     }
 
+    /// <summary>
+    /// Tests <see cref="SecureBigInteger.ToString()"/>: in <c>DEBUG</c> builds it returns
+    /// the verbatim wrapper form <c>"SecureBigInteger(value)"</c>; in release builds it
+    /// returns the redacted sentinel <c>"*** Secured Value ***"</c>.
+    /// </summary>
+    /// <param name="value">The seed value.</param>
+    /// <param name="expected">The expected DEBUG-build representation.</param>
     [Theory]
     [InlineData(0, "SecureBigInteger(0)")]
     [InlineData(42, "SecureBigInteger(42)")]
@@ -1107,6 +1466,13 @@ public class SecureBigIntegerTests
 #endif
     }
     
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.ToPinnedCharArray()"/> emits the canonical
+    /// decimal representation (with sign for negatives, no wrapper) across the full
+    /// signed-integer range.
+    /// </summary>
+    /// <param name="value">The seed value.</param>
+    /// <param name="expected">The expected decimal representation.</param>
     [Theory]
     [InlineData(0, "0")]
     [InlineData(42, "42")]
@@ -1129,6 +1495,13 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.ToHexadecimal()"/> emits the canonical
+    /// uppercase hex representation with sign prefix for negatives — including the
+    /// zero-pad case (<c>0 → "00"</c>) and high-bit boundary (<c>256 → "0100"</c>).
+    /// </summary>
+    /// <param name="value">The seed value.</param>
+    /// <param name="expected">The expected hex representation.</param>
     [Theory]
     [InlineData(0, "00")]
     [InlineData(255, "FF")]
@@ -1149,6 +1522,10 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, s);
     }
 
+    /// <summary>
+    /// Tests that <see cref="IDisposable.Dispose"/> is idempotent — calling it twice
+    /// does not throw.
+    /// </summary>
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
@@ -1163,6 +1540,12 @@ public class SecureBigIntegerTests
         Assert.Null(exception);
     }
 
+    /// <summary>
+    /// Aggregate disposed-state guard: every public surface (properties, unary math,
+    /// serialisation, equality, comparison, hashing, including the self-equality
+    /// short-circuit per L1 fix) must throw <see cref="ObjectDisposedException"/>
+    /// once <see cref="IDisposable.Dispose"/> has been called.
+    /// </summary>
     [Fact]
     public void AfterDispose_OperationsThrowObjectDisposedException()
     {
@@ -1227,6 +1610,15 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger"/> handles very large decimal values
+    /// (50–60 digits, including a Mersenne-shaped value crossing the M127 boundary the
+    /// Shamir hot path operates near). Constructed via
+    /// <see cref="SecureBigInteger.ToSecureBigInteger(BigInteger)"/>; sign carries through
+    /// the BigInteger → hex → SecureBigInteger bridge.
+    /// </summary>
+    /// <param name="decimalValue">The decimal representation.</param>
+    /// <param name="expectedSign">The expected sign (1 or -1).</param>
     [Theory]
     // First row preserves the original 50-decimal-digit test value verbatim.
     // The remaining rows extend the surface to 60 digits (positive), 60
@@ -1247,6 +1639,10 @@ public class SecureBigIntegerTests
         Assert.Equal(expectedSign, num.Sign);
     }
 
+    /// <summary>
+    /// Smoke-test that chained arithmetic (<c>(a + b) * c</c>) produces the correct
+    /// composite result, exercising the operator-overload pipeline end-to-end.
+    /// </summary>
     [Fact]
     public void MultipleOperationsChained_WorksCorrectly()
     {
@@ -1264,6 +1660,10 @@ public class SecureBigIntegerTests
         Assert.Equal("900", s); // (10 + 20) * 30 = 900
     }
 
+    /// <summary>
+    /// Tests the algebraic identity <c>0 / x == 0</c> for non-zero divisors — the
+    /// quotient is <see cref="SecureBigInteger.IsZero"/>.
+    /// </summary>
     [Fact]
     public void ZeroDividedByAnything_ReturnsZero()
     {
@@ -1278,6 +1678,11 @@ public class SecureBigIntegerTests
         Assert.True(result.IsZero);
     }
 
+    /// <summary>
+    /// Tests that subtracting equal positive operands produces a canonical <c>+0</c> —
+    /// no observable "negative zero" leaks through (<c>IsZero == true</c>,
+    /// <c>Sign == 0</c>).
+    /// </summary>
     [Fact]
     public void NegativeZero_IsNormalizedToPositiveZero()
     {
@@ -1293,6 +1698,10 @@ public class SecureBigIntegerTests
         Assert.Equal(0, result.Sign);
     }
 
+    /// <summary>
+    /// Tests the <c>Equals</c>/<c>GetHashCode</c> contract: equal values produce equal
+    /// hash codes.
+    /// </summary>
     [Fact]
     public void GetHashCode_SameValues_ReturnsSameHashCode()
     {
@@ -1304,6 +1713,10 @@ public class SecureBigIntegerTests
         Assert.Equal(num1.GetHashCode(), num2.GetHashCode());
     }
 
+    /// <summary>
+    /// Tests the <see cref="IComparable{T}"/> convention that a non-null instance
+    /// compared to <see langword="null"/> returns <c>1</c>.
+    /// </summary>
     [Fact]
     public void CompareTo_NullOther_ReturnsOne()
     {
@@ -1315,6 +1728,10 @@ public class SecureBigIntegerTests
         Assert.Equal(1, num.CompareTo(null));
     }
 
+    /// <summary>
+    /// Tests <see cref="object.Equals(object)"/> with a value-equal
+    /// <see cref="SecureBigInteger"/> returns <see langword="true"/>.
+    /// </summary>
     [Fact]
     public void EqualsObject_MatchingSecureBigInteger_ReturnsTrue()
     {
@@ -1326,6 +1743,10 @@ public class SecureBigIntegerTests
         Assert.True(num.Equals((object)same));
     }
 
+    /// <summary>
+    /// Tests <see cref="object.Equals(object)"/> with a value-different
+    /// <see cref="SecureBigInteger"/> returns <see langword="false"/>.
+    /// </summary>
     [Fact]
     public void EqualsObject_DifferingSecureBigInteger_ReturnsFalse()
     {
@@ -1337,6 +1758,10 @@ public class SecureBigIntegerTests
         Assert.False(num.Equals((object)different));
     }
 
+    /// <summary>
+    /// Tests that <see cref="object.Equals(object)"/> against
+    /// <see langword="null"/> returns <see langword="false"/> (does not throw).
+    /// </summary>
     [Fact]
     public void EqualsObject_Null_ReturnsFalse()
     {
@@ -1345,6 +1770,11 @@ public class SecureBigIntegerTests
         Assert.False(num.Equals((object)null));
     }
 
+    /// <summary>
+    /// Tests that <see cref="object.Equals(object)"/> returns <see langword="false"/>
+    /// when given an unrelated type (cast to <see cref="object"/> defeats the implicit
+    /// <see cref="int"/> → <see cref="SecureBigInteger"/> overload).
+    /// </summary>
     [Fact]
     public void EqualsObject_NonSecureBigIntegerType_ReturnsFalse()
     {
@@ -1358,6 +1788,16 @@ public class SecureBigIntegerTests
         Assert.False(num.Equals((object)42));
     }
 
+    /// <summary>
+    /// Aggregate <see langword="null"/>-operand guard: every static math/comparison/
+    /// conversion API rejects a <see langword="null"/> operand with
+    /// <see cref="ArgumentNullException"/>. Companion to the dedicated
+    /// <c>Add_WithNull*</c>, <c>LessThanOrEqualOperator_Null*</c>,
+    /// <c>GreaterThanOrEqualOperator_Null*</c>, and <c>NegateOperator_NullInput</c>
+    /// tests — those assert <c>ParamName</c> per case; this one covers the full surface
+    /// symmetrically so a regression that drops the guard on any single operation is
+    /// caught.
+    /// </summary>
     [Fact]
     public void AllArithmeticOperations_WithNullOperand_ThrowArgumentNullException()
     {
@@ -1398,6 +1838,11 @@ public class SecureBigIntegerTests
         Assert.Throws<ArgumentNullException>(() => (long)(SecureBigInteger)null);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Add(SecureBigInteger, SecureBigInteger)"/>
+    /// rejects a <see langword="null"/> left operand with
+    /// <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void Add_WithNullLeft_ThrowsArgumentNullException()
     {
@@ -1411,6 +1856,11 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.Add(SecureBigInteger, SecureBigInteger)"/>
+    /// rejects a <see langword="null"/> right operand with
+    /// <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void Add_WithNullRight_ThrowsArgumentNullException()
     {
@@ -1424,6 +1874,12 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that the copy constructor rejects a disposed source with
+    /// <see cref="ObjectDisposedException"/> — copying it would either dereference the
+    /// freed pool buffer or silently produce a corrupted duplicate, both unacceptable
+    /// for a secret container.
+    /// </summary>
     [Fact]
     public void Constructor_Copy_WithDisposedSource_ThrowsObjectDisposedException()
     {
@@ -1441,6 +1897,11 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that all constructor overloads accepting a reference operand reject
+    /// <see langword="null"/> with <see cref="ArgumentNullException"/> — the
+    /// copy ctor, the copy-with-flag ctor, and the byte-array ctor.
+    /// </summary>
     [Fact]
     public void Constructor_Copy_WithNull_ThrowsArgumentNullException()
     {
@@ -1463,6 +1924,13 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that a <see cref="SecureBigInteger"/> built from an <see cref="int"/> seed,
+    /// serialised through <see cref="SecureBigInteger.ToByteArray()"/>, and rebuilt via
+    /// the byte-array+length ctor round-trips to the same value across the full
+    /// <see cref="int"/> range.
+    /// </summary>
+    /// <param name="value">The seed <see cref="int"/> value.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -1485,6 +1953,13 @@ public class SecureBigIntegerTests
         Assert.Equal(value, (int)fromByteArray);
     }
 
+    /// <summary>
+    /// Tests that a <see cref="SecureBigInteger"/> built from a <see cref="long"/> seed,
+    /// serialised through <see cref="SecureBigInteger.ToByteArray()"/>, and rebuilt via
+    /// the byte-array+length ctor round-trips to the same value across the full
+    /// <see cref="long"/> range.
+    /// </summary>
+    /// <param name="value">The seed <see cref="long"/> value.</param>
     [Theory]
     [InlineData(0L)]
     [InlineData(1L)]
@@ -1509,6 +1984,15 @@ public class SecureBigIntegerTests
         Assert.Equal(value, (long)fromByteArray);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.ToByteArray()"/> on a positive value
+    /// appends a <c>0x00</c> sentinel when the high bit of the most-significant byte is
+    /// set, so consumers that read the bytes as two's-complement interpret the value as
+    /// positive. Mirror of
+    /// <see cref="Constructor_TwosComplement_PositiveBoundary_PreservesValue"/>.
+    /// </summary>
+    /// <param name="value">The seed positive value.</param>
+    /// <param name="expected">The expected two's-complement little-endian bytes.</param>
     [Theory]
     [InlineData(127,   new byte[] { 0x7F })]
     [InlineData(128,   new byte[] { 0x80, 0x00 })]
@@ -1532,6 +2016,13 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, bytes.PoolArray.Take(bytes.Length));
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[])"/> ctor preserves positive
+    /// boundary values across two's-complement encodings — including the high-bit
+    /// boundaries (128, 256, 32768) that require a trailing <c>0x00</c> sentinel.
+    /// </summary>
+    /// <param name="data">The two's-complement little-endian bytes.</param>
+    /// <param name="expected">The expected decoded value.</param>
     [Theory]
     [InlineData(new byte[] { 0x7F }, 127)]
     [InlineData(new byte[] { 0x80, 0x00 }, 128)]
@@ -1549,6 +2040,13 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, (int)num);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[])"/> ctor preserves negative
+    /// boundary values across two's-complement encodings — including <c>-1</c> from a
+    /// single <c>0xFF</c> byte and from a sign-extended multi-byte run.
+    /// </summary>
+    /// <param name="data">The two's-complement little-endian bytes.</param>
+    /// <param name="expected">The expected decoded negative value.</param>
     [Theory]
     [InlineData(new byte[] { 0xFF }, -1)]
     [InlineData(new byte[] { 0x80 }, -128)]
@@ -1566,6 +2064,12 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, (int)num);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[])"/> ctor decodes any all-zero
+    /// byte sequence to a canonical zero (<c>IsZero == true</c>, <c>Sign == 0</c>),
+    /// regardless of byte-count padding.
+    /// </summary>
+    /// <param name="data">An all-zero byte sequence.</param>
     [Theory]
     [InlineData(new byte[] { 0x00 })]
     [InlineData(new byte[] { 0x00, 0x00 })]
@@ -1580,6 +2084,14 @@ public class SecureBigIntegerTests
         Assert.Equal(0, num.Sign);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[])"/> ctor trims sign-extending
+    /// <c>0xFF</c> bytes from a negative value to its canonical magnitude length,
+    /// reflected in <see cref="SecureBigInteger.ByteCount"/>.
+    /// </summary>
+    /// <param name="data">The two's-complement little-endian bytes with sign extension.</param>
+    /// <param name="expected">The expected decoded negative value.</param>
+    /// <param name="expectedByteCount">The expected canonical byte count after trimming.</param>
     [Theory]
     [InlineData(new byte[] { 0xFF, 0xFF }, -1, 1)]
     [InlineData(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF }, -1, 1)]
@@ -1598,6 +2110,11 @@ public class SecureBigIntegerTests
         Assert.Equal(expectedByteCount, fromBytes.ByteCount);
     }
 
+    /// <summary>
+    /// Tests that a multi-byte sign-extended <c>-1</c> (<c>0xFF 0xFF 0xFF</c>) decodes
+    /// correctly: it does not report <see cref="SecureBigInteger.IsOne"/>, but its
+    /// <see cref="SecureBigInteger.Abs()"/> does.
+    /// </summary>
     [Fact]
     public void Constructor_TwosComplement_NegativeOne_AbsIsOne()
     {
@@ -1610,6 +2127,12 @@ public class SecureBigIntegerTests
         Assert.True(abs.IsOne);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[], int, bool)"/> ctor rejects a
+    /// negative <c>length</c> with <see cref="ArgumentOutOfRangeException"/> whose
+    /// <c>ParamName</c> is <c>"length"</c>.
+    /// </summary>
+    /// <param name="length">A negative length value.</param>
     [Theory]
     [InlineData(-1)]
     [InlineData(int.MinValue)]
@@ -1625,6 +2148,12 @@ public class SecureBigIntegerTests
         Assert.Equal("length", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[], int)"/> ctor rejects a
+    /// negative <c>length</c> with <see cref="ArgumentOutOfRangeException"/> whose
+    /// <c>ParamName</c> is <c>"length"</c>.
+    /// </summary>
+    /// <param name="length">A negative length value.</param>
     [Theory]
     [InlineData(-1)]
     [InlineData(int.MinValue)]
@@ -1640,6 +2169,12 @@ public class SecureBigIntegerTests
         Assert.Equal("length", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[], int, bool)"/> ctor rejects a
+    /// <c>length</c> exceeding the underlying array with
+    /// <see cref="ArgumentOutOfRangeException"/> (<c>ParamName == "length"</c>).
+    /// </summary>
+    /// <param name="length">A length exceeding the array size.</param>
     [Theory]
     [InlineData(2)]
     [InlineData(100)]
@@ -1655,6 +2190,12 @@ public class SecureBigIntegerTests
         Assert.Equal("length", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[], int)"/> ctor rejects a
+    /// <c>length</c> exceeding the underlying array with
+    /// <see cref="ArgumentOutOfRangeException"/> (<c>ParamName == "length"</c>).
+    /// </summary>
+    /// <param name="length">A length exceeding the array size.</param>
     [Theory]
     [InlineData(2)]
     [InlineData(100)]
@@ -1670,6 +2211,10 @@ public class SecureBigIntegerTests
         Assert.Equal("length", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[], int, bool)"/> ctor with
+    /// <c>length == 0</c> and <c>isNegative == false</c> produces a canonical zero.
+    /// </summary>
     [Fact]
     public void Constructor_FromByteArrayLengthSign_ZeroLength_IsZero()
     {
@@ -1681,6 +2226,11 @@ public class SecureBigIntegerTests
         Assert.Equal(0, num.Sign);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[], int, bool)"/> ctor with
+    /// <c>length == 0</c> and <c>isNegative == true</c> still normalises to a canonical
+    /// <c>+0</c> — the negative-sign flag is ignored for a magnitude-0 result.
+    /// </summary>
     [Fact]
     public void Constructor_FromByteArrayLengthSign_ZeroLengthAndIsNegative_IsZeroWithoutSign()
     {
@@ -1692,6 +2242,10 @@ public class SecureBigIntegerTests
         Assert.Equal(0, num.Sign);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="SecureBigInteger(byte[], int)"/> ctor with
+    /// <c>length == 0</c> produces a canonical zero.
+    /// </summary>
     [Fact]
     public void Constructor_FromByteArrayLength_ZeroLength_IsZero()
     {
@@ -1703,6 +2257,13 @@ public class SecureBigIntegerTests
         Assert.Equal(0, num.Sign);
     }
 
+    /// <summary>
+    /// Regression guard against pinned-buffer leaks on the failure path of
+    /// <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>: invokes
+    /// the parser 100× per invalid input. A regression that drops the
+    /// <c>SecureClear</c> on throw shows up as a memory leak in the test harness.
+    /// </summary>
+    /// <param name="invalidHex">A hex string that must be rejected.</param>
     [Theory]
     // First row preserves the spirit of the original
     // Constructor_FromString_InvalidChar_RepeatedFailures test, which fed
@@ -1732,6 +2293,13 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>
+    /// accepts mixed-case hex literals — companion to the invalid-char test, preserved
+    /// as a regression guard against future tightening that might re-reject mixed-case.
+    /// </summary>
+    /// <param name="hexValue">A mixed-case hex literal.</param>
+    /// <param name="expectedValue">The expected decoded value.</param>
     [Theory]
     // Companion to the invalid-char test above: "12abc" was REJECTED by the
     // old decimal ctor as having non-digit characters; under the new hex API
@@ -1753,6 +2321,11 @@ public class SecureBigIntegerTests
         Assert.Equal(expectedValue, (long)num);
     }
 
+    /// <summary>
+    /// Regression guard that <see cref="SecureBigInteger.ToPinnedCharArray()"/> returns
+    /// a consistent decimal representation across repeated calls — no internal state
+    /// is corrupted by a previous emit.
+    /// </summary>
     [Fact]
     public void ToPinnedCharArray_RepeatedCalls_ReturnsConsistentString()
     {
@@ -1768,6 +2341,10 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>
+    /// rejects a <see langword="null"/> input with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void FromHexadecimal_NullInput_ThrowsArgumentNullException()
     {
@@ -1780,6 +2357,10 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>
+    /// rejects an empty pinned buffer with <see cref="ArgumentException"/>.
+    /// </summary>
     [Fact]
     public void FromHexadecimal_EmptyInput_ThrowsArgumentException()
     {
@@ -1793,6 +2374,12 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>
+    /// rejects a sign-only input (<c>"-"</c>, <c>"+"</c>) with
+    /// <see cref="FormatException"/> — at least one hex digit is required.
+    /// </summary>
+    /// <param name="signOnly">A sign character with no trailing digits.</param>
     [Theory]
     [InlineData("-")]
     [InlineData("+")]
@@ -1808,6 +2395,13 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>
+    /// supports odd-length input per the API contract: the leading hex character
+    /// represents the low nibble of the most-significant byte.
+    /// </summary>
+    /// <param name="oddHex">An odd-length hex literal.</param>
+    /// <param name="expectedValue">The expected decoded value.</param>
     [Theory]
     // Odd-length input is supported per the API contract — the leading hex
     // character represents the LOW nibble of the most-significant byte.
@@ -1826,6 +2420,13 @@ public class SecureBigIntegerTests
         Assert.Equal(expectedValue, (long)num);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>
+    /// honours a leading <c>+</c> or <c>-</c> sign — <c>+</c> is accepted for symmetry
+    /// with <c>-</c> per the convention of the (now-removed) decimal ctor.
+    /// </summary>
+    /// <param name="signedHex">A signed hex literal.</param>
+    /// <param name="expectedValue">The expected decoded value.</param>
     [Theory]
     // Sign acceptance: '+' is allowed for symmetry with '-' and matches the
     // convention of the (now-removed) decimal ctor.
@@ -1845,6 +2446,14 @@ public class SecureBigIntegerTests
         Assert.Equal(expectedValue, (long)num);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>
+    /// accepts an optional <c>0x</c> / <c>0X</c> base prefix — the same magnitude must
+    /// parse identically with or without the prefix and across leading-zero variations.
+    /// Sign + prefix combinations are also exercised.
+    /// </summary>
+    /// <param name="hexInput">A hex literal with or without prefix and sign.</param>
+    /// <param name="expectedValue">The expected decoded value.</param>
     [Theory]
     // 0x / 0X base prefix is optional. The same magnitude must parse
     // identically with or without the prefix and across leading-zero
@@ -1870,6 +2479,12 @@ public class SecureBigIntegerTests
         Assert.Equal(expectedValue, (long)num);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>
+    /// rejects the <c>0x</c> / <c>0X</c> prefix without trailing digits with
+    /// <see cref="FormatException"/> — mirroring the sign-without-digits rule.
+    /// </summary>
+    /// <param name="input">A prefix-only hex literal.</param>
     [Theory]
     // The 0x prefix without trailing digits is rejected, mirroring the
     // sign-without-digits rule.
@@ -1889,6 +2504,14 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Round-trip test: every value <see cref="SecureBigInteger.ToHexadecimal()"/> can
+    /// emit must be parsed back to the same value by
+    /// <see cref="SecureBigInteger.FromHexadecimal(PinnedPoolArray{char})"/>. Values
+    /// span sign, single-byte, multi-byte, and a Mersenne-shaped value at the M127
+    /// boundary.
+    /// </summary>
+    /// <param name="decimalValue">The decimal representation of the seed value.</param>
     [Theory]
     // Round-trip: every value ToHexadecimal can emit must be parsed back to
     // the same value by FromHexadecimal. Decimals span sign, single byte,
@@ -1915,6 +2538,15 @@ public class SecureBigIntegerTests
         Assert.Equal(original, roundTripped);
     }
 
+    /// <summary>
+    /// Cross-checks <see cref="SecureBigInteger.MersenneModulo(int)"/> against the
+    /// generic Modulo (= <c>Remainder</c>) path for representative Mersenne exponents
+    /// and operand magnitudes. Operand values exercised: zero, one, p−1 bits set,
+    /// exact <c>M_p</c>, <c>M_p + 1</c> (≡ 1), <c>2·M_p</c> (≡ <c>M_p</c>), and a
+    /// 2p-bit value (post-multiply scale).
+    /// </summary>
+    /// <param name="exponent">The Mersenne prime exponent.</param>
+    /// <param name="operandDecimal">Decimal representation of the operand.</param>
     [Theory]
     // Cross-check MersenneModulo against the generic Modulo (= Remainder)
     // path for representative Mersenne exponents and operand magnitudes.
@@ -1953,6 +2585,11 @@ public class SecureBigIntegerTests
         Assert.Equal(expected, actual);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigInteger.MersenneModulo(int)"/> rejects a
+    /// non-positive exponent (<c>0</c> or negative) with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void MersenneModulo_NonPositiveExponent_ThrowsArgumentOutOfRangeException()
     {
@@ -1970,6 +2607,16 @@ public class SecureBigIntegerTests
         });
     }
 
+    /// <summary>
+    /// Tests <see cref="SecureBigInteger.MersenneModulo(int)"/> with negative operands:
+    /// the result is the canonical non-negative representative in <c>[0, M_p − 1]</c>,
+    /// computed via <c>((operand % M_p) + M_p) % M_p</c> on the BCL side and
+    /// cross-checked against the limb-CT path. The all-zero-after-mod corner case
+    /// (<c>-M_p</c>, <c>-2·M_p</c>, ...) must canonicalise back to <c>0</c> and is
+    /// tested alongside the typical <c>M_p − residue</c> pattern.
+    /// </summary>
+    /// <param name="exponent">The Mersenne prime exponent.</param>
+    /// <param name="operandDecimal">Decimal representation of the negative operand.</param>
     [Theory]
     // Mathematical-modulo semantics for negative operands: every row's
     // expected value is the canonical non-negative representative in
