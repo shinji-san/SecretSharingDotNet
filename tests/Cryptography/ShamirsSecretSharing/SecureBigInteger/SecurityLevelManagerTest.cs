@@ -41,8 +41,19 @@ using SecretSharingDotNet.Math.Numerics;
 using System;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="SecurityLevelManager{TNumber}"/> on the
+/// <see cref="SecureBigInteger"/> backend — mirror of the BigInteger-side test class plus
+/// additional disposal-contract tests that are directly observable here because
+/// SecureBigInteger throws <see cref="ObjectDisposedException"/> on post-dispose access.
+/// </summary>
 public class SecurityLevelManagerTest
 {
+    /// <summary>
+    /// Tests that the parameterless constructor wires in
+    /// <see cref="MersennePrimeProvider.Instance"/> as the default provider and starts at
+    /// the smallest tabulated exponent.
+    /// </summary>
     [Fact]
     public void Constructor_WithoutParameter_InitializesWithDefaultMersennePrimeProvider()
     {
@@ -55,6 +66,10 @@ public class SecurityLevelManagerTest
         Assert.NotNull(securityLevelManager.MersennePrime);
     }
 
+    /// <summary>
+    /// Tests that the constructor with an injected <see cref="IMersennePrimeProvider"/> mock
+    /// uses the mock's <c>MinMersennePrimeExponent</c> as the initial security level.
+    /// </summary>
     [Fact]
     public void Constructor_WithMersennePrimeProvider_InitializesCorrectly()
     {
@@ -73,6 +88,10 @@ public class SecurityLevelManagerTest
         Assert.Equal(expectedSecurityLevel, securityLevelManager.SecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that the injection constructor rejects a <see langword="null"/> provider with
+    /// <see cref="ArgumentNullException"/> (<c>ParamName == "mersennePrimeProvider"</c>).
+    /// </summary>
     [Fact]
     public void Constructor_WithNullProvider_ThrowsArgumentNullException()
     {
@@ -81,6 +100,10 @@ public class SecurityLevelManagerTest
         Assert.Equal("mersennePrimeProvider", exception.ParamName);
     }
 
+    /// <summary>
+    /// Tests that assigning a valid Mersenne exponent to
+    /// <see cref="SecurityLevelManager{TNumber}.SecurityLevel"/> stores the value verbatim.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Set_WithMersennePrimeExponent_SetsSecurityLevelCorrectly()
     {
@@ -95,6 +118,10 @@ public class SecurityLevelManagerTest
         Assert.Equal(initialSecurityLevel, securityLevelManager.SecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that assigning a security level below the minimum tabulated Mersenne exponent
+    /// throws <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Set_BelowMinimum_ThrowsArgumentOutOfRangeException()
     {
@@ -109,6 +136,10 @@ public class SecurityLevelManagerTest
         Assert.Equal(initialSecurityLevel, exception.ActualValue);
     }
 
+    /// <summary>
+    /// Tests that assigning a security level above the maximum tabulated Mersenne exponent
+    /// throws <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Set_AboveMaximum_ThrowsArgumentOutOfRangeException()
     {
@@ -123,6 +154,10 @@ public class SecurityLevelManagerTest
         Assert.Equal(initialSecurityLevel, exception.ActualValue);
     }
 
+    /// <summary>
+    /// Tests that assigning a non-Mersenne exponent auto-upgrades to the next valid Mersenne
+    /// exponent via the injected provider's <c>GetNextMersennePrimeExponent</c> contract.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Set_WithNonMersennePrimeExponent_AdjustsToNextValidSecurityLevel()
     {
@@ -145,6 +180,11 @@ public class SecurityLevelManagerTest
         Assert.Equal(expectedAdjustedLevel, securityLevelManager.SecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.MersennePrime"/> evaluates to
+    /// <c>2^p − 1</c> for the configured security level <c>p</c> on the
+    /// <see cref="SecureBigInteger"/> backend.
+    /// </summary>
     [Fact]
     public void MersennePrime_AfterSettingSecurityLevel_IsCalculatedCorrectly()
     {
@@ -163,6 +203,10 @@ public class SecurityLevelManagerTest
         Assert.Equal(expected, securityLevelManager.MersennePrime.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.MersennePrime"/> is non-null
+    /// after a security-level assignment.
+    /// </summary>
     [Fact]
     public void MersennePrime_AfterSettingSecurityLevel_IsNotNull()
     {
@@ -176,6 +220,10 @@ public class SecurityLevelManagerTest
         Assert.NotNull(securityLevelManager.MersennePrime);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.AdjustSecurityLevel"/> with a
+    /// <c>maximumY</c> that already fits inside the minimum Mersenne prime is a no-op.
+    /// </summary>
     [Fact]
     public void AdjustSecurityLevel_WhenMaximumYCorrespondsToMinimumMersennePrimeExponent_DoesNothing()
     {
@@ -191,6 +239,10 @@ public class SecurityLevelManagerTest
         Assert.Equal(initialSecurityLevel, securityLevelManager.SecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.AdjustSecurityLevel"/> upgrades
+    /// the security level when <c>maximumY</c> exceeds the current Mersenne prime.
+    /// </summary>
     [Fact]
     public void AdjustSecurityLevel_WhenMaximumYIsLargerThanInitialSecurityLevel_IncreasesSecurityLevel()
     {
@@ -206,6 +258,10 @@ public class SecurityLevelManagerTest
         Assert.True(securityLevelManager.SecurityLevel > initialSecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.AdjustSecurityLevel"/> downgrades
+    /// the security level when <c>maximumY</c> fits inside a smaller prime.
+    /// </summary>
     [Fact]
     public void AdjustSecurityLevel_WhenMaximumYIsLowerThanInitialSecurityLevel_DecreasesSecurityLevel()
     {
@@ -222,6 +278,11 @@ public class SecurityLevelManagerTest
         Assert.True(securityLevelManager.SecurityLevel < initialSecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that assigning any of the tabulated Mersenne exponents to
+    /// <see cref="SecurityLevelManager{TNumber}.SecurityLevel"/> stores the value verbatim.
+    /// </summary>
+    /// <param name="exponent">A known-valid Mersenne exponent.</param>
     [Theory]
     [InlineData(13)]
     [InlineData(17)]
@@ -245,6 +306,11 @@ public class SecurityLevelManagerTest
         Assert.Equal(exponent, securityLevelManager.SecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that successive <see cref="SecurityLevelManager{TNumber}.SecurityLevel"/>
+    /// assignments refresh <see cref="SecurityLevelManager{TNumber}.MersennePrime"/> to
+    /// the matching new <c>2^p − 1</c> each time.
+    /// </summary>
     [Fact]
     public void SecurityLevel_MultipleSet_UpdatesMersennePrimeEachTime()
     {
@@ -269,6 +335,10 @@ public class SecurityLevelManagerTest
         Assert.NotEqual(expectedFirst, expectedSecond);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.SecurityLevel"/>'s getter returns
+    /// the most recently assigned value.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Get_ReturnsCurrentSecurityLevel()
     {
@@ -284,6 +354,10 @@ public class SecurityLevelManagerTest
         Assert.Equal(initialSecurityLevel, securityLevel);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.MersennePrime"/>'s getter returns
+    /// the Calculator wrapping <c>2^p − 1</c> for the current security level.
+    /// </summary>
     [Fact]
     public void MersennePrime_Get_ReturnsCurrentMersennePrime()
     {
@@ -304,6 +378,10 @@ public class SecurityLevelManagerTest
         Assert.Equal(expected, mersennePrime.Value);
     }
 
+    /// <summary>
+    /// Tests that calling <see cref="SecurityLevelManager{TNumber}.Dispose"/> repeatedly is
+    /// idempotent — second and third calls do not throw.
+    /// </summary>
     [Fact]
     public void Dispose_CalledMultipleTimes_IsIdempotent()
     {
@@ -322,6 +400,10 @@ public class SecurityLevelManagerTest
         Assert.Null(ex);
     }
 
+    /// <summary>
+    /// Tests that reading <see cref="SecurityLevelManager{TNumber}.SecurityLevel"/> after
+    /// disposal throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Get_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -333,6 +415,10 @@ public class SecurityLevelManagerTest
         Assert.Throws<ObjectDisposedException>(() => _ = securityLevelManager.SecurityLevel);
     }
 
+    /// <summary>
+    /// Tests that writing <see cref="SecurityLevelManager{TNumber}.SecurityLevel"/> after
+    /// disposal throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Set_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -344,6 +430,11 @@ public class SecurityLevelManagerTest
         Assert.Throws<ObjectDisposedException>(() => securityLevelManager.SecurityLevel = 31);
     }
 
+    /// <summary>
+    /// Tests that assigning a new <see cref="SecurityLevelManager{TNumber}.SecurityLevel"/>
+    /// atomically disposes the previously-cached <c>MersennePrime</c> so its pinned buffer
+    /// is released even before <see cref="IDisposable.Dispose"/> runs on the manager itself.
+    /// </summary>
     [Fact]
     public void SecurityLevel_Set_DisposesPreviousMersennePrime()
     {
@@ -359,6 +450,11 @@ public class SecurityLevelManagerTest
         Assert.Throws<ObjectDisposedException>(() => _ = firstPrime.Value.IsZero);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.Dispose"/> cascades to the cached
+    /// <c>MersennePrime</c> Calculator — its pinned <c>SecureBigInteger</c> buffer is wiped
+    /// + released as part of disposal.
+    /// </summary>
     [Fact]
     public void Dispose_AfterCtor_DisposesUnderlyingMersennePrime()
     {
@@ -374,6 +470,10 @@ public class SecurityLevelManagerTest
         Assert.Throws<ObjectDisposedException>(() => _ = prime.Value.IsZero);
     }
 
+    /// <summary>
+    /// Tests that reading <see cref="SecurityLevelManager{TNumber}.MersennePrime"/> after
+    /// disposal throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void MersennePrime_Get_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -385,6 +485,10 @@ public class SecurityLevelManagerTest
         Assert.Throws<ObjectDisposedException>(() => _ = securityLevelManager.MersennePrime);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.AdjustSecurityLevel"/> rejects
+    /// calls after the manager was disposed with <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void AdjustSecurityLevel_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -397,6 +501,10 @@ public class SecurityLevelManagerTest
         Assert.Throws<ObjectDisposedException>(() => securityLevelManager.AdjustSecurityLevel(maximumY));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecurityLevelManager{TNumber}.AdjustSecurityLevel"/> rejects a
+    /// <see langword="null"/> <c>maximumY</c> with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void AdjustSecurityLevel_WithNull_ThrowsArgumentNullException()
     {

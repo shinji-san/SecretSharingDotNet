@@ -39,8 +39,17 @@ using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="BigIntCalculator"/> — the BCL-<see cref="BigInteger"/>-backed
+/// <see cref="Calculator{TNumber}"/> implementation. Covers construction, arithmetic,
+/// comparison, increment/decrement, and the byte-representation surface.
+/// </summary>
 public class BigIntCalculatorTest
 {
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator(BigInteger)"/> stores the supplied value in
+    /// <see cref="Calculator{TNumber}.Value"/>.
+    /// </summary>
     [Fact]
     public void Constructor_WithBigInteger_ShouldInitializeValue()
     {
@@ -54,6 +63,10 @@ public class BigIntCalculatorTest
         Assert.Equal(value, calculator.Value);
     }
 
+    /// <summary>
+    /// Tests that the <c>(byte[], int)</c> constructor decodes a little-endian
+    /// two's-complement byte array into the matching <see cref="BigInteger"/> value.
+    /// </summary>
     [Fact]
     public void Constructor_WithByteArray_ShouldInitializeValue()
     {
@@ -67,6 +80,10 @@ public class BigIntCalculatorTest
         Assert.Equal(new BigInteger(data), calculator.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator.Equals(Calculator{BigInteger})"/> returns
+    /// <see langword="true"/> for two calculators wrapping equal <see cref="BigInteger"/> values.
+    /// </summary>
     [Fact]
     public void Equals_ShouldReturnTrue_ForEqualValues()
     {
@@ -78,6 +95,11 @@ public class BigIntCalculatorTest
         Assert.True(calculator1.Equals(calculator2));
     }
 
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator.Equals(Calculator{BigInteger})"/> returns
+    /// <see langword="false"/> for two calculators wrapping different
+    /// <see cref="BigInteger"/> values.
+    /// </summary>
     [Fact]
     public void Equals_ShouldReturnFalse_ForDifferentValues()
     {
@@ -89,6 +111,11 @@ public class BigIntCalculatorTest
         Assert.False(calculator1.Equals(calculator2));
     }
 
+    /// <summary>
+    /// Tests the <c>&gt;</c> operator on <see cref="Calculator{BigInteger}"/> — the
+    /// inherited overload returns the expected boolean against rhs values both below
+    /// and above the lhs.
+    /// </summary>
     [Fact]
     public void GreaterThan_ShouldReturnCorrectResult()
     {
@@ -102,6 +129,10 @@ public class BigIntCalculatorTest
         Assert.False(calculator > rhs15);
     }
 
+    /// <summary>
+    /// Tests the <c>&lt;</c> operator on <see cref="Calculator{BigInteger}"/> against rhs
+    /// values both above and below the lhs.
+    /// </summary>
     [Fact]
     public void LowerThan_ShouldReturnCorrectResult()
     {
@@ -115,6 +146,10 @@ public class BigIntCalculatorTest
         Assert.False(calculator < rhs5);
     }
 
+    /// <summary>
+    /// Tests the <c>&gt;=</c> operator on <see cref="Calculator{BigInteger}"/> across the
+    /// equal, strictly-greater, and strictly-lower comparison cases.
+    /// </summary>
     [Fact]
     public void EqualOrGreaterThan_ShouldReturnCorrectResult()
     {
@@ -130,6 +165,10 @@ public class BigIntCalculatorTest
         Assert.False(calculator >= rhs11);
     }
 
+    /// <summary>
+    /// Tests the <c>&lt;=</c> operator on <see cref="Calculator{BigInteger}"/> across the
+    /// equal, strictly-lower, and strictly-greater comparison cases.
+    /// </summary>
     [Fact]
     public void EqualOrLowerThan_ShouldReturnCorrectResult()
     {
@@ -145,6 +184,11 @@ public class BigIntCalculatorTest
         Assert.False(calculator <= rhs5);
     }
 
+    /// <summary>
+    /// Tests <see cref="BigIntCalculator.CompareTo(Calculator{BigInteger})"/>: returns
+    /// <c>-1</c>, <c>0</c>, or <c>+1</c> depending on whether the lhs is less than,
+    /// equal to, or greater than the rhs.
+    /// </summary>
     [Fact]
     public void CompareTo_ShouldReturnCorrectComparison()
     {
@@ -158,6 +202,11 @@ public class BigIntCalculatorTest
         Assert.Equal(0, calculator1.CompareTo(calculator1));
     }
 
+    /// <summary>
+    /// Tests the inherited arithmetic operator surface on <see cref="Calculator{BigInteger}"/>:
+    /// <c>+</c>, <c>-</c>, <c>*</c>, <c>/</c>, <c>%</c> — each one applied with operand
+    /// pairs that exercise both exact-division and non-zero-remainder paths.
+    /// </summary>
     [Fact]
     public void ArithmeticOperations_ShouldReturnCorrectResults()
     {
@@ -191,6 +240,10 @@ public class BigIntCalculatorTest
         Assert.Equal(rhs10, moduloBy11);
     }
 
+    /// <summary>
+    /// Tests that the <c>++</c> operator on <see cref="Calculator{BigInteger}"/> returns a
+    /// new calculator whose value is <c>source + 1</c>.
+    /// </summary>
     [Fact]
     public void Increment_ShouldIncreaseValueByOne()
     {
@@ -204,6 +257,10 @@ public class BigIntCalculatorTest
         Assert.Equal(new BigInteger(11), incrementedCalculator.Value);
     }
 
+    /// <summary>
+    /// Tests that the <c>--</c> operator on <see cref="Calculator{BigInteger}"/> returns a
+    /// new calculator whose value is <c>source - 1</c>.
+    /// </summary>
     [Fact]
     public void Decrement_ShouldDecreaseValueByOne()
     {
@@ -217,6 +274,10 @@ public class BigIntCalculatorTest
         Assert.Equal(new BigInteger(9), decrementedCalculator.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator.Abs"/> returns the absolute value for a
+    /// negative source.
+    /// </summary>
     [Fact]
     public void Abs_ShouldReturnAbsoluteValue()
     {
@@ -230,6 +291,10 @@ public class BigIntCalculatorTest
         Assert.Equal(new BigInteger(10), absCalculator.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator.Pow(int)"/> raises the base value to the
+    /// supplied integer exponent (<c>2^3 = 8</c>).
+    /// </summary>
     [Fact]
     public void Pow_ShouldReturnCorrectPower()
     {
@@ -243,6 +308,9 @@ public class BigIntCalculatorTest
         Assert.Equal(new BigInteger(8), result.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator.IsZero"/> distinguishes zero from non-zero values.
+    /// </summary>
     [Fact]
     public void IsZero_ShouldReturnCorrectResult()
     {
@@ -255,6 +323,9 @@ public class BigIntCalculatorTest
         Assert.False(nonZeroCalculator.IsZero);
     }
 
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator.IsOne"/> distinguishes one from non-one values.
+    /// </summary>
     [Fact]
     public void IsOne_ShouldReturnCorrectResult()
     {
@@ -267,6 +338,9 @@ public class BigIntCalculatorTest
         Assert.False(nonOneCalculator.IsOne);
     }
 
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator.IsEven"/> distinguishes even from odd values.
+    /// </summary>
     [Fact]
     public void IsEven_ShouldReturnCorrectResult()
     {
@@ -279,6 +353,11 @@ public class BigIntCalculatorTest
         Assert.False(oddCalculator.IsEven);
     }
 
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator.ByteRepresentation"/> returns the same byte
+    /// sequence that the BCL's <see cref="BigInteger.ToByteArray()"/> produces — pinned in
+    /// a <see cref="PinnedPoolArray{Byte}"/> rather than a managed array.
+    /// </summary>
     [Fact]
     public void ByteRepresentation_ShouldReturnCorrectBytes()
     {
@@ -295,6 +374,11 @@ public class BigIntCalculatorTest
         Assert.True(expectedByteArray.SequenceEqual(calculatorByteRepresentation.PoolArray.Take(calculatorByteRepresentation.Length)));
     }
 
+    /// <summary>
+    /// Tests that <see cref="BigIntCalculator.ByteCount"/> matches the length of
+    /// <see cref="BigInteger.ToByteArray()"/> — the lazy cached count must reflect the
+    /// pinned byte representation's logical length.
+    /// </summary>
     [Fact]
     public void ByteCount_ShouldReturnCorrectNumberOfBytes()
     {

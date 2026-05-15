@@ -37,8 +37,17 @@ using System.Text;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="ConsolePasswordReader"/> — argument validation on the public
+/// <c>ReadPassword</c> wrapper and the keystroke-loop behaviour exposed through the
+/// internal <c>ReadPasswordLoop</c> helper (injected key source + sink for echo).
+/// </summary>
 public class ConsolePasswordReaderTest
 {
+    /// <summary>
+    /// Tests that <see cref="ConsolePasswordReader.ReadPassword"/> rejects a negative
+    /// <c>maxLength</c> with <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void ReadPassword_NegativeMaxLength_ThrowsArgumentOutOfRangeException()
     {
@@ -46,6 +55,11 @@ public class ConsolePasswordReaderTest
         Assert.Throws<ArgumentOutOfRangeException>(() => ConsolePasswordReader.ReadPassword(-1));
     }
 
+    /// <summary>
+    /// Tests that <see cref="ConsolePasswordReader.ReadPassword"/> rejects a zero
+    /// <c>maxLength</c> with <see cref="ArgumentOutOfRangeException"/> — a buffer of length
+    /// zero cannot hold any password material.
+    /// </summary>
     [Fact]
     public void ReadPassword_ZeroMaxLength_ThrowsArgumentOutOfRangeException()
     {
@@ -53,6 +67,12 @@ public class ConsolePasswordReaderTest
         Assert.Throws<ArgumentOutOfRangeException>(() => ConsolePasswordReader.ReadPassword(0));
     }
 
+    /// <summary>
+    /// Tests that <see cref="ConsolePasswordReader.ReadPassword"/> refuses to read from a
+    /// redirected stdin with <see cref="InvalidOperationException"/> — interactive password
+    /// entry requires a real console. xUnit's test runner runs with stdin redirected, so
+    /// the guard fires here as part of normal test execution.
+    /// </summary>
     [Fact]
     public void ReadPassword_WhenInputIsRedirected_ThrowsInvalidOperationException()
     {
@@ -60,6 +80,10 @@ public class ConsolePasswordReaderTest
         Assert.Throws<InvalidOperationException>(() => ConsolePasswordReader.ReadPassword(8));
     }
 
+    /// <summary>
+    /// Tests that <see cref="ConsolePasswordReader.ReadPasswordLoop"/> returns a zero-length
+    /// (but non-zero-capacity) pinned buffer when the very first key is <c>Enter</c>.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_EnterImmediately_ReturnsEmptyBuffer()
     {
@@ -74,6 +98,10 @@ public class ConsolePasswordReaderTest
         Assert.True(pinned.Capacity >= 8);
     }
 
+    /// <summary>
+    /// Tests that <see cref="ConsolePasswordReader.ReadPasswordLoop"/> accumulates typed
+    /// characters into the pinned buffer in order, terminating on <c>Enter</c>.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_TypicalInput_AccumulatesChars()
     {
@@ -90,6 +118,11 @@ public class ConsolePasswordReaderTest
         Assert.Equal('c', pinned[2]);
     }
 
+    /// <summary>
+    /// Tests that <c>Backspace</c> in <see cref="ConsolePasswordReader.ReadPasswordLoop"/>
+    /// removes the most recently entered character and the next typed character takes its
+    /// place.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_Backspace_RemovesLastChar()
     {
@@ -105,6 +138,10 @@ public class ConsolePasswordReaderTest
         Assert.Equal('c', pinned[1]);
     }
 
+    /// <summary>
+    /// Tests that <c>Backspace</c> on an already-empty buffer is a no-op rather than an
+    /// error — the loop continues to accept further input.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_BackspaceOnEmptyBuffer_IsNoOp()
     {
@@ -119,6 +156,11 @@ public class ConsolePasswordReaderTest
         Assert.Equal('x', pinned[0]);
     }
 
+    /// <summary>
+    /// Tests that <c>Backspace</c> wipes the just-removed character slot to <c>\0</c> rather
+    /// than leaving the stale character behind beyond the logical length — security-relevant
+    /// because the slot would otherwise survive in pinned memory until <c>Dispose</c>.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_BackspaceClearsCharSlot()
     {
@@ -133,6 +175,10 @@ public class ConsolePasswordReaderTest
         Assert.Equal('\0', pinned.PoolArray[0]);
     }
 
+    /// <summary>
+    /// Tests that once the buffer fills to <c>maxLength</c>, further character keys are
+    /// silently ignored (the loop stays at the cap rather than truncating or extending).
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_MaxLengthReached_IgnoresFurtherChars()
     {
@@ -148,6 +194,10 @@ public class ConsolePasswordReaderTest
         Assert.Equal('b', pinned[1]);
     }
 
+    /// <summary>
+    /// Tests that after the buffer reached <c>maxLength</c>, <c>Backspace</c> still removes
+    /// the last character and a subsequent character key can refill the freed slot.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_AfterMaxReached_BackspaceStillWorks()
     {
@@ -163,6 +213,11 @@ public class ConsolePasswordReaderTest
         Assert.Equal('Z', pinned[1]);
     }
 
+    /// <summary>
+    /// Tests that non-character control keys (<c>Tab</c>, <c>Esc</c>, …) inside the typing
+    /// loop are ignored without breaking the read — only printable characters,
+    /// <c>Backspace</c>, and <c>Enter</c> have visible effect.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_ControlKeys_AreIgnored()
     {
@@ -178,6 +233,10 @@ public class ConsolePasswordReaderTest
         Assert.Equal('b', pinned[1]);
     }
 
+    /// <summary>
+    /// Tests that a <see langword="null"/> mask-character disables echo entirely — the sink
+    /// callback never gets invoked even though the buffer still accumulates input.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_NoEcho_DoesNotInvokeSink()
     {
@@ -193,6 +252,10 @@ public class ConsolePasswordReaderTest
         Assert.Equal(1, pinned.Length);
     }
 
+    /// <summary>
+    /// Tests that with a configured mask character, the sink receives that mask character
+    /// once per accepted character key — no preview of the typed character itself.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_WithEcho_EmitsMaskCharPerKey()
     {
@@ -208,6 +271,11 @@ public class ConsolePasswordReaderTest
         Assert.Equal(3, pinned.Length);
     }
 
+    /// <summary>
+    /// Tests that <c>Backspace</c> with echo enabled emits the canonical
+    /// <c>\b space \b</c> erase sequence to the sink so the masked echo display stays
+    /// in sync with the buffer.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_WithEcho_BackspaceEmitsEraseSequence()
     {
@@ -223,6 +291,10 @@ public class ConsolePasswordReaderTest
         Assert.Equal(0, pinned.Length);
     }
 
+    /// <summary>
+    /// Tests that <c>Backspace</c> with echo enabled emits no erase sequence when the buffer
+    /// is already empty — only real removals produce output.
+    /// </summary>
     [Fact]
     public void ReadPasswordLoop_WithEcho_BackspaceOnEmpty_NoEcho()
     {

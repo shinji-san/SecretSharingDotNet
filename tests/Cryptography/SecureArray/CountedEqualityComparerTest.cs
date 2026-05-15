@@ -5,14 +5,28 @@ using System;
 using System.Collections;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="CountedEqualityComparer{T}"/> — an <see cref="IEqualityComparer{T}"/>
+/// implementation that pairs an element comparer with a fixed count, used to compare the
+/// first <c>N</c> elements of pinned buffers without exposing the full
+/// <see cref="PinnedPoolArray{T}.PoolArray"/> capacity to the comparison.
+/// </summary>
 public class CountedEqualityComparerTest
 {
+    /// <summary>
+    /// Tests that the constructor rejects a negative <c>count</c> with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void Constructor_NegativeCount_ThrowsArgumentOutOfRangeException()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new CountedEqualityComparer<byte>(-1));
     }
 
+    /// <summary>
+    /// Tests that the constructor accepts <c>count = 0</c> (a valid degenerate case for
+    /// comparing empty prefixes) and stores it as the <see cref="CountedEqualityComparer{T}.Count"/> property.
+    /// </summary>
     [Fact]
     public void Constructor_ZeroCount_Succeeds()
     {
@@ -23,6 +37,10 @@ public class CountedEqualityComparerTest
         Assert.Equal(0, comparer.Count);
     }
 
+    /// <summary>
+    /// Tests that the constructor stores a positive <c>count</c> verbatim on the
+    /// <see cref="CountedEqualityComparer{T}.Count"/> property.
+    /// </summary>
     [Fact]
     public void Constructor_PositiveCount_StoresCount()
     {
@@ -33,6 +51,10 @@ public class CountedEqualityComparerTest
         Assert.Equal(50, comparer.Count);
     }
 
+    /// <summary>
+    /// Tests that the strongly-typed <c>Equals(T, T)</c> overload delegates to the
+    /// configured element comparer (default <see cref="EqualityComparer{T}.Default"/>).
+    /// </summary>
     [Fact]
     public void GenericEquals_DelegatesToElementComparer()
     {
@@ -44,6 +66,10 @@ public class CountedEqualityComparerTest
         Assert.False(comparer.Equals((byte)42, (byte)43));
     }
 
+    /// <summary>
+    /// Tests that the non-generic <c>IEqualityComparer.Equals(object, object)</c> returns
+    /// <see langword="true"/> when both arguments are <see langword="null"/>.
+    /// </summary>
     [Fact]
     public void NonGenericEquals_BothNull_ReturnsTrue()
     {
@@ -54,6 +80,10 @@ public class CountedEqualityComparerTest
         Assert.True(comparer.Equals(null, null));
     }
 
+    /// <summary>
+    /// Tests that the non-generic <c>IEqualityComparer.Equals(object, object)</c> returns
+    /// <see langword="false"/> when exactly one of the arguments is <see langword="null"/>.
+    /// </summary>
     [Fact]
     public void NonGenericEquals_OneNull_ReturnsFalse()
     {
@@ -65,6 +95,10 @@ public class CountedEqualityComparerTest
         Assert.False(comparer.Equals((byte)42, null));
     }
 
+    /// <summary>
+    /// Tests that the non-generic <c>Equals</c> throws <see cref="ArgumentException"/> with
+    /// <c>ParamName == "x"</c> when the first argument is of the wrong element type.
+    /// </summary>
     [Fact]
     public void NonGenericEquals_FirstWrongType_ThrowsWithParamNameX()
     {
@@ -78,6 +112,10 @@ public class CountedEqualityComparerTest
         Assert.Equal("x", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the non-generic <c>Equals</c> throws <see cref="ArgumentException"/> with
+    /// <c>ParamName == "y"</c> when the second argument is of the wrong element type.
+    /// </summary>
     [Fact]
     public void NonGenericEquals_SecondWrongType_ThrowsWithParamNameY()
     {
@@ -91,6 +129,10 @@ public class CountedEqualityComparerTest
         Assert.Equal("y", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the non-generic <c>GetHashCode</c> throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> input.
+    /// </summary>
     [Fact]
     public void NonGenericGetHashCode_NullObj_ThrowsArgumentNullException()
     {
@@ -101,6 +143,10 @@ public class CountedEqualityComparerTest
         Assert.Throws<ArgumentNullException>(() => comparer.GetHashCode(null));
     }
 
+    /// <summary>
+    /// Tests that the non-generic <c>GetHashCode</c> throws <see cref="ArgumentException"/>
+    /// with <c>ParamName == "obj"</c> when the argument is of the wrong element type.
+    /// </summary>
     [Fact]
     public void NonGenericGetHashCode_WrongType_ThrowsWithParamNameObj()
     {
@@ -114,6 +160,11 @@ public class CountedEqualityComparerTest
         Assert.Equal("obj", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the non-generic <c>GetHashCode</c> on a valid value delegates to the
+    /// configured element comparer's hashing — matches
+    /// <see cref="byte.GetHashCode()"/> for the default comparer.
+    /// </summary>
     [Fact]
     public void NonGenericGetHashCode_ValidValue_DelegatesToElementComparer()
     {
@@ -127,6 +178,11 @@ public class CountedEqualityComparerTest
         Assert.Equal(((byte)42).GetHashCode(), hash);
     }
 
+    /// <summary>
+    /// Tests that <see cref="CountedEqualityComparer{T}.ToString"/> includes the element
+    /// type, the count, and the element comparer name so debug diagnostics surface the
+    /// comparer's configuration.
+    /// </summary>
     [Fact]
     public void ToString_IncludesCountAndElementType()
     {
@@ -142,6 +198,11 @@ public class CountedEqualityComparerTest
         Assert.Contains("Element=", representation);
     }
 
+    /// <summary>
+    /// Tests that the constructor's optional element-comparer parameter overrides the
+    /// default — here <see cref="StringComparer.OrdinalIgnoreCase"/> is injected, so
+    /// <c>"Hello"</c> and <c>"HELLO"</c> compare equal.
+    /// </summary>
     [Fact]
     public void Constructor_CustomElementComparer_IsUsedInsteadOfDefault()
     {
@@ -154,6 +215,10 @@ public class CountedEqualityComparerTest
         Assert.False(comparer.Equals("Hello", "World"));
     }
 
+    /// <summary>
+    /// Tests that the constructor falls back to <see cref="EqualityComparer{T}.Default"/>
+    /// when a <see langword="null"/> element comparer is supplied.
+    /// </summary>
     [Fact]
     public void Constructor_NullElementComparer_FallsBackToDefault()
     {
@@ -165,6 +230,10 @@ public class CountedEqualityComparerTest
         Assert.False(comparer.Equals((byte)42, (byte)43));
     }
 
+    /// <summary>
+    /// Tests that the non-generic <c>Equals</c> with two correctly-typed arguments delegates
+    /// to the strongly-typed <c>Equals(T, T)</c> overload (matching results for matching inputs).
+    /// </summary>
     [Fact]
     public void NonGenericEquals_BothMatchingType_DelegatesToGenericEquals()
     {
@@ -176,6 +245,10 @@ public class CountedEqualityComparerTest
         Assert.False(comparer.Equals((byte)42, (byte)43));
     }
 
+    /// <summary>
+    /// Tests that the strongly-typed <c>GetHashCode(T)</c> overload delegates to the
+    /// configured element comparer's hashing.
+    /// </summary>
     [Fact]
     public void GenericGetHashCode_DelegatesToElementComparer()
     {

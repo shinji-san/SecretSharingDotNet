@@ -147,6 +147,10 @@ public class SharesTest
         }
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.Count"/> reports the number of shares parsed
+    /// from the pre-defined predefined-shares fixture.
+    /// </summary>
     [Fact]
     public void Count_ReturnsExpectedCount()
     {
@@ -162,6 +166,11 @@ public class SharesTest
         Assert.Equal(expectedCount, actualCount);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="Shares{TNumber}"/> indexer returns the share at each
+    /// expected position — verified by independently parsing each predefined share line
+    /// and comparing against <c>shares[i]</c>.
+    /// </summary>
     [Fact]
     public void Indexer_ReturnsExpectedShare()
     {
@@ -179,6 +188,10 @@ public class SharesTest
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.CopyTo"/> with offset 0 fills the destination
+    /// array with the same shares in the same order as the source collection.
+    /// </summary>
     [Fact]
     public void CopyTo_CopiesSharesToArray()
     {
@@ -194,6 +207,11 @@ public class SharesTest
         Assert.Equal(shares, sharesArray);
     }
 
+    /// <summary>
+    /// Tests <see cref="Shares{TNumber}.CopyTo"/> with a non-zero <c>arrayIndex</c> that
+    /// just fits the destination — slots before the offset remain at their default
+    /// (<see langword="null"/>) and the shares fill the tail exactly.
+    /// </summary>
     [Fact]
     public void CopyTo_ExactFitWithOffset_Succeeds()
     {
@@ -211,6 +229,11 @@ public class SharesTest
         Assert.Equal(shares, target.Skip(2));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.CopyTo"/> throws <see cref="ArgumentException"/>
+    /// when <c>arrayIndex</c> is high enough that the destination cannot accommodate the
+    /// full source.
+    /// </summary>
     [Fact]
     public void CopyTo_OffsetLeavesTooFewSlots_ThrowsArgumentException()
     {
@@ -225,6 +248,10 @@ public class SharesTest
         Assert.Throws<ArgumentException>(() => shares.CopyTo(target, offset));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.CopyTo"/> rejects a negative
+    /// <c>arrayIndex</c> with <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void CopyTo_NegativeArrayIndex_ThrowsArgumentOutOfRangeException()
     {
@@ -237,6 +264,10 @@ public class SharesTest
         Assert.Throws<ArgumentOutOfRangeException>(() => shares.CopyTo(target, -1));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.IsReadOnly"/> returns <see langword="true"/> —
+    /// once parsed, the collection cannot be mutated.
+    /// </summary>
     [Fact]
     public void IsReadOnly_ReturnsTrue()
     {
@@ -251,6 +282,11 @@ public class SharesTest
         Assert.True(isReadOnly);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.FromTextLines"/> populates the collection with
+    /// one share per source line, comparing each parsed share against an independent
+    /// per-line parse.
+    /// </summary>
     [Fact]
     public void Constructor_WithPinnedBuffer_InitializesShares()
     {
@@ -271,6 +307,10 @@ public class SharesTest
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.FromTextLines"/> sorts the parsed shares by
+    /// x-coordinate ascending even if the input lines are out of order.
+    /// </summary>
     [Fact]
     public void AscendingOrder_WithPinnedLines_SortsSharesByIndex()
     {
@@ -298,6 +338,10 @@ public class SharesTest
         Assert.Equal(s3, sortedShares[2]);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.FromText"/> (newline-delimited single buffer)
+    /// also sorts the parsed shares by x-coordinate ascending.
+    /// </summary>
     [Fact]
     public void AscendingOrder_WithPinnedText_SortsSharesByIndex()
     {
@@ -342,6 +386,15 @@ public class SharesTest
         Assert.Equal(expected, new string(result.PoolArray, 0, result.Length));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.ToCharArray(bool, bool)"/> serialises the
+    /// whole collection by concatenating each share's own
+    /// <see cref="Share{TNumber}.ToCharArray(bool, bool)"/> output, separated and
+    /// terminated by <see cref="Environment.NewLine"/>. Covers the
+    /// uppercase × with-prefix combinations.
+    /// </summary>
+    /// <param name="uppercase">Hex case to use in the serialisation.</param>
+    /// <param name="withPrefix">Whether to include the index/value <c>0x</c>-style prefix.</param>
     [Theory]
     [InlineData(true, false)]
     [InlineData(false, false)]
@@ -367,6 +420,10 @@ public class SharesTest
         Assert.Equal(expected, new string(result.PoolArray, 0, result.Length));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.ToCharArray()"/> returns a zero-length pinned
+    /// buffer for an empty <see cref="Shares{TNumber}"/> collection.
+    /// </summary>
     [Fact]
     public void ToCharArray_EmptyCollection_ReturnsZeroLength()
     {
@@ -399,6 +456,10 @@ public class SharesTest
         Assert.Equal(expected, new string(serialized.PoolArray, 0, serialized.Length));
     }
 
+    /// <summary>
+    /// Tests that the implicit <c>Shares&lt;TNumber&gt; → PinnedPoolArray&lt;char&gt;</c>
+    /// cast throws <see cref="ArgumentNullException"/> for a <see langword="null"/> source.
+    /// </summary>
     [Fact]
     public void ImplicitCastToPinnedPoolArray_NullShares_ThrowsArgumentNullException()
     {
@@ -412,6 +473,10 @@ public class SharesTest
         });
     }
 
+    /// <summary>
+    /// Tests the implicit <c>Shares ↔ PinnedPoolArray&lt;char&gt;</c> round trip: serialise
+    /// the collection, re-parse, and verify the resulting collection equals the original.
+    /// </summary>
     [Fact]
     public void RoundTrip_ImplicitPinnedPoolArrayBothDirections_PreservesShares()
     {
@@ -427,6 +492,11 @@ public class SharesTest
         Assert.Equal(original, reparsed);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.Dispose"/> cascades to every contained
+    /// <see cref="Share{TNumber}"/> — subsequent share-level operations throw
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Dispose_DisposesAllContainedShares()
     {
@@ -443,6 +513,10 @@ public class SharesTest
         Assert.Throws<ObjectDisposedException>(() => share2.GetCharCount(withPrefix: false));
     }
 
+    /// <summary>
+    /// Tests that calling <see cref="Shares{TNumber}.Dispose"/> repeatedly is idempotent —
+    /// the second and third calls do not throw or double-dispose the contained shares.
+    /// </summary>
     [Fact]
     public void Dispose_Idempotent_NoException()
     {
@@ -462,6 +536,11 @@ public class SharesTest
         Assert.Null(ex);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.FromText"/> returns an empty (but still
+    /// disposable) <see cref="Shares{TNumber}"/> when the input pinned buffer is
+    /// <see langword="null"/> rather than throwing.
+    /// </summary>
     [Fact]
     public void FromText_NullBuffer_ReturnsEmptyShares()
     {
@@ -472,6 +551,11 @@ public class SharesTest
         Assert.Empty(shares);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.FromTextLines"/> throws
+    /// <see cref="ArgumentNullException"/> for a <see langword="null"/> argument — distinct
+    /// from <see cref="Shares{TNumber}.FromText"/> which tolerates null input.
+    /// </summary>
     [Fact]
     public void FromTextLines_NullArgument_ThrowsArgumentNullException()
     {
@@ -479,6 +563,11 @@ public class SharesTest
         Assert.Throws<ArgumentNullException>(() => Shares<SecureBigInteger>.FromTextLines(null));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.FromTextLines"/> tolerates a mixed input array
+    /// containing valid pinned buffers, <see langword="null"/> entries, and zero-length
+    /// pinned buffers — the empties are skipped and the valid entries are parsed.
+    /// </summary>
     [Fact]
     public void FromTextLines_EmptyOrNullEntries_AreSkipped()
     {
@@ -495,6 +584,11 @@ public class SharesTest
         Assert.Equal(2, shares.Count);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Shares{TNumber}.FromTextLines"/> treats each input pinned
+    /// buffer as a complete single-line share representation — no across-line
+    /// concatenation.
+    /// </summary>
     [Fact]
     public void FromTextLines_ParsesEachLineWithoutMultiLineConcat()
     {

@@ -39,8 +39,18 @@ using System.Linq;
 using System.Threading;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="SecureBigIntCalculator"/> — the
+/// <see cref="SecureBigInteger"/>-backed <see cref="Calculator{TNumber}"/> implementation.
+/// Mirror of <c>BigIntCalculatorTest</c> plus reference-type-specific contract tests
+/// (null-fallback, concurrent disposal, increment-loop smoke test).
+/// </summary>
 public class SecureBigIntCalculatorTest
 {
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator(SecureBigInteger)"/> stores the supplied
+    /// value in <see cref="Calculator{TNumber}.Value"/>.
+    /// </summary>
     [Fact]
     public void Constructor_WithSecureBigInteger_ShouldInitializeValue()
     {
@@ -54,6 +64,12 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(value, calculator.Value);
     }
 
+    /// <summary>
+    /// Tests the null-fallback contract on <see cref="SecureBigIntCalculator(SecureBigInteger)"/>:
+    /// a <see langword="null"/> argument is substituted by zero. This is required to support
+    /// <see cref="Calculator{TNumber}.Zero"/> on the reference-type backend (where
+    /// <c>default(TNumber) == null</c>).
+    /// </summary>
     [Fact]
     public void Constructor_NullValue_FallsBackToZero()
     {
@@ -67,6 +83,12 @@ public class SecureBigIntCalculatorTest
         Assert.True(calculator.Value.IsZero);
     }
 
+    /// <summary>
+    /// Regression guard for <see cref="Calculator{SecureBigInteger}.Zero"/>: removing the
+    /// null fallback in <see cref="SecureBigIntCalculator(SecureBigInteger)"/> would break
+    /// the static <c>Zero</c> property and every chain that depends on it
+    /// (<c>One</c>, <c>Two</c>, …).
+    /// </summary>
     [Fact]
     public void Calculator_Zero_ReliesOnNullFallback_AndReturnsZero()
     {
@@ -80,6 +102,11 @@ public class SecureBigIntCalculatorTest
         Assert.True(zero.Value.IsZero);
     }
 
+    /// <summary>
+    /// Tests that the <c>(byte[], int)</c> constructor decodes a little-endian
+    /// two's-complement byte array into the matching <see cref="SecureBigInteger"/> value,
+    /// including the boundary case <see cref="long.MinValue"/>.
+    /// </summary>
     [Fact]
     public void Constructor_WithByteArray_ShouldInitializeValue()
     {
@@ -94,6 +121,11 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(expected, calculator.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator.Equals(Calculator{SecureBigInteger})"/>
+    /// returns <see langword="true"/> for two calculators wrapping equal
+    /// <see cref="SecureBigInteger"/> values.
+    /// </summary>
     [Fact]
     public void Equals_ShouldReturnTrue_ForEqualValues()
     {
@@ -105,6 +137,11 @@ public class SecureBigIntCalculatorTest
         Assert.True(calculator1.Equals(calculator2));
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator.Equals(Calculator{SecureBigInteger})"/>
+    /// returns <see langword="false"/> for two calculators wrapping different
+    /// <see cref="SecureBigInteger"/> values.
+    /// </summary>
     [Fact]
     public void Equals_ShouldReturnFalse_ForDifferentValues()
     {
@@ -116,6 +153,10 @@ public class SecureBigIntCalculatorTest
         Assert.False(calculator1.Equals(calculator2));
     }
 
+    /// <summary>
+    /// Tests the <c>&gt;</c> operator on <see cref="Calculator{SecureBigInteger}"/> against
+    /// rhs values both below and above the lhs.
+    /// </summary>
     [Fact]
     public void GreaterThan_ShouldReturnCorrectResult()
     {
@@ -129,6 +170,10 @@ public class SecureBigIntCalculatorTest
         Assert.False(calculator > rhs15);
     }
 
+    /// <summary>
+    /// Tests the <c>&lt;</c> operator on <see cref="Calculator{SecureBigInteger}"/> against
+    /// rhs values both above and below the lhs.
+    /// </summary>
     [Fact]
     public void LowerThan_ShouldReturnCorrectResult()
     {
@@ -142,6 +187,10 @@ public class SecureBigIntCalculatorTest
         Assert.False(calculator < rhs5);
     }
 
+    /// <summary>
+    /// Tests the <c>&gt;=</c> operator on <see cref="Calculator{SecureBigInteger}"/> across
+    /// the equal, strictly-greater, and strictly-lower comparison cases.
+    /// </summary>
     [Fact]
     public void EqualOrGreaterThan_ShouldReturnCorrectResult()
     {
@@ -157,6 +206,10 @@ public class SecureBigIntCalculatorTest
         Assert.False(calculator >= rhs11);
     }
 
+    /// <summary>
+    /// Tests the <c>&lt;=</c> operator on <see cref="Calculator{SecureBigInteger}"/> across
+    /// the equal, strictly-lower, and strictly-greater comparison cases.
+    /// </summary>
     [Fact]
     public void EqualOrLowerThan_ShouldReturnCorrectResult()
     {
@@ -172,6 +225,11 @@ public class SecureBigIntCalculatorTest
         Assert.False(calculator <= rhs5);
     }
 
+    /// <summary>
+    /// Tests <see cref="SecureBigIntCalculator.CompareTo(Calculator{SecureBigInteger})"/>:
+    /// returns <c>-1</c>, <c>0</c>, or <c>+1</c> depending on whether the lhs is less than,
+    /// equal to, or greater than the rhs.
+    /// </summary>
     [Fact]
     public void CompareTo_ShouldReturnCorrectComparison()
     {
@@ -185,6 +243,12 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(0, calculator1.CompareTo(calculator1));
     }
 
+    /// <summary>
+    /// Tests the inherited arithmetic operator surface on
+    /// <see cref="Calculator{SecureBigInteger}"/>: <c>+</c>, <c>-</c>, <c>*</c>, <c>/</c>,
+    /// <c>%</c> across operand pairs that exercise both exact-division and non-zero-remainder
+    /// paths.
+    /// </summary>
     [Fact]
     public void ArithmeticOperations_ShouldReturnCorrectResults()
     {
@@ -218,6 +282,11 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(rhs10, moduloBy11);
     }
 
+    /// <summary>
+    /// Tests that the <c>++</c> operator on <see cref="Calculator{SecureBigInteger}"/>
+    /// returns a new calculator whose value is <c>source + 1</c>, and that the original
+    /// source calculator is not mutated.
+    /// </summary>
     [Fact]
     public void Increment_ShouldIncreaseValueByOne()
     {
@@ -239,6 +308,11 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(expected10, source.Value);
     }
 
+    /// <summary>
+    /// Tests that the <c>--</c> operator on <see cref="Calculator{SecureBigInteger}"/>
+    /// returns a new calculator whose value is <c>source - 1</c>, and that the original
+    /// source calculator is not mutated.
+    /// </summary>
     [Fact]
     public void Decrement_ShouldDecreaseValueByOne()
     {
@@ -256,6 +330,11 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(expected10, source.Value);
     }
 
+    /// <summary>
+    /// Smoke test for 100 <c>++</c>/<c>--</c> iterations against a single source: the
+    /// pinned-pool state must survive the churn without double-disposal or corruption,
+    /// and the source's value must remain unchanged throughout.
+    /// </summary>
     [Fact]
     public void IncrementDecrement_RepeatedCalls_NoCrashOrLeak()
     {
@@ -289,6 +368,10 @@ public class SecureBigIntCalculatorTest
         });
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator.Abs"/> returns the absolute value for a
+    /// negative source.
+    /// </summary>
     [Fact]
     public void Abs_ShouldReturnAbsoluteValue()
     {
@@ -303,6 +386,10 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(expected, absCalculator.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator.Pow(int)"/> raises the base value to the
+    /// supplied integer exponent (<c>2^3 = 8</c>).
+    /// </summary>
     [Fact]
     public void Pow_ShouldReturnCorrectPower()
     {
@@ -317,6 +404,10 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(expected, result.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator.IsZero"/> distinguishes zero from
+    /// non-zero values.
+    /// </summary>
     [Fact]
     public void IsZero_ShouldReturnCorrectResult()
     {
@@ -329,6 +420,10 @@ public class SecureBigIntCalculatorTest
         Assert.False(nonZeroCalculator.IsZero);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator.IsOne"/> distinguishes one from
+    /// non-one values.
+    /// </summary>
     [Fact]
     public void IsOne_ShouldReturnCorrectResult()
     {
@@ -341,6 +436,10 @@ public class SecureBigIntCalculatorTest
         Assert.False(nonOneCalculator.IsOne);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator.IsEven"/> distinguishes even from odd
+    /// values on small inputs.
+    /// </summary>
     [Fact]
     public void IsEven_ShouldReturnCorrectResult()
     {
@@ -353,6 +452,13 @@ public class SecureBigIntCalculatorTest
         Assert.False(oddCalculator.IsEven);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator.IsEven"/> behaves correctly across the
+    /// integer boundary values (zero, negative, <c>int.Max/MinValue</c>,
+    /// <c>long.Max/MinValue</c>) — guards against sign-bit handling regressions.
+    /// </summary>
+    /// <param name="value">The boundary value to test.</param>
+    /// <param name="expectedEven">Whether the value is mathematically even.</param>
     [Theory]
     [InlineData(0L, true)]
     [InlineData(-2L, true)]
@@ -370,6 +476,10 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(expectedEven, calculator.IsEven);
     }
 
+    /// <summary>
+    /// Tests that <see cref="SecureBigIntCalculator.ByteRepresentation"/> matches
+    /// <see cref="SecureBigInteger.ToByteArray"/> byte-for-byte on the same source value.
+    /// </summary>
     [Fact]
     public void ByteRepresentation_ShouldReturnCorrectBytes()
     {
@@ -388,6 +498,10 @@ public class SecureBigIntCalculatorTest
             .SequenceEqual(actualPinnedPoolArray.PoolArray.Take(actualPinnedPoolArray.Length)));
     }
 
+    /// <summary>
+    /// Tests that the lazy-cached <see cref="SecureBigIntCalculator.ByteCount"/> matches
+    /// <see cref="SecureBigInteger.ByteCount"/> on the same source value.
+    /// </summary>
     [Fact]
     public void ByteCount_ShouldReturnCorrectNumberOfBytes()
     {
@@ -399,6 +513,13 @@ public class SecureBigIntCalculatorTest
         Assert.Equal(value.ByteCount, calculator.ByteCount);
     }
 
+    /// <summary>
+    /// Tests the concurrent-disposal contract: when two threads race to call
+    /// <see cref="SecureBigIntCalculator.Dispose"/>, the atomic
+    /// <see cref="System.Threading.Interlocked.Exchange(ref int, int)"/> guard ensures a
+    /// single winner. The loser sees <c>disposed == 1</c> and returns without re-entering
+    /// the underlying <c>SecureBigInteger.Dispose</c> — no double-free, no exception.
+    /// </summary>
     [Fact]
     public void Dispose_TwiceFromMultipleThreads_DoesNotDoubleFree()
     {
