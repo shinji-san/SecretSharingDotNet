@@ -39,10 +39,21 @@ using System.Threading;
 /// <see cref="Calculator"/> implementation of <see cref="SecureBigInteger"/>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Inherits the threat-model boundaries of <see cref="SecureBigInteger"/>: protected
-/// against passive memory disclosure and equality timing leaks, but the dispatched
-/// arithmetic operators are variable-time. See the <c>SecureBigInteger</c> XML doc
-/// remarks for the full breakdown and the constant-time-arithmetic future-work note.
+/// against passive memory disclosure and with constant-time arithmetic / equality
+/// primitives. See the <c>SecureBigInteger</c> XML doc remarks for the full
+/// breakdown including the <see cref="SecureBigInteger.Pow"/> exponent-is-public
+/// caveat.
+/// </para>
+/// <para>
+/// <b>Disposed-state propagation.</b> Every accessor (<see cref="IsZero"/>,
+/// <see cref="IsOne"/>, <see cref="IsEven"/>, <see cref="Sign"/>,
+/// <see cref="ByteCount"/>, <see cref="ByteRepresentation"/>) and every
+/// arithmetic operator routes through <see cref="Calculator{TNumber}.Value"/> and
+/// therefore propagates <see cref="ObjectDisposedException"/> from the wrapped
+/// <see cref="SecureBigInteger"/> once <see cref="Dispose(bool)"/> has run.
+/// </para>
 /// </remarks>
 public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
 {
@@ -120,9 +131,14 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <returns><see langword="true"/> if the value of the <paramref name="other"/> parameter is the same as the value of this instance; otherwise <see langword="false"/>.
     /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
     /// <remarks>
-    /// This method performs a constant-time comparison of the underlying byte arrays to mitigate timing attacks.
-    /// This is an important security feature for cryptographic and security-sensitive applications, as it prevents
-    /// attackers from inferring information about the values based on timing differences.
+    /// Delegates to <see cref="SecureBigInteger.Equals(SecureBigInteger)"/>, which performs a
+    /// constant-time limb-by-limb comparison: both magnitudes are zero-padded to
+    /// <c>max(left.LimbCount, right.LimbCount)</c> ulong limbs and fed to the
+    /// fixed-time <c>FixedTimeLimbsEqual</c> XOR-OR-fold primitive — no early exit on the
+    /// first differing limb and no length-mismatch fast path. The sign flag is folded into
+    /// the result via a non-short-circuiting bitwise AND. The only remaining length
+    /// observable (loop iteration count) reflects the already-public limb-buffer size,
+    /// not limb content.
     /// </remarks>
     public override bool Equals(Calculator<SecureBigInteger> other)
     {
@@ -245,7 +261,11 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <summary>
     /// Raises this <see cref="SecureBigIntCalculator"/> value to the power of a specified value.
     /// </summary>
-    /// <param name="expo">The exponent to raise this <see cref="SecureBigIntCalculator"/> value by.</param>
+    /// <param name="expo">The exponent to raise this <see cref="SecureBigIntCalculator"/> value by.
+    /// Must be treated as public: <see cref="SecureBigInteger.Pow"/> is variable-time on the
+    /// exponent value (iteration count is <c>O(log₂(expo))</c>). Callers must not pass
+    /// secret-derived exponents through this method. The per-iteration arithmetic on the
+    /// secret base remains constant-time on the public bit length.</param>
     /// <returns>The result of raising instance to the <paramref name="expo"/> power.</returns>
     public override Calculator<SecureBigInteger> Pow(int expo) => this.Value.Pow(expo);
 
@@ -285,6 +305,13 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <summary>
     /// Gets the byte representation of the <see cref="SecureBigIntCalculator"/> object.
     /// </summary>
+    /// <remarks>
+    /// Each access allocates a <b>fresh</b> <see cref="PinnedPoolArray{T}"/> via
+    /// <see cref="SecureBigInteger.ToByteArray"/>. The caller takes ownership and is
+    /// responsible for disposing the returned buffer — failing to dispose returns the
+    /// underlying pool array on finalisation rather than promptly, leaving pinned
+    /// plaintext reachable longer than necessary.
+    /// </remarks>
     public override PinnedPoolArray<byte> ByteRepresentation => this.Value.ToByteArray();
 
     /// <summary>
@@ -328,9 +355,20 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// Releases the resources used by the <see cref="SecureBigIntCalculator"/> instance.
     /// </summary>
     /// <param name="disposing">
-    /// A boolean value indicating whether the method is being called
-    /// to release both managed and unmanaged resources (true) or only unmanaged resources (false).
+    /// A boolean value indicating whether the method is being called from the explicit
+    /// <see cref="IDisposable.Dispose"/> path (<see langword="true"/>) or the finalizer
+    /// (<see langword="false"/>).
     /// </param>
+    /// <remarks>
+    /// Both paths wipe the wrapped <see cref="SecureBigInteger"/>. The standard
+    /// "skip managed resources in the finalizer" guidance is rejected here for the
+    /// same reason as <see cref="SecureBigInteger.Dispose()"/>: deferring the wipe
+    /// until <see cref="SecureBigInteger"/>'s own finalizer eventually runs creates a
+    /// non-deterministic window during which pinned plaintext stays reachable.
+    /// <see cref="SecureBigInteger.Dispose()"/> is finalizer-safe and idempotent, so
+    /// double-cascade (this finalizer plus <see cref="SecureBigInteger"/>'s own
+    /// finalizer) short-circuits on the second call.
+    /// </remarks>
     protected override void Dispose(bool disposing)
     {
         if (Interlocked.Exchange(ref this.disposed, 1) == 1)
@@ -338,12 +376,11 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
             return;
         }
 
-        if (disposing)
-        {
-            this.Value.Dispose();
-        }
+        // Wipe pinned plaintext on both Dispose() and finalizer paths to close the
+        // window between SecureBigIntCalculator finalisation and SecureBigInteger's
+        // own finalizer. SecureBigInteger.Dispose() is finalizer-safe and idempotent.
+        this.Value?.Dispose();
 
-        // Release unmanaged resources here
         base.Dispose(disposing);
     }
 }
