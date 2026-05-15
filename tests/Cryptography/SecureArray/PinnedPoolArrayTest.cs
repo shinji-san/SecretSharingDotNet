@@ -7,8 +7,18 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 
+/// <summary>
+/// Unit tests for <see cref="PinnedPoolArray{T}"/>: GC-pinned ArrayPool wrapper with secure
+/// zero-out on dispose, structural equality / comparison, length-bounded indexer, and
+/// disposed-state guards on every public surface.
+/// </summary>
 public class PinnedPoolArrayTest
 {
+    /// <summary>
+    /// Tests that a freshly constructed <see cref="PinnedPoolArray{T}"/> reports the
+    /// requested <see cref="PinnedPoolArray{T}.Length"/> and a <see cref="PinnedPoolArray{T}.Capacity"/>
+    /// equal to the underlying pool array's length and at least as large as <c>Length</c>.
+    /// </summary>
     [Fact]
     public void Constructor_ShouldAllocateArrayWithPinnedMemory()
     {
@@ -25,6 +35,11 @@ public class PinnedPoolArrayTest
         Assert.True(length <= pinnedArray.PoolArray.Length);
     }
 
+    /// <summary>
+    /// Tests that the <see cref="PinnedPoolArray{T}.Length"/> setter rejects negative values
+    /// and values exceeding <see cref="PinnedPoolArray{T}.Capacity"/> with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void Length_Setter_ShouldThrowForInvalidLength()
     {
@@ -38,6 +53,10 @@ public class PinnedPoolArrayTest
         Assert.Throws<ArgumentOutOfRangeException>(() => pinnedArray.Length = 10000);
     }
 
+    /// <summary>
+    /// Tests that assigning a valid value to the <see cref="PinnedPoolArray{T}.Length"/>
+    /// setter updates the logical length accordingly.
+    /// </summary>
     [Fact]
     public void Length_Setter_ShouldUpdateLength()
     {
@@ -55,6 +74,10 @@ public class PinnedPoolArrayTest
         Assert.True(30 < pinnedArrayLength);
     }
 
+    /// <summary>
+    /// Tests that accessing <see cref="PinnedPoolArray{T}.PoolArray"/> after
+    /// <see cref="IDisposable.Dispose"/> throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void PoolArray_ShouldThrowObjectDisposedException_WhenDisposed()
     {
@@ -66,6 +89,10 @@ public class PinnedPoolArrayTest
         Assert.Throws<ObjectDisposedException>(() => { _ = pinnedArray.PoolArray; });
     }
 
+    /// <summary>
+    /// Tests that accessing <see cref="PinnedPoolArray{T}.Capacity"/> after
+    /// <see cref="IDisposable.Dispose"/> throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Capacity_ShouldThrowObjectDisposedException_WhenDisposed()
     {
@@ -77,6 +104,10 @@ public class PinnedPoolArrayTest
         Assert.Throws<ObjectDisposedException>(() => { _ = pinnedArray.Capacity; });
     }
 
+    /// <summary>
+    /// Tests that <see cref="PinnedPoolArray{T}.SecureClear"/> zeroes every byte of the
+    /// underlying pool array after the buffer has been filled with non-zero data.
+    /// </summary>
     [Fact]
     public void SecureClear_ShouldClearArray()
     {
@@ -97,6 +128,12 @@ public class PinnedPoolArrayTest
         }
     }
 
+    /// <summary>
+    /// Tests that <see cref="PinnedPoolArray{T}.SecureClear"/> clears the full
+    /// <see cref="PinnedPoolArray{T}.Capacity"/>, not just <c>[0..Length)</c> — bytes
+    /// written through the <see cref="PinnedPoolArray{T}.PoolArray"/> escape hatch and
+    /// later hidden by shrinking <c>Length</c> must still be wiped.
+    /// </summary>
     [Fact]
     public void SecureClear_ClearsBytesBeyondLogicalLength()
     {
@@ -122,6 +159,11 @@ public class PinnedPoolArrayTest
         pinnedArray.Dispose();
     }
 
+    /// <summary>
+    /// Regression guard that a caller setting <see cref="PinnedPoolArray{T}.Length"/> to
+    /// zero before disposal cannot bypass the secure-clear pass —
+    /// <see cref="PinnedPoolArray{T}.SecureClear"/> must still zero the full capacity.
+    /// </summary>
     [Fact]
     public void SecureClear_AfterLengthSetToZero_StillClearsCapacity()
     {
@@ -147,6 +189,10 @@ public class PinnedPoolArrayTest
         pinnedArray.Dispose();
     }
 
+    /// <summary>
+    /// Tests that <see cref="IDisposable.Dispose"/> releases the pinned buffer such that
+    /// subsequent property accesses throw <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Dispose_ShouldReleasePinnedMemory()
     {
@@ -161,6 +207,10 @@ public class PinnedPoolArrayTest
         Assert.Throws<ObjectDisposedException>(() => { _ = pinnedArray.Capacity; });
     }
 
+    /// <summary>
+    /// Tests that <see cref="IDisposable.Dispose"/> is idempotent — calling it twice
+    /// does not throw.
+    /// </summary>
     [Fact]
     public void Dispose_ShouldBeIdempotent()
     {
@@ -176,6 +226,10 @@ public class PinnedPoolArrayTest
         Assert.Null(exception2);
     }
 
+    /// <summary>
+    /// Tests that an unreachable <see cref="PinnedPoolArray{T}"/> is collected by the GC —
+    /// the finalizer is wired correctly and does not keep the instance alive.
+    /// </summary>
     [Fact]
     public void Finalizer_ShouldCallDispose()
     {
@@ -198,6 +252,12 @@ public class PinnedPoolArrayTest
         }
     }
 
+    /// <summary>
+    /// Q1 regression guard: a <see cref="PinnedPoolArray{T}.SecureClear"/> call that
+    /// arrives after <see cref="IDisposable.Dispose"/> must NOT touch the pool-resident
+    /// buffer (which may already be owned by another tenant) — it must throw
+    /// <see cref="ObjectDisposedException"/> instead.
+    /// </summary>
     [Fact]
     public void SecureClear_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -212,6 +272,12 @@ public class PinnedPoolArrayTest
         Assert.Throws<ObjectDisposedException>(pinnedArray.SecureClear);
     }
 
+    /// <summary>
+    /// Q2 regression smoke-test: hammers <see cref="PinnedPoolArray{T}.SecureClear"/> from
+    /// one thread while <see cref="IDisposable.Dispose"/> runs on another. Acceptable
+    /// outcomes per iteration are clean completion or an <see cref="ObjectDisposedException"/>
+    /// in the clearer; anything else (AccessViolation, pool double-return) fails.
+    /// </summary>
     [Fact]
     public void Dispose_DrainsInFlightSecureClear()
     {
@@ -255,6 +321,10 @@ public class PinnedPoolArrayTest
         }
     }
 
+    /// <summary>
+    /// Tests that reading <see cref="PinnedPoolArray{T}.Length"/> after dispose throws
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Length_Getter_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -266,6 +336,10 @@ public class PinnedPoolArrayTest
         Assert.Throws<ObjectDisposedException>(() => { _ = arr.Length; });
     }
 
+    /// <summary>
+    /// Tests that assigning to <see cref="PinnedPoolArray{T}.Length"/> after dispose
+    /// throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Length_Setter_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -277,6 +351,10 @@ public class PinnedPoolArrayTest
         Assert.Throws<ObjectDisposedException>(() => { arr.Length = 10; });
     }
 
+    /// <summary>
+    /// Tests that <c>Equals</c> with a <see cref="CountedEqualityComparer{T}"/> on a
+    /// disposed receiver throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Equals_WithCountedComparer_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -290,6 +368,10 @@ public class PinnedPoolArrayTest
             () => arr.Equals(other, new CountedEqualityComparer<byte>(50)));
     }
 
+    /// <summary>
+    /// Tests that <c>GetHashCode</c> with a <see cref="CountedEqualityComparer{T}"/> on a
+    /// disposed receiver throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void GetHashCode_WithCountedComparer_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -302,6 +384,10 @@ public class PinnedPoolArrayTest
             () => arr.GetHashCode(new CountedEqualityComparer<byte>(50)));
     }
 
+    /// <summary>
+    /// Tests that <see cref="IStructuralComparable.CompareTo"/> on a disposed receiver
+    /// throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -315,6 +401,10 @@ public class PinnedPoolArrayTest
             () => ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default));
     }
 
+    /// <summary>
+    /// Tests that <see cref="IStructuralComparable.CompareTo"/> against a disposed
+    /// <paramref name="other"/> argument throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_OtherDisposed_ThrowsObjectDisposedException()
     {
@@ -328,6 +418,10 @@ public class PinnedPoolArrayTest
             () => ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default));
     }
 
+    /// <summary>
+    /// Tests that <see cref="IStructuralComparable.CompareTo"/> rejects a
+    /// <see langword="null"/> comparer with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_NullComparer_ThrowsArgumentNullException()
     {
@@ -340,6 +434,12 @@ public class PinnedPoolArrayTest
             () => ((IStructuralComparable)arr).CompareTo(other, null));
     }
 
+    /// <summary>
+    /// Tests that argument validation precedes the
+    /// <see cref="IStructuralComparable.CompareTo"/> "null is less than anything"
+    /// shortcut — a null <c>comparer</c> raises <see cref="ArgumentNullException"/>
+    /// even when <c>other</c> is also null.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_NullOther_NullComparer_PrefersArgumentNullException()
     {
@@ -353,6 +453,10 @@ public class PinnedPoolArrayTest
             () => ((IStructuralComparable)arr).CompareTo(null, null));
     }
 
+    /// <summary>
+    /// Tests that <c>Equals(other, comparer)</c> rejects a <see langword="null"/>
+    /// comparer with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void Equals_NullComparer_ThrowsArgumentNullException()
     {
@@ -365,6 +469,10 @@ public class PinnedPoolArrayTest
             () => arr.Equals(other, null));
     }
 
+    /// <summary>
+    /// Tests that <c>Equals(other, comparer)</c> against a disposed
+    /// <paramref name="other"/> throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Equals_OtherPinnedArrayDisposed_ThrowsObjectDisposedException()
     {
@@ -378,6 +486,10 @@ public class PinnedPoolArrayTest
             () => arr.Equals(other, new CountedEqualityComparer<byte>(50)));
     }
 
+    /// <summary>
+    /// Tests that <c>GetHashCode(comparer)</c> rejects a <see langword="null"/>
+    /// comparer with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void GetHashCode_NullComparer_ThrowsArgumentNullException()
     {
@@ -389,6 +501,11 @@ public class PinnedPoolArrayTest
             () => arr.GetHashCode(null));
     }
 
+    /// <summary>
+    /// Tests that two pinned arrays holding the same byte sequence produce the same
+    /// <c>GetHashCode</c> result under a <see cref="CountedEqualityComparer{T}"/> with
+    /// matching count — the <c>Equals</c>/<c>GetHashCode</c> contract.
+    /// </summary>
     [Fact]
     public void GetHashCode_EqualArraysWithSameComparer_ProduceSameHash()
     {
@@ -409,6 +526,10 @@ public class PinnedPoolArrayTest
         Assert.Equal(hash1, hash2);
     }
 
+    /// <summary>
+    /// Tests that two pinned arrays differing in a single byte produce different
+    /// <c>GetHashCode</c> results — minimum quality bound on the hash function.
+    /// </summary>
     [Fact]
     public void GetHashCode_DifferentBytes_ProduceDifferentHash()
     {
@@ -431,6 +552,11 @@ public class PinnedPoolArrayTest
         Assert.NotEqual(hash1, hash2);
     }
 
+    /// <summary>
+    /// Tests that <c>GetHashCode(comparer)</c> rejects any
+    /// <see cref="IEqualityComparer{T}"/> that is not a
+    /// <see cref="CountedEqualityComparer{T}"/> with <see cref="ArgumentException"/>.
+    /// </summary>
     [Fact]
     public void GetHashCode_ComparerNotCounted_ThrowsArgumentException()
     {
@@ -442,6 +568,12 @@ public class PinnedPoolArrayTest
             () => arr.GetHashCode(EqualityComparer<byte>.Default));
     }
 
+    /// <summary>
+    /// Tests that <c>GetHashCode(comparer)</c> throws
+    /// <see cref="ArgumentOutOfRangeException"/> when the
+    /// <see cref="CountedEqualityComparer{T}"/>'s count exceeds the receiver's
+    /// <see cref="PinnedPoolArray{T}.Length"/>.
+    /// </summary>
     [Fact]
     public void GetHashCode_CountExceedsLength_ThrowsArgumentOutOfRangeException()
     {
@@ -453,6 +585,10 @@ public class PinnedPoolArrayTest
             () => arr.GetHashCode(new CountedEqualityComparer<byte>(8)));
     }
 
+    /// <summary>
+    /// Tests that <c>Equals</c> returns <see langword="true"/> for a reference-equal
+    /// receiver/argument pair — reflexive equality.
+    /// </summary>
     [Fact]
     public void Equals_ReferenceEqualsSelf_ReturnsTrue()
     {
@@ -466,6 +602,11 @@ public class PinnedPoolArrayTest
         Assert.True(result);
     }
 
+    /// <summary>
+    /// Tests that <c>Equals(raw, comparer)</c> returns <see langword="true"/> when the
+    /// <see cref="PinnedPoolArray{T}"/> and a raw <see cref="T:T[]"/> hold the same
+    /// byte sequence.
+    /// </summary>
     [Fact]
     public void Equals_OtherIsRawArrayWithMatchingBytes_ReturnsTrue()
     {
@@ -485,6 +626,10 @@ public class PinnedPoolArrayTest
         Assert.True(result);
     }
 
+    /// <summary>
+    /// Tests that <c>Equals(other, comparer)</c> returns <see langword="true"/> for two
+    /// <see cref="PinnedPoolArray{T}"/> instances holding the same byte sequence.
+    /// </summary>
     [Fact]
     public void Equals_OtherIsPinnedPoolArrayWithMatchingBytes_ReturnsTrue()
     {
@@ -504,6 +649,10 @@ public class PinnedPoolArrayTest
         Assert.True(result);
     }
 
+    /// <summary>
+    /// Tests that <c>Equals(other, comparer)</c> returns <see langword="false"/> when the
+    /// two <see cref="PinnedPoolArray{T}"/> instances differ in a single byte.
+    /// </summary>
     [Fact]
     public void Equals_OtherIsPinnedPoolArrayWithDifferingByte_ReturnsFalse()
     {
@@ -525,6 +674,11 @@ public class PinnedPoolArrayTest
         Assert.False(result);
     }
 
+    /// <summary>
+    /// Tests that <c>Equals(other, comparer)</c> returns <see langword="false"/> when
+    /// <paramref name="other"/> is neither a raw array nor a
+    /// <see cref="PinnedPoolArray{T}"/>.
+    /// </summary>
     [Fact]
     public void Equals_OtherIsUnsupportedType_ReturnsFalse()
     {
@@ -538,6 +692,11 @@ public class PinnedPoolArrayTest
         Assert.False(result);
     }
 
+    /// <summary>
+    /// Tests that <c>Equals(other, comparer)</c> rejects any
+    /// <see cref="IEqualityComparer{T}"/> that is not a
+    /// <see cref="CountedEqualityComparer{T}"/> with <see cref="ArgumentException"/>.
+    /// </summary>
     [Fact]
     public void Equals_ComparerNotCounted_ThrowsArgumentException()
     {
@@ -550,6 +709,12 @@ public class PinnedPoolArrayTest
             () => arr.Equals(other, EqualityComparer<byte>.Default));
     }
 
+    /// <summary>
+    /// Tests that <c>Equals(other, comparer)</c> throws
+    /// <see cref="ArgumentOutOfRangeException"/> when the
+    /// <see cref="CountedEqualityComparer{T}"/>'s count exceeds the receiver's
+    /// <see cref="PinnedPoolArray{T}.Length"/>.
+    /// </summary>
     [Fact]
     public void Equals_CountExceedsLength_ThrowsArgumentOutOfRangeException()
     {
@@ -562,6 +727,10 @@ public class PinnedPoolArrayTest
             () => arr.Equals(other, new CountedEqualityComparer<byte>(8)));
     }
 
+    /// <summary>
+    /// Tests that <see cref="IStructuralComparable.CompareTo"/> returns zero for two
+    /// <see cref="PinnedPoolArray{T}"/> instances holding identical byte sequences.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_EqualArrays_ReturnsZero()
     {
@@ -581,6 +750,10 @@ public class PinnedPoolArrayTest
         Assert.Equal(0, result);
     }
 
+    /// <summary>
+    /// Tests that <see cref="IStructuralComparable.CompareTo"/> returns a negative value
+    /// when the receiver is lexicographically less than <paramref name="other"/>.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_ThisLessThanOther_ReturnsNegative()
     {
@@ -599,6 +772,10 @@ public class PinnedPoolArrayTest
         Assert.True(result < 0);
     }
 
+    /// <summary>
+    /// Tests that <see cref="IStructuralComparable.CompareTo"/> returns a positive value
+    /// when the receiver is lexicographically greater than <paramref name="other"/>.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_ThisGreaterThanOther_ReturnsPositive()
     {
@@ -615,6 +792,11 @@ public class PinnedPoolArrayTest
         Assert.True(result > 0);
     }
 
+    /// <summary>
+    /// Tests that <see cref="IStructuralComparable.CompareTo"/> with a non-null comparer
+    /// and a <see langword="null"/> <paramref name="other"/> returns <c>1</c> —
+    /// "null is less than anything" convention.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_NullOther_ReturnsOne()
     {
@@ -628,6 +810,11 @@ public class PinnedPoolArrayTest
         Assert.Equal(1, result);
     }
 
+    /// <summary>
+    /// Tests that <see cref="IStructuralComparable.CompareTo"/> throws
+    /// <see cref="ArgumentException"/> when <paramref name="other"/> is not a
+    /// <see cref="PinnedPoolArray{T}"/> — a raw array argument is not supported.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_OtherNotPinnedPoolArray_ThrowsArgumentException()
     {
@@ -639,6 +826,11 @@ public class PinnedPoolArrayTest
             () => ((IStructuralComparable)arr).CompareTo(new byte[] { 1, 2, 3, 4 }, Comparer<object>.Default));
     }
 
+    /// <summary>
+    /// Tests that <see cref="IStructuralComparable.CompareTo"/> throws
+    /// <see cref="ArgumentException"/> when the receiver and <paramref name="other"/>
+    /// have different <see cref="PinnedPoolArray{T}.Length"/>s.
+    /// </summary>
     [Fact]
     public void StructuralCompareTo_LengthMismatch_ThrowsArgumentException()
     {
@@ -651,6 +843,10 @@ public class PinnedPoolArrayTest
             () => ((IStructuralComparable)arr).CompareTo(other, Comparer<object>.Default));
     }
 
+    /// <summary>
+    /// Tests that the indexer getter returns the byte previously written via the
+    /// <see cref="PinnedPoolArray{T}.PoolArray"/> escape hatch at the same index.
+    /// </summary>
     [Fact]
     public void Indexer_Get_ValidIndex_ReturnsStoredValue()
     {
@@ -662,6 +858,10 @@ public class PinnedPoolArrayTest
         Assert.Equal(0x42, arr[3]);
     }
 
+    /// <summary>
+    /// Tests that the indexer getter rejects a negative index with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void Indexer_Get_NegativeIndex_ThrowsArgumentOutOfRangeException()
     {
@@ -672,6 +872,11 @@ public class PinnedPoolArrayTest
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[-1]);
     }
 
+    /// <summary>
+    /// Tests that the indexer getter rejects an index equal to or beyond
+    /// <see cref="PinnedPoolArray{T}.Length"/> with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void Indexer_Get_IndexAtOrBeyondLength_ThrowsArgumentOutOfRangeException()
     {
@@ -683,6 +888,10 @@ public class PinnedPoolArrayTest
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[100]);
     }
 
+    /// <summary>
+    /// Tests that the indexer getter on a disposed receiver throws
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Indexer_Get_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -694,6 +903,10 @@ public class PinnedPoolArrayTest
         Assert.Throws<ObjectDisposedException>(() => arr[0]);
     }
 
+    /// <summary>
+    /// Tests that the indexer setter writes the value at the requested index, observable
+    /// through the <see cref="PinnedPoolArray{T}.PoolArray"/> escape hatch.
+    /// </summary>
     [Fact]
     public void Indexer_Set_ValidIndex_StoresValue()
     {
@@ -707,6 +920,10 @@ public class PinnedPoolArrayTest
         Assert.Equal((byte)0x42, arr.PoolArray[3]);
     }
 
+    /// <summary>
+    /// Tests that the indexer setter rejects a negative index with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void Indexer_Set_NegativeIndex_ThrowsArgumentOutOfRangeException()
     {
@@ -717,6 +934,11 @@ public class PinnedPoolArrayTest
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[-1] = 0);
     }
 
+    /// <summary>
+    /// Tests that the indexer setter rejects an index equal to or beyond
+    /// <see cref="PinnedPoolArray{T}.Length"/> with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void Indexer_Set_IndexAtOrBeyondLength_ThrowsArgumentOutOfRangeException()
     {
@@ -728,6 +950,10 @@ public class PinnedPoolArrayTest
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[100] = 0);
     }
 
+    /// <summary>
+    /// Tests that the indexer setter on a disposed receiver throws
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Indexer_Set_AfterDispose_ThrowsObjectDisposedException()
     {
@@ -739,6 +965,12 @@ public class PinnedPoolArrayTest
         Assert.Throws<ObjectDisposedException>(() => arr[0] = 1);
     }
 
+    /// <summary>
+    /// Tests that after shrinking <see cref="PinnedPoolArray{T}.Length"/>, indices in
+    /// <c>[Length..Capacity)</c> throw <see cref="ArgumentOutOfRangeException"/> for both
+    /// getter and setter — the <see cref="PinnedPoolArray{T}.PoolArray"/> escape hatch is
+    /// the only way to touch those bytes.
+    /// </summary>
     [Fact]
     public void Indexer_RespectsLengthNotCapacity()
     {
@@ -753,6 +985,11 @@ public class PinnedPoolArrayTest
         Assert.Throws<ArgumentOutOfRangeException>(() => arr[4] = 1);
     }
 
+    /// <summary>
+    /// Tests that concurrent <see cref="IDisposable.Dispose"/> calls from two threads do
+    /// not return the same array to the pool twice (ArrayPool surfaces double-return via
+    /// <see cref="InvalidOperationException"/> on some TFMs).
+    /// </summary>
     [Fact]
     public void Dispose_TwiceFromMultipleThreads_DoesNotDoubleFree()
     {
