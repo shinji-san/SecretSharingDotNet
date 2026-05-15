@@ -470,7 +470,7 @@ public class SecretTest
 #if DEBUG
         Assert.Equal(secretText, secret.ToString());
 #else
-        Assert.Equal("*** Secured Value ***", secret.ToString());
+        Assert.Equal(TestData.SecuredValueSentinel, secret.ToString());
 #endif
     }
 
@@ -569,8 +569,8 @@ public class SecretTest
     /// </summary>
     /// <param name="base64Secret">Secret as base64 string</param>
     [Theory]
-    [InlineData("UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=")]
-    [InlineData("TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu")]
+    [InlineData(TestData.Base64GermanPangram)]
+    [InlineData(TestData.Base64SimpleSentence)]
     [InlineData("bGlnaHQgd29yaw==")]
     [InlineData("bGlnaHQgd29yay4=")]
     public void ToBase64String_FromValidSecret_ReturnsSecretAsBase64String(string base64Secret)
@@ -587,7 +587,7 @@ public class SecretTest
         Assert.Equal(base64Secret, actualBase64Secret);
 #else
         // Assert
-        Assert.Equal("*** Secured Value ***", secret.ToBase64String());
+        Assert.Equal(TestData.SecuredValueSentinel, secret.ToBase64String());
 #endif
     }
 
@@ -596,8 +596,8 @@ public class SecretTest
     /// </summary>
     /// <param name="base64Secret">Secret as base64 string</param>
     [Theory]
-    [InlineData("UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=")]
-    [InlineData("TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu")]
+    [InlineData(TestData.Base64GermanPangram)]
+    [InlineData(TestData.Base64SimpleSentence)]
     [InlineData("bGlnaHQgd29yaw==")]
     [InlineData("bGlnaHQgd29yay4=")]
     public void ToBase64CharArray_FromValidSecret_ReturnsSecretAsBase64CharArray(string base64Secret)
@@ -870,8 +870,8 @@ public class SecretTest
     /// </summary>
     /// <param name="base64">A valid Base64 string.</param>
     [Theory]
-    [InlineData("UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=")]
-    [InlineData("TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu")]
+    [InlineData(TestData.Base64GermanPangram)]
+    [InlineData(TestData.Base64SimpleSentence)]
     [InlineData("bGlnaHQgd29yaw==")]
     [InlineData("bGlnaHQgd29yay4=")]
     public void FromBase64_PinnedPoolArrayChar_RoundTripsViaToBase64CharArray(string base64)
@@ -897,7 +897,7 @@ public class SecretTest
     {
         // Arrange — same payload as the bare-string Theory case, but split across "lines"
         // and with miscellaneous whitespace types (LF, CR, space, tab, FF, VT) injected.
-        const string raw = "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu";
+        const string raw = TestData.Base64SimpleSentence;
         var paddedBuilder = new StringBuilder();
         var whitespaces = new[] { "\n", "\r", " ", "\t", "\f", "\v", "\r\n" };
         for (int i = 0; i < raw.Length; i += 4)
@@ -930,7 +930,7 @@ public class SecretTest
     {
         // Arrange
         // Independent oracle: bytes must match Convert.FromBase64String exactly.
-        const string base64 = "UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=";
+        const string base64 = TestData.Base64GermanPangram;
         byte[] expected = Convert.FromBase64String(base64);
 
         // Act
@@ -1073,7 +1073,7 @@ public class SecretTest
     public void FromBase64_PinnedPoolArrayChar_DoesNotConsumeInput()
     {
         // Arrange
-        const string base64 = "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu";
+        const string base64 = TestData.Base64SimpleSentence;
         using var pinnedBase64 = base64.ToPinnedSecure();
 
         // Act

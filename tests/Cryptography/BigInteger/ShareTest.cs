@@ -234,7 +234,7 @@ public class ShareTest
 #if DEBUG
         Assert.Equal(expected, share.ToString());
 #else
-        Assert.Equal("*** Secured Value ***", share.ToString());
+        Assert.Equal(TestData.SecuredValueSentinel, share.ToString());
 #endif
     }
 
@@ -280,7 +280,7 @@ public class ShareTest
 #if DEBUG
         Assert.Equal(expected, actual);
 #else
-        Assert.Equal("*** Secured Value ***", actual);
+        Assert.Equal(TestData.SecuredValueSentinel, actual);
 #endif
     }
 
@@ -733,7 +733,7 @@ public class ShareTest
         Assert.Throws<ObjectDisposedException>(share.ToString);
 #else
         // Release ToString returns literal, no state access
-        Assert.Equal("*** Secured Value ***", share.ToString());
+        Assert.Equal(TestData.SecuredValueSentinel, share.ToString());
 #endif
     }
 

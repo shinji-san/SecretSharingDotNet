@@ -250,9 +250,9 @@ public class MersenneSafeGcdAlgorithmTest
     [InlineData("8191", "0", "8191", 13)]
     [InlineData("2147483647", "2", "1", 31)]
     [InlineData("2147483647", "999999937", "1", 31)]
-    [InlineData("170141183460469231731687303715884105727", "1", "1", 127)]
-    [InlineData("170141183460469231731687303715884105727", "3000", "1", 127)]
-    [InlineData("170141183460469231731687303715884105727", "0", "170141183460469231731687303715884105727", 127)]
+    [InlineData(TestData.M127Decimal, "1", "1", 127)]
+    [InlineData(TestData.M127Decimal, "3000", "1", 127)]
+    [InlineData(TestData.M127Decimal, "0", TestData.M127Decimal, 127)]
     public void ExtendedGcd_MatchesBclBigInteger(string fDec, string gDec, string expectedGcdDec, int bitLengthBound)
     {
         // Arrange

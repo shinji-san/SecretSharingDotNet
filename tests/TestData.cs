@@ -42,6 +42,35 @@ public static class TestData
     public const string DefaultTestPassword = "Hello World!!";
 
     /// <summary>
+    /// Redaction sentinel that <c>SecureBigInteger.ToString()</c> (and types embedding
+    /// it) emit in release builds in place of the actual value.
+    /// </summary>
+    public const string SecuredValueSentinel = "*** Secured Value ***";
+
+    /// <summary>
+    /// Decimal representation of the Mersenne prime M127 = 2^127 - 1.
+    /// </summary>
+    public const string M127Decimal = "170141183460469231731687303715884105727";
+
+    /// <summary>
+    /// Decimal representation of the negation of the Mersenne prime M127.
+    /// </summary>
+    public const string M127NegDecimal = "-170141183460469231731687303715884105727";
+
+    /// <summary>
+    /// Base64 encoding of the ASCII proverb <c>"Many hands make light work."</c>.
+    /// Used as a compact Base64 round-trip / decode fixture.
+    /// </summary>
+    public const string Base64SimpleSentence = "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu";
+
+    /// <summary>
+    /// Base64 encoding of a German pangram with diacritics (<c>"Polyfon zwitschernd
+    /// aßen Mäxchens Vögel Rüben, Joghurt und Quark"</c>). Used to exercise multi-byte
+    /// UTF-8 in the Base64 surface.
+    /// </summary>
+    public const string Base64GermanPangram = "UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=";
+
+    /// <summary>
     /// A positive test number as secret (value is 2000).
     /// </summary>
     public static BigInteger DefaultPosTestNumber => 20000;

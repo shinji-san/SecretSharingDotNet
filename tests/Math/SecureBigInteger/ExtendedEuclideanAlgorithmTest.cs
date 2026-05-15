@@ -88,11 +88,11 @@ public class ExtendedEuclideanAlgorithmTest
     // was removed in D3. The BezoutCoefficients[0] / [1] convention pins
     // expectedCoefficientForA → BezoutCoefficients[0] and
     // expectedCoefficientForB → BezoutCoefficients[1].
-    [InlineData("2", "170141183460469231731687303715884105727", "-85070591730234615865843651857942052863", "1")]
-    [InlineData("-1", "170141183460469231731687303715884105727", "1", "0")]
-    [InlineData("-4", "170141183460469231731687303715884105727", "42535295865117307932921825928971026432", "1")]
-    [InlineData("170141183460469231731687303715884105727", "-1", "0", "1")]
-    [InlineData("170141183460469231731687303715884105727", "-4", "1", "42535295865117307932921825928971026432")]
+    [InlineData("2", TestData.M127Decimal, "-85070591730234615865843651857942052863", "1")]
+    [InlineData("-1", TestData.M127Decimal, "1", "0")]
+    [InlineData("-4", TestData.M127Decimal, "42535295865117307932921825928971026432", "1")]
+    [InlineData(TestData.M127Decimal, "-1", "0", "1")]
+    [InlineData(TestData.M127Decimal, "-4", "1", "42535295865117307932921825928971026432")]
     public void Compute_ProducesExpectedBezoutCoefficients(
         string operandA,
         string operandB,

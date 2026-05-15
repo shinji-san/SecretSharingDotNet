@@ -103,7 +103,7 @@ public class SharesTest
 #if DEBUG
         Assert.Equal(text, shares.ToString());
 #else
-        Assert.Equal("*** Secured Value ***", shares.ToString());
+        Assert.Equal(TestData.SecuredValueSentinel, shares.ToString());
 #endif
     }
 

@@ -72,7 +72,7 @@ public class ExtendedEuclideanAlgorithmTest
     public void Compute_TwoPositiveOperands_ReturnsExpectedBezoutCoefficients()
     {
         // Act
-        using var result = this.gcd.Compute(BigInteger.Parse("2", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
+        using var result = this.gcd.Compute(BigInteger.Parse("2", CultureInfo.InvariantCulture), BigInteger.Parse(TestData.M127Decimal, CultureInfo.InvariantCulture));
 
         // Assert
         Assert.Equal(BigInteger.Parse("-85070591730234615865843651857942052863", CultureInfo.InvariantCulture), result.BezoutCoefficients[0].Value);
@@ -88,7 +88,7 @@ public class ExtendedEuclideanAlgorithmTest
     public void Compute_NegativeOneAndMersennePrime_ReturnsExpectedBezoutCoefficients()
     {
         // Act
-        using var result = this.gcd.Compute(BigInteger.Parse("-1", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
+        using var result = this.gcd.Compute(BigInteger.Parse("-1", CultureInfo.InvariantCulture), BigInteger.Parse(TestData.M127Decimal, CultureInfo.InvariantCulture));
 
         // Assert
         Assert.Equal(BigInteger.One, result.BezoutCoefficients[0].Value);
@@ -104,7 +104,7 @@ public class ExtendedEuclideanAlgorithmTest
     public void Compute_NegativeFourAndMersennePrime_ReturnsExpectedBezoutCoefficients()
     {
         // Act
-        using var result = this.gcd.Compute(BigInteger.Parse("-4", CultureInfo.InvariantCulture), BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture));
+        using var result = this.gcd.Compute(BigInteger.Parse("-4", CultureInfo.InvariantCulture), BigInteger.Parse(TestData.M127Decimal, CultureInfo.InvariantCulture));
 
         // Assert
         Assert.Equal(BigInteger.Parse("42535295865117307932921825928971026432", CultureInfo.InvariantCulture), result.BezoutCoefficients[0].Value);
@@ -120,7 +120,7 @@ public class ExtendedEuclideanAlgorithmTest
     public void Compute_MersennePrimeAndNegativeOne_ReturnsExpectedBezoutCoefficients()
     {
         // Act
-        using var result = this.gcd.Compute(BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture), BigInteger.Parse("-1", CultureInfo.InvariantCulture));
+        using var result = this.gcd.Compute(BigInteger.Parse(TestData.M127Decimal, CultureInfo.InvariantCulture), BigInteger.Parse("-1", CultureInfo.InvariantCulture));
 
         // Assert
         Assert.Equal(BigInteger.Zero, result.BezoutCoefficients[0].Value);
@@ -136,7 +136,7 @@ public class ExtendedEuclideanAlgorithmTest
     public void Compute_MersennePrimeAndNegativeFour_ReturnsExpectedBezoutCoefficients()
     {
         // Act
-        using var result = this.gcd.Compute(BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture), BigInteger.Parse("-4", CultureInfo.InvariantCulture));
+        using var result = this.gcd.Compute(BigInteger.Parse(TestData.M127Decimal, CultureInfo.InvariantCulture), BigInteger.Parse("-4", CultureInfo.InvariantCulture));
 
         // Assert
         Assert.Equal(BigInteger.One, result.BezoutCoefficients[0].Value);

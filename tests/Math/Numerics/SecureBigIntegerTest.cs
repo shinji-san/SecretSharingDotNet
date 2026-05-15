@@ -1462,7 +1462,7 @@ public class SecureBigIntegerTests
 #if DEBUG
         Assert.Equal(expected, num.ToString());
 #else
-        Assert.Equal("*** Secured Value ***", num.ToString());
+        Assert.Equal(TestData.SecuredValueSentinel, num.ToString());
 #endif
     }
     
@@ -1628,7 +1628,7 @@ public class SecureBigIntegerTests
     [InlineData("12345678901234567890123456789012345678901234567890", 1)]
     [InlineData("987654321098765432109876543210987654321098765432109876543210", 1)]
     [InlineData("-987654321098765432109876543210987654321098765432109876543210", -1)]
-    [InlineData("170141183460469231731687303715884105727", 1)]
+    [InlineData(TestData.M127Decimal, 1)]
     public void VeryLargeNumber_CanBeCreatedAndUsed(string decimalValue, int expectedSign)
     {
         // Arrange & Act
@@ -2523,8 +2523,8 @@ public class SecureBigIntegerTests
     [InlineData("-255")]
     [InlineData("65536")]
     [InlineData("123456789012345678901234567890")]
-    [InlineData("170141183460469231731687303715884105727")]
-    [InlineData("-170141183460469231731687303715884105727")]
+    [InlineData(TestData.M127Decimal)]
+    [InlineData(TestData.M127NegDecimal)]
     public void FromHexadecimal_RoundTripWithToHexadecimal_PreservesValue(string decimalValue)
     {
         // Arrange
@@ -2564,7 +2564,7 @@ public class SecureBigIntegerTests
     [InlineData(31, "2147483648")]
     [InlineData(61, "2305843009213693951")]
     [InlineData(127, "0")]
-    [InlineData(127, "170141183460469231731687303715884105727")]
+    [InlineData(127, TestData.M127Decimal)]
     [InlineData(127, "170141183460469231731687303715884105728")]
     [InlineData(127, "340282366920938463463374607431768211454")]
     [InlineData(127, "28948022309329048855892746252171976962977213799489202546401021394546514198529")]
@@ -2627,7 +2627,7 @@ public class SecureBigIntegerTests
     // alongside the typical M_p - residue pattern.
     [InlineData(127, "-1")]
     [InlineData(127, "-3000")]
-    [InlineData(127, "-170141183460469231731687303715884105727")]
+    [InlineData(127, TestData.M127NegDecimal)]
     [InlineData(127, "-170141183460469231731687303715884105728")]
     [InlineData(127, "-340282366920938463463374607431768211454")]
     [InlineData(31, "-2147483647")]
