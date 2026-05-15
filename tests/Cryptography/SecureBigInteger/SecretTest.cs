@@ -838,6 +838,12 @@ public class SecretTest
         Assert.Throws<ObjectDisposedException>(() => Secret<SecureBigInteger>.FromText(pinnedText));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> followed by
+    /// <see cref="Secret{TNumber}.ToBase64CharArray()"/> reproduces the original Base64
+    /// input verbatim across representative payloads.
+    /// </summary>
+    /// <param name="base64">A valid Base64 string.</param>
     [Theory]
     [InlineData("UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=")]
     [InlineData("TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu")]
@@ -856,6 +862,11 @@ public class SecretTest
         Assert.Equal(base64, new string(roundTrip.PoolArray, 0, roundTrip.Length));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> tolerates
+    /// interior whitespace (LF, CR, SP, TAB, FF, VT, CRLF) inside the Base64 payload — the
+    /// reconstructed secret matches the whitespace-free original.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_IgnoresInteriorWhitespace()
     {
@@ -884,6 +895,11 @@ public class SecretTest
         Assert.Equal(raw, new string(roundTrip.PoolArray, 0, roundTrip.Length));
     }
 
+    /// <summary>
+    /// Cross-checks <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> against
+    /// the BCL's <see cref="Convert.FromBase64String(string)"/>: decoded bytes must match
+    /// exactly — independent oracle for the library's pinned Base64 decoder.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_EquivalentToConvertFromBase64String()
     {
@@ -901,6 +917,11 @@ public class SecretTest
         Assert.Equal(expected, bytes.PoolArray.Take(bytes.Length));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> rejects a
+    /// non-Base64 character with <see cref="FormatException"/>, and the exception message
+    /// names both the offending character and its position.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_InvalidChar_ThrowsFormatExceptionWithPosition()
     {
@@ -917,6 +938,11 @@ public class SecretTest
         Assert.Contains("4", ex.Message);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> rejects a
+    /// Base64 input whose non-whitespace length is not a multiple of four with
+    /// <see cref="FormatException"/>.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_NotMultipleOfFour_ThrowsFormatException()
     {
@@ -927,6 +953,11 @@ public class SecretTest
         Assert.Throws<FormatException>(() => Secret<SecureBigInteger>.FromBase64(pinnedBase64));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> rejects
+    /// Base64 input with more than two trailing <c>=</c> pad characters with
+    /// <see cref="FormatException"/>.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_TooManyPads_ThrowsFormatException()
     {
@@ -937,6 +968,11 @@ public class SecretTest
         Assert.Throws<FormatException>(() => Secret<SecureBigInteger>.FromBase64(pinnedBase64));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> rejects
+    /// Base64 input where a non-<c>=</c> character follows an existing <c>=</c> pad with
+    /// <see cref="FormatException"/>.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_NonPadAfterPad_ThrowsFormatException()
     {
@@ -948,6 +984,11 @@ public class SecretTest
         Assert.Throws<FormatException>(() => Secret<SecureBigInteger>.FromBase64(pinnedBase64));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> rejects a
+    /// buffer that contains only whitespace with <see cref="ArgumentException"/> — the
+    /// caller's <c>FromBase64</c> contract requires at least one Base64 character.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_OnlyWhitespace_ThrowsArgumentException()
     {
@@ -958,6 +999,10 @@ public class SecretTest
         Assert.Throws<ArgumentException>(() => Secret<SecureBigInteger>.FromBase64(pinnedBase64));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> rejects a
+    /// zero-length pinned buffer with <see cref="ArgumentException"/>.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_EmptyBuffer_ThrowsArgumentException()
     {
@@ -968,12 +1013,21 @@ public class SecretTest
         Assert.Throws<ArgumentException>(() => Secret<SecureBigInteger>.FromBase64(pinnedBase64));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> rejects a
+    /// <see langword="null"/> argument with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_NullBuffer_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() => Secret<SecureBigInteger>.FromBase64(null));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> throws
+    /// <see cref="ObjectDisposedException"/> when the input pinned buffer has already
+    /// been disposed.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_DisposedBuffer_ThrowsObjectDisposedException()
     {
@@ -985,6 +1039,11 @@ public class SecretTest
         Assert.Throws<ObjectDisposedException>(() => Secret<SecureBigInteger>.FromBase64(pinnedBase64));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.FromBase64(PinnedPoolArray{char})"/> does not
+    /// consume or mutate the caller-owned input buffer — the pinned bytes remain intact
+    /// after the call returns.
+    /// </summary>
     [Fact]
     public void FromBase64_PinnedPoolArrayChar_DoesNotConsumeInput()
     {

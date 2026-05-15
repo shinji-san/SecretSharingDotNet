@@ -7,11 +7,25 @@ using SecretSharingDotNet.Math.Numerics;
 using System;
 using Xunit;
 
+/// <summary>
+/// Tests for <see cref="Share{TNumber}"/> on the <see cref="SecureBigInteger"/> backend —
+/// mirror of the BigInteger-side test class with the same coverage matrix (construction
+/// paths, hex serialization, comparison, cascade-disposal contract). Inline data uses
+/// <see cref="ulong"/> / <see cref="long"/> instead of <see cref="System.Numerics.BigInteger"/>
+/// because the latter is not a valid <see cref="InlineDataAttribute"/> argument type.
+/// </summary>
 public class ShareTest
 {
     private const string Share1TextRepresentation = "01-2929AA3E809003D578AA69B1C3E6F62C517437FEFBAD5BFBB240";
     private const string Share2TextRepresentation = "02-665C74ED38FDFF095B2FC9319A272A75";
 
+    /// <summary>
+    /// Tests that the <c>(index, value)</c> constructor stores both calculators verbatim
+    /// across small, edge, and above-<see cref="long.MaxValue"/> inputs — the high-value
+    /// row exercises the <see cref="ulong"/> implicit conversion path.
+    /// </summary>
+    /// <param name="index">Share index (x-coordinate).</param>
+    /// <param name="value">Share value (y-coordinate).</param>
     [Theory]
     [InlineData(5UL, 10UL)]
     [InlineData(1UL, 0UL)]
@@ -31,6 +45,11 @@ public class ShareTest
         Assert.Equal(expectedValue, share.Value);
     }
 
+    /// <summary>
+    /// Tests that the <c>(index, value)</c> constructor rejects a negative index with
+    /// <see cref="ArgumentOutOfRangeException"/> — share x-coordinates must be positive.
+    /// </summary>
+    /// <param name="index">A negative index value.</param>
     [Theory]
     [InlineData(-1)]
     [InlineData(-50)]
@@ -44,6 +63,11 @@ public class ShareTest
         Assert.Throws<ArgumentOutOfRangeException>(() => new Share<SecureBigInteger>((SecureBigInteger)index, value));
     }
 
+    /// <summary>
+    /// Tests that the <c>(index, value)</c> constructor rejects an index of zero with
+    /// <see cref="ArgumentOutOfRangeException"/> — index 0 is reserved for the Lagrange
+    /// reconstruction point.
+    /// </summary>
     [Fact]
     public void Constructor_DefaultIndexValue_ShouldThrowArgumentOutOfRangeException()
     {
@@ -55,6 +79,10 @@ public class ShareTest
         Assert.Throws<ArgumentOutOfRangeException>(() => new Share<SecureBigInteger>(index, value));
     }
 
+    /// <summary>
+    /// Tests that the <c>(index, value)</c> constructor rejects a <see langword="null"/>
+    /// index with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void Constructor_NullIndex_ThrowsArgumentNullException()
     {
@@ -67,6 +95,10 @@ public class ShareTest
         Assert.Equal("index", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the <c>(index, value)</c> constructor rejects a <see langword="null"/>
+    /// value with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void Constructor_NullValue_ThrowsArgumentNullException()
     {
@@ -79,6 +111,10 @@ public class ShareTest
         Assert.Equal("value", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the byte-array constructor rejects a <see langword="null"/> indexBytes
+    /// argument with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void Constructor_ByteArrays_NullIndexBytes_ThrowsArgumentNullException()
     {
@@ -91,6 +127,10 @@ public class ShareTest
         Assert.Equal("indexBytes", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the byte-array constructor rejects a <see langword="null"/> valueBytes
+    /// argument with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void Constructor_ByteArrays_NullValueBytes_ThrowsArgumentNullException()
     {
@@ -103,6 +143,10 @@ public class ShareTest
         Assert.Equal("valueBytes", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the byte-array constructor rejects index bytes that decode to zero with
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
     [Fact]
     public void Constructor_ByteArrays_ZeroIndex_ThrowsArgumentOutOfRangeException()
     {
@@ -115,6 +159,10 @@ public class ShareTest
         Assert.Equal("indexBytes", ex.ParamName);
     }
 
+    /// <summary>
+    /// Tests that the byte-array constructor decodes the LE-2c byte streams into the
+    /// matching <see cref="SecureBigInteger"/> values for both index and value.
+    /// </summary>
     [Fact]
     public void Constructor_ByteArrays_ValidInputs_InitializesCorrectly()
     {
@@ -132,6 +180,10 @@ public class ShareTest
         Assert.Equal(expectedValue, share.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.IsIndexEven"/> returns <see langword="true"/>
+    /// for an even share index.
+    /// </summary>
     [Fact]
     public void IsEven_ShouldReturnTrueIfIndexIsEven()
     {
@@ -144,6 +196,10 @@ public class ShareTest
         Assert.True(share.IsIndexEven);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.IsIndexOdd"/> returns <see langword="true"/>
+    /// for an odd share index.
+    /// </summary>
     [Fact]
     public void IsOdd_ShouldReturnTrueIfIndexIsOdd()
     {
@@ -156,6 +212,14 @@ public class ShareTest
         Assert.True(share.IsIndexOdd);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.ToString"/> emits the canonical
+    /// <c>index-value</c> uppercase-hex form in DEBUG builds (and the redacted
+    /// <c>"*** Secured Value ***"</c> marker in Release).
+    /// </summary>
+    /// <param name="index">Share index.</param>
+    /// <param name="value">Share value.</param>
+    /// <param name="expected">Expected DEBUG-mode string representation.</param>
     [Theory]
     [InlineData(5, 10, "05-0A")]
     [InlineData(255, 255, "FF00-FF00")]
@@ -176,6 +240,10 @@ public class ShareTest
 #endif
     }
 
+    /// <summary>
+    /// Tests that the pinned-char constructor parses an <c>index-value</c> hex
+    /// representation into the matching index and value calculators.
+    /// </summary>
     [Fact]
     public void Constructor_ValidPinnedInput_ShouldParseCorrectly()
     {
@@ -192,6 +260,12 @@ public class ShareTest
         Assert.Equal(expectedValue, share.Value);
     }
 
+    /// <summary>
+    /// Tests the round-trip <c>parse → ToString</c> on representative share text:
+    /// re-serialising a parsed share reproduces the original input verbatim in DEBUG.
+    /// </summary>
+    /// <param name="input">Share text fed to the pinned-char constructor.</param>
+    /// <param name="expected">Expected DEBUG-mode <c>ToString</c> output.</param>
     [Theory]
     [InlineData(Share1TextRepresentation, Share1TextRepresentation)]
     [InlineData(Share2TextRepresentation, Share2TextRepresentation)]
@@ -212,6 +286,10 @@ public class ShareTest
 #endif
     }
 
+    /// <summary>
+    /// Tests that the pinned-char constructor rejects malformed inputs (here a hyphen-only
+    /// separator without valid hex on either side) with <see cref="ArgumentException"/>.
+    /// </summary>
     [Fact]
     public void Constructor_InvalidPinnedInput_ShouldThrowArgumentException()
     {
@@ -222,6 +300,16 @@ public class ShareTest
         Assert.Throws<ArgumentException>(() => new Share<SecureBigInteger>(pinned));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.ToCharArray(bool, bool)"/> formats the share
+    /// across the matrix of <c>uppercase × withPrefix</c> options consistent with the
+    /// expected pinned-char output.
+    /// </summary>
+    /// <param name="index">Share index.</param>
+    /// <param name="value">Share value.</param>
+    /// <param name="uppercase">Whether hex letters are upper-case.</param>
+    /// <param name="withPrefix">Whether the <c>0x</c> prefix is emitted.</param>
+    /// <param name="expected">Expected serialised representation.</param>
     [Theory]
     [InlineData(5, 10, true, false, "05-0A")]
     [InlineData(5, 10, false, false, "05-0a")]
@@ -244,6 +332,10 @@ public class ShareTest
         Assert.Equal(expected, new string(result.PoolArray, 0, result.Length));
     }
 
+    /// <summary>
+    /// Tests that the parameterless <see cref="Share{TNumber}.ToCharArray()"/> overload
+    /// defaults to uppercase-without-prefix formatting (<c>"05-0A"</c>).
+    /// </summary>
     [Fact]
     public void ToCharArray_NoArgs_ShouldReturnUppercaseWithoutPrefix()
     {
@@ -257,6 +349,13 @@ public class ShareTest
         Assert.Equal("05-0A", new string(result.PoolArray, 0, result.Length));
     }
 
+    /// <summary>
+    /// Tests that the pinned-char constructor accepts inputs with a lowercase <c>0x</c>
+    /// prefix on both coordinates.
+    /// </summary>
+    /// <param name="shareString">Share text including the <c>0x</c> prefix.</param>
+    /// <param name="expectedIndex">Expected parsed index.</param>
+    /// <param name="expectedValue">Expected parsed value.</param>
     [Theory]
     [InlineData("0x05-0x0A", 5, 10)]
     [InlineData("0x0B-0xAA", 11, -86)]
@@ -276,6 +375,13 @@ public class ShareTest
         Assert.Equal(expectedValueCalc, share.Value);
     }
 
+    /// <summary>
+    /// Tests that the pinned-char constructor accepts inputs where only one of the two
+    /// coordinates carries a <c>0x</c> prefix — the prefix on either side is optional.
+    /// </summary>
+    /// <param name="shareString">Share text with a partial prefix.</param>
+    /// <param name="expectedIndex">Expected parsed index.</param>
+    /// <param name="expectedValue">Expected parsed value.</param>
     [Theory]
     [InlineData("0x05-0A", 5, 10)]
     [InlineData("05-0x0A", 5, 10)]
@@ -294,6 +400,12 @@ public class ShareTest
         Assert.Equal(expectedValueCalc, share.Value);
     }
 
+    /// <summary>
+    /// Tests that the pinned-char constructor rejects an uppercase <c>0X</c> prefix on
+    /// either coordinate with <see cref="ArgumentException"/> — only the lowercase
+    /// <c>0x</c> form is accepted.
+    /// </summary>
+    /// <param name="shareString">Share text with an uppercase prefix variant.</param>
     [Theory]
     [InlineData("0X05-0X0A")]
     [InlineData("0X05-0x0A")]
@@ -307,6 +419,11 @@ public class ShareTest
         Assert.Throws<ArgumentException>(() => new Share<SecureBigInteger>(pinned));
     }
 
+    /// <summary>
+    /// Tests that the pinned-char constructor rejects non-hex characters after a valid
+    /// <c>0x</c> prefix with <see cref="ArgumentException"/>.
+    /// </summary>
+    /// <param name="shareString">Share text containing non-hex characters after the prefix.</param>
     [Theory]
     [InlineData("0xZZ-01")]
     [InlineData("0x01-0xGG")]
@@ -319,6 +436,10 @@ public class ShareTest
         Assert.Throws<ArgumentException>(() => new Share<SecureBigInteger>(pinned));
     }
 
+    /// <summary>
+    /// Tests that the pinned-char constructor's <see cref="ArgumentException"/> for invalid
+    /// hex includes the offending character's position in the message.
+    /// </summary>
     [Fact]
     public void Constructor_InvalidHexMessage_ContainsPosition()
     {
@@ -333,6 +454,10 @@ public class ShareTest
         Assert.Contains("3", ex.Message);
     }
 
+    /// <summary>
+    /// Tests the odd-length branch in the hex-to-calculator decoder: a single-character
+    /// coordinate with a non-hex character must throw <see cref="ArgumentException"/>.
+    /// </summary>
     [Fact]
     public void Constructor_OddLengthWithInvalidChar_ThrowsArgumentException()
     {
@@ -348,6 +473,11 @@ public class ShareTest
         Assert.Contains("0", ex.Message);
     }
 
+    /// <summary>
+    /// Tests that the pinned-char constructor rejects a <c>0x</c> prefix followed by no
+    /// hex digits at all with <see cref="FormatException"/>.
+    /// </summary>
+    /// <param name="shareString">Share text where the prefix is not followed by digits.</param>
     [Theory]
     [InlineData("0x-01")]
     [InlineData("01-0x")]
@@ -361,6 +491,12 @@ public class ShareTest
         Assert.Throws<FormatException>(() => new Share<SecureBigInteger>(pinned));
     }
 
+    /// <summary>
+    /// Tests the round-trip <c>ToCharArray(uppercase: true, withPrefix: true)</c> →
+    /// <c>new Share(chars)</c>: the parsed share's index and value match the original.
+    /// </summary>
+    /// <param name="index">Share index for the round trip.</param>
+    /// <param name="value">Share value for the round trip.</param>
     [Theory]
     [InlineData(5, 10)]
     [InlineData(11, 170)]
@@ -379,6 +515,14 @@ public class ShareTest
         Assert.Equal(original.Value, parsed.Value);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.GetCharCount(bool)"/> pre-computes the same
+    /// length that <see cref="Share{TNumber}.ToCharArray(bool, bool)"/> ends up emitting.
+    /// </summary>
+    /// <param name="index">Share index.</param>
+    /// <param name="value">Share value.</param>
+    /// <param name="withPrefix">Whether the <c>0x</c> prefix is included.</param>
+    /// <param name="expected">Expected character count.</param>
     [Theory]
     [InlineData(5, 10, false, 5)]
     [InlineData(5, 10, true, 9)]
@@ -404,6 +548,16 @@ public class ShareTest
         Assert.Equal(chars.Length, count);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.WriteCharsTo"/> writes the formatted share into
+    /// a caller-supplied buffer at a given offset, returning the number of characters
+    /// written. Bytes before the offset must remain untouched.
+    /// </summary>
+    /// <param name="index">Share index.</param>
+    /// <param name="value">Share value.</param>
+    /// <param name="uppercase">Whether hex letters are upper-case.</param>
+    /// <param name="withPrefix">Whether the <c>0x</c> prefix is emitted.</param>
+    /// <param name="expected">Expected substring written to the buffer.</param>
     [Theory]
     [InlineData(5, 10, true, false, "05-0A")]
     [InlineData(16, 32, true, true, "0x10-0x20")]
@@ -426,6 +580,10 @@ public class ShareTest
         Assert.Equal('\0', buffer[1]);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.WriteCharsTo"/> rejects a <see langword="null"/>
+    /// destination buffer with <see cref="ArgumentNullException"/>.
+    /// </summary>
     [Fact]
     public void WriteCharsTo_NullDest_ThrowsArgumentNullException()
     {
@@ -436,6 +594,11 @@ public class ShareTest
         Assert.Throws<ArgumentNullException>(() => share.WriteCharsTo(null, 0, uppercase: true, withPrefix: false));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.WriteCharsTo"/> rejects offsets outside
+    /// <c>[0, buffer.Length]</c> with <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
+    /// <param name="offset">An invalid offset value.</param>
     [Theory]
     [InlineData(-1)]
     [InlineData(17)]
@@ -450,6 +613,11 @@ public class ShareTest
             () => share.WriteCharsTo(buffer, offset, uppercase: true, withPrefix: false));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.WriteCharsTo"/> throws
+    /// <see cref="ArgumentException"/> when the buffer plus offset cannot accommodate the
+    /// full formatted share.
+    /// </summary>
     [Fact]
     public void WriteCharsTo_InsufficientSpace_ThrowsArgumentException()
     {
@@ -463,6 +631,10 @@ public class ShareTest
             () => share.WriteCharsTo(buffer, offset: 14, uppercase: true, withPrefix: false));
     }
 
+    /// <summary>
+    /// Tests <see cref="Share{TNumber}.CompareTo"/>: the comparison is by x-coordinate
+    /// only — shares with the same index but different values compare equal.
+    /// </summary>
     [Fact]
     public void CompareTo_ShouldReturnCorrectComparisonResult()
     {
@@ -477,6 +649,11 @@ public class ShareTest
         Assert.Equal(0, share1.CompareTo(sameIndexShare));
     }
 
+    /// <summary>
+    /// Tests the relational operators (<c>&lt;</c>, <c>&gt;</c>, <c>&lt;=</c>,
+    /// <c>&gt;=</c>) on <see cref="Share{TNumber}"/>: each one delegates to
+    /// <see cref="Share{TNumber}.CompareTo"/>'s sign.
+    /// </summary>
     [Fact]
     public void Operators_ShouldPerformComparisonsCorrectly()
     {
@@ -491,6 +668,10 @@ public class ShareTest
         Assert.True(share2 >= share1);
     }
 
+    /// <summary>
+    /// Tests that calling <see cref="Share{TNumber}.Dispose"/> repeatedly is idempotent —
+    /// the second and third calls do not throw.
+    /// </summary>
     [Fact]
     public void Dispose_Idempotent_NoException()
     {
@@ -509,6 +690,11 @@ public class ShareTest
         Assert.Null(ex);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.Dispose"/> cascades to the underlying index
+    /// and value calculators — post-dispose share-level operations throw
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void Dispose_ReleasesIndexAndValue()
     {
@@ -526,6 +712,12 @@ public class ShareTest
         Assert.Throws<ObjectDisposedException>(share.ToCharArray);
     }
 
+    /// <summary>
+    /// Tests <see cref="Share{TNumber}.ToString"/> post-dispose behaviour: in DEBUG the
+    /// implementation reads state and is guarded by <c>ThrowIfDisposed</c>, so it throws
+    /// <see cref="ObjectDisposedException"/>. In Release it returns the redacted literal
+    /// without touching state.
+    /// </summary>
     [Fact]
     public void PostDispose_ToString_DoesNotThrowInDebug()
     {
@@ -543,6 +735,11 @@ public class ShareTest
 #endif
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.GetCharCount"/> post-dispose throws
+    /// <see cref="ObjectDisposedException"/> for both prefix variants.
+    /// </summary>
+    /// <param name="withPrefix">Whether the prefix flag is set.</param>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -556,6 +753,10 @@ public class ShareTest
         Assert.Throws<ObjectDisposedException>(() => share.GetCharCount(withPrefix));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.WriteCharsTo"/> post-dispose throws
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void PostDispose_WriteCharsTo_ThrowsObjectDisposedException()
     {
@@ -569,6 +770,10 @@ public class ShareTest
             () => share.WriteCharsTo(buffer, 0, uppercase: true, withPrefix: false));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.IsIndexEven"/> post-dispose throws
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void PostDispose_IsIndexEven_ThrowsObjectDisposedException()
     {
@@ -580,6 +785,10 @@ public class ShareTest
         Assert.Throws<ObjectDisposedException>(() => _ = share.IsIndexEven);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.CompareTo"/> post-dispose throws
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
     [Fact]
     public void PostDispose_CompareTo_ThrowsObjectDisposedException()
     {
@@ -592,6 +801,10 @@ public class ShareTest
         Assert.Throws<ObjectDisposedException>(() => share1.CompareTo(share2));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.CompareTo"/> against a <see langword="null"/>
+    /// argument returns <c>+1</c> per the <see cref="IComparable{T}"/> convention.
+    /// </summary>
     [Fact]
     public void CompareTo_NullOther_ReturnsPositive()
     {
@@ -602,6 +815,10 @@ public class ShareTest
         Assert.Equal(1, share.CompareTo(null));
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.Index"/>'s getter throws
+    /// <see cref="ObjectDisposedException"/> post-dispose.
+    /// </summary>
     [Fact]
     public void PostDispose_IndexGetter_ThrowsObjectDisposedException()
     {
@@ -613,6 +830,10 @@ public class ShareTest
         Assert.Throws<ObjectDisposedException>(() => _ = share.Index);
     }
 
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.Value"/>'s getter throws
+    /// <see cref="ObjectDisposedException"/> post-dispose.
+    /// </summary>
     [Fact]
     public void PostDispose_ValueGetter_ThrowsObjectDisposedException()
     {
@@ -624,6 +845,10 @@ public class ShareTest
         Assert.Throws<ObjectDisposedException>(() => _ = share.Value);
     }
 
+    /// <summary>
+    /// Tests that the <c>Deconstruct</c> pattern-matching operator throws
+    /// <see cref="ObjectDisposedException"/> post-dispose.
+    /// </summary>
     [Fact]
     public void PostDispose_Deconstruct_ThrowsObjectDisposedException()
     {
