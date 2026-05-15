@@ -28,7 +28,7 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNetTest.Math.SecureBigInteger;
+namespace SecretSharingDotNetTest.Math.BigInteger;
 
 using System;
 using System.Numerics;
@@ -37,26 +37,25 @@ using SecretSharingDotNet.Math.Numerics;
 using Xunit;
 
 /// <summary>
-/// Tests for <see cref="MersenneSafeGcdAlgorithm"/> — the constant-time Bernstein–Yang
-/// divsteps implementation that backs modular inversion on the
-/// <see cref="SecureBigInteger"/> backend. Covers the public <c>Compute</c> surface plus
-/// the internal <c>ExtendedGcd</c> helper exposed via
-/// <c>InternalsVisibleTo</c> for direct testing on non-Mersenne operand pairs.
+/// Tests for <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> instantiated with
+/// <see cref="BigInteger"/> — the variable-time backend mirror of the
+/// constant-time <see cref="SecureBigInteger"/>-backed tests. Verifies that the
+/// Bernstein–Yang divsteps recurrence produces the same mathematical results
+/// regardless of the underlying numeric backend. Note: the BigInteger
+/// backend does not provide timing-side-channel resistance — these tests cover
+/// algorithmic correctness only.
 /// </summary>
 public class MersenneSafeGcdAlgorithmTest
 {
     /// <summary>
-    /// Tests that <see cref="MersenneSafeGcdAlgorithm.Compute"/> returns the modular
-    /// inverse of a non-zero denominator under several Mersenne-prime moduli (M13, M31,
-    /// M127). Cross-checks against Fermat's little theorem
+    /// Tests that <see cref="MersenneSafeGcdAlgorithm{TNumber}.Compute"/> returns the
+    /// modular inverse of a non-zero denominator under several Mersenne-prime moduli
+    /// (M13, M31, M127). Cross-checks against Fermat's little theorem
     /// (<c>a^{p-2} mod p ≡ a^{-1} mod p</c>) computed via BCL <c>BigInteger.ModPow</c>.
     /// </summary>
     /// <param name="denominatorDec">The denominator as a decimal string.</param>
     /// <param name="mersenneExponent">The Mersenne exponent picking the prime field.</param>
     [Theory]
-    // (denominator, mersenneExponent). For each row:
-    //   gcd       = 1
-    //   bezout[0] = denominator^{-1} mod M_p   (cross-checked via Fermat: a^{p-2} mod p)
     [InlineData("1", 13)]
     [InlineData("2", 13)]
     [InlineData("3", 13)]
@@ -77,9 +76,9 @@ public class MersenneSafeGcdAlgorithmTest
         BigInteger denominatorBig = BigInteger.Parse(denominatorDec) % primeBig;
         BigInteger expectedInverse = BigInteger.ModPow(denominatorBig, primeBig - 2, primeBig);
 
-        var algorithm = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
-        using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(denominatorBig.ToSecureBigInteger());
-        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
+        var algorithm = new MersenneSafeGcdAlgorithm<BigInteger>();
+        using Calculator<BigInteger> aCalc = new BigIntCalculator(denominatorBig);
+        using Calculator<BigInteger> bCalc = new BigIntCalculator(primeBig);
 
         // Act
         using var result = algorithm.Compute(aCalc, bCalc);
@@ -87,7 +86,7 @@ public class MersenneSafeGcdAlgorithmTest
         // Assert
         Assert.True(result.GreatestCommonDivisor.IsOne);
 
-        BigInteger inverseActual = ((SecureBigInteger)result.BezoutCoefficients[0]).ToBigInteger();
+        BigInteger inverseActual = (BigInteger)result.BezoutCoefficients[0];
         Assert.Equal(expectedInverse, inverseActual);
 
         // Stronger sanity check independent of the cross-implementation: bezout[0] · a ≡ 1 (mod M_p).
@@ -97,8 +96,8 @@ public class MersenneSafeGcdAlgorithmTest
 
     /// <summary>
     /// Tests that <c>gcd(0, M_p) = M_p</c> — the boundary case where the denominator is
-    /// zero. <see cref="MersenneSafeGcdAlgorithm.Compute"/> must surface the prime itself
-    /// as the GCD rather than producing an undefined inverse.
+    /// zero. <see cref="MersenneSafeGcdAlgorithm{TNumber}.Compute"/> must surface the
+    /// prime itself as the GCD rather than producing an undefined inverse.
     /// </summary>
     [Fact]
     public void Compute_ZeroDenominator_GcdEqualsPrime()
@@ -106,20 +105,20 @@ public class MersenneSafeGcdAlgorithmTest
         // Arrange
         BigInteger primeBig = (BigInteger.One << 31) - BigInteger.One;
 
-        var algorithm = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
-        using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(BigInteger.Zero.ToSecureBigInteger());
-        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
+        var algorithm = new MersenneSafeGcdAlgorithm<BigInteger>();
+        using Calculator<BigInteger> aCalc = new BigIntCalculator(BigInteger.Zero);
+        using Calculator<BigInteger> bCalc = new BigIntCalculator(primeBig);
 
         // Act
         using var result = algorithm.Compute(aCalc, bCalc);
 
         // Assert: gcd(0, M_p) = M_p.
-        BigInteger gcdActual = ((SecureBigInteger)result.GreatestCommonDivisor).ToBigInteger();
+        BigInteger gcdActual = (BigInteger)result.GreatestCommonDivisor;
         Assert.Equal(primeBig, gcdActual);
     }
 
     /// <summary>
-    /// Tests that <see cref="MersenneSafeGcdAlgorithm.Compute"/> rejects a
+    /// Tests that <see cref="MersenneSafeGcdAlgorithm{TNumber}.Compute"/> rejects a
     /// <see langword="null"/> first operand (<c>a</c>) with
     /// <see cref="ArgumentNullException"/>.
     /// </summary>
@@ -128,15 +127,15 @@ public class MersenneSafeGcdAlgorithmTest
     {
         // Arrange
         BigInteger primeBig = (BigInteger.One << 31) - BigInteger.One;
-        var algorithm = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
-        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
+        var algorithm = new MersenneSafeGcdAlgorithm<BigInteger>();
+        using Calculator<BigInteger> bCalc = new BigIntCalculator(primeBig);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => algorithm.Compute(null!, bCalc));
     }
 
     /// <summary>
-    /// Tests that <see cref="MersenneSafeGcdAlgorithm.Compute"/> rejects a
+    /// Tests that <see cref="MersenneSafeGcdAlgorithm{TNumber}.Compute"/> rejects a
     /// <see langword="null"/> second operand (<c>b</c>) with
     /// <see cref="ArgumentNullException"/>.
     /// </summary>
@@ -144,15 +143,15 @@ public class MersenneSafeGcdAlgorithmTest
     public void Compute_NullB_ThrowsArgumentNullException()
     {
         // Arrange
-        var algorithm = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
-        using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(new SecureBigInteger(7));
+        var algorithm = new MersenneSafeGcdAlgorithm<BigInteger>();
+        using Calculator<BigInteger> aCalc = new BigIntCalculator(new BigInteger(7));
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => algorithm.Compute(aCalc, null!));
     }
 
     /// <summary>
-    /// Cross-checks <see cref="MersenneSafeGcdAlgorithm.Compute"/> against the variable-time
+    /// Cross-checks <see cref="MersenneSafeGcdAlgorithm{TNumber}.Compute"/> against the
     /// <see cref="ExtendedEuclideanAlgorithm{TNumber}.Compute"/>: both algorithms must
     /// produce the same modular inverse modulo <c>M_p</c> after reducing the Euclidean
     /// result into the <c>[0, M_p − 1]</c> range.
@@ -170,19 +169,19 @@ public class MersenneSafeGcdAlgorithmTest
         BigInteger primeBig = (BigInteger.One << mersenneExponent) - BigInteger.One;
         BigInteger denominatorBig = BigInteger.Parse(denominatorDec) % primeBig;
 
-        var safegcd = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
-        var euclidean = new ExtendedEuclideanAlgorithm<SecureBigInteger>();
+        var safegcd = new MersenneSafeGcdAlgorithm<BigInteger>();
+        var euclidean = new ExtendedEuclideanAlgorithm<BigInteger>();
 
-        using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(denominatorBig.ToSecureBigInteger());
-        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
+        using Calculator<BigInteger> aCalc = new BigIntCalculator(denominatorBig);
+        using Calculator<BigInteger> bCalc = new BigIntCalculator(primeBig);
 
         // Act
         using var safegcdResult = safegcd.Compute(aCalc, bCalc);
         using var euclideanResult = euclidean.Compute(aCalc, bCalc);
 
         // Assert: both inverses, after reducing into [0, M_p − 1], are identical.
-        BigInteger safegcdInverse = ((SecureBigInteger)safegcdResult.BezoutCoefficients[0]).ToBigInteger();
-        BigInteger euclideanInverseRaw = ((SecureBigInteger)euclideanResult.BezoutCoefficients[0]).ToBigInteger();
+        BigInteger safegcdInverse = (BigInteger)safegcdResult.BezoutCoefficients[0];
+        BigInteger euclideanInverseRaw = (BigInteger)euclideanResult.BezoutCoefficients[0];
         BigInteger euclideanInverseReduced = ((euclideanInverseRaw % primeBig) + primeBig) % primeBig;
 
         Assert.Equal(euclideanInverseReduced, safegcdInverse);
@@ -190,7 +189,7 @@ public class MersenneSafeGcdAlgorithmTest
 
     /// <summary>
     /// Tests that the <see cref="ExtendedGcdResult{TNumber}"/> returned by
-    /// <see cref="MersenneSafeGcdAlgorithm.Compute"/> tolerates repeated
+    /// <see cref="MersenneSafeGcdAlgorithm{TNumber}.Compute"/> tolerates repeated
     /// <see cref="IDisposable.Dispose"/> calls without throwing — idempotent disposal.
     /// </summary>
     [Fact]
@@ -198,9 +197,9 @@ public class MersenneSafeGcdAlgorithmTest
     {
         // Arrange
         BigInteger primeBig = (BigInteger.One << 31) - BigInteger.One;
-        var algorithm = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
-        using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(new SecureBigInteger(42));
-        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(primeBig.ToSecureBigInteger());
+        var algorithm = new MersenneSafeGcdAlgorithm<BigInteger>();
+        using Calculator<BigInteger> aCalc = new BigIntCalculator(new BigInteger(42));
+        using Calculator<BigInteger> bCalc = new BigIntCalculator(primeBig);
 
         // Act
         var result = algorithm.Compute(aCalc, bCalc);
@@ -212,7 +211,7 @@ public class MersenneSafeGcdAlgorithmTest
     }
 
     // -------------------------------------------------------------------------
-    // Internal helper tests: MersenneSafeGcdAlgorithm.ExtendedGcd
+    // Internal helper tests: MersenneSafeGcdAlgorithm<BigInteger>.ExtendedGcd
     //
     // These tests target the internal Bernstein–Yang divsteps helper directly
     // (visible to the test assembly via InternalsVisibleTo) rather than going
@@ -256,19 +255,19 @@ public class MersenneSafeGcdAlgorithmTest
     public void ExtendedGcd_MatchesBclBigInteger(string fDec, string gDec, string expectedGcdDec, int bitLengthBound)
     {
         // Arrange
-        using var f = BigInteger.Parse(fDec).ToSecureBigInteger();
-        using var g = BigInteger.Parse(gDec).ToSecureBigInteger();
-        using var expected = BigInteger.Parse(expectedGcdDec).ToSecureBigInteger();
-        using Calculator<SecureBigInteger> fCalc = new SecureBigIntCalculator(f);
-        using Calculator<SecureBigInteger> gCalc = new SecureBigIntCalculator(g);
+        BigInteger fBig = BigInteger.Parse(fDec);
+        BigInteger gBig = BigInteger.Parse(gDec);
+        BigInteger expectedBig = BigInteger.Parse(expectedGcdDec);
+        using Calculator<BigInteger> fCalc = new BigIntCalculator(fBig);
+        using Calculator<BigInteger> gCalc = new BigIntCalculator(gBig);
 
         // Act
-        var (gcd, alpha, beta, _) = MersenneSafeGcdAlgorithm<SecureBigInteger>.ExtendedGcd(fCalc, gCalc, bitLengthBound);
+        var (gcd, alpha, beta, _) = MersenneSafeGcdAlgorithm<BigInteger>.ExtendedGcd(fCalc, gCalc, bitLengthBound);
 
         try
         {
             // Assert
-            Assert.Equal(expected, (SecureBigInteger)gcd);
+            Assert.Equal(expectedBig, (BigInteger)gcd);
         }
         finally
         {
@@ -288,10 +287,6 @@ public class MersenneSafeGcdAlgorithmTest
     /// <param name="gDec">Second operand as a decimal string.</param>
     /// <param name="bitLengthBound">Public upper bound on the bit length of the operands.</param>
     [Theory]
-    // Verifies the integer-form Bezout identity:
-    //   alpha * fInput + beta * gInput = 2^iterationCount * gcd
-    // for representative inputs across small primes, common-factor pairs,
-    // and Mersenne-prime moduli (M_3, M_5, M_13, M_31).
     [InlineData("7", "5", 3)]
     [InlineData("7", "0", 3)]
     [InlineData("31", "10", 5)]
@@ -301,8 +296,6 @@ public class MersenneSafeGcdAlgorithmTest
     [InlineData("15", "10", 4)]
     [InlineData("15", "9", 4)]
     [InlineData("21", "14", 5)]
-    // Note: bitLengthBound must upper-bound BOTH inputs. Below, 12345 has 14 bits,
-    // larger than M_13 = 8191 (13 bits), so the bound is 14 not 13.
     [InlineData("8191", "12345", 14)]
     [InlineData("8191", "0", 13)]
     [InlineData("2147483647", "1", 31)]
@@ -313,19 +306,17 @@ public class MersenneSafeGcdAlgorithmTest
         BigInteger fBig = BigInteger.Parse(fDec);
         BigInteger gBig = BigInteger.Parse(gDec);
         BigInteger expectedGcd = BigInteger.GreatestCommonDivisor(fBig, gBig);
-        using var f = fBig.ToSecureBigInteger();
-        using var g = gBig.ToSecureBigInteger();
-        using Calculator<SecureBigInteger> fCalc = new SecureBigIntCalculator(f);
-        using Calculator<SecureBigInteger> gCalc = new SecureBigIntCalculator(g);
+        using Calculator<BigInteger> fCalc = new BigIntCalculator(fBig);
+        using Calculator<BigInteger> gCalc = new BigIntCalculator(gBig);
 
         // Act
-        var (gcd, alpha, beta, iterations) = MersenneSafeGcdAlgorithm<SecureBigInteger>.ExtendedGcd(fCalc, gCalc, bitLengthBound);
+        var (gcd, alpha, beta, iterations) = MersenneSafeGcdAlgorithm<BigInteger>.ExtendedGcd(fCalc, gCalc, bitLengthBound);
 
         try
         {
-            BigInteger gcdActual = ((SecureBigInteger)gcd).ToBigInteger();
-            BigInteger alphaActual = ((SecureBigInteger)alpha).ToBigInteger();
-            BigInteger betaActual = ((SecureBigInteger)beta).ToBigInteger();
+            BigInteger gcdActual = (BigInteger)gcd;
+            BigInteger alphaActual = (BigInteger)alpha;
+            BigInteger betaActual = (BigInteger)beta;
             BigInteger expectedRhs = (BigInteger.One << iterations) * expectedGcd;
             BigInteger actualLhs = (alphaActual * fBig) + (betaActual * gBig);
 
@@ -349,11 +340,10 @@ public class MersenneSafeGcdAlgorithmTest
     public void ExtendedGcd_FInputNull_ThrowsArgumentNullException()
     {
         // Arrange
-        using var g = new SecureBigInteger(5);
-        using Calculator<SecureBigInteger> gCalc = new SecureBigIntCalculator(g);
+        using Calculator<BigInteger> gCalc = new BigIntCalculator(new BigInteger(5));
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => MersenneSafeGcdAlgorithm<SecureBigInteger>.ExtendedGcd(null!, gCalc, 8));
+        Assert.Throws<ArgumentNullException>(() => MersenneSafeGcdAlgorithm<BigInteger>.ExtendedGcd(null!, gCalc, 8));
     }
 
     /// <summary>
@@ -364,11 +354,10 @@ public class MersenneSafeGcdAlgorithmTest
     public void ExtendedGcd_GInputNull_ThrowsArgumentNullException()
     {
         // Arrange
-        using var f = new SecureBigInteger(7);
-        using Calculator<SecureBigInteger> fCalc = new SecureBigIntCalculator(f);
+        using Calculator<BigInteger> fCalc = new BigIntCalculator(new BigInteger(7));
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => MersenneSafeGcdAlgorithm<SecureBigInteger>.ExtendedGcd(fCalc, null!, 8));
+        Assert.Throws<ArgumentNullException>(() => MersenneSafeGcdAlgorithm<BigInteger>.ExtendedGcd(fCalc, null!, 8));
     }
 
     /// <summary>
@@ -383,12 +372,10 @@ public class MersenneSafeGcdAlgorithmTest
     public void ExtendedGcd_NonPositiveBitLengthBound_ThrowsArgumentOutOfRangeException(int bitLengthBound)
     {
         // Arrange
-        using var f = new SecureBigInteger(7);
-        using var g = new SecureBigInteger(5);
-        using Calculator<SecureBigInteger> fCalc = new SecureBigIntCalculator(f);
-        using Calculator<SecureBigInteger> gCalc = new SecureBigIntCalculator(g);
+        using Calculator<BigInteger> fCalc = new BigIntCalculator(new BigInteger(7));
+        using Calculator<BigInteger> gCalc = new BigIntCalculator(new BigInteger(5));
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => MersenneSafeGcdAlgorithm<SecureBigInteger>.ExtendedGcd(fCalc, gCalc, bitLengthBound));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MersenneSafeGcdAlgorithm<BigInteger>.ExtendedGcd(fCalc, gCalc, bitLengthBound));
     }
 }

@@ -35,14 +35,18 @@ using Numerics;
 using System;
 
 /// <summary>
-/// Constant-time extended-GCD algorithm specialised for the
-/// <see cref="SecureBigInteger"/> backend, computing modular inverses against
-/// the Mersenne prime supplied as the modulus argument to
+/// Constant-time-capable extended-GCD algorithm computing modular inverses
+/// against the Mersenne prime supplied as the modulus argument to
 /// <see cref="Compute"/>. Implements the Bernstein–Yang "safegcd" / divsteps
 /// recurrence (with Bezout-coefficient tracking) and applies the
 /// <c>2^{-n}</c> correction needed to convert the algorithm's integer-form
 /// Bezout identity into a modular inverse.
 /// </summary>
+/// <typeparam name="TNumber">Numeric data type (an integer type). Use
+/// <see cref="SecureBigInteger"/> for the constant-time backend or
+/// <see cref="System.Numerics.BigInteger"/> for the variable-time backend —
+/// see the threat-model paragraph in the remarks for what the choice
+/// implies.</typeparam>
 /// <remarks>
 /// <para>
 /// <b>Algorithm reference.</b> Bernstein, Daniel J., and Bo-Yin Yang. "Fast
@@ -61,7 +65,8 @@ using System;
 /// After <c>n = ceil((49.39 p + 80) / 17)</c> iterations on inputs of bit
 /// length at most <c>p</c>, <c>g</c> is zero and <c>|f|</c> equals the gcd of
 /// the original inputs. The fixed iteration count is the central constant-time
-/// guarantee.
+/// guarantee — provided the per-iteration arithmetic is itself constant-time
+/// (see threat-model paragraph below).
 /// </para>
 /// <para>
 /// <b>Integer-form Bezout tracking.</b> A 2 × 2 transition matrix
@@ -101,16 +106,30 @@ using System;
 /// satisfies this precondition by construction.
 /// </para>
 /// <para>
-/// <b>Threat model.</b> The outer iteration count is fixed at the public
-/// Mersenne exponent, independent of operand values. Per-iteration branch
-/// selection is data-dependent on <c>δ</c> and <c>g</c>'s low bit; each
-/// branch performs the same allocation count and arithmetic-op count, so
-/// per-iter wall-clock time is approximately uniform across branches. The
-/// <c>2^{-n} mod M_p</c> correction is computed via
-/// <see cref="SecureBigInteger.Pow"/>, whose iteration count depends only on
-/// the public correction exponent. Strict branchless mask-select between
-/// precomputed alternatives is a future-work optimisation aligned with the
-/// limb-level rewrite.
+/// <b>Threat model — backend-conditional.</b> The outer iteration count is
+/// fixed at the public Mersenne exponent, independent of operand values.
+/// Whether per-iteration work is itself constant-time depends on the
+/// <see cref="Calculator{TNumber}"/> backend the type is instantiated with:
+/// <list type="bullet">
+///   <item>With <c>TNumber = </c><see cref="SecureBigInteger"/>, the
+///   divstep loop's per-iter arithmetic flows through that backend's CT
+///   primitives. Per-iter wall-clock time is approximately uniform across
+///   branches and independent of secret operand values. The
+///   <c>2^{-n} mod M_p</c> correction is computed via
+///   <see cref="SecureBigInteger.Pow"/>, whose iteration count depends only on
+///   the public correction exponent. This is the configuration the
+///   threat-model guarantees of this library are written against.</item>
+///   <item>With <c>TNumber = </c><see cref="System.Numerics.BigInteger"/>, the
+///   algorithm is mathematically equivalent but per-iter wall-clock time is
+///   variable on operand magnitude. The fixed iteration count alone does
+///   <em>not</em> provide timing-side-channel resistance against a co-located
+///   active attacker. Use this configuration only when the threat model
+///   excludes timing side channels (e.g. trusted-local computation or
+///   testing-/cross-check use cases).</item>
+/// </list>
+/// Strict branchless mask-select between precomputed alternatives is a
+/// future-work optimisation aligned with a limb-level rewrite of the CT
+/// primitives.
 /// </para>
 /// <para>
 /// <b>Implementation provenance.</b> Implemented from the Bernstein–Yang
@@ -118,14 +137,14 @@ using System;
 /// (BoringSSL <c>bn_safegcd.c</c>, libsodium <c>scalar_invert</c>, etc.). The
 /// divstep formula and iteration-count formula are taken from the paper
 /// directly; the per-iteration code structure is a straightforward
-/// translation into idiomatic C# on top of the existing CT primitives in
-/// <see cref="SecureBigInteger"/>.
+/// translation into idiomatic C# on top of <see cref="Calculator{TNumber}"/>'s
+/// operator surface.
 /// </para>
 /// </remarks>
-public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigInteger>
+public sealed class MersenneSafeGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="MersenneSafeGcdAlgorithm"/> class.
+    /// Initializes a new instance of the <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> class.
     /// </summary>
     /// <remarks>
     /// Stateless: the Mersenne exponent <c>p</c> is derived from the modulus
@@ -171,9 +190,9 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
     /// <exception cref="ArgumentNullException">
     /// <paramref name="a"/> or <paramref name="b"/> is <see langword="null"/>.
     /// </exception>
-    public ExtendedGcdResult<SecureBigInteger> Compute(
-        Calculator<SecureBigInteger> a,
-        Calculator<SecureBigInteger> b)
+    public ExtendedGcdResult<TNumber> Compute(
+        Calculator<TNumber> a,
+        Calculator<TNumber> b)
     {
         if (a is null)
         {
@@ -185,68 +204,55 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
             throw new ArgumentNullException(nameof(b));
         }
 
-        SecureBigInteger denominatorVal = a;
-        SecureBigInteger primeVal = b;
-        int mersenneExponent = BitLengthOfPublicMersennePrime(primeVal);
+        int mersenneExponent = BitLengthOfPublicMersennePrime(b);
 
-        // ExtendedGcd contract: alpha * primeVal + beta * denominatorVal = 2^iter * gcd.
-        // primeVal is odd & positive (Mersenne primes M_p = 2^p − 1 with p ≥ 2),
-        // satisfying ExtendedGcd's fInput-must-be-odd-and-positive precondition.
-        var (gcd, alpha, beta, iterations) =
-            ExtendedGcd(primeVal, denominatorVal, mersenneExponent);
+        // ExtendedGcd contract: alpha * b + beta * a = 2^iter * gcd.
+        // b is the Mersenne prime (odd & positive, satisfying the
+        // fInput-must-be-odd-and-positive precondition); a is the denominator.
+        var (gcd, alpha, beta, iterations) = ExtendedGcd(b, a, mersenneExponent);
 
-        SecureBigInteger inv2n = null;
-        SecureBigInteger sVal = null;
-        SecureBigInteger tVal = null;
-        SecureBigIntCalculator gcdCalc = null;
-        SecureBigIntCalculator sCalc = null;
-        SecureBigIntCalculator tCalc = null;
-        Calculator<SecureBigInteger> qaCalc = null;
-        Calculator<SecureBigInteger> qbCalc = null;
+        Calculator<TNumber> inv2n = null;
+        Calculator<TNumber> sCalc = null;
+        Calculator<TNumber> tCalc = null;
+        Calculator<TNumber> qaCalc = null;
+        Calculator<TNumber> qbCalc = null;
 
         try
         {
             // 2^p ≡ 1 (mod M_p)  ⇒  2^{-n} ≡ 2^{(p − n mod p) mod p} (mod M_p).
             int reducedIterations = iterations % mersenneExponent;
             int correctionExponent = reducedIterations == 0 ? 0 : mersenneExponent - reducedIterations;
-            using (var two = new SecureBigInteger(2))
+            using (var two = Calculator<TNumber>.Two)
             using (var rawPow = two.Pow(correctionExponent))
             {
                 inv2n = rawPow.MersenneModulo(mersenneExponent);
             }
 
             // Multiply Bezout coefficients by 2^{-n} mod M_p, then reduce.
-            // s pairs with a (= denominator) ; when gcd = 1, s = a^{-1} mod M_p.
-            // t pairs with b (= prime)        ; t reflects the prime side of the identity.
+            // sCalc pairs with a (= denominator); when gcd = 1, sCalc = a^{-1} mod M_p.
+            // tCalc pairs with b (= prime); reflects the prime side of the identity.
             using (var sProduct = beta * inv2n)
             {
-                sVal = sProduct.MersenneModulo(mersenneExponent);
+                sCalc = sProduct.MersenneModulo(mersenneExponent);
             }
 
             using (var tProduct = alpha * inv2n)
             {
-                tVal = tProduct.MersenneModulo(mersenneExponent);
+                tCalc = tProduct.MersenneModulo(mersenneExponent);
             }
-
-            // SecureBigIntCalculator defensively deep-copies its operand, so the
-            // local gcd / sVal / tVal handles remain owners and are disposed by
-            // the finally block — no manual ownership transfer required here.
-            gcdCalc = new SecureBigIntCalculator(gcd);
-            sCalc = new SecureBigIntCalculator(sVal);
-            tCalc = new SecureBigIntCalculator(tVal);
 
             // Quotients are zero placeholders: the divsteps recurrence does not
             // expose the trailing Euclidean-quotient pair. See class remarks.
-            qaCalc = Calculator<SecureBigInteger>.Zero;
-            qbCalc = Calculator<SecureBigInteger>.Zero;
+            qaCalc = Calculator<TNumber>.Zero;
+            qbCalc = Calculator<TNumber>.Zero;
 
-            var coefficients = new Calculator<SecureBigInteger>[] { sCalc, tCalc };
+            var coefficients = new[] { sCalc, tCalc };
             var quotients = new[] { qaCalc, qbCalc };
-            var result = new ExtendedGcdResult<SecureBigInteger>(gcdCalc, coefficients, quotients);
+            var result = new ExtendedGcdResult<TNumber>(gcd, coefficients, quotients);
 
-            // Ownership transferred to result; null locals so the catch path below
-            // does not double-dispose.
-            gcdCalc = null;
+            // Ownership of gcd / sCalc / tCalc / qaCalc / qbCalc transferred to
+            // result; null locals so the finally below does not double-dispose.
+            gcd = null;
             sCalc = null;
             tCalc = null;
             qaCalc = null;
@@ -255,17 +261,19 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
         }
         finally
         {
-            gcd?.Dispose();
-            alpha.Dispose();
-            beta.Dispose();
+            // alpha / beta are loop-local owned by us; always dispose.
+            // inv2n is a per-call temporary; always dispose.
+            // gcd / sCalc / tCalc / qaCalc / qbCalc are nulled on success and
+            // non-null on a throw between their allocation and the
+            // ownership-transfer line — null-conditional disposal handles both.
+            alpha?.Dispose();
+            beta?.Dispose();
             inv2n?.Dispose();
-            sVal?.Dispose();
-            tVal?.Dispose();
-            gcdCalc?.Dispose();
             sCalc?.Dispose();
             tCalc?.Dispose();
             qaCalc?.Dispose();
             qbCalc?.Dispose();
+            gcd?.Dispose();
         }
     }
 
@@ -283,7 +291,7 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
     /// computation modulo the Mersenne prime <c>M_p</c>, pass <c>p</c>.</param>
     /// <returns>A tuple <c>(gcd, alpha, beta, iterationCount)</c> with the
     /// gcd and the integer-form Bezout coefficients. The caller takes
-    /// ownership of all three <see cref="SecureBigInteger"/> instances and
+    /// ownership of all three <see cref="Calculator{TNumber}"/> instances and
     /// must dispose them.</returns>
     /// <remarks>
     /// Per-divstep matrix updates (derived directly from the definitions of
@@ -313,8 +321,8 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
     /// <paramref name="fInput"/> is not positive and odd, or
     /// <paramref name="gInput"/> is negative.
     /// </exception>
-    internal static (SecureBigInteger gcd, SecureBigInteger alpha, SecureBigInteger beta, int iterationCount)
-        ExtendedGcd(SecureBigInteger fInput, SecureBigInteger gInput, int bitLengthBound)
+    internal static (Calculator<TNumber> gcd, Calculator<TNumber> alpha, Calculator<TNumber> beta, int iterationCount)
+        ExtendedGcd(Calculator<TNumber> fInput, Calculator<TNumber> gInput, int bitLengthBound)
     {
         if (fInput is null)
         {
@@ -343,35 +351,36 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
 
         int iterations = ((4939 * bitLengthBound) + 8000 + 1699) / 1700;
 
-        SecureBigInteger f = new SecureBigInteger(fInput);
-        SecureBigInteger g = new SecureBigInteger(gInput);
-        SecureBigInteger uF = (SecureBigInteger)1;
-        SecureBigInteger vF = (SecureBigInteger)0;
-        SecureBigInteger uG = (SecureBigInteger)0;
-        SecureBigInteger vG = (SecureBigInteger)1;
+        Calculator<TNumber> f = fInput.Clone();
+        Calculator<TNumber> g = gInput.Clone();
+        Calculator<TNumber> uF = Calculator<TNumber>.One;
+        Calculator<TNumber> vF = Calculator<TNumber>.Zero;
+        Calculator<TNumber> uG = Calculator<TNumber>.Zero;
+        Calculator<TNumber> vG = Calculator<TNumber>.One;
+        Calculator<TNumber> two = Calculator<TNumber>.Two;
         int delta = 1;
 
         // Tail-allocated outputs declared outside the try-block so the finally
         // can dispose them on exception (e.g. OOM during one of the three
         // allocations below); cleared to null after ownership transfer to the
         // returned tuple so the success path does not double-dispose.
-        SecureBigInteger gcd = null;
-        SecureBigInteger alpha = null;
-        SecureBigInteger beta = null;
+        Calculator<TNumber> gcd = null;
+        Calculator<TNumber> alpha = null;
+        Calculator<TNumber> beta = null;
 
         try
         {
             for (int i = 0; i < iterations; i++)
             {
-                ApplyExtendedDivstep(ref f, ref g, ref delta, ref uF, ref vF, ref uG, ref vG);
+                ApplyExtendedDivstep(two, ref f, ref g, ref delta, ref uF, ref vF, ref uG, ref vG);
             }
 
             // Sign-correct the Bezout coefficients so the returned identity is
             // alpha * fInput + beta * gInput = 2^iterationCount * |f_n|.
             bool fIsNegative = f.Sign < 0;
             gcd = f.Abs();
-            alpha = fIsNegative ? uF.Negate() : new SecureBigInteger(uF);
-            beta = fIsNegative ? vF.Negate() : new SecureBigInteger(vF);
+            alpha = fIsNegative ? Negate(uF) : uF.Clone();
+            beta = fIsNegative ? Negate(vF) : vF.Clone();
 
             var result = (gcd, alpha, beta, iterations);
             // Ownership transferred to the returned tuple.
@@ -386,6 +395,7 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
             vF?.Dispose();
             uG?.Dispose();
             vG?.Dispose();
+            two?.Dispose();
             // On the success path these are null; on a throw between the
             // tail allocations and the ownership-transfer assignment, the
             // partially-allocated values are released here.
@@ -396,17 +406,37 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
     }
 
     /// <summary>
+    /// Returns the additive negation of <paramref name="x"/> as a freshly-owned
+    /// <see cref="Calculator{TNumber}"/>, computed via <c>0 − x</c>. The caller
+    /// takes ownership and must dispose.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Calculator{TNumber}"/> does not expose a unary-minus surface,
+    /// so the sign-flip path of <see cref="ExtendedGcd"/> routes through this
+    /// helper instead. The transient <see cref="Calculator{TNumber}.Zero"/>
+    /// instance is local to this helper.
+    /// </remarks>
+    private static Calculator<TNumber> Negate(Calculator<TNumber> x)
+    {
+        using var zero = Calculator<TNumber>.Zero;
+        return zero - x;
+    }
+
+    /// <summary>
     /// Applies one extended divstep transformation, updating the working
     /// values <paramref name="f"/>, <paramref name="g"/>,
     /// <paramref name="delta"/> together with the four matrix entries
     /// <paramref name="uF"/>, <paramref name="vF"/>, <paramref name="uG"/>,
     /// <paramref name="vG"/> in lock-step. All previous instances are
-    /// disposed before being replaced.
+    /// disposed before being replaced. <paramref name="two"/> is the
+    /// <see cref="Calculator{TNumber}.Two"/> constant pre-allocated once
+    /// per <see cref="ExtendedGcd"/> call, reused across all iterations.
     /// </summary>
     private static void ApplyExtendedDivstep(
-        ref SecureBigInteger f, ref SecureBigInteger g, ref int delta,
-        ref SecureBigInteger uF, ref SecureBigInteger vF,
-        ref SecureBigInteger uG, ref SecureBigInteger vG)
+        Calculator<TNumber> two,
+        ref Calculator<TNumber> f, ref Calculator<TNumber> g, ref int delta,
+        ref Calculator<TNumber> uF, ref Calculator<TNumber> vF,
+        ref Calculator<TNumber> uG, ref Calculator<TNumber> vG)
     {
         bool gIsOdd = !g.IsEven;
         bool branch1 = delta > 0 && gIsOdd;
@@ -417,47 +447,47 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
         // front and the catch clause releases whatever was allocated before
         // the throw. Past the catch the new state is fully committed; the
         // tail's Dispose-then-swap operates on values that are not expected
-        // to throw (Dispose() is robust on the SecureBigInteger backend).
-        SecureBigInteger newF = null;
-        SecureBigInteger newG = null;
-        SecureBigInteger newUF = null;
-        SecureBigInteger newVF = null;
-        SecureBigInteger newUG = null;
-        SecureBigInteger newVG = null;
+        // to throw (Dispose() is robust on both CT and BCL backends).
+        Calculator<TNumber> newF = null;
+        Calculator<TNumber> newG = null;
+        Calculator<TNumber> newUF = null;
+        Calculator<TNumber> newVF = null;
+        Calculator<TNumber> newUG = null;
+        Calculator<TNumber> newVG = null;
         int newDelta;
 
         try
         {
             if (branch1)
             {
-                newF = new SecureBigInteger(g);
-                using var diff = SecureBigInteger.Subtract(g, f);
-                newG = diff / 2;
+                newF = g.Clone();
+                using var diff = g - f;
+                newG = diff / two;
                 newUF = uG + uG;
                 newVF = vG + vG;
-                newUG = SecureBigInteger.Subtract(uG, uF);
-                newVG = SecureBigInteger.Subtract(vG, vF);
+                newUG = uG - uF;
+                newVG = vG - vF;
                 newDelta = -delta;
             }
             else if (gIsOdd)
             {
-                newF = new SecureBigInteger(f);
-                using var sum = SecureBigInteger.Add(g, f);
-                newG = sum / 2;
+                newF = f.Clone();
+                using var sum = g + f;
+                newG = sum / two;
                 newUF = uF + uF;
                 newVF = vF + vF;
-                newUG = SecureBigInteger.Add(uG, uF);
-                newVG = SecureBigInteger.Add(vG, vF);
+                newUG = uG + uF;
+                newVG = vG + vF;
                 newDelta = delta + 1;
             }
             else
             {
-                newF = new SecureBigInteger(f);
-                newG = g / 2;
+                newF = f.Clone();
+                newG = g / two;
                 newUF = uF + uF;
                 newVF = vF + vF;
-                newUG = new SecureBigInteger(uG);
-                newVG = new SecureBigInteger(vG);
+                newUG = uG.Clone();
+                newVG = vG.Clone();
                 newDelta = delta + 1;
             }
         }
@@ -497,25 +527,26 @@ public sealed class MersenneSafeGcdAlgorithm : IExtendedGcdAlgorithm<SecureBigIn
     /// <b>Variable-time on operand magnitude.</b> The high-byte location and
     /// its leading-zero count both depend on the operand value. This helper is
     /// deliberately scoped <c>private static</c> on
-    /// <see cref="MersenneSafeGcdAlgorithm"/> rather than exposed as an accessor
-    /// on <see cref="SecureBigInteger"/>, so the only call site is
-    /// <see cref="Compute"/>'s exponent-derivation path — where the argument is
-    /// the public Mersenne-prime modulus <c>b</c>. Callers cannot reach this
-    /// method on secret material, which preserves the constant-time contract
-    /// of the secret-bearing arithmetic path.
+    /// <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> rather than exposed as a
+    /// general accessor, so the only call site is <see cref="Compute"/>'s
+    /// exponent-derivation path — where the argument is the public Mersenne-prime
+    /// modulus <c>b</c>. Callers cannot reach this method on secret material,
+    /// which preserves the constant-time contract of the secret-bearing
+    /// arithmetic path for the SecureBigInteger backend.
     /// </para>
     /// <para>
     /// Implementation: scan from the most-significant byte of the magnitude
-    /// downward, find the first non-zero byte, then count significant bits in
-    /// it. <see cref="SecureBigInteger.ToByteArray"/> may insert a single
-    /// sign-extension padding byte when the magnitude's high-byte MSB is set —
-    /// the leading-zero scan transparently absorbs that case. For known
-    /// Mersenne exponents (all odd primes ≥ 2), no padding occurs in practice.
+    /// downward via <see cref="Calculator{TNumber}.ByteRepresentation"/>, find
+    /// the first non-zero byte, then count significant bits in it. Two's-
+    /// complement sign-extension padding (one trailing <c>0x00</c> byte when the
+    /// magnitude's high-byte MSB is set) is transparently absorbed by the
+    /// leading-zero scan. For known Mersenne exponents (all odd primes ≥ 2), no
+    /// padding occurs in practice.
     /// </para>
     /// </remarks>
-    private static int BitLengthOfPublicMersennePrime(SecureBigInteger publicValue)
+    private static int BitLengthOfPublicMersennePrime(Calculator<TNumber> publicValue)
     {
-        using var bytes = publicValue.ToByteArray();
+        using var bytes = publicValue.ByteRepresentation;
         int idx = bytes.Length - 1;
         while (idx >= 0 && bytes[idx] == 0)
         {

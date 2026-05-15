@@ -58,7 +58,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
 
         // Act & Assert
         switch (secret)
@@ -122,7 +122,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
         using var pinnedPassword = password.ToPinnedSecure();
         using var passwordSecret = Secret<SecureBigInteger>.FromText(pinnedPassword);
 
@@ -152,7 +152,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
         using var secretNumber = number.ToSecureBigInteger();
 
         // Act
@@ -178,7 +178,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
 
         // Act
         using var shares = secretSplitter.MakeShares(3, 7, splitSecurityLevel, out var originalSecret);
@@ -220,7 +220,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
 
         // Act & Assert
         using var shares = secretSplitter.MakeShares(2, 7, 13, out var discardedSecret);
@@ -241,7 +241,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
 
         // Act
         using var shares = secretSplitter.MakeShares(3, 7, 51, out var originalSecret);
@@ -266,7 +266,7 @@ public class ShamirsSecretSharingTest
         const string longSecret =
             "-----BEGIN EC PRIVATE KEY-----MIIBUQIBAQQgxq7AWG9L6uleuTB9q5FGqnHjXF+kD4y9154SLYYKMDqggeMwgeACAQEwLAYHKoZIzj0BAQIhAP////////////////////////////////////7///wvMEQEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwRBBHm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeYSDradyajxGVdpPv8DhEIqP0XtEimhVQZnEfQj/sQ1LgCIQD////////////////////+uq7c5q9IoDu/0l6M0DZBQQIBAaFEA0IABE0XO6I8lZYzXqRQnHP/knSwLex7q77g4J2AN0cVyrADicGlUr6QjVIlIu9NXCHxD2i++ToWjO1zLVdxgNJbUUc=-----END EC PRIVATE KEY-----";
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
         using var pinnedLong = longSecret.ToPinnedSecure();
         using var longSecretValue = Secret<SecureBigInteger>.FromText(pinnedLong);
 
@@ -290,7 +290,7 @@ public class ShamirsSecretSharingTest
     public void Reconstruction_FromTextLines_RestoresDefaultPassword()
     {
         // Arrange
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
         using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
 
         // Act
@@ -315,7 +315,7 @@ public class ShamirsSecretSharingTest
             sharesChunk.AppendLine(share);
         }
 
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
         using var blob = sharesChunk.ToString().ToPinnedSecure();
 
         // Act
@@ -350,7 +350,7 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
         const int n = 5;
         var base64 = Convert.ToBase64String(message);
         using var pinnedBase64 = base64.ToPinnedSecure();
@@ -387,7 +387,7 @@ public class ShamirsSecretSharingTest
         int ok = 0;
         const int total = 20;
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm());
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
         var rng = new Random();
 
         // Act
