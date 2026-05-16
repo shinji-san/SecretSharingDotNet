@@ -454,7 +454,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// Gets this <see cref="Secret{TNumber}"/> as an a0 coefficient.
     /// </summary>
-    internal Calculator<TNumber> ToCoefficient => Calculator.Create(this.secretNumber.PoolArray, this.secretNumber.Length, typeof(TNumber)) as Calculator<TNumber>;
+    internal Calculator<TNumber> ToCoefficient => Calculator.Create<TNumber>(this.secretNumber.PoolArray, this.secretNumber.Length);
 
     /// <summary>
     /// Casts the <typeparamref name="TNumber"/> instance to an <see cref="Secret{TNumber}"/> instance
@@ -487,7 +487,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     {
         secret.ThrowIfDisposed();
         using var secretBytes = secret.secretNumber.Subset(0, secret.secretNumber.Length - MarkByteCount);
-        return Calculator.Create(secretBytes.PoolArray, secretBytes.Length, typeof(TNumber)) as Calculator<TNumber>;
+        return Calculator.Create<TNumber>(secretBytes.PoolArray, secretBytes.Length);
     }
 
     /// <summary>
@@ -896,9 +896,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         {
             randomSecretBytes.PoolArray[i] = i == 1 ? MinMarkByte : MaxMarkByte;
             using var randomSecretNumber =
-                Calculator.Create(randomSecretBytes.PoolArray, randomSecretBytes.Length, typeof(TNumberStatic)) as
-                    Calculator<TNumberStatic>;
-            using var absValue = randomSecretNumber?.Abs();
+                Calculator.Create<TNumberStatic>(randomSecretBytes.PoolArray, randomSecretBytes.Length);
+            using var absValue = randomSecretNumber.Abs();
             using var a0 = absValue % prime;
             if (a0 == randomSecretNumber)
             {

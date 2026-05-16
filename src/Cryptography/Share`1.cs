@@ -519,13 +519,12 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             throw new FormatException(ErrorMessages.ShareIndexAndValueMustBeNonEmpty);
         }
 
-        var numberType = typeof(TNumber);
         Calculator<TNumber> index = null;
         Calculator<TNumber> value = null;
         try
         {
-            index = DecodeHexToCalculator(buf, indexStart, indexLen, numberType);
-            value = DecodeHexToCalculator(buf, valueStart, valueLen, numberType);
+            index = DecodeHexToCalculator(buf, indexStart, indexLen);
+            value = DecodeHexToCalculator(buf, valueStart, valueLen);
             if (index < Calculator<TNumber>.One)
             {
                 throw new FormatException(ErrorMessages.ShareIndexMustBePositive);
@@ -548,7 +547,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// Decodes raw index and value byte arrays into a pair of <see cref="Calculator{TNumber}"/> instances.
     /// </summary>
     /// <remarks>
-    /// Uses the try/finally null-transfer pattern: if the second <see cref="Calculator.Create(byte[], int, Type)"/>
+    /// Uses the try/finally null-transfer pattern: if the second <see cref="Calculator.Create{TNumber}(byte[], int)"/>
     /// call or the index validation throws, any already-allocated <see cref="Calculator{TNumber}"/> is disposed
     /// to prevent resource leaks.
     /// </remarks>
@@ -556,27 +555,23 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// Thrown when the decoded index is less than one.
     /// </exception>
     /// <exception cref="NotSupportedException">
-    /// Thrown when <see cref="Calculator.Create(byte[], int, Type)"/> returns an instance that is not
-    /// assignable to <see cref="Calculator{TNumber}"/> — i.e., no calculator implementation is registered
-    /// for <typeparamref name="TNumber"/>. This is a configuration error, not invalid user input, and is
-    /// surfaced explicitly to prevent silent null-propagation through downstream operator comparisons.
+    /// Thrown when no calculator implementation is registered for <typeparamref name="TNumber"/>
+    /// (propagated from <see cref="Calculator.Create{TNumber}(byte[], int)"/>). This is a
+    /// configuration error, not invalid user input.
     /// </exception>
     private static (Calculator<TNumber> Index, Calculator<TNumber> Value) DecodeFromBytes(byte[] indexBytes, byte[] valueBytes)
     {
-        var numberType = typeof(TNumber);
         Calculator<TNumber> index = null;
         Calculator<TNumber> value = null;
         try
         {
-            index = Calculator.Create(indexBytes, indexBytes.Length, numberType) as Calculator<TNumber>
-                    ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, numberType.Name));
+            index = Calculator.Create<TNumber>(indexBytes, indexBytes.Length);
             if (index < Calculator<TNumber>.One)
             {
                 throw new ArgumentOutOfRangeException(nameof(indexBytes), ErrorMessages.ShareIndexMustBePositive);
             }
 
-            value = Calculator.Create(valueBytes, valueBytes.Length, numberType) as Calculator<TNumber>
-                    ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, numberType.Name));
+            value = Calculator.Create<TNumber>(valueBytes, valueBytes.Length);
 
             var result = (index, value);
             index = null;
@@ -605,7 +600,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// Thrown when a non-hexadecimal character is encountered. The message identifies the zero-based
     /// position of the invalid character within <paramref name="buf"/>.
     /// </exception>
-    private static Calculator<TNumber> DecodeHexToCalculator(char[] buf, int offset, int length, Type numberType)
+    private static Calculator<TNumber> DecodeHexToCalculator(char[] buf, int offset, int length)
     {
         var byteCount = (length + 1) >> 1;
         using var bytes = new PinnedPoolArray<byte>(byteCount);
@@ -639,7 +634,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             readIndex += 2;
         }
 
-        return Calculator.Create(bytesArray, bytes.Length, numberType) as Calculator<TNumber>;
+        return Calculator.Create<TNumber>(bytesArray, bytes.Length);
     }
 
     /// <summary>

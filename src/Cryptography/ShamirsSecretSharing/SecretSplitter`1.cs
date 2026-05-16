@@ -345,8 +345,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
                 while (true)
                 {
                     SecureRandom.Fill(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
-                    using var randomValue = Calculator.Create(randomBytePool.PoolArray, randomBytePool.Length, typeof(TNumber)) as Calculator<TNumber>
-                                            ?? throw new InvalidOperationException(ErrorMessages.RandomValueGenerationFailed);
+                    using var randomValue = Calculator.Create<TNumber>(randomBytePool.PoolArray, randomBytePool.Length);
 
                     if (randomValue >= rangeBound)
                     {
@@ -431,8 +430,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         // (x_i - x_j); a collision yields denominator = 0 and a misleading
         // "inverse of zero" deep in DivMod). Reject early with a clean
         // ArgumentOutOfRangeException naming the actual misconfigured argument.
-        using var maxIndex = Calculator.Create(Int32ToLittleEndianBytes(numberOfShares), sizeof(int), typeof(TNumber)) as Calculator<TNumber>
-                             ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
+        using var maxIndex = Calculator.Create<TNumber>(Int32ToLittleEndianBytes(numberOfShares), sizeof(int));
         if (maxIndex >= prime)
         {
             throw new ArgumentOutOfRangeException(
@@ -453,8 +451,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
                 Calculator<TNumber> y = null;
                 try
                 {
-                    x = Calculator.Create(bytes, bytes.Length, typeof(TNumber)) as Calculator<TNumber>
-                        ?? throw new NotSupportedException(string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
+                    x = Calculator.Create<TNumber>(bytes, bytes.Length);
                     y = Polynomial.EvaluateAt(x, polynomial, this.securityLevelManager.SecurityLevel);
                     shares[i - 1] = new Share<TNumber>(x, y);
                     // Ownership transferred to Share -- null out so the catch does not double-dispose.

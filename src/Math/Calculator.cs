@@ -137,11 +137,50 @@ public abstract class Calculator : IDisposable
     /// <returns>A <see cref="Calculator"/> instance bound to <paramref name="numberType"/>.</returns>
     /// <exception cref="System.Collections.Generic.KeyNotFoundException">
     /// <paramref name="numberType"/> is not a registered backend in this assembly. The generic
-    /// <see cref="Calculator{TNumber}"/> implicit-conversion path translates this to
+    /// <see cref="Create{TNumber}(byte[], int)"/> overload translates this to
     /// <see cref="NotSupportedException"/>; this base-class entry point intentionally surfaces
     /// the raw lookup failure for plugin diagnostics.
     /// </exception>
     public static Calculator Create(byte[] data, int length, Type numberType) => ChildBaseCtors[numberType](data, length);
+
+    /// <summary>
+    /// Strongly-typed counterpart to <see cref="Create(byte[], int, Type)"/>. Resolves the backend
+    /// constructor for <typeparamref name="TNumber"/> and verifies that the produced instance is
+    /// assignable to <see cref="Calculator{TNumber}"/>; otherwise the orphaned instance is disposed
+    /// and a <see cref="NotSupportedException"/> is thrown.
+    /// </summary>
+    /// <typeparam name="TNumber">Numeric backend type.</typeparam>
+    /// <param name="data">byte array representation of <typeparamref name="TNumber"/></param>
+    /// <param name="length">Length of the byte array</param>
+    /// <returns>A <see cref="Calculator{TNumber}"/> instance bound to <typeparamref name="TNumber"/>.</returns>
+    /// <remarks>
+    /// Closes the leak-on-type-mismatch window of the
+    /// <c>Calculator.Create(...) as Calculator&lt;TNumber&gt;</c> idiom: if a third-party plugin
+    /// backend produces a <see cref="Calculator"/> subtype that is not assignable to
+    /// <see cref="Calculator{TNumber}"/>, the original instance — which may hold pinned, security-
+    /// sensitive buffers on the <see cref="Numerics.SecureBigInteger"/> backend — is disposed
+    /// before the exception escapes.
+    /// </remarks>
+    /// <exception cref="NotSupportedException">
+    /// The registered backend for <typeparamref name="TNumber"/> is not assignable to
+    /// <see cref="Calculator{TNumber}"/> — a configuration error in a third-party plugin
+    /// backend rather than invalid user input.
+    /// </exception>
+    /// <exception cref="System.Collections.Generic.KeyNotFoundException">
+    /// No backend is registered for <typeparamref name="TNumber"/>.
+    /// </exception>
+    public static Calculator<TNumber> Create<TNumber>(byte[] data, int length)
+    {
+        var raw = Create(data, length, typeof(TNumber));
+        if (raw is Calculator<TNumber> typed)
+        {
+            return typed;
+        }
+
+        raw?.Dispose();
+        throw new NotSupportedException(
+            string.Format(ErrorMessages.DataTypeNotSupported, typeof(TNumber).Name));
+    }
 
     /// <summary>
     /// Returns a <see cref="System.String"/> that represents the current <see cref="Calculator"/>.
