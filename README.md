@@ -277,50 +277,54 @@ public class Program
 ```
 ## Pre-defined secret: text 📄
 Use a text as secret, which can be divided into shares. The length of the generated shares is based on the security level.
-Here is an example with auto-detected security level:
+Here is an example with auto-detected security level using the `BigInteger` backend; for the constant-time `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
 ```csharp
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
 using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
 
-namespace Example2
+namespace Example2;
+
+public class Program
 {
-  public class Program
+  public static void Main(string[] args)
   {
-    public static void Main(string[] args)
-    {
-      //// Create Shamir's Secret Sharing instance with BigInteger
-      var splitter = new SecretSplitter<BigInteger>();
+    //// Create Shamir's Secret Sharing instance with BigInteger
+    using var splitter = new SecretSplitter<BigInteger>();
 
-      string password = "Hello World!!";
-      //// Minimum number of shared secrets for reconstruction: 3
-      //// Maximum number of shared secrets: 7
-      //// Attention: The password length can change the security level set by the ctor
-      //// or SecurityLevel property.
-      var shares = splitter.MakeShares(3, 7, password);
+    string password = "Hello World!!";
+    //// Minimum number of shared secrets for reconstruction: 3
+    //// Maximum number of shared secrets: 7
+    //// Attention: The password length can change the security level set by passing
+    //// it to MakeShares or assigning the SecurityLevel property.
+    using var pinned = password.ToPinnedSecure();
+    using var secret = Secret<BigInteger>.FromText(pinned);
+    using var shares = splitter.MakeShares(3, 7, secret);
 
-      var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
-      //// The 'shares' instance contains the shared secrets
-      var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet1 = shares.Where(p => p.IsIndexEven).ToList();
-      var recoveredSecret1 = combiner.Reconstruction(subSet1.ToArray());
-      var subSet2 = shares.Where(p => p.IsIndexOdd).ToList();
-      var recoveredSecret2 = combiner.Reconstruction(subSet2.ToArray());
+    var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+    //// The 'shares' instance contains the shared secrets
+    using var combiner = new SecretReconstructor<BigInteger>(gcd);
+    using var recoveredSecret1 = combiner.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
+    using var recoveredSecret2 = combiner.Reconstruction(shares.Where(p => p.IsIndexOdd).ToArray());
 
-      //// String representation of all shares
-      Console.WriteLine(shares);
+    //// All shares serialised as hex lines (pinned char buffer, not redaction-gated)
+    using var sharesChars = shares.ToCharArray();
+    Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
 
-      //// 1st recovered secret as string (not base64!)
-      Console.WriteLine(recoveredSecret1);
+    //// 1st recovered secret as UTF-8 text (pinned char buffer, not redaction-gated)
+    using var recovered1Chars = recoveredSecret1.ToCharArray();
+    Console.Out.Write(recovered1Chars.PoolArray, 0, recovered1Chars.Length);
+    Console.WriteLine();
 
-      //// 2nd recovered secret as string (not base64!)
-      Console.WriteLine(recoveredSecret2);
-    }
+    //// 2nd recovered secret as UTF-8 text (pinned char buffer, not redaction-gated)
+    using var recovered2Chars = recoveredSecret2.ToCharArray();
+    Console.Out.Write(recovered2Chars.PoolArray, 0, recovered2Chars.Length);
+    Console.WriteLine();
   }
 }
 ```
