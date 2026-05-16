@@ -51,7 +51,7 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     /// <summary>
     /// Synchronizes mutations of <see cref="MersennePrime"/> and <see cref="currentSecurityLevel"/> in
     /// the <see cref="SecurityLevel"/> setter and final disposal, so concurrent setters and a
-    /// concurrent <see cref="Dispose"/> cannot interleave the field swap.
+    /// concurrent <see cref="Dispose()"/> cannot interleave the field swap.
     /// </summary>
     private readonly object syncRoot = new();
 
