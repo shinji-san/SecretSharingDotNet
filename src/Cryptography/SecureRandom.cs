@@ -46,8 +46,8 @@ internal static class SecureRandom
     /// Maximum value of <c>toExclusive - fromInclusive</c> that
     /// <see cref="NextInt32"/>'s legacy fallback can serve. The fallback rejection-samples
     /// over a single random byte, so any range above this would be unrepresentable.
-    /// Modern targets use <see cref="RandomNumberGenerator.GetInt32(int, int)"/> and have
-    /// no such restriction.
+    /// Modern targets use <see cref="RandomNumberGenerator"/>'s
+    /// <c>GetInt32(int, int)</c> static helper and have no such restriction.
     /// </summary>
     private const int LegacyFallbackMaxRange = 256;
 
@@ -101,7 +101,8 @@ internal static class SecureRandom
     /// </exception>
     /// <remarks>
     /// On netstandard2.1+ / net8+ this is a thin wrapper around
-    /// <see cref="RandomNumberGenerator.GetInt32(int, int)"/>. On legacy targets a single random
+    /// <see cref="RandomNumberGenerator"/>'s <c>GetInt32(int, int)</c> static helper.
+    /// On legacy targets a single random
     /// byte is rejection-sampled into the desired range; this fallback is sufficient for every
     /// in-tree caller (termination-byte ranges of [1, 32) and [1, 128)).
     /// </remarks>
