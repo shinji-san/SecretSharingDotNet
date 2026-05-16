@@ -514,7 +514,12 @@ public class SecretTest
 
     /// <summary>
     /// Tests that <see cref="Secret{TNumber}.ToCharArray()"/> throws
-    /// <see cref="ObjectDisposedException"/> after the secret has been disposed.
+    /// <see cref="ObjectDisposedException"/> after the secret has been disposed,
+    /// and that the exception's <see cref="ObjectDisposedException.ObjectName"/>
+    /// reports the <c>Secret</c> wrapper type — not the underlying
+    /// <c>PinnedPoolArray</c>. The Secret-level <c>ThrowIfDisposed</c> guard runs
+    /// before the dereference, translating the buffer's disposed state into a
+    /// wrapper-named exception for caller-facing diagnostics.
     /// </summary>
     [Fact]
     public void ToCharArray_AfterDispose_ThrowsObjectDisposedException()
@@ -525,8 +530,11 @@ public class SecretTest
         var secret = Secret<BigInteger>.FromText(pinnedText);
         secret.Dispose();
 
-        // Act & Assert
-        Assert.Throws<ObjectDisposedException>(secret.ToCharArray);
+        // Act
+        var ex = Assert.Throws<ObjectDisposedException>(secret.ToCharArray);
+
+        // Assert
+        Assert.Contains("Secret", ex.ObjectName);
     }
 
     /// <summary>

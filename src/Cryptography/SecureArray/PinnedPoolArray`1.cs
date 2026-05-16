@@ -109,6 +109,19 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     }
 
     /// <summary>
+    /// Gets a value indicating whether <see cref="Dispose"/> has completed on this
+    /// instance. Read-only counterpart of the internal <see cref="ThrowIfDisposed"/>
+    /// guard, intended for wrapper types that want to translate a disposed underlying
+    /// buffer into their own type-named <see cref="ObjectDisposedException"/> without
+    /// triggering one from this class first.
+    /// </summary>
+    /// <remarks>
+    /// Reads the disposed flag with <see cref="Volatile.Read(ref int)"/> so the result
+    /// is monotonic and visible across threads. Never throws.
+    /// </remarks>
+    public bool IsDisposed => Volatile.Read(ref this.disposed) == 1;
+
+    /// <summary>
     /// Gets or sets the logical length of the pinned buffer. Must be in <c>[0, Capacity]</c>.
     /// </summary>
     /// <remarks>

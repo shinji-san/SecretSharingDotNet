@@ -454,6 +454,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     public static implicit operator Calculator<TNumber>(Secret<TNumber> secret)
     {
+        secret.ThrowIfDisposed();
         using var secretBytes = secret.secretNumber.Subset(0, secret.secretNumber.Length - MarkByteCount);
         return Calculator.Create(secretBytes.PoolArray, secretBytes.Length, typeof(TNumber)) as Calculator<TNumber>;
     }
@@ -557,6 +558,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <returns>A value that indicates the relative order of the <see cref="Secret{TNumber}"/> instances being compared.</returns>
     public int CompareTo(Secret<TNumber> other)
     {
+        this.ThrowIfDisposed();
+        other.ThrowIfDisposed();
         using var pinnedPoolArrayLeft = this.secretNumber.Subset(0, this.SecretByteSize - MarkByteCount);
         using var pinnedPoolArrayRight = other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount);
         return pinnedPoolArrayLeft.CompareTo(pinnedPoolArrayRight);
@@ -570,6 +573,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// If <paramref name="other"/> is <see langword="null"/>, the method returns <see langword="false"/>.</returns>
     public bool Equals(Secret<TNumber> other)
     {
+        this.ThrowIfDisposed();
+        other.ThrowIfDisposed();
         if (this.SecretByteSize < MarkByteCount && other.SecretByteSize < MarkByteCount)
         {
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
@@ -609,7 +614,14 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// Returns the hash code for the current <see cref="Secret{TNumber}"/> structure.
     /// </summary>
     /// <returns>A 32-bit signed integer hash code.</returns>
-    public override int GetHashCode() => this.secretNumber.GetHashCode();
+    /// <exception cref="ObjectDisposedException">
+    /// The underlying buffer has already been disposed.
+    /// </exception>
+    public override int GetHashCode()
+    {
+        this.ThrowIfDisposed();
+        return this.secretNumber.GetHashCode();
+    }
 
     /// <summary>
     /// Converts the value of <see cref="Secret{TNumber}"/> structure to its equivalent <see cref="string"/> representation
@@ -623,6 +635,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public override string ToString()
     {
 #if DEBUG
+        this.ThrowIfDisposed();
         if (this.secretNumber is not { Length: > MarkByteCount })
         {
             return string.Empty;
@@ -643,6 +656,27 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     }
 
     /// <summary>
+    /// Throws <see cref="ObjectDisposedException"/> with the
+    /// <see cref="Secret{TNumber}"/> type name if the underlying pinned buffer
+    /// has been disposed. The default-value struct (where
+    /// <see cref="secretNumber"/> is <see langword="null"/>) is treated as the
+    /// uninitialized state and flows through — methods that special-case
+    /// "empty / uninitialized" handle it separately. Reads
+    /// <see cref="PinnedPoolArray{T}.IsDisposed"/>, which is a non-throwing,
+    /// thread-safe accessor.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">
+    /// The underlying buffer has already been disposed.
+    /// </exception>
+    private void ThrowIfDisposed()
+    {
+        if (this.secretNumber is not null && this.secretNumber.IsDisposed)
+        {
+            throw new ObjectDisposedException(nameof(Secret<TNumber>));
+        }
+    }
+
+    /// <summary>
     /// Converts the secret to a byte array.
     /// </summary>
     /// <returns>Array of type <see cref="byte"/></returns>
@@ -651,6 +685,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </exception>
     public PinnedPoolArray<byte> ToByteArray()
     {
+        this.ThrowIfDisposed();
         return this.secretNumber.Subset(0, this.secretNumber.Length - MarkByteCount);
     }
 
@@ -703,6 +738,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </exception>
     public PinnedPoolArray<char> ToCharArray(Encoding encoding)
     {
+        this.ThrowIfDisposed();
         if (encoding is null)
         {
             throw new ArgumentNullException(nameof(encoding));
@@ -735,6 +771,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <returns></returns>
     public ReadOnlySpan<byte> AsReadOnlySpan()
     {
+        this.ThrowIfDisposed();
         return this.secretNumber.PoolArray.AsSpan(0, this.secretNumber.Length - MarkByteCount);
     }
 #endif
@@ -754,6 +791,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public string ToBase64String()
     {
 #if DEBUG
+        this.ThrowIfDisposed();
         if (this.secretNumber is not { Length: > MarkByteCount })
         {
             return string.Empty;
@@ -778,6 +816,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </exception>
     public PinnedPoolArray<char> ToBase64CharArray()
     {
+        this.ThrowIfDisposed();
         if (this.secretNumber is not { Length: > MarkByteCount })
         {
             return new PinnedPoolArray<char>(0);
