@@ -31,6 +31,7 @@
 
 namespace SecretSharingDotNet.Cryptography;
 
+using Extension;
 using SecureArray;
 using System;
 using System.Collections;
@@ -140,25 +141,55 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
         var shares = new List<Share<TNumber>>();
         var lineStart = 0;
 
-        for (var i = 0; i <= end; i++)
+        try
         {
-            if (i != end && buf[i] != '\n' && buf[i] != '\r')
+            for (var i = 0; i <= end; i++)
             {
-                continue;
+                if (i != end && buf[i] != '\n' && buf[i] != '\r')
+                {
+                    continue;
+                }
+
+                if (lineStart < i)
+                {
+                    var lineLen = i - lineStart;
+                    using var linePinned = new PinnedPoolArray<char>(lineLen);
+                    Array.Copy(buf, lineStart, linePinned.PoolArray, 0, lineLen);
+
+                    // Allocate the share before handing it to the list. If the list's
+                    // own Add (e.g. internal resize) throws after the share has been
+                    // constructed, the local would otherwise leak the share's
+                    // index+value Calculator pinned buffers.
+                    Share<TNumber> share = null;
+                    try
+                    {
+                        share = new Share<TNumber>(linePinned);
+                        shares.Add(share);
+                        share = null;
+                    }
+                    catch
+                    {
+                        share?.Dispose();
+                        throw;
+                    }
+                }
+
+                lineStart = i + 1;
             }
 
-            if (lineStart < i)
-            {
-                var lineLen = i - lineStart;
-                using var linePinned = new PinnedPoolArray<char>(lineLen);
-                Array.Copy(buf, lineStart, linePinned.PoolArray, 0, lineLen);
-                shares.Add(new Share<TNumber>(linePinned));
-            }
-
-            lineStart = i + 1;
+            var result = new Shares<TNumber>(shares);
+            // Ownership of every share is now held by the returned Shares<TNumber>.
+            // Null the local so the catch path below does not double-dispose.
+            shares = null;
+            return result;
         }
-
-        return new Shares<TNumber>(shares);
+        catch
+        {
+            // Mid-loop failure (malformed share line, OOM in List resize, etc.) —
+            // dispose every share already accumulated before re-throwing.
+            shares?.DisposeAll();
+            throw;
+        }
     }
 
     /// <summary>

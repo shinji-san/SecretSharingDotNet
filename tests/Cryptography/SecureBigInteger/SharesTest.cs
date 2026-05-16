@@ -87,6 +87,28 @@ public class SharesTest
     }
 
     /// <summary>
+    /// Regression guard for MLE-1: when <see cref="Shares{TNumber}.FromText"/> encounters
+    /// a malformed line partway through parsing, every <see cref="Share{TNumber}"/> that
+    /// was already constructed for earlier (valid) lines must be disposed before the
+    /// exception propagates. The test-project's pinned-allocation accounting catches any
+    /// share-Calculator buffer left behind by the partial build.
+    /// </summary>
+    [Fact]
+    public void FromText_MidParseFailure_DisposesAccumulatedSharesBeforeRethrow()
+    {
+        // Arrange — 4 valid share lines followed by a malformed one. The Share<TNumber>
+        // ctor rejects lines that do not parse as INDEX-VALUE; a bare "GARBAGE" trips
+        // that rejection mid-loop, after several shares have been added to the list.
+        var validShares = TestData.GetPredefinedShares();
+        var lines = string.Join(Environment.NewLine, validShares[0], validShares[1], validShares[2], validShares[3], "GARBAGE");
+        using var blob = lines.ToPinnedSecure();
+
+        // Act & Assert — the throw is expected; the regression guard is that no pinned
+        // Calculator buffer survives via a leaked Share<TNumber> in the partial list.
+        Assert.ThrowsAny<Exception>(() => Shares<SecureBigInteger>.FromText(blob));
+    }
+
+    /// <summary>
     /// Verifies that the <see cref="Shares{TNumber}.ToString"/> method returns a string representation
     /// that accurately reflects the expected format and content of the shares.
     /// </summary>
