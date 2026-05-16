@@ -31,6 +31,8 @@
 
 namespace SecretSharingDotNet.Math;
 
+using System;
+
 /// <summary>
 /// Provides a mechanism to compute the extended greatest common divisor
 /// including Bézout coefficients.
