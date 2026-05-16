@@ -2128,6 +2128,52 @@ public class SecureBigIntegerTests
     }
 
     /// <summary>
+    /// Tests that <see cref="SecureBigInteger.SerializedByteCount"/> equals
+    /// <c>ToByteArray().Length</c> across representative signed values — the contract
+    /// the <see cref="SecureBigIntCalculator.ByteCount"/> delegation relies on. The
+    /// sentinel rule (append <c>0x00</c> when the magnitude's high-byte MSB is set on
+    /// a positive value) is exercised on both single-byte and multi-byte magnitudes.
+    /// </summary>
+    /// <param name="value">A representative signed value.</param>
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(127L)]
+    [InlineData(128L)]
+    [InlineData(255L)]
+    [InlineData(256L)]
+    [InlineData(32767L)]
+    [InlineData(32768L)]
+    [InlineData(-1L)]
+    [InlineData(-128L)]
+    [InlineData(-129L)]
+    [InlineData(long.MaxValue)]
+    [InlineData(long.MinValue)]
+    public void SerializedByteCount_MatchesToByteArrayLength(long value)
+    {
+        // Arrange
+        using var num = new SecureBigInteger(value);
+        using var bytes = num.ToByteArray();
+
+        // Act & Assert
+        Assert.Equal(bytes.Length, num.SerializedByteCount);
+    }
+
+    /// <summary>
+    /// Tests that reading <see cref="SecureBigInteger.SerializedByteCount"/> after
+    /// <see cref="IDisposable.Dispose"/> throws <see cref="ObjectDisposedException"/>.
+    /// </summary>
+    [Fact]
+    public void SerializedByteCount_AfterDispose_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var num = new SecureBigInteger(42);
+        num.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => num.SerializedByteCount);
+    }
+
+    /// <summary>
     /// Tests that the <see cref="SecureBigInteger(byte[], int, bool)"/> ctor rejects a
     /// negative <c>length</c> with <see cref="ArgumentOutOfRangeException"/> whose
     /// <c>ParamName</c> is <c>"length"</c>.

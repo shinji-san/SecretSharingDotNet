@@ -380,6 +380,50 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     }
 
     /// <summary>
+    /// Gets the length of the serialized two's-complement byte representation produced
+    /// by <see cref="ToByteArray"/> — i.e. the magnitude byte count plus one trailing
+    /// <c>0x00</c> sentinel when the value is non-negative and the magnitude's
+    /// most-significant byte has its high bit set. Matches the
+    /// <see cref="System.Numerics.BigInteger.ToByteArray()"/>-style invariant
+    /// <c>SerializedByteCount == ToByteArray().Length</c> across all values and signs.
+    /// </summary>
+    /// <remarks>
+    /// Computed analytically from the limb state — no <see cref="PinnedPoolArray{T}"/>
+    /// allocation. Variable-time on the high-limb magnitude for the same reason as
+    /// <see cref="ByteCount"/>; both are documented public observables under the threat
+    /// model. Used by <see cref="SecureBigIntCalculator.ByteCount"/> to preserve the
+    /// <c>Calculator.ByteCount == ByteRepresentation.Length</c> invariant relied on by
+    /// <c>Share&lt;TNumber&gt;.GetCharCount</c>.
+    /// </remarks>
+    public int SerializedByteCount
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            ulong highLimb = this.limbs[this.limbs.Length - 1];
+            if (highLimb == 0)
+            {
+                // Zero value: single 0x00 byte (preserves the historical convention),
+                // sign is normalized to non-negative for zero by the ctors.
+                return 1;
+            }
+
+            int highBytes = BytesInLimb(highLimb);
+            int magnitudeBytes = ((this.limbs.Length - 1) * 8) + highBytes;
+            if (this.isNegative)
+            {
+                return magnitudeBytes;
+            }
+
+            // Positive: append a 0x00 sentinel if the magnitude's high byte has its
+            // MSB set, so the unsigned interpretation survives a round-trip through
+            // sign-aware decoders. Mirrors the rule applied in ToByteArray.
+            bool highByteMsbSet = ((highLimb >> (((highBytes - 1) * 8) + 7)) & 1UL) != 0;
+            return highByteMsbSet ? magnitudeBytes + 1 : magnitudeBytes;
+        }
+    }
+
+    /// <summary>
     /// Counts the number of significant bytes in <paramref name="limb"/>.
     /// Returns 0 when <paramref name="limb"/> is zero. Variable-time on the
     /// limb value — only used to derive public observables (<see cref="ByteCount"/>).

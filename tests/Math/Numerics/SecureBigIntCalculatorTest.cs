@@ -499,18 +499,35 @@ public class SecureBigIntCalculatorTest
     }
 
     /// <summary>
-    /// Tests that the lazy-cached <see cref="SecureBigIntCalculator.ByteCount"/> matches
-    /// <see cref="SecureBigInteger.ByteCount"/> on the same source value.
+    /// Tests that <see cref="SecureBigIntCalculator.ByteCount"/> matches the serialized
+    /// length produced by <see cref="SecureBigInteger.ToByteArray"/> — the contract that
+    /// <c>Share&lt;TNumber&gt;.GetCharCount</c> relies on. Covers magnitude-only values
+    /// (no sentinel), high-bit-set positive values (sentinel appended), and negative
+    /// values (no sentinel), to ensure the Sentinel-needed rule is honoured by the
+    /// pure-arithmetic <c>SerializedByteCount</c> delegation.
     /// </summary>
-    [Fact]
-    public void ByteCount_ShouldReturnCorrectNumberOfBytes()
+    /// <param name="value">A representative signed value.</param>
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(127L)]          // high-bit clear: no sentinel
+    [InlineData(128L)]          // high-bit set: sentinel
+    [InlineData(255L)]          // high-bit set: sentinel
+    [InlineData(256L)]          // multi-byte magnitude, high byte high-bit clear
+    [InlineData(32768L)]        // multi-byte magnitude, high byte high-bit set
+    [InlineData(1234567890L)]
+    [InlineData(-1L)]           // negative: no sentinel
+    [InlineData(-128L)]         // negative two's-complement boundary
+    [InlineData(long.MaxValue)]
+    [InlineData(long.MinValue)]
+    public void ByteCount_MatchesByteRepresentationLength(long value)
     {
         // Arrange
-        using var value = new SecureBigInteger(1234567890);
-        using var calculator = new SecureBigIntCalculator(value);
+        using var secureBigInt = new SecureBigInteger(value);
+        using var calculator = new SecureBigIntCalculator(secureBigInt);
+        using var pinnedBytes = secureBigInt.ToByteArray();
 
         // Act & Assert
-        Assert.Equal(value.ByteCount, calculator.ByteCount);
+        Assert.Equal(pinnedBytes.Length, calculator.ByteCount);
     }
 
     /// <summary>
