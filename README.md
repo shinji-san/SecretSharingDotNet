@@ -658,10 +658,11 @@ hardware-backed enclaves) rather than rely on the `SecureBigInteger` naming alon
 
 # CLI building instructions
 ## Prerequisites
-For the following instructions, please make sure that you are connected to the internet. If necessary, NuGet will try to restore the [xUnit](https://xunit.net/) packages.
+For the following instructions, please make sure that you are connected to the internet. If necessary, NuGet will try to restore the required test and library packages (including [xUnit](https://xunit.net/) and Moq).
 
-If you start the unit tests on Linux, you must install the `mono-complete` package in case of the .NET Frameworks 4.7.2, 4.8 and 4.8.1.
+If you start the unit tests on Linux or macOS, you must install the `mono-complete` package in case of the .NET Frameworks 4.7.2, 4.8 and 4.8.1.
 You can find the Mono installation instructions [here](https://www.mono-project.com/download/stable/#download-lin).
+Mono 6.8 on Linux occasionally writes diagnostic `mono_crash.*.json` files after Framework-TFM test runs; these are tracked by `.gitignore` and do not indicate test failures — the runners report green and the crash sits in runner shutdown / finalizer drain.
 
 The .NET Frameworks 4.7.2, 4.8 and 4.8.1 can be found [here](https://dotnet.microsoft.com/download/dotnet-framework).
 
