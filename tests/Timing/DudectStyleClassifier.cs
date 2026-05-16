@@ -55,7 +55,7 @@ internal sealed class DudectStyleClassifier
     private readonly double pThreshold;
     private readonly double[] cropPercentiles;
 
-    public DudectStyleClassifier(double pThreshold = 0.001, double[]? cropPercentiles = null)
+    public DudectStyleClassifier(double pThreshold = 0.001, double[] cropPercentiles = null)
     {
         if (pThreshold <= 0 || pThreshold >= 1)
         {
