@@ -501,34 +501,34 @@ The .NET Frameworks 4.7.2, 4.8 and 4.8.1 can be found [here](https://dotnet.micr
 The .NET SDKs 8.0, 9.0 and 10.0 can be found [here](https://dotnet.microsoft.com/download/dotnet).
 
 ## Build and test the solution
-You can use the `SecretSharingDotNet.sln` solution file with the `dotnet` command to build the [SecretSharingDotNet](#secretsharingdotnet) library in the `Debug` or `Release` configuration. You can also use the `dotnet` command to start the unit tests.
+You can use the `SecretSharingDotNet.slnx` solution file with the `dotnet` command to build the [SecretSharingDotNet](#secretsharingdotnet) library in the `Debug` or `Release` configuration. You can also use the `dotnet` command to start the unit tests.
 
 ### 1. Restore NuGet packages
 
 ```dotnetcli
-dotnet restore SecretSharingDotNet.sln
+dotnet restore SecretSharingDotNet.slnx
 ```
 
 ### 2. Build the solution
 
 ```dotnetcli
-dotnet build -c Debug --no-restore SecretSharingDotNet.sln
+dotnet build -c Debug --no-restore SecretSharingDotNet.slnx
 ```
 
 or
 
 ```dotnetcli
-dotnet build -c Release --no-restore SecretSharingDotNet.sln
+dotnet build -c Release --no-restore SecretSharingDotNet.slnx
 ```
 
 ### 3. Test the solution
 
 ```dotnetcli
-dotnet test -c Debug --no-restore --no-build SecretSharingDotNet.sln -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+dotnet test -c Debug --no-restore --no-build SecretSharingDotNet.slnx -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 ```
 
 or 
 
 ```dotnetcli
-dotnet test -c Release --no-restore --no-build SecretSharingDotNet.sln -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+dotnet test -c Release --no-restore --no-build SecretSharingDotNet.slnx -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 ```
