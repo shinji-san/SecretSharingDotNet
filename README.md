@@ -119,7 +119,22 @@ A C# implementation of Shamir's Secret Sharing.
 
 # Usage 🔧
 > [!IMPORTANT]
-> Breaking Change in v0.14.0: The string encoding in `SecretSharingDotNet` with text secrets is UTF-8.
+> Breaking changes in v1.0.0-rc01 (major version bump from v0.14.0). Highlights for migrating consumers — see [`CHANGELOG.md`](./CHANGELOG.md) for the full list.
+>
+> - **Text I/O is pinned-buffer-only.** The `string`-based entry points are gone. Wrap a `string` in `.ToPinnedSecure()` and use the pinned factories: `Secret<TNumber>.FromText(PinnedPoolArray<char>)`, `new Share<TNumber>(PinnedPoolArray<char>)`, `Shares<TNumber>.FromText(...)`, `Shares<TNumber>.FromTextLines(...)`. Read back via the matching `ToCharArray()` methods on `Secret`, `Share`, and `Shares`.
+> - **`Reconstruction(string)` and `Reconstruction(string[])` removed.** Build a `Shares<TNumber>` through one of the pinned factories above and pass that.
+> - **`Secret<TNumber>.ToBase64()` → `ToBase64String()` (string, redaction-gated) and `ToBase64CharArray()` (pinned char buffer, not redacted).**
+> - **`Share<TNumber>.X` / `.Y` properties → `.Index` / `.Value`.**
+> - **`MakeShares` parameter types.** `numberOfMinimumShares` and `numberOfShares` are now `int` instead of `TNumber`.
+> - **`Calculator.ToInt32()` / `BigIntCalculator.ToInt32()` removed.**
+> - **`SecretReconstructor<TNumber>.SecurityLevel` is now read-only** — it is derived from the supplied shares on every `Reconstruction` call (see Basics).
+> - **`Calculator<TNumber>.Clone` is now `abstract`** — custom backends must override it.
+> - **`ExtendedEuclideanAlgorithm<TNumber>` is now `sealed`** — derive from `IExtendedGcdAlgorithm<TNumber>` or compose around it instead.
+> - **`Shares<TNumber>.OriginalSecret` and `Shares<TNumber>.OriginalSecretExists` removed** (deprecated since v0.14.0).
+> - **Platform support.** The minimum supported .NET Framework is now 4.7.2; net4.7 and net4.7.1 are removed.
+> - **`FinitePoint<TNumber>` is now `internal`** (was public).
+>
+> The text-secret encoding is UTF-8 (introduced in v0.14.0).
 
 ## Basics
 Use the function `MakeShares` to generate the shares, based on a random or pre-defined secret.
