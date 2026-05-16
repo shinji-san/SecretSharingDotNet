@@ -197,7 +197,14 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// Always non-negative. The full <see cref="ulong"/> range is supported, including
     /// values above <see cref="long.MaxValue"/> that would overflow the
     /// <see cref="SecureBigInteger(long)"/> ctor.
+    /// <para>
+    /// Marked <see cref="CLSCompliantAttribute"/> = <see langword="false"/> because
+    /// <see cref="ulong"/> is not a CLS-compliant type. CLS-only consumers can route
+    /// through the <see cref="SecureBigInteger(byte[])"/> ctor with the equivalent
+    /// little-endian byte representation.
+    /// </para>
     /// </remarks>
+    [CLSCompliant(false)]
     public SecureBigInteger(ulong value)
     {
         this.limbs = new PinnedPoolArray<ulong>(length: 1);
@@ -1585,7 +1592,12 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// Covers the full <see cref="ulong"/> range, including values above
     /// <see cref="long.MaxValue"/>. Without this overload such literals would have
     /// to be routed through a manual byte-array constructor.
+    /// <para>
+    /// Marked <see cref="CLSCompliantAttribute"/> = <see langword="false"/> because
+    /// <see cref="ulong"/> is not a CLS-compliant type.
+    /// </para>
     /// </remarks>
+    [CLSCompliant(false)]
     public static implicit operator SecureBigInteger(ulong value) => new SecureBigInteger(value);
 
     /// <summary>
