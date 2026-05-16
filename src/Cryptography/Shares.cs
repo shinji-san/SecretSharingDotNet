@@ -65,10 +65,13 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     private object syncRoot;
 
     /// <summary>
-    /// Indicates whether the collection and its contained shares have been disposed.
+    /// Indicates whether the collection and its contained shares have been disposed
+    /// (<c>0</c> = live, <c>1</c> = disposed). Updated atomically via
+    /// <see cref="Interlocked.Exchange(ref int, int)"/> so that concurrent
+    /// <see cref="Dispose"/> calls cannot both reach the share-cascade-dispose branch.
     /// </summary>
     [NonSerialized]
-    private bool disposed;
+    private int disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Shares{TNumber}"/> class.
@@ -460,7 +463,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// </remarks>
     public void Dispose()
     {
-        if (this.disposed)
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
         {
             return;
         }
@@ -469,7 +472,5 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
         {
             share?.Dispose();
         }
-
-        this.disposed = true;
     }
 }

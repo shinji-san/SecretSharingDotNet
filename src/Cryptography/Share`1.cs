@@ -36,6 +36,7 @@ using SecureArray;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 /// <summary>
 /// Represents a single share in a secret-sharing scheme.
@@ -84,9 +85,12 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     private readonly Calculator<TNumber> value;
 
     /// <summary>
-    /// Indicates whether the share has been disposed.
+    /// Indicates whether the share has been disposed (<c>0</c> = live, <c>1</c> = disposed).
+    /// Updated atomically via <see cref="Interlocked.Exchange(ref int, int)"/> so that
+    /// concurrent <see cref="Dispose"/> calls cannot both reach the
+    /// <see cref="Index"/> / <see cref="Value"/> cascade-dispose branch.
     /// </summary>
-    private bool disposed;
+    private int disposed;
 
     /// <summary>
     /// The index (X coordinate) of this share. In Shamir's Secret Sharing, each share is a point
@@ -426,20 +430,24 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
     /// <summary>
     /// Releases the <see cref="Calculator{TNumber}"/> instances backing <see cref="Index"/> and
-    /// <see cref="Value"/>. Idempotent — safe to call multiple times; subsequent calls are no-ops.
+    /// <see cref="Value"/>. Idempotent and safe to call from multiple threads concurrently —
+    /// the cascade-dispose runs exactly once.
     /// After disposal, all members except <see cref="Dispose"/> throw
     /// <see cref="ObjectDisposedException"/>.
     /// </summary>
     public void Dispose()
     {
-        if (this.disposed)
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
         {
             return;
         }
 
-        this.Index?.Dispose();
-        this.Value?.Dispose();
-        this.disposed = true;
+        // Access the backing fields directly: the public Index / Value property
+        // accessors call ThrowIfDisposed, and the disposed flag has already flipped
+        // to 1 above. Going through the properties would unconditionally throw and
+        // skip the cascade-dispose entirely.
+        this.index?.Dispose();
+        this.value?.Dispose();
     }
 
     /// <summary>
@@ -447,7 +455,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </summary>
     private void ThrowIfDisposed()
     {
-        if (this.disposed)
+        if (Volatile.Read(ref this.disposed) == 1)
         {
             throw new ObjectDisposedException(nameof(Share<>));
         }
