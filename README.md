@@ -379,10 +379,9 @@ public class Program
 ```
 ## Pre-defined secret: byte array ▦
 Use a byte array as secret, which can be divided into shares. The length of the generated shares is based on the security level.
-Here is an example with auto-detected security level:
+Here is an example with auto-detected security level using the `BigInteger` backend; for the constant-time `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
 ```csharp
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
@@ -390,33 +389,35 @@ using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
 
-namespace Example4
+namespace Example4;
+
+public class Program
 {
-  public class Program
+  public static void Main(string[] args)
   {
-    public static void Main(string[] args)
-    {
-      //// Create Shamir's Secret Sharing instance with BigInteger
-      var splitter = new SecretSplitter<BigInteger>();
+    //// Create Shamir's Secret Sharing instance with BigInteger
+    using var splitter = new SecretSplitter<BigInteger>();
 
-      byte[] bytes = { 0x1D, 0x2E, 0x3F };
-      //// Minimum number of shared secrets for reconstruction: 4
-      //// Maximum number of shared secrets: 10
-      //// Attention: The password length changes the security level set by the ctor
-      var shares = splitter.MakeShares(4, 10, bytes);
+    byte[] bytes = { 0x1D, 0x2E, 0x3F };
+    //// Minimum number of shared secrets for reconstruction: 4
+    //// Maximum number of shared secrets: 10
+    //// Attention: The byte array size can change the security level set by passing
+    //// it to MakeShares or assigning the SecurityLevel property.
+    using var secret = (Secret<BigInteger>)bytes;
+    using var shares = splitter.MakeShares(4, 10, secret);
 
-      var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
-      //// The 'shares' instance contains the shared secrets
-      var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet = shares.Where(p => p.IsIndexEven).ToList();
-      var recoveredSecret = combiner.Reconstruction(subSet.ToArray()).ToByteArray();
+    var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+    //// The 'shares' instance contains the shared secrets
+    using var combiner = new SecretReconstructor<BigInteger>(gcd);
+    using var recovered = combiner.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
+    using var recoveredBytes = recovered.ToByteArray();
 
-      //// String representation of all shares
-      Console.WriteLine(shares);
+    //// All shares serialised as hex lines (pinned char buffer, not redaction-gated)
+    using var sharesChars = shares.ToCharArray();
+    Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
 
-      //// The secret bytes.
-      Console.WriteLine($"{recoveredSecret[0]:X2}, {recoveredSecret[1]:X2}, {recoveredSecret[2]:X2}");
-    }
+    //// The secret bytes
+    Console.WriteLine($"{recoveredBytes[0]:X2}, {recoveredBytes[1]:X2}, {recoveredBytes[2]:X2}");
   }
 }
 ```
