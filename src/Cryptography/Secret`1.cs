@@ -43,6 +43,37 @@ using System.Text;
 /// This class represents the secret including members to parse or convert it.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer data type)</typeparam>
+/// <remarks>
+/// <para>
+/// <b>Ownership and copy semantics — single-owner discipline required.</b>
+/// <see cref="Secret{TNumber}"/> is a <c>readonly struct</c> that wraps a single
+/// shared <see cref="PinnedPoolArray{T}"/>. Struct assignment copies the wrapper
+/// by value, but the underlying pinned buffer is a reference type — so every
+/// "copy" of a <see cref="Secret{TNumber}"/> aliases the <em>same</em> backing
+/// store. Calling <see cref="Dispose"/> on any copy wipes the buffer, and every
+/// other copy then observes a disposed state on its next operation:
+/// </para>
+/// <code>
+/// Secret&lt;T&gt; kept = MakeSecret();
+/// {
+///     using var copy = kept;       // struct-copy aliases the same PinnedPoolArray
+///     /* … */
+/// }                                 // copy.Dispose wipes the shared buffer
+/// kept.ToByteArray();               // throws ObjectDisposedException
+/// </code>
+/// <para>
+/// Recommended discipline: <em>do not pass <see cref="Secret{TNumber}"/> by value
+/// across dispose boundaries</em>. Treat each constructed instance as a
+/// single-owner resource — the same convention as for any
+/// <see cref="IDisposable"/>. The <c>readonly struct</c> shape is preserved for
+/// compatibility but the type behaves semantically like a class-backed handle.
+/// </para>
+/// <para>
+/// A planned future-work item is to migrate the type to a sealed reference class
+/// so the language enforces this discipline directly. The migration is gated on
+/// the next breaking-change release cycle.
+/// </para>
+/// </remarks>
 #if DEBUG
 [DebuggerDisplay("{ToString()}")]
 #else

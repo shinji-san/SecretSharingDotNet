@@ -522,6 +522,33 @@ public class SecretTest
     /// before the dereference, translating the buffer's disposed state into a
     /// wrapper-named exception for caller-facing diagnostics.
     /// </summary>
+    /// <summary>
+    /// Documentation test for DOC-1: <see cref="Secret{TNumber}"/> is a
+    /// <c>readonly struct</c> wrapping a shared reference-type backing buffer, so
+    /// struct assignment aliases the same <c>PinnedPoolArray</c>. Disposing one
+    /// copy wipes the shared buffer; any other alias then observes the disposed
+    /// state on its next operation. The test pins this behaviour so a future
+    /// migration to a sealed class — which would eliminate the alias-then-dispose
+    /// hazard structurally — must consciously change the assertion.
+    /// </summary>
+    [Fact]
+    public void StructCopy_DisposeOneAliasInvalidatesOriginal()
+    {
+        // Arrange
+        const string secretText = "alias-shared-buffer";
+        using var pinnedText = secretText.ToPinnedSecure();
+        var original = Secret<SecureBigInteger>.FromText(pinnedText);
+        Secret<SecureBigInteger> alias = original;
+
+        // Act — disposing the alias wipes the shared backing buffer.
+        alias.Dispose();
+
+        // Assert — original observes the disposed state on its next operation,
+        // because it shares the same underlying PinnedPoolArray.
+        var ex = Assert.Throws<ObjectDisposedException>(original.ToCharArray);
+        Assert.Contains("Secret", ex.ObjectName);
+    }
+
     [Fact]
     public void ToCharArray_AfterDispose_ThrowsObjectDisposedException()
     {
