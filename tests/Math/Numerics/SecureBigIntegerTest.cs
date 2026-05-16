@@ -1606,7 +1606,9 @@ public class SecureBigIntegerTests
         Assert.Throws<ObjectDisposedException>(() => num.Equals(num));
         Assert.Throws<ObjectDisposedException>(() =>
         {
+#pragma warning disable CS1718 // intentional: exercises operator== reflexive path
             var _ = num == num;
+#pragma warning restore CS1718
         });
     }
 
