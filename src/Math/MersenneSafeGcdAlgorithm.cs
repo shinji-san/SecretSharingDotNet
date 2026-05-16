@@ -536,8 +536,9 @@ public sealed class MersenneSafeGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TN
     /// </para>
     /// <para>
     /// Implementation: scan from the most-significant byte of the magnitude
-    /// downward via <see cref="Calculator{TNumber}.ByteRepresentation"/>, find
-    /// the first non-zero byte, then count significant bits in it. Two's-
+    /// downward via <see cref="Calculator.ByteRepresentation"/> (inherited
+    /// from the non-generic <see cref="Calculator"/> base), find the first
+    /// non-zero byte, then count significant bits in it. Two's-
     /// complement sign-extension padding (one trailing <c>0x00</c> byte when the
     /// magnitude's high-byte MSB is set) is transparently absorbed by the
     /// leading-zero scan. For known Mersenne exponents (all odd primes ≥ 2), no
