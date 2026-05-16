@@ -86,16 +86,35 @@ internal static class Polynomial
         }
 
         var coefficientArray = coefficients as Calculator<TNumber>[] ?? coefficients.ToArray();
-        var accumulator = Calculator<TNumber>.Zero;
-        for (int index = coefficientArray.Length - 1; index >= 0; index--)
-        {
-            using var intermediateResult = accumulator * x;
-            using var y = intermediateResult + coefficientArray[index];
-            var accumulatorTemp = accumulator;
-            accumulator = y.MersenneModulo(mersenneExponent);
-            accumulatorTemp.Dispose();
-        }
 
-        return accumulator;
+        // accumulator is allocated below and owned by us until ownership is transferred
+        // to the caller on the return path. Declared outside the try-block so the catch
+        // can dispose it on any exception thrown by the Horner-loop arithmetic
+        // (operand-disposed, OOM, etc.) — without this guard the partially-built
+        // accumulator would leak its pinned-limb buffer on the SecureBigInteger backend.
+        Calculator<TNumber> accumulator = null;
+        try
+        {
+            accumulator = Calculator<TNumber>.Zero;
+            for (int index = coefficientArray.Length - 1; index >= 0; index--)
+            {
+                using var intermediateResult = accumulator * x;
+                using var y = intermediateResult + coefficientArray[index];
+                var accumulatorTemp = accumulator;
+                accumulator = y.MersenneModulo(mersenneExponent);
+                accumulatorTemp.Dispose();
+            }
+
+            var result = accumulator;
+            // Ownership transferred to the caller. Null the local so the catch path
+            // does not dispose a value the caller now owns.
+            accumulator = null;
+            return result;
+        }
+        catch
+        {
+            accumulator?.Dispose();
+            throw;
+        }
     }
 }

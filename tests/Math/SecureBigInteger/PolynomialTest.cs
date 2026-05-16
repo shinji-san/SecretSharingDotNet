@@ -229,4 +229,34 @@ public class PolynomialTest
         // Assert
         Assert.Equal("x", ex.ParamName);
     }
+
+    /// <summary>
+    /// Regression guard for <c>SEC-1</c>: when an exception is raised inside the Horner
+    /// loop (here triggered by a pre-disposed coefficient), the in-flight
+    /// <c>accumulator</c> Calculator must not leak its pinned-limb buffer. The fix
+    /// wraps the loop in a try/catch that disposes <c>accumulator</c> on every
+    /// exception path before re-throwing. The test-project's memory-leak instrumentation
+    /// catches any regression that re-introduces the leak.
+    /// </summary>
+    [Fact]
+    public void EvaluateAt_DisposedCoefficient_ThrowsWithoutLeakingAccumulator()
+    {
+        // Arrange — coefficients[1] is disposed before EvaluateAt runs. The Horner loop
+        // visits indices in descending order so iteration index 1 (the linear coefficient)
+        // is the first arithmetic step, ensuring the throw lands AFTER the accumulator
+        // has been allocated by Calculator<SecureBigInteger>.Zero.
+        using var xCalc = new SecureBigIntCalculator(2);
+        var a0 = new SecureBigIntCalculator(42);
+        var a1 = new SecureBigIntCalculator(7);
+        a1.Dispose();
+        var coeffs = new Calculator<SecureBigInteger>[] { a0, a1 };
+
+        // Act & Assert — exception propagates; the implementation's catch-and-dispose
+        // path is exercised. If the accumulator leaks, the test-project's per-test
+        // pinned-allocation accounting reports the residual buffer.
+        Assert.Throws<ObjectDisposedException>(
+            () => Polynomial.EvaluateAt(xCalc, coeffs, mersenneExponent: 13));
+
+        a0.Dispose();
+    }
 }
