@@ -37,10 +37,37 @@ using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 
 /// <summary>
-/// This class represents the calculator strategy pattern to decouple Shamir's Secret Sharing
-/// implementation from the concrete numeric data type like BigInteger.
+/// Generic strategy-pattern base that decouples Shamir's Secret Sharing from the concrete
+/// numeric data type. The two in-tree backends are
+/// <see cref="System.Numerics.BigInteger"/> (variable-time, BCL-backed) and
+/// <see cref="Numerics.SecureBigInteger"/> (pinned-memory, constant-time arithmetic).
 /// </summary>
-/// <typeparam name="TNumber">Numeric data type</typeparam>
+/// <typeparam name="TNumber">Numeric data type — an integer type.</typeparam>
+/// <remarks>
+/// <para>
+/// <b>Threat model — backend-conditional.</b> The arithmetic, comparison, and conversion
+/// surface exposed here is mathematically equivalent across backends, but the constant-time
+/// properties are a function of the chosen <typeparamref name="TNumber"/>. With
+/// <see cref="Numerics.SecureBigInteger"/>, hot-path operations (<c>+</c>, <c>-</c>,
+/// <c>*</c>, <c>Divide</c>, <c>MersenneModulo</c>, <c>Equals</c>) run constant-time on
+/// public bit-length; with <see cref="System.Numerics.BigInteger"/> they are variable-time
+/// on operand magnitude. Callers whose threat model includes timing side channels must
+/// instantiate with <see cref="Numerics.SecureBigInteger"/>.
+/// </para>
+/// <para>
+/// <b>Pow exponent is public.</b> <see cref="Pow"/> iterates a count derived from the
+/// exponent value; on <see cref="Numerics.SecureBigInteger"/> the per-iteration arithmetic
+/// is CT on the public bit-length but the iteration count itself leaks the exponent.
+/// Callers must not pass secret-derived exponents through this method.
+/// </para>
+/// <para>
+/// <b>Static constants allocate.</b> <see cref="Zero"/>, <see cref="One"/>, and
+/// <see cref="Two"/> each return a freshly-allocated instance per access. On the
+/// <see cref="Numerics.SecureBigInteger"/> backend each carries a pinned-limb buffer;
+/// callers should wrap them in <c>using var</c> and reuse the local across hot loops
+/// rather than reading the static property per iteration.
+/// </para>
+/// </remarks>
 #if DEBUG
 [DebuggerDisplay("{ToString()}")]
 #else
@@ -157,18 +184,20 @@ public abstract class Calculator<TNumber> :
     /// <paramref name="mersenneExponent"/> is not positive.
     /// </exception>
     /// <remarks>
+    /// <para>
     /// Mathematical-modulo semantics: negative operands return the canonical
     /// non-negative representative in <c>[0, M_p - 1]</c>. Equivalent to
     /// <see cref="MathematicalModulo"/> with the modulus implicitly fixed at
     /// <c>2^mersenneExponent - 1</c>, but specialised to the Mersenne fold
-    /// algorithm on the SecureBigInteger backend.
-    /// </remarks>
-    /// <remarks>
-    /// On the SecureBigInteger backend this routes to a fold-and-conditional-
-    /// subtract algorithm that exploits <c>2^p ≡ 1 (mod M_p)</c>; on the
-    /// BigInteger backend it lowers to BCL <c>%</c> after one shift to build
-    /// the modulus. Both backends produce identical results for non-negative
-    /// inputs.
+    /// algorithm on the <see cref="Numerics.SecureBigInteger"/> backend.
+    /// </para>
+    /// <para>
+    /// On the <see cref="Numerics.SecureBigInteger"/> backend this routes to a
+    /// fold-and-conditional-subtract algorithm that exploits
+    /// <c>2^p ≡ 1 (mod M_p)</c>; on the <see cref="System.Numerics.BigInteger"/>
+    /// backend it lowers to BCL <c>%</c> after one shift to build the modulus.
+    /// Both backends produce identical results for non-negative inputs.
+    /// </para>
     /// </remarks>
     public abstract Calculator<TNumber> MersenneModulo(int mersenneExponent);
 
@@ -179,10 +208,15 @@ public abstract class Calculator<TNumber> :
     public abstract Calculator<TNumber> Abs();
 
     /// <summary>
-    /// Power (mathematical)
+    /// Raises this <see cref="Calculator{TNumber}"/> value to the power of
+    /// <paramref name="expo"/>.
     /// </summary>
-    /// <param name="expo">The exponent.</param>
-    /// <returns>The result of raising instance to the <paramref name="expo"/> power.</returns>
+    /// <param name="expo">The non-negative exponent. Must be treated as public input —
+    /// <see cref="Pow"/>'s iteration count is <c>O(log₂(expo))</c>, and on the
+    /// <see cref="Numerics.SecureBigInteger"/> backend that count is the only
+    /// data-dependent quantity (per-iteration arithmetic on the base remains constant-time
+    /// on the public bit-length). Callers must not pass secret-derived exponents.</param>
+    /// <returns>The result of raising the current value to the <paramref name="expo"/> power.</returns>
     public abstract Calculator<TNumber> Pow(int expo);
 
     /// <summary>
@@ -251,6 +285,9 @@ public abstract class Calculator<TNumber> :
     /// <param name="left">The 1st summand</param>
     /// <param name="right">The 2nd summand</param>
     /// <returns>The sum</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="left"/> or <paramref name="right"/> is <see langword="null"/>.
+    /// </exception>
     public static Calculator<TNumber> operator +(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Add(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
@@ -259,6 +296,9 @@ public abstract class Calculator<TNumber> :
     /// <param name="left">The minuend</param>
     /// <param name="right">The subtrahend</param>
     /// <returns>The difference</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="left"/> or <paramref name="right"/> is <see langword="null"/>.
+    /// </exception>
     public static Calculator<TNumber> operator -(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Subtract(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
@@ -267,6 +307,9 @@ public abstract class Calculator<TNumber> :
     /// <param name="left">multiplier</param>
     /// <param name="right">multiplicand</param>
     /// <returns>The product</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="left"/> or <paramref name="right"/> is <see langword="null"/>.
+    /// </exception>
     public static Calculator<TNumber> operator *(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Multiply(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
@@ -275,6 +318,9 @@ public abstract class Calculator<TNumber> :
     /// <param name="left">dividend</param>
     /// <param name="right">divisor</param>
     /// <returns>The quotient</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="left"/> or <paramref name="right"/> is <see langword="null"/>.
+    /// </exception>
     public static Calculator<TNumber> operator /(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Divide(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
@@ -283,6 +329,9 @@ public abstract class Calculator<TNumber> :
     /// <param name="left">dividend</param>
     /// <param name="right">divisor</param>
     /// <returns>The remainder</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="left"/> or <paramref name="right"/> is <see langword="null"/>.
+    /// </exception>
     public static Calculator<TNumber> operator %(Calculator<TNumber> left, Calculator<TNumber> right) => right is not null ? left?.Modulo(right.Value) ?? throw new ArgumentNullException(nameof(left)) : throw new ArgumentNullException(nameof(right));
 
     /// <summary>
@@ -426,18 +475,40 @@ public abstract class Calculator<TNumber> :
     protected internal virtual TNumber ExtractValue() => this.Value;
 
     /// <summary>
-    /// Gets a value that represents the number zero (0).
+    /// Gets a freshly allocated <see cref="Calculator{TNumber}"/> representing zero (0).
     /// </summary>
+    /// <remarks>
+    /// Every access allocates a new instance via the implicit
+    /// <typeparamref name="TNumber"/>-to-<see cref="Calculator{TNumber}"/> conversion. On
+    /// the <see cref="Numerics.SecureBigInteger"/> backend the returned instance owns a
+    /// fresh pinned-limb buffer; the caller takes ownership and is responsible for
+    /// disposing. Hot loops should hoist a single <c>using var zero = Calculator&lt;TNumber&gt;.Zero;</c>
+    /// rather than read the property per iteration.
+    /// </remarks>
     public static Calculator<TNumber> Zero  => default(TNumber);
 
     /// <summary>
-    /// Gets a value that represents the number one (1).
+    /// Gets a freshly allocated <see cref="Calculator{TNumber}"/> representing one (1).
     /// </summary>
+    /// <remarks>
+    /// Computed as <c>Zero.Increment()</c>, so every access allocates <em>two</em>
+    /// instances on entry — the transient <see cref="Zero"/> and the returned
+    /// <see cref="One"/>. The transient is discarded immediately; on the
+    /// <see cref="Numerics.SecureBigInteger"/> backend that means its pinned-limb buffer
+    /// is released only when the GC eventually finalises it. Hot loops should cache the
+    /// returned instance under <c>using var</c>.
+    /// </remarks>
     public static Calculator<TNumber> One => Zero.Increment();
 
     /// <summary>
-    /// Gets a value that represents the number two (2).
+    /// Gets a freshly allocated <see cref="Calculator{TNumber}"/> representing two (2).
     /// </summary>
+    /// <remarks>
+    /// Computed as <c>One.Increment()</c> — see <see cref="One"/> for the cascade
+    /// allocation note. Total cost per access on the
+    /// <see cref="Numerics.SecureBigInteger"/> backend is three pinned-limb allocations
+    /// (Zero, One, Two) where only the last is returned to the caller.
+    /// </remarks>
     public static Calculator<TNumber> Two => One.Increment();
 
     /// <summary>
@@ -477,6 +548,13 @@ public abstract class Calculator<TNumber> :
     /// Releases the resources used by the <see cref="Calculator{TNumber}"/> instance.
     /// </summary>
     /// <param name="disposing">A boolean value indicating whether the method is being called explicitly or by a finalizer.</param>
+    /// <remarks>
+    /// Like the non-generic <see cref="Calculator.Dispose(bool)"/> base, the disposed flag
+    /// is a non-atomic <see cref="bool"/>. Subtypes that wrap non-idempotent disposable
+    /// state (e.g. pinned-memory backends) must introduce their own
+    /// <see cref="System.Threading.Interlocked.Exchange(ref int, int)"/>-backed flag —
+    /// see <see cref="Numerics.SecureBigIntCalculator"/> for the established pattern.
+    /// </remarks>
     protected override void Dispose(bool disposing)
     {
         if (this.disposed)
@@ -488,7 +566,7 @@ public abstract class Calculator<TNumber> :
         {
             // Release managed resources here
         }
-        
+
         // Release unmanaged resources here
         this.disposed = true;
         base.Dispose(disposing);

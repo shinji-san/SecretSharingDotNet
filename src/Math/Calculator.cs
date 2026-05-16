@@ -40,9 +40,17 @@ using System.Linq.Expressions;
 using System.Reflection;
 
 /// <summary>
-/// This class represents the calculator strategy pattern to decouple Shamir's Secret Sharing
-/// implementation from the concrete numeric data type like <see cref="System.Numerics.BigInteger"/>.
+/// Non-generic base of the calculator strategy pattern that decouples Shamir's Secret
+/// Sharing from the concrete numeric data type. Subtypes wire a specific backend such as
+/// <see cref="System.Numerics.BigInteger"/> or
+/// <see cref="Numerics.SecureBigInteger"/> in via <see cref="Calculator{TNumber}"/>.
 /// </summary>
+/// <remarks>
+/// The base type intentionally carries no constant-time guarantees — those are a property
+/// of the chosen <typeparamref name="TNumber"/> backend in <see cref="Calculator{TNumber}"/>.
+/// See the threat-model paragraph in <see cref="Calculator{TNumber}"/>'s class remarks for
+/// the backend-conditional contract.
+/// </remarks>
 public abstract class Calculator : IDisposable
 {
     /// <summary>
@@ -65,13 +73,29 @@ public abstract class Calculator : IDisposable
         new ReadOnlyDictionary<Type, Func<byte[], int, Calculator>>(GetDerivedCtors<Func<byte[], int, Calculator>>());
 
     /// <summary>
-    /// Gets the number of elements of the byte representation of the <see cref="Calculator"/> object.
+    /// Gets the length, in bytes, of the canonical two's-complement byte representation
+    /// produced by <see cref="ByteRepresentation"/> — i.e. the magnitude byte count plus
+    /// a trailing <c>0x00</c> sentinel when the value is non-negative and the magnitude's
+    /// most-significant byte has its high bit set.
     /// </summary>
+    /// <remarks>
+    /// Backend implementations must uphold the invariant
+    /// <c>ByteCount == ByteRepresentation.Length</c>. Callers such as
+    /// <c>Share&lt;TNumber&gt;.GetCharCount</c> rely on this to size hex output without
+    /// materialising the buffer.
+    /// </remarks>
     public abstract int ByteCount { get; }
 
     /// <summary>
-    /// Gets the byte representation of the <see cref="Calculator"/> object.
+    /// Gets a freshly allocated <see cref="PinnedPoolArray{T}"/> containing the canonical
+    /// two's-complement byte representation of this value.
     /// </summary>
+    /// <remarks>
+    /// Each access allocates a new buffer. The caller takes ownership and is responsible
+    /// for disposing it — failing to dispose defers the underlying pool array's return
+    /// to finalisation and (on pinned-memory backends) leaves plaintext reachable longer
+    /// than necessary. The returned buffer's <c>Length</c> equals <see cref="ByteCount"/>.
+    /// </remarks>
     public abstract PinnedPoolArray<byte> ByteRepresentation { get; }
 
     /// <summary>
@@ -104,12 +128,19 @@ public abstract class Calculator : IDisposable
     }
 
     /// <summary>
-    /// Creates a new instance derived from the <see cref="Calculator"/> class.
+    /// Creates a new instance derived from the <see cref="Calculator"/> class for the
+    /// requested <paramref name="numberType"/> backend.
     /// </summary>
     /// <param name="data">byte array representation of the <paramref name="numberType"/></param>
     /// <param name="length">Length of the byte array</param>
     /// <param name="numberType">Type of number</param>
-    /// <returns>A <see cref="Calculator"/> instance</returns>
+    /// <returns>A <see cref="Calculator"/> instance bound to <paramref name="numberType"/>.</returns>
+    /// <exception cref="System.Collections.Generic.KeyNotFoundException">
+    /// <paramref name="numberType"/> is not a registered backend in this assembly. The generic
+    /// <see cref="Calculator{TNumber}"/> implicit-conversion path translates this to
+    /// <see cref="NotSupportedException"/>; this base-class entry point intentionally surfaces
+    /// the raw lookup failure for plugin diagnostics.
+    /// </exception>
     public static Calculator Create(byte[] data, int length, Type numberType) => ChildBaseCtors[numberType](data, length);
 
     /// <summary>
@@ -188,6 +219,14 @@ public abstract class Calculator : IDisposable
     /// Releases the resources used by the current instance of the <see cref="Calculator"/> class.
     /// </summary>
     /// <param name="disposing">A boolean value that indicates whether the method is being called explicitly or by a finalizer.</param>
+    /// <remarks>
+    /// The disposed flag is a non-atomic <see cref="bool"/>. This is safe for the existing
+    /// backends because their cascade-dispose targets (<see cref="PinnedPoolArray{T}"/>,
+    /// <see cref="Numerics.SecureBigInteger"/>) are themselves atomic and idempotent.
+    /// Subclasses that wrap non-idempotent disposable state must introduce their own
+    /// <see cref="System.Threading.Interlocked.Exchange(ref int, int)"/>-backed flag
+    /// (see <see cref="Numerics.SecureBigIntCalculator"/> for the established pattern).
+    /// </remarks>
     protected virtual void Dispose(bool disposing)
     {
         if (this.disposed)
@@ -199,7 +238,7 @@ public abstract class Calculator : IDisposable
         {
             // Release managed resources here
         }
-        
+
         // Release unmanaged resources here
         this.disposed = true;
     }
