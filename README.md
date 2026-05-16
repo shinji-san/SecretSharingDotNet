@@ -423,59 +423,160 @@ public class Program
 ```
 
 ## Shares 🔑
-The following example shows three ways to use shares to reconstruct a secret:
+The library exposes wire-format I/O on two surfaces: individual `Share<TNumber>` points and `Shares<TNumber>` collections. The three sub-examples below cover every public construction and serialisation path for both surfaces, plus a round-trip through `SecretReconstructor`. The example values reconstruct to `52199147989510990914370102003412153`.
+
+### Single Share<T> — construct, inspect, serialize
 ```csharp
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 
 using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
+using SecretSharingDotNet.Math;
+
+namespace Example5a;
+
+public class Program
+{
+  public static void Main(string[] args)
+  {
+    //// (a) Parse from "INDEX-VALUE" hex text (pinned char buffer). The "0x"
+    //// prefix on either coordinate is accepted; the index must be > 0.
+    using var pinnedText = "05-CDECB88126DBC04D753E0C2D83D7B55D".ToPinnedSecure();
+    using var shareFromText = new Share<BigInteger>(pinnedText);
+
+    //// (b) From raw little-endian byte pairs (index bytes + value bytes).
+    byte[] indexBytes = { 0x05 };
+    byte[] valueBytes = { 0xCD, 0xEC, 0xB8, 0x81, 0x26, 0xDB, 0xC0, 0x4D,
+                          0x75, 0x3E, 0x0C, 0x2D, 0x83, 0xD7, 0xB5, 0x5D };
+    using var shareFromBytes = new Share<BigInteger>(indexBytes, valueBytes);
+
+    //// (c) Programmatic — pass Calculator<BigInteger> instances. The Share
+    //// takes ownership of both calculators and disposes them in cascade;
+    //// do not wrap the calculator locals in 'using' (would double-dispose).
+    Calculator<BigInteger> idx = new BigInteger(5);
+    Calculator<BigInteger> val = new BigInteger(42);
+    using var shareFromCalc = new Share<BigInteger>(idx, val);
+
+    //// Inspect index, value and parity.
+    Console.WriteLine($"Index: {(BigInteger)shareFromText.Index}");
+    Console.WriteLine($"Value: {(BigInteger)shareFromText.Value}");
+    Console.WriteLine($"IsIndexEven: {shareFromText.IsIndexEven}");
+    Console.WriteLine($"IsIndexOdd: {shareFromText.IsIndexOdd}");
+
+    //// Serialise back to hex (pinned char buffer, not redaction-gated).
+    //// Default: uppercase, no "0x" prefix.
+    using var hexDefault = shareFromText.ToCharArray();
+    Console.Out.Write(hexDefault.PoolArray, 0, hexDefault.Length);
+    Console.WriteLine();
+
+    //// Lowercase with "0x" prefix on each coordinate.
+    using var hexLowerPrefixed = shareFromText.ToCharArray(uppercase: false, withPrefix: true);
+    Console.Out.Write(hexLowerPrefixed.PoolArray, 0, hexLowerPrefixed.Length);
+    Console.WriteLine();
+  }
+}
+```
+
+### Shares<T> collection — construct, serialize
+```csharp
+using System;
+using System.Numerics;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.Cryptography.SecureInput;
+using SecretSharingDotNet.Math;
+
+namespace Example5b;
+
+public class Program
+{
+  public static void Main(string[] args)
+  {
+    //// === Three deserialisation paths ===
+    //// (A fourth path is SecretSplitter.MakeShares(...) — see the earlier
+    //// examples. The methods below cover deserialisation from wire formats.)
+
+    //// (a) From a Share<T>[] via implicit operator. The Shares<T> adopts the
+    //// array and disposes each contained Share in cascade.
+    using var p1 = "02-665C74ED38FDFF095B2FC9319A272A75".ToPinnedSecure();
+    using var p2 = "05-CDECB88126DBC04D753E0C2D83D7B55D".ToPinnedSecure();
+    using var p3 = "07-54A83E34AB0310A7F5D80F2A68FD4F33".ToPinnedSecure();
+    using var sharesFromArray = (Shares<BigInteger>)new[]
+    {
+        new Share<BigInteger>(p1),
+        new Share<BigInteger>(p2),
+        new Share<BigInteger>(p3),
+    };
+
+    //// (b) From a single multi-line text blob via FromText. The pinned buffer
+    //// is the caller's; FromText returns a separately-owned Shares<T>.
+    using var pinnedBlob = ("02-665C74ED38FDFF095B2FC9319A272A75" + Environment.NewLine +
+                           "05-CDECB88126DBC04D753E0C2D83D7B55D" + Environment.NewLine +
+                           "07-54A83E34AB0310A7F5D80F2A68FD4F33").ToPinnedSecure();
+    using var sharesFromBlob = Shares<BigInteger>.FromText(pinnedBlob);
+
+    //// (c) From per-line pinned buffers via FromTextLines — useful when share
+    //// lines arrive separately (e.g., from a UI form).
+    using var line1 = "02-665C74ED38FDFF095B2FC9319A272A75".ToPinnedSecure();
+    using var line2 = "05-CDECB88126DBC04D753E0C2D83D7B55D".ToPinnedSecure();
+    using var line3 = "07-54A83E34AB0310A7F5D80F2A68FD4F33".ToPinnedSecure();
+    using var sharesFromLines = Shares<BigInteger>.FromTextLines(new[] { line1, line2, line3 });
+
+    //// === Serialise a Shares<T> back to multi-line text (pinned, not redacted) ===
+    //// Default: uppercase, no "0x" prefix.
+    using var sharesUpperNoPrefix = sharesFromBlob.ToCharArray();
+    Console.Out.Write(sharesUpperNoPrefix.PoolArray, 0, sharesUpperNoPrefix.Length);
+
+    //// Lowercase with "0x" prefix on each coordinate.
+    using var sharesLowerPrefixed = sharesFromBlob.ToCharArray(uppercase: false, withPrefix: true);
+    Console.Out.Write(sharesLowerPrefixed.PoolArray, 0, sharesLowerPrefixed.Length);
+
+    //// === Implicit conversions on Shares<T> ===
+    //// To PinnedPoolArray<char>: allocates a fresh pinned buffer with the
+    //// same content as ToCharArray() default; the caller owns the result.
+    using PinnedPoolArray<char> asPinnedChars = sharesFromBlob;
+
+    //// To Share<T>[]: a snapshot array whose entries alias the shares owned
+    //// by sharesFromBlob — do not dispose the elements individually.
+    Share<BigInteger>[] asArray = sharesFromBlob;
+    Console.WriteLine($"Share count: {asArray.Length}");
+  }
+}
+```
+
+### Round-trip — reconstruction
+```csharp
+using System;
+using System.Numerics;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
 
-namespace Example5
+namespace Example5c;
+
+public class Program
 {
-  public class Program
+  public static void Main(string[] args)
   {
-    public static void Main(string[] args)
-    {
-      //// One way to use shares
-      string shares1 = "02-665C74ED38FDFF095B2FC9319A272A75" + Environment.NewLine +
-                       "05-CDECB88126DBC04D753E0C2D83D7B55D" + Environment.NewLine +
-                       "07-54A83E34AB0310A7F5D80F2A68FD4F33";
+    //// Build a Shares<BigInteger> from three lines of wire-format text:
+    using var pinnedBlob = ("02-665C74ED38FDFF095B2FC9319A272A75" + Environment.NewLine +
+                           "05-CDECB88126DBC04D753E0C2D83D7B55D" + Environment.NewLine +
+                           "07-54A83E34AB0310A7F5D80F2A68FD4F33").ToPinnedSecure();
+    using var shares = Shares<BigInteger>.FromText(pinnedBlob);
 
-      //// A 2nd way to use shares
-      string[] shares2 = {"02-665C74ED38FDFF095B2FC9319A272A75",
-                          "07-54A83E34AB0310A7F5D80F2A68FD4F33",
-                          "05-CDECB88126DBC04D753E0C2D83D7B55D"};
+    //// Reconstruct via the variable-time ExtendedEuclideanAlgorithm; for the
+    //// constant-time path with SecureBigInteger + MersenneSafeGcdAlgorithm,
+    //// see the Security & Threat Model section.
+    var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+    using var combiner = new SecretReconstructor<BigInteger>(gcd);
+    using var recovered = combiner.Reconstruction(shares);
 
-      //// Another way to use shares
-      var share1 = new Share<BigInteger>("05-CDECB88126DBC04D753E0C2D83D7B55D");
-      var share2 = new Share<BigInteger>("07-54A83E34AB0310A7F5D80F2A68FD4F33");
-      var share3 = new Share<BigInteger>("02-665C74ED38FDFF095B2FC9319A272A75");
-
-      var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
-      var combiner = new SecretReconstructor<BigInteger>(gcd);
- 
-      var recoveredSecret1 = combiner.Reconstruction(shares1);
-      //// Output should be 52199147989510990914370102003412153
-      Console.WriteLine((BigInteger)recoveredSecret1);
-
-      var recoveredSecret2 = combiner.Reconstruction(shares2);
-      //// Output should be 52199147989510990914370102003412153
-      Console.WriteLine((BigInteger)recoveredSecret2);
-
-      //// Output should be 52199147989510990914370102003412153
-      Share<BigInteger>[] shareArray = [share1, share2, share3];
-      var recoveredSecret3 = combiner.Reconstruction(shareArray);
-      Console.WriteLine((BigInteger)recoveredSecret3);
-
-      //// Output should be 52199147989510990914370102003412153
-      Shares<BigInteger> shares3 = shareArray;
-      var recoveredSecret4 = combiner.Reconstruction(shares3);
-      Console.WriteLine((BigInteger)recoveredSecret4);
-    }
+    //// Output should be 52199147989510990914370102003412153
+    Console.WriteLine((BigInteger)recovered);
   }
 }
 ```
