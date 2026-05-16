@@ -1458,11 +1458,15 @@ public class SecureBigIntegerTests
         // Arrange
         using var num = new SecureBigInteger(value);
 
-        // Act & Assert
+        // Act
+        string actual = num.ToString();
+
+        // Assert
 #if DEBUG
-        Assert.Equal(expected, num.ToString());
+        Assert.Equal(expected, actual);
 #else
-        Assert.Equal(TestData.SecuredValueSentinel, num.ToString());
+        Assert.Equal(TestData.SecuredValueSentinel, actual);
+        Assert.NotEqual(expected, actual);
 #endif
     }
     

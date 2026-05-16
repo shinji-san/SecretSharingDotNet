@@ -230,11 +230,15 @@ public class ShareTest
         // Arrange
         using var share = new Share<BigInteger>(index, value);
 
-        // Act & Assert
+        // Act
+        string actual = share.ToString();
+
+        // Assert
 #if DEBUG
-        Assert.Equal(expected, share.ToString());
+        Assert.Equal(expected, actual);
 #else
-        Assert.Equal(TestData.SecuredValueSentinel, share.ToString());
+        Assert.Equal(TestData.SecuredValueSentinel, actual);
+        Assert.NotEqual(expected, actual);
 #endif
     }
 
@@ -281,6 +285,7 @@ public class ShareTest
         Assert.Equal(expected, actual);
 #else
         Assert.Equal(TestData.SecuredValueSentinel, actual);
+        Assert.NotEqual(expected, actual);
 #endif
     }
 
