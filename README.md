@@ -441,7 +441,8 @@ for hardened native crypto stacks.
   swap files, and reuse-after-free of the same physical pages cannot recover plaintext.
 - **Length-vs-content equality leaks.** `SecureBigInteger.Equals` pre-pads to
   `max(left, right)` and uses fixed-time comparison; equality timing does not leak which
-  prefix bytes match.
+  prefix bytes match. The comparison runs uniformly across all targeted TFMs via a
+  private XOR-OR-fold helper, with no `#if`-conditional code path.
 - **Insecure RNG.** Every random draw goes through
   `System.Security.Cryptography.RandomNumberGenerator` via the internal
   `Cryptography.SecureRandom` helper. No `System.Random`, no PRNG seeds.
@@ -451,16 +452,28 @@ for hardened native crypto stacks.
   their timing depends only on the public operand bit length, not on operand values.
   `MersenneModulo` is constant-time on the public Mersenne exponent and operand limb
   count.
+- **No variable-time number-theoretic surface.** The legacy `Gcd`, `ModPow`, `Log`,
+  `Log10`, and `Log2` static methods — whose implementations branched on operand values
+  or invoked `Math.Log` on operand-derived doubles — were removed from
+  `SecureBigInteger`. The surface is narrowed to operations whose timing is bounded by
+  the public bit-length, so there is no longer a way to call a variable-time-on-secret-
+  operand method by accident.
 - **Timing leaks in modular inversion** (when the consumer opts in).
-  `MersenneSafeGcdAlgorithm` implements the Bernstein–Yang "safegcd" / divstep
+  `MersenneSafeGcdAlgorithm<TNumber>` implements the Bernstein–Yang "safegcd" / divstep
   recurrence and provides a constant-time modular inverse for use inside
   `SecretReconstructor.DivMod`. The iteration count is fixed at the public Mersenne
   exponent, independent of operand values. The exponent is derived from the
   modulus passed to `Compute` at call time — the algorithm holds no
   `ISecurityLevelManager` reference, so it cannot drift from the
-  `SecretReconstructor` consuming it. To wire it in, construct
-  `SecretReconstructor` via the 3-generic-argument overload with a parameterless
-  `MersenneSafeGcdAlgorithm` as the GCD strategy.
+  `SecretReconstructor` consuming it. To wire it in, pass a
+  `MersenneSafeGcdAlgorithm<TNumber>` instance as the GCD strategy when constructing
+  `SecretReconstructor<TNumber>`:
+
+  ```csharp
+  var gcd = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
+  var combiner = new SecretReconstructor<SecureBigInteger>(gcd);
+  var recovered = combiner.Reconstruction(shares);
+  ```
 
 **Public-input dependence (treated as public, not secret):**
 
@@ -472,12 +485,12 @@ for hardened native crypto stacks.
 **`SecureBigInteger` does *not* protect against:**
 
 - **Variable-time modular inverse on the default reconstruction path.** When
-  `SecretReconstructor` is constructed without an explicit GCD strategy, it falls
-  back to `ExtendedEuclideanAlgorithm`, whose iteration count is variable on the
-  operand values. Consumers whose threat model includes timing analysis of
-  reconstruction must inject `MersenneSafeGcdAlgorithm` explicitly. A convenience
-  overload routing the SecureBigInteger backend to `MersenneSafeGcdAlgorithm` by
-  default is planned future work.
+  `SecretReconstructor` is constructed with the customary
+  `ExtendedEuclideanAlgorithm<TNumber>` GCD strategy, its iteration count is
+  variable on the operand values. Consumers whose threat model includes timing
+  analysis of reconstruction must inject `MersenneSafeGcdAlgorithm<TNumber>`
+  explicitly. A convenience overload routing the SecureBigInteger backend to
+  `MersenneSafeGcdAlgorithm<SecureBigInteger>` by default is planned future work.
 
 Constant-time big-integer arithmetic in pure managed .NET is non-trivial; canonical
 implementations (libsodium, BoringSSL) rely on fixed-width representation, branchless
