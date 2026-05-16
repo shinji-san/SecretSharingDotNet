@@ -331,10 +331,9 @@ public class Program
 
 ## Pre-defined secret: number 🔢
 Use an integer number as secret, which can be divided into shares. The length of the generated shares is based on the security level.
-Here is an example with a pre-defined security level of 521:
+Here is an example with a pre-defined security level of 521 using the `BigInteger` backend; for the constant-time `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
 ```csharp
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
@@ -342,41 +341,39 @@ using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
 
-namespace Example3
+namespace Example3;
+
+public class Program
 {
-  public class Program
+  public static void Main(string[] args)
   {
-    public static void Main(string[] args)
-    {
-      //// Create Shamir's Secret Sharing instance with BigInteger
-      //// and 
-      var splitter = new SecretSplitter<BigInteger>();
+    //// Create Shamir's Secret Sharing instance with BigInteger
+    using var splitter = new SecretSplitter<BigInteger>();
 
-      BigInteger number = 20000;
-      //// Minimum number of shared secrets for reconstruction: 3
-      //// Maximum number of shared secrets: 7
-      //// Security level: 521 (Mersenne prime exponent)
-      //// Attention: The size of the number can change the security level set by the ctor
-      //// or SecurityLevel property.
-      var shares = splitter.MakeShares (3, 7, number, 521);
+    BigInteger number = 20000;
+    //// Minimum number of shared secrets for reconstruction: 3
+    //// Maximum number of shared secrets: 7
+    //// Security level: 521 (Mersenne prime exponent)
+    //// Attention: The size of the number can change the security level set by passing
+    //// it to MakeShares or assigning the SecurityLevel property.
+    using var secret = (Secret<BigInteger>)number;
+    using var shares = splitter.MakeShares(3, 7, secret, 521);
 
-      var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
-      ////  The 'shares' instance contains the shared secrets
-      var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet1 = shares.Where(p => p.IsIndexEven).ToList();
-      var recoveredSecret1 = combiner.Reconstruction(subSet1.ToArray());
-      var subSet2 = shares.Where(p => p.IsIndexOdd).ToList();
-      var recoveredSecret2 = combiner.Reconstruction(subSet2.ToArray());
+    var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+    //// The 'shares' instance contains the shared secrets
+    using var combiner = new SecretReconstructor<BigInteger>(gcd);
+    using var recoveredSecret1 = combiner.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
+    using var recoveredSecret2 = combiner.Reconstruction(shares.Where(p => p.IsIndexOdd).ToArray());
 
-      //// String representation of all shares
-      Console.WriteLine(shares);
+    //// All shares serialised as hex lines (pinned char buffer, not redaction-gated)
+    using var sharesChars = shares.ToCharArray();
+    Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
 
-      //// 1st recovered secret as big integer number
-      Console.WriteLine((BigInteger)recoveredSecret1);
+    //// 1st recovered secret as big integer number
+    Console.WriteLine((BigInteger)recoveredSecret1);
 
-      //// 2nd recovered secret as big integer number
-      Console.WriteLine((BigInteger)recoveredSecret2);
-    }
+    //// 2nd recovered secret as big integer number
+    Console.WriteLine((BigInteger)recoveredSecret2);
   }
 }
 ```
