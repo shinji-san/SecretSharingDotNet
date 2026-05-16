@@ -78,16 +78,16 @@ public sealed class BigIntCalculator : Calculator<BigInteger>
     }
 
 #if (!NET8_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER)
-    public static BigInteger CreateBigInteger(byte[] buffer, int length)
+    private static BigInteger CreateBigInteger(byte[] buffer, int length)
     {
-    if (buffer.Length == length)
-    {
-        return new BigInteger(buffer);
-    }
+        if (buffer.Length == length)
+        {
+            return new BigInteger(buffer);
+        }
 
-    byte[] slice = new byte[length];
-    Buffer.BlockCopy(buffer, 0, slice, 0, length);
-    return new BigInteger(slice);
+        byte[] slice = new byte[length];
+        Buffer.BlockCopy(buffer, 0, slice, 0, length);
+        return new BigInteger(slice);
     }
 #endif
 
