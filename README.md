@@ -213,10 +213,9 @@ Console.WriteLine();
 Both use-case interfaces extend `IDisposable` and — under the `SecureBigInteger` backend — own pinned, security-sensitive buffers. Note that the use-case instances are not wrapped in `using` after `GetRequiredService`: the container owns the lifetime of services it resolves and disposes every tracked `IDisposable` transient when the `ServiceProvider` itself is disposed (here via `using var`). Disposing them explicitly at the call site would double-dispose against the container's cascade. In long-running hosts (ASP.NET, worker services) the root provider lives for the application's lifetime, so tracked transients accumulate until process exit — wrap each unit of work in a `using var scope = serviceProvider.CreateScope();` block (or register the use-cases as `AddScoped`) so the container disposes the resolved instances at scope end. The results of the calls (`secret`, `shares`, `reconstruction`, and the `ToCharArray` outputs) are caller-owned and remain wrapped in `using`.
 
 ## Random secret 🎲
-Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127:
+Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127 using the `BigInteger` backend; for the constant-time `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
 ```csharp
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
@@ -224,36 +223,38 @@ using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
 
-namespace Example1
+namespace Example1;
+
+public class Program
 {
-  public class Program
+  public static void Main(string[] args)
   {
-    public static void Main(string[] args)
+    //// Create Shamir's Secret Sharing instance with BigInteger
+    using var splitter = new SecretSplitter<BigInteger>();
+
+    //// Minimum number of shared secrets for reconstruction: 3
+    //// Maximum number of shared secrets: 7
+    //// Security level: 127 (Mersenne prime exponent)
+    using var shares = splitter.MakeShares(3, 7, 127, out var secret);
+    using (secret)
     {
-      //// Create Shamir's Secret Sharing instance with BigInteger
-      var splitter = new SecretSplitter<BigInteger>();
-
-      //// Minimum number of shared secrets for reconstruction: 3
-      //// Maximum number of shared secrets: 7
-      //// Security level: 127 (Mersenne prime exponent)
-      var shares = splitter.MakeShares(3, 7, 127, out var secret);
-
       //// Secret as big integer number
       Console.WriteLine((BigInteger)secret);
 
-      //// Secret as base64 string
-      Console.WriteLine(secret.ToBase64());
+      //// Secret as base64 (pinned char buffer, not redaction-gated)
+      using var secretBase64 = secret.ToBase64CharArray();
+      Console.Out.Write(secretBase64.PoolArray, 0, secretBase64.Length);
+      Console.WriteLine();
 
       var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
       //// The 'shares' instance contains the shared secrets
-      var combiner = new SecretReconstructor<BigInteger>(gcd);
-      var subSet1 = shares.Where(p => p.IsIndexEven).ToList();
-      var recoveredSecret1 = combiner.Reconstruction(subSet1.ToArray());
-      var subSet2 = shares.Where(p => p.IsIndexOdd).ToList();
-      var recoveredSecret2 = combiner.Reconstruction(subSet2.ToArray());
+      using var combiner = new SecretReconstructor<BigInteger>(gcd);
+      using var recoveredSecret1 = combiner.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
+      using var recoveredSecret2 = combiner.Reconstruction(shares.Where(p => p.IsIndexOdd).ToArray());
 
-      //// String representation of all shares
-      Console.WriteLine(shares);
+      //// All shares serialised as hex lines (pinned char buffer, not redaction-gated)
+      using var sharesChars = shares.ToCharArray();
+      Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
 
       //// 1st recovered secret as big integer number
       Console.WriteLine((BigInteger)recoveredSecret1);
@@ -261,11 +262,15 @@ namespace Example1
       //// 2nd recovered secret as big integer number
       Console.WriteLine((BigInteger)recoveredSecret2);
 
-      //// 1st recovered secret as base64 string
-      Console.WriteLine(recoveredSecret1.ToBase64());
+      //// 1st recovered secret as base64 (pinned char buffer, not redaction-gated)
+      using var recovered1Base64 = recoveredSecret1.ToBase64CharArray();
+      Console.Out.Write(recovered1Base64.PoolArray, 0, recovered1Base64.Length);
+      Console.WriteLine();
 
-      //// 2nd recovered secret as base64 string
-      Console.WriteLine(recoveredSecret2.ToBase64());
+      //// 2nd recovered secret as base64 (pinned char buffer, not redaction-gated)
+      using var recovered2Base64 = recoveredSecret2.ToBase64CharArray();
+      Console.Out.Write(recovered2Base64.PoolArray, 0, recovered2Base64.Length);
+      Console.WriteLine();
     }
   }
 }
