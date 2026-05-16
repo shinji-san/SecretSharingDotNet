@@ -135,15 +135,14 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
 
     /// <summary>
     /// Reconstructs the secret (the constant term <c>a₀</c> of the original polynomial) from
-    /// <paramref name="shares"/> by Lagrange interpolation in the finite field defined by
-    /// <paramref name="prime"/>, evaluated at <c>x = 0</c>.
+    /// <paramref name="shares"/> by Lagrange interpolation in the finite field defined by the
+    /// Mersenne prime corresponding to <see cref="SecurityLevel"/>, evaluated at <c>x = 0</c>.
+    /// The security level must match the one used during share creation.
     /// </summary>
     /// <param name="shares">The k or more shares (distinct-index points) on the polynomial.</param>
-    /// <param name="prime">The Mersenne prime modulus that defines the finite field. Must be the
-    /// same prime used during share creation.</param>
     /// <returns>The reconstructed secret.</returns>
     /// <exception cref="ArgumentNullException">
-    /// <paramref name="shares"/> or <paramref name="prime"/> is <see langword="null"/>.
+    /// <paramref name="shares"/> is <see langword="null"/>.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="shares"/> contains fewer than two entries.
