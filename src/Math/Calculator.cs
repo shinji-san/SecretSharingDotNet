@@ -47,7 +47,7 @@ using System.Reflection;
 /// </summary>
 /// <remarks>
 /// The base type intentionally carries no constant-time guarantees — those are a property
-/// of the chosen <typeparamref name="TNumber"/> backend in <see cref="Calculator{TNumber}"/>.
+/// of the chosen <c>TNumber</c> backend in <see cref="Calculator{TNumber}"/>.
 /// See the threat-model paragraph in <see cref="Calculator{TNumber}"/>'s class remarks for
 /// the backend-conditional contract.
 /// </remarks>
