@@ -129,44 +129,88 @@ The library is generic in the numeric backend: `BigInteger` (used in the example
 
 The length of the shares is based on the security level. On the splitter side, you can set it three ways: pass it as the `securityLevel` parameter of the `MakeShares` overload that takes one, assign the `SecretSplitter<TNumber>.SecurityLevel` property, or inject a pre-configured `ISecurityLevelManager<TNumber>` through the constructor. The configured level is overridden when the secret size exceeds the Mersenne prime derived from it — the library auto-adjusts upward. It is not necessary to define a security level for a reconstruction: `SecretReconstructor<TNumber>.SecurityLevel` is read-only and is derived from the supplied shares on every `Reconstruction` call.
 
-## Using the SecretSharingDotNet library with DI in a .NET project.
-This guide will demonstrate how to use the SecretSharingDotNet library with Dependency Injection (DI) in a .NET project.
+The `ToString()` overrides on `Secret<TNumber>`, `Share<TNumber>`, and `Shares<TNumber>` are build-mode-sensitive: DEBUG builds return the actual content, while Release builds return the redaction sentinel `"*** Secured Value ***"` so secrets cannot accidentally leak through logs, exception messages, or other diagnostic output.
 
-Firstly, add the following dependencies:
+## Using the SecretSharingDotNet library with DI in a .NET project
+This guide demonstrates two parallel DI wirings: the `BigInteger` backend with `ExtendedEuclideanAlgorithm` (BCL-native, variable-time arithmetic) and the `SecureBigInteger` backend with `MersenneSafeGcdAlgorithm` (pinned-memory storage, constant-time arithmetic on public bit-length — see the Security & Threat Model section for the trade-offs). Both variants share the same import block:
+
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
+using SecretSharingDotNet.Math.Numerics;
+using System;
+using System.Linq;
 using System.Numerics;
 ```
-Next, initialize a `ServiceCollection` instance and add dependencies to the DI container:
+
+The output sites below use the pinned `ToCharArray()` accessors on `Shares<TNumber>` and `Secret<TNumber>` and write them directly via `Console.Out.Write(char[], int, int)`. These accessors are not redaction-gated — they return the actual content in both DEBUG and Release builds — and avoid materialising a managed `string` between the pinned buffer and the writer.
+
+> [!WARNING]
+> The Splitter and Reconstructor hold a mutable `ISecurityLevelManager` that each
+> `MakeShares` / `Reconstruction` call reads-then-writes; concurrent invocations
+> on the same instance race on the security-level field and may return wrong
+> results. The registrations below therefore use `AddTransient` for the use-case
+> interfaces (each call resolves its own instance) and `AddSingleton` only for
+> the stateless GCD algorithm.
+
+### Variant 1 — BigInteger + ExtendedEuclideanAlgorithm
+
 ```csharp
 var serviceCollection = new ServiceCollection();
 serviceCollection.AddSingleton<IExtendedGcdAlgorithm<BigInteger>, ExtendedEuclideanAlgorithm<BigInteger>>();
-serviceCollection.AddSingleton<IMakeSharesUseCase<BigInteger>, SecretSplitter<BigInteger>>();
-serviceCollection.AddSingleton<IReconstructionUseCase<BigInteger>, SecretReconstructor<BigInteger>>();
+serviceCollection.AddTransient<IMakeSharesUseCase<BigInteger>, SecretSplitter<BigInteger>>();
+serviceCollection.AddTransient<IReconstructionUseCase<BigInteger>, SecretReconstructor<BigInteger>>();
 using var serviceProvider = serviceCollection.BuildServiceProvider();
-```
-In the code above, the `ServiceCollection` registers an implementation for each of the main components of the SecretSharingDotNet library.
 
-Next, create an instance of the `IMakeSharesUseCase<BigInteger>`:
-```csharp
 var makeSharesUseCase = serviceProvider.GetRequiredService<IMakeSharesUseCase<BigInteger>>();
-```
-Using this instance, it is possible to create shares from a secret:
-```csharp
-var shares = makeSharesUseCase.MakeShares(3, 7, "Hello!");
-Console.WriteLine(shares);
-```
-Similarly, an instance of `IReconstructionUseCase<BigInteger>` can be created to rebuild the original secret:
-```csharp
 var reconstructionUseCase = serviceProvider.GetRequiredService<IReconstructionUseCase<BigInteger>>();
-var reconstruction = reconstructionUseCase.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
-Console.WriteLine(reconstruction);
+
+// Build the secret from a pinned UTF-8 char buffer; the plaintext never lives
+// in an unpinned managed string past the call site.
+using var pinned = "Hello!".ToPinnedSecure();
+using var secret = Secret<BigInteger>.FromText(pinned);
+using var shares = makeSharesUseCase.MakeShares(3, 7, secret);
+
+using var sharesChars = shares.ToCharArray();
+Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
+
+using var reconstruction = reconstructionUseCase.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
+using var reconstructionChars = reconstruction.ToCharArray();
+Console.Out.Write(reconstructionChars.PoolArray, 0, reconstructionChars.Length);
+Console.WriteLine();
 ```
 
-The code above reconstructs the original secret from the shares, and then outputs it.
+### Variant 2 — SecureBigInteger + MersenneSafeGcdAlgorithm
+
+The wiring is identical except for the substituted `TNumber` and the GCD algorithm — `MersenneSafeGcdAlgorithm<SecureBigInteger>` is the constant-time alternative to `ExtendedEuclideanAlgorithm<SecureBigInteger>` (see the Security & Threat Model section).
+
+```csharp
+var serviceCollection = new ServiceCollection();
+serviceCollection.AddSingleton<IExtendedGcdAlgorithm<SecureBigInteger>, MersenneSafeGcdAlgorithm<SecureBigInteger>>();
+serviceCollection.AddTransient<IMakeSharesUseCase<SecureBigInteger>, SecretSplitter<SecureBigInteger>>();
+serviceCollection.AddTransient<IReconstructionUseCase<SecureBigInteger>, SecretReconstructor<SecureBigInteger>>();
+using var serviceProvider = serviceCollection.BuildServiceProvider();
+
+var makeSharesUseCase = serviceProvider.GetRequiredService<IMakeSharesUseCase<SecureBigInteger>>();
+var reconstructionUseCase = serviceProvider.GetRequiredService<IReconstructionUseCase<SecureBigInteger>>();
+
+using var pinned = "Hello!".ToPinnedSecure();
+using var secret = Secret<SecureBigInteger>.FromText(pinned);
+using var shares = makeSharesUseCase.MakeShares(3, 7, secret);
+
+using var sharesChars = shares.ToCharArray();
+Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
+
+using var reconstruction = reconstructionUseCase.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
+using var reconstructionChars = reconstruction.ToCharArray();
+Console.Out.Write(reconstructionChars.PoolArray, 0, reconstructionChars.Length);
+Console.WriteLine();
+```
+
+Both use-case interfaces extend `IDisposable` and — under the `SecureBigInteger` backend — own pinned, security-sensitive buffers. Note that the use-case instances are not wrapped in `using` after `GetRequiredService`: the container owns the lifetime of services it resolves and disposes every tracked `IDisposable` transient when the `ServiceProvider` itself is disposed (here via `using var`). Disposing them explicitly at the call site would double-dispose against the container's cascade. In long-running hosts (ASP.NET, worker services) the root provider lives for the application's lifetime, so tracked transients accumulate until process exit — wrap each unit of work in a `using var scope = serviceProvider.CreateScope();` block (or register the use-cases as `AddScoped`) so the container disposes the resolved instances at scope end. The results of the calls (`secret`, `shares`, `reconstruction`, and the `ToCharArray` outputs) are caller-owned and remain wrapped in `using`.
 
 ## Random secret 🎲
 Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127:
