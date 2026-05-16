@@ -123,9 +123,11 @@ A C# implementation of Shamir's Secret Sharing.
 
 ## Basics
 Use the function `MakeShares` to generate the shares, based on a random or pre-defined secret.
-Afterwards, use the function `Reconstruction` to re-construct the original secret.
+Afterwards, use the function `Reconstruction` to reconstruct the original secret.
 
-The length of the shares is based on the security level. It is possible to pre-define a security level by `ctor` or the `SecurityLevel` property. The pre-defined security level will be overriden, if the secret size is greater than the Mersenne prime, which is calculated by means of the security level. It is not necessary to define a security level for a re-construction.
+The library is generic in the numeric backend: `BigInteger` (used in the examples below) or `SecureBigInteger` (pinned-memory storage with constant-time arithmetic — see the Security & Threat Model section). Both `IMakeSharesUseCase<TNumber>` and `IReconstructionUseCase<TNumber>` implement `IDisposable`; wrap them in `using` so pinned, security-sensitive buffers are released deterministically.
+
+The length of the shares is based on the security level. On the splitter side, you can set it three ways: pass it as the `securityLevel` parameter of the `MakeShares` overload that takes one, assign the `SecretSplitter<TNumber>.SecurityLevel` property, or inject a pre-configured `ISecurityLevelManager<TNumber>` through the constructor. The configured level is overridden when the secret size exceeds the Mersenne prime derived from it — the library auto-adjusts upward. It is not necessary to define a security level for a reconstruction: `SecretReconstructor<TNumber>.SecurityLevel` is read-only and is derived from the supplied shares on every `Reconstruction` call.
 
 ## Using the SecretSharingDotNet library with DI in a .NET project.
 This guide will demonstrate how to use the SecretSharingDotNet library with Dependency Injection (DI) in a .NET project.
