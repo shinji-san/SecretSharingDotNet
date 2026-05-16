@@ -214,7 +214,7 @@ public class SecureCharBufferExtensionsTest
         using var lines = input.ToPinnedSecureShareLines();
 
         // Assert
-        Assert.Equal(0, lines.Count);
+        Assert.Empty(lines);
     }
 
     /// <summary>
