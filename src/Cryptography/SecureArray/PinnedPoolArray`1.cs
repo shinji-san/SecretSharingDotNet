@@ -116,8 +116,8 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// triggering one from this class first.
     /// </summary>
     /// <remarks>
-    /// Reads the disposed flag with <see cref="Volatile.Read(ref int)"/> so the result
-    /// is monotonic and visible across threads. Never throws.
+    /// Reads the disposed flag with <see cref="Volatile"/>'s <c>Read(ref int)</c> so
+    /// the result is monotonic and visible across threads. Never throws.
     /// </remarks>
     public bool IsDisposed => Volatile.Read(ref this.disposed) == 1;
 
