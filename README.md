@@ -437,6 +437,218 @@ public class Program
 }
 ```
 
+## Secret 🔐
+The `Secret<TNumber>` type is the unified envelope for the secrets that flow through `SecretSplitter` and `SecretReconstructor`. The four sub-examples below cover every public construction, inspection, and serialisation path on the `BigInteger` backend, plus a constant-time round-trip on the `SecureBigInteger` backend. Sub-examples 5a–5c share the same payload — UTF-8 text `"Hello World!!"` — so each path can be traced end-to-end with the same expected output.
+
+### Secret<T> — construct
+```csharp
+using System;
+using System.Numerics;
+using System.Text;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.Cryptography.SecureInput;
+
+namespace Example5a;
+
+public class Program
+{
+  public static void Main(string[] args)
+  {
+    //// The shared payload across 5a–5c.
+    byte[] payload = Encoding.UTF8.GetBytes("Hello World!!");
+
+    //// (a) From pinned UTF-8 characters via FromText.
+    using var pinnedText = "Hello World!!".ToPinnedSecure();
+    using var secretFromText = Secret<BigInteger>.FromText(pinnedText);
+
+    //// (b) From pinned standard-Base64 characters via FromBase64 (RFC 4648 §4).
+    using var pinnedBase64 = "SGVsbG8gV29ybGQhIQ==".ToPinnedSecure();
+    using var secretFromBase64 = Secret<BigInteger>.FromBase64(pinnedBase64);
+
+    //// (c) From byte sources — three equivalent paths.
+    using var secretFromBytesCtor = new Secret<BigInteger>(payload);
+    using var secretFromBytesImplicit = (Secret<BigInteger>)payload;
+    using var pinnedBytes = new PinnedPoolArray<byte>(payload.Length);
+    Array.Copy(payload, pinnedBytes.PoolArray, payload.Length);
+    using var secretFromPinnedBytes = (Secret<BigInteger>)pinnedBytes;
+
+    //// (d) From a numeric TNumber via implicit operator. The BigInteger is
+    //// built from the same bytes in little-endian order — the representation
+    //// that round-trips through Secret<BigInteger>.
+    BigInteger asNumber = new BigInteger(payload);
+    using var secretFromNumber = (Secret<BigInteger>)asNumber;
+
+    //// All five secrets carry the same payload. Equality is constant-time.
+    Console.WriteLine($"text  == bytes  : {secretFromText == secretFromBytesCtor}");
+    Console.WriteLine($"text  == base64 : {secretFromText == secretFromBase64}");
+    Console.WriteLine($"text  == pinned : {secretFromText == secretFromPinnedBytes}");
+    Console.WriteLine($"text  == number : {secretFromText == secretFromNumber}");
+  }
+}
+```
+
+### Secret<T> — inspect, compare
+```csharp
+using System;
+using System.Numerics;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
+
+namespace Example5b;
+
+public class Program
+{
+  public static void Main(string[] args)
+  {
+    using var pinnedA = "Hello World!!".ToPinnedSecure();
+    using var pinnedB = "Hello World!!".ToPinnedSecure();
+    using var pinnedC = "GoodBye World".ToPinnedSecure();
+    using var a = Secret<BigInteger>.FromText(pinnedA);
+    using var b = Secret<BigInteger>.FromText(pinnedB);
+    using var c = Secret<BigInteger>.FromText(pinnedC);
+
+    //// Equality is a fixed-time byte comparison — no early exit on the
+    //// first mismatch.
+    Console.WriteLine($"a == b       : {a == b}");
+    Console.WriteLine($"a != c       : {a != c}");
+    Console.WriteLine($"a.Equals(b)  : {a.Equals(b)}");
+
+    //// Ordering operators are defined for equal-length secrets; CompareTo
+    //// returns the same three-way result as on any IComparable<T>.
+    Console.WriteLine($"c < a              : {c < a}");
+    Console.WriteLine($"a.CompareTo(b) = 0 : {a.CompareTo(b) == 0}");
+
+    //// Implicit cast back to the numeric type. With BigInteger the bytes
+    //// are interpreted little-endian — the same convention used on the
+    //// wire and in Share<T>.
+    BigInteger asNumber = a;
+    Console.WriteLine($"a as BigInteger : {asNumber}");
+
+    //// ToString() is build-mode-sensitive: DEBUG builds return the UTF-8
+    //// decoded text, Release builds return the redaction sentinel
+    //// "*** Secured Value ***" so secrets cannot leak through logs,
+    //// exception messages, or debugger displays. Use ToCharArray() or
+    //// ToByteArray() to read the actual content — neither is gated by
+    //// the redaction sentinel.
+    Console.WriteLine($"a.ToString()    : {a}");
+  }
+}
+```
+
+### Secret<T> — serialise
+```csharp
+using System;
+using System.Numerics;
+using System.Text;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
+
+namespace Example5c;
+
+public class Program
+{
+  public static void Main(string[] args)
+  {
+    using var pinnedText = "Hello World!!".ToPinnedSecure();
+    using var secret = Secret<BigInteger>.FromText(pinnedText);
+
+    //// (a) Raw bytes — pinned, not redaction-gated.
+    using var bytes = secret.ToByteArray();
+    Console.WriteLine($"bytes length        : {bytes.Length}");
+
+    //// (b) UTF-8 characters — pinned, not redaction-gated.
+    using var chars = secret.ToCharArray();
+    Console.Out.Write(chars.PoolArray, 0, chars.Length);
+    Console.WriteLine();
+
+    //// (c) Custom encoding — same payload, different bytes-on-the-wire.
+    using var utf16Chars = secret.ToCharArray(Encoding.Unicode);
+    Console.WriteLine($"utf-16 chars length : {utf16Chars.Length}");
+
+    //// (d) Base64 as a pinned char buffer — pinned, not redaction-gated.
+    using var base64Chars = secret.ToBase64CharArray();
+    Console.Out.Write(base64Chars.PoolArray, 0, base64Chars.Length);
+    Console.WriteLine();
+
+    //// (e) Base64 as a string — convenient for interop APIs that take
+    //// string. Note: the returned string lives on the managed heap and is
+    //// NOT pinned or securely cleared; treat it as ephemeral and minimise
+    //// its scope.
+    string base64 = secret.ToBase64String();
+    Console.WriteLine($"base64 string       : {base64}");
+  }
+}
+```
+
+### Secret<SecureBigInteger> — text, number, bytes + constant-time round-trip
+```csharp
+using System;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
+using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
+using SecretSharingDotNet.Math;
+using SecretSharingDotNet.Math.Numerics;
+
+namespace Example5d;
+
+public class Program
+{
+  public static void Main(string[] args)
+  {
+    //// Three Secret<SecureBigInteger> instances — one per input shape.
+    //// Each one is split through SecretSplitter<SecureBigInteger> and
+    //// reconstructed via the constant-time MersenneSafeGcdAlgorithm path.
+
+    //// (a) Text — pinned UTF-8 chars in, Secret<SecureBigInteger> out.
+    using var pinnedText = "Hello World!!".ToPinnedSecure();
+    using var textSecret = Secret<SecureBigInteger>.FromText(pinnedText);
+
+    //// (b) Number — implicit cast from SecureBigInteger.
+    using var numberSecret = (Secret<SecureBigInteger>)(SecureBigInteger)20000;
+
+    //// (c) Bytes — implicit cast from byte[].
+    byte[] payload = { 0x1D, 0x2E, 0x3F };
+    using var bytesSecret = (Secret<SecureBigInteger>)payload;
+
+    //// SecretSplitter and SecretReconstructor auto-adjust their security
+    //// level to the secret being processed, so one pair of instances
+    //// serves all three shapes. MersenneSafeGcdAlgorithm provides a
+    //// constant-time modular inverse during Lagrange interpolation.
+    using var splitter = new SecretSplitter<SecureBigInteger>();
+    var safegcd = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
+    using var combiner = new SecretReconstructor<SecureBigInteger>(safegcd);
+
+    //// (a) Text round-trip.
+    using var textShares = splitter.MakeShares(3, 7, textSecret);
+    using var recoveredText = combiner.Reconstruction(textShares);
+    using var recoveredChars = recoveredText.ToCharArray();
+    Console.Out.Write(recoveredChars.PoolArray, 0, recoveredChars.Length);
+    Console.WriteLine();
+
+    //// (b) Number round-trip — explicit security level of 521.
+    using var numberShares = splitter.MakeShares(3, 7, numberSecret, 521);
+    using var recoveredNumber = combiner.Reconstruction(numberShares);
+    //// Both Secret<SecureBigInteger>.ToString() and SecureBigInteger.ToString()
+    //// return the redaction sentinel "*** Secured Value ***" in Release builds.
+    //// Cast through an unprotected primitive — here, explicit (int) — to read
+    //// the actual value. Use this only inside an audited scope where revealing
+    //// the value is intentional.
+    Console.WriteLine((int)(SecureBigInteger)recoveredNumber);
+
+    //// (c) Bytes round-trip.
+    using var bytesShares = splitter.MakeShares(4, 10, bytesSecret);
+    using var recoveredBytes = combiner.Reconstruction(bytesShares);
+    using var recoveredByteArray = recoveredBytes.ToByteArray();
+    Console.WriteLine($"{recoveredByteArray[0]:X2} {recoveredByteArray[1]:X2} {recoveredByteArray[2]:X2}");
+  }
+}
+```
+
 ## Shares 🔑
 The library exposes wire-format I/O on two surfaces: individual `Share<TNumber>` points and `Shares<TNumber>` collections. The three sub-examples below cover every public construction and serialisation path for both surfaces, plus a round-trip through `SecretReconstructor`. The example values reconstruct to `52199147989510990914370102003412153`.
 
@@ -449,7 +661,7 @@ using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math;
 
-namespace Example5a;
+namespace Example6a;
 
 public class Program
 {
@@ -503,7 +715,7 @@ using SecretSharingDotNet.Cryptography.SecureArray;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math;
 
-namespace Example5b;
+namespace Example6b;
 
 public class Program
 {
@@ -571,7 +783,7 @@ using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
 
-namespace Example5c;
+namespace Example6c;
 
 public class Program
 {
