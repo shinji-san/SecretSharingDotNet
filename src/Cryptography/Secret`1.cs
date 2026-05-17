@@ -159,8 +159,16 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
     /// <param name="secretSource">Secret as <see cref="Calculator"/> or <see cref="Calculator{TNumber}"/> value.</param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="secretSource"/> is <see langword="null"/>.
+    /// </exception>
     public Secret(Calculator secretSource)
     {
+        if (secretSource is null)
+        {
+            throw new ArgumentNullException(nameof(secretSource));
+        }
+
         using var bytes = secretSource.ByteRepresentation;
         this = new Secret<TNumber>(bytes.PoolArray, bytes.Length);
     }
@@ -504,8 +512,18 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// Casts the <see cref="Calculator{TNumber}"/> instance to an <see cref="Secret{TNumber}"/> instance.
     /// </summary>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="calculator"/> is <see langword="null"/>. The guard runs before the
+    /// <c>ByteRepresentation</c> dereference so the failure surfaces as a typed argument
+    /// exception rather than an opaque <see cref="NullReferenceException"/>.
+    /// </exception>
     public static implicit operator Secret<TNumber>(Calculator<TNumber> calculator)
     {
+        if (calculator is null)
+        {
+            throw new ArgumentNullException(nameof(calculator));
+        }
+
         using var calculatorByteRepresentation = calculator.ByteRepresentation;
         return new Secret<TNumber>(calculatorByteRepresentation.PoolArray, calculatorByteRepresentation.Length);
     }
@@ -513,16 +531,36 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// Casts the <see cref="byte"/> array instance to an <see cref="Secret{TNumber}"/> instance.
     /// </summary>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="array"/> is <see langword="null"/>. The guard runs before
+    /// <c>array.Length</c> is evaluated so the failure surfaces as a typed argument
+    /// exception rather than an opaque <see cref="NullReferenceException"/>.
+    /// </exception>
     public static implicit operator Secret<TNumber>(byte[] array)
     {
+        if (array is null)
+        {
+            throw new ArgumentNullException(nameof(array));
+        }
+
         return new Secret<TNumber>(array, array.Length);
     }
 
     /// <summary>
     /// Casts the <see cref="PinnedPoolArray{Byte}"/> instance to an <see cref="Secret{TNumber}"/> instance.
     /// </summary>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="array"/> is <see langword="null"/>. The guard runs before
+    /// <c>array.PoolArray</c> is dereferenced so the failure surfaces as a typed
+    /// argument exception rather than an opaque <see cref="NullReferenceException"/>.
+    /// </exception>
     public static implicit operator Secret<TNumber>(PinnedPoolArray<byte> array)
     {
+        if (array is null)
+        {
+            throw new ArgumentNullException(nameof(array));
+        }
+
         return new Secret<TNumber>(array.PoolArray, array.Length);
     }
 

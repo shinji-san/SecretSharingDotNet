@@ -870,6 +870,71 @@ public class SecretTest
 #endif
 
     /// <summary>
+    /// Regression guard for ultrareview Bug 5: the
+    /// <see cref="Secret{TNumber}(Calculator)"/> ctor must surface
+    /// <see cref="ArgumentNullException"/> on a <see langword="null"/>
+    /// <c>secretSource</c> rather than NRE-ing on the subsequent
+    /// <c>secretSource.ByteRepresentation</c> dereference.
+    /// </summary>
+    [Fact]
+    public void Constructor_CalculatorIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        Calculator nullCalculator = null;
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new Secret<SecureBigInteger>(nullCalculator));
+    }
+
+    /// <summary>
+    /// Regression guard for ultrareview Bug 5: the implicit
+    /// <c>Calculator&lt;TNumber&gt; &#x2192; Secret&lt;TNumber&gt;</c> operator must surface
+    /// <see cref="ArgumentNullException"/> on a <see langword="null"/> calculator rather
+    /// than NRE-ing on the subsequent <c>ByteRepresentation</c> dereference.
+    /// </summary>
+    [Fact]
+    public void ImplicitCast_FromNullCalculator_ThrowsArgumentNullException()
+    {
+        // Arrange
+        Calculator<SecureBigInteger> nullCalculator = null;
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => { Secret<SecureBigInteger> _ = nullCalculator; });
+    }
+
+    /// <summary>
+    /// Regression guard for ultrareview Bug 5: the implicit
+    /// <c>byte[] &#x2192; Secret&lt;TNumber&gt;</c> operator must surface
+    /// <see cref="ArgumentNullException"/> on a <see langword="null"/> array rather than
+    /// NRE-ing on the subsequent <c>array.Length</c> read.
+    /// </summary>
+    [Fact]
+    public void ImplicitCast_FromNullByteArray_ThrowsArgumentNullException()
+    {
+        // Arrange
+        byte[] nullArray = null;
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => { Secret<SecureBigInteger> _ = nullArray; });
+    }
+
+    /// <summary>
+    /// Regression guard for ultrareview Bug 5: the implicit
+    /// <c>PinnedPoolArray&lt;byte&gt; &#x2192; Secret&lt;TNumber&gt;</c> operator must surface
+    /// <see cref="ArgumentNullException"/> on a <see langword="null"/> array rather than
+    /// NRE-ing on the subsequent <c>array.PoolArray</c> dereference.
+    /// </summary>
+    [Fact]
+    public void ImplicitCast_FromNullPinnedPoolArray_ThrowsArgumentNullException()
+    {
+        // Arrange
+        PinnedPoolArray<byte> nullArray = null;
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => { Secret<SecureBigInteger> _ = nullArray; });
+    }
+
+    /// <summary>
     /// Tests that a <see cref="string"/> password constructed via
     /// <see cref="Secret{TNumber}.FromText(PinnedPoolArray{char})"/> round-trips back to the
     /// original. Mirror of the BigInteger-side test of the same name.
