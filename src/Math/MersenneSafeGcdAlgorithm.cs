@@ -190,6 +190,15 @@ public sealed class MersenneSafeGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TN
     /// <exception cref="ArgumentNullException">
     /// <paramref name="a"/> or <paramref name="b"/> is <see langword="null"/>.
     /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="b"/> is even. Mersenne primes <c>M_p = 2^p - 1</c> are always
+    /// odd; an even modulus is therefore guaranteed not to be a Mersenne prime. This
+    /// parity check is a cheap defense-in-depth guard against the most likely misuse
+    /// (e.g. passing a composite or an unrelated modulus); it does not prove that
+    /// <paramref name="b"/> is a Mersenne prime — odd non-Mersenne values still
+    /// produce the silently-wrong results documented above. Branches on the public
+    /// modulus only, so CT-safe.
+    /// </exception>
     public ExtendedGcdResult<TNumber> Compute(
         Calculator<TNumber> a,
         Calculator<TNumber> b)
@@ -202,6 +211,11 @@ public sealed class MersenneSafeGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TN
         if (b is null)
         {
             throw new ArgumentNullException(nameof(b));
+        }
+
+        if (b.IsEven)
+        {
+            throw new ArgumentException(ErrorMessages.MersenneModulusMustBeOdd, nameof(b));
         }
 
         int mersenneExponent = BitLengthOfPublicMersennePrime(b);

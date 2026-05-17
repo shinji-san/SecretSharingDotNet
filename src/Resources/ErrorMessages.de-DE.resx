@@ -135,6 +135,9 @@
     <data name="OperandMustBePositiveAndOdd" xml:space="preserve">
         <value>Der Operand muss positiv und ungerade sein.</value>
     </data>
+    <data name="MersenneModulusMustBeOdd" xml:space="preserve">
+        <value>Der Modul muss eine Mersenne-Primzahl sein (M_p = 2^p - 1); gerade Werte werden zurückgewiesen.</value>
+    </data>
     <data name="LengthOutOfRangeForUlong" xml:space="preserve">
         <value>Die Länge muss im Bereich [0, 8] liegen.</value>
     </data>

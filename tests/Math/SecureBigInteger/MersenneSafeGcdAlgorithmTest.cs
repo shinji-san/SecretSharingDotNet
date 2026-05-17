@@ -152,6 +152,25 @@ public class MersenneSafeGcdAlgorithmTest
     }
 
     /// <summary>
+    /// Tests that <see cref="MersenneSafeGcdAlgorithm.Compute"/> rejects an even
+    /// modulus (<c>b</c>) with <see cref="ArgumentException"/>. Mersenne primes
+    /// <c>M_p = 2^p − 1</c> are always odd; an even value is guaranteed not to be a
+    /// Mersenne prime and would otherwise produce silently-wrong results.
+    /// </summary>
+    [Fact]
+    public void Compute_EvenB_ThrowsArgumentException()
+    {
+        // Arrange
+        var algorithm = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
+        using Calculator<SecureBigInteger> aCalc = new SecureBigIntCalculator(new SecureBigInteger(7));
+        using Calculator<SecureBigInteger> bCalc = new SecureBigIntCalculator(new SecureBigInteger(42));
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() => algorithm.Compute(aCalc, bCalc));
+        Assert.Equal("b", ex.ParamName);
+    }
+
+    /// <summary>
     /// Cross-checks <see cref="MersenneSafeGcdAlgorithm.Compute"/> against the variable-time
     /// <see cref="ExtendedEuclideanAlgorithm{TNumber}.Compute"/>: both algorithms must
     /// produce the same modular inverse modulo <c>M_p</c> after reducing the Euclidean

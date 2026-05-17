@@ -142,6 +142,9 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="OperandMustBePositiveAndOdd" xml:space="preserve">
         <value>Operand must be positive and odd.</value>
     </data>
+    <data name="MersenneModulusMustBeOdd" xml:space="preserve">
+        <value>The modulus must be a Mersenne prime (M_p = 2^p - 1); even values are rejected.</value>
+    </data>
     <data name="LengthOutOfRangeForUlong" xml:space="preserve">
         <value>Length must be in [0, 8].</value>
     </data>

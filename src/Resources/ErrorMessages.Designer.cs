@@ -294,6 +294,12 @@ namespace SecretSharingDotNet {
             }
         }
 
+        internal static string MersenneModulusMustBeOdd {
+            get {
+                return ResourceManager.GetString("MersenneModulusMustBeOdd", resourceCulture);
+            }
+        }
+
         internal static string LengthOutOfRangeForUlong {
             get {
                 return ResourceManager.GetString("LengthOutOfRangeForUlong", resourceCulture);
