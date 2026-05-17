@@ -2023,6 +2023,129 @@ public class SecureBigIntegerTests
     }
 
     /// <summary>
+    /// P1 regression (PR #296 Codex review): tests that
+    /// <see cref="SecureBigInteger.ToByteArray()"/> on a negative value appends a
+    /// trailing <c>0xFF</c> sign byte exactly when the minimal two's-complement form
+    /// of the magnitude would leave the result's high byte's sign bit clear — i.e.,
+    /// whenever the magnitude's high-byte high bit is set <i>and</i> the magnitude
+    /// is not an exact byte-boundary power of two (in which case the +1 carry
+    /// propagates naturally). Before the fix, <c>-129</c> serialised as
+    /// <c>[0x7F]</c> and round-tripped to <c>+127</c> — a silent sign + magnitude
+    /// corruption. Mirrors
+    /// <see cref="Constructor_TwosComplement_NegativeBoundary_PreservesValue"/>
+    /// and matches <see cref="System.Numerics.BigInteger.ToByteArray()"/> output.
+    /// </summary>
+    /// <param name="value">The seed negative value.</param>
+    /// <param name="expected">The expected two's-complement little-endian bytes.</param>
+    [Theory]
+    [InlineData(-1,     new byte[] { 0xFF })]
+    [InlineData(-127,   new byte[] { 0x81 })]
+    [InlineData(-128,   new byte[] { 0x80 })]
+    [InlineData(-129,   new byte[] { 0x7F, 0xFF })]
+    [InlineData(-255,   new byte[] { 0x01, 0xFF })]
+    [InlineData(-256,   new byte[] { 0x00, 0xFF })]
+    [InlineData(-32767, new byte[] { 0x01, 0x80 })]
+    [InlineData(-32768, new byte[] { 0x00, 0x80 })]
+    [InlineData(-32769, new byte[] { 0xFF, 0x7F, 0xFF })]
+    public void ToByteArray_NegativeValue_MatchesTwosComplementForm_P1Regression(int value, byte[] expected)
+    {
+        // Arrange
+        using var num = new SecureBigInteger(value);
+
+        // Act
+        using var bytes = num.ToByteArray();
+
+        // Assert
+        Assert.Equal(expected, bytes.PoolArray.Take(bytes.Length));
+    }
+
+    /// <summary>
+    /// P1 regression (PR #296 Codex review): tests that the negative round-trip
+    /// <c>value → ToByteArray() → new SecureBigInteger(bytes)</c> preserves both
+    /// sign and magnitude across the boundary values where the pre-fix encoder
+    /// silently corrupted the result.
+    /// </summary>
+    /// <param name="value">The seed negative value.</param>
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(-127)]
+    [InlineData(-128)]
+    [InlineData(-129)]
+    [InlineData(-255)]
+    [InlineData(-256)]
+    [InlineData(-32767)]
+    [InlineData(-32768)]
+    [InlineData(-32769)]
+    public void NegativeValue_RoundTripsThroughToByteArrayAndCtor_P1Regression(int value)
+    {
+        // Arrange
+        using var original = new SecureBigInteger(value);
+
+        // Act
+        using var bytes = original.ToByteArray();
+        var bytesCopy = bytes.PoolArray.Take(bytes.Length).ToArray();
+        using var decoded = new SecureBigInteger(bytesCopy);
+
+        // Assert
+        Assert.Equal(-1, decoded.Sign);
+        Assert.Equal(value, (int)decoded);
+    }
+
+    /// <summary>
+    /// P1 multi-limb regression (PR #296 Codex review): tests that the
+    /// <c>IsExactByteBoundaryPowerOfTwo</c> helper's loop over
+    /// <c>limbs[0..limbs.Length - 2]</c> correctly distinguishes
+    /// <c>-2^(8k - 1)</c> (true power-of-two boundary, minimal form) from
+    /// nearby values (require trailing sign byte). Single-limb cases skip
+    /// the loop entirely; multi-limb cases exercise it. Two complementary
+    /// scenarios:
+    /// <list type="bullet">
+    /// <item><description><c>-2^71</c> — magnitude limbs are <c>[0, 0x80]</c>;
+    /// boundary holds, expected output is 9 bytes.</description></item>
+    /// <item><description><c>-(2^71 + 1)</c> — magnitude limbs are
+    /// <c>[1, 0x80]</c>; non-boundary, requires trailing <c>0xFF</c>,
+    /// expected output is 10 bytes.</description></item>
+    /// </list>
+    /// </summary>
+    [Fact]
+    public void ToByteArray_MultiLimbNegative_BoundaryAndOffBoundary_P1Regression()
+    {
+        // Arrange — two's-complement encodings constructed by hand for stable input.
+        // -2^71: magnitude 9 bytes [0, ..., 0x80]. Invert -> [0xFF, ..., 0x7F], +1 ripples
+        // through all the 0xFFs and sets the high byte to 0x80; expected wire = 9 bytes.
+        byte[] boundaryBytes = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80 };
+        // -(2^71 + 1): magnitude 9 bytes [1, 0, ..., 0x80]. Invert -> [0xFE, 0xFF, ..., 0x7F],
+        // +1 -> [0xFF, 0xFF, ..., 0x7F]; high byte 0x7F has sign bit clear, so the encoder
+        // must append a trailing 0xFF; expected wire = 10 bytes.
+        byte[] offBoundaryBytes = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0xFF };
+
+        using var boundary = new SecureBigInteger(boundaryBytes);
+        using var offBoundary = new SecureBigInteger(offBoundaryBytes);
+
+        // Act
+        using var boundaryEncoded = boundary.ToByteArray();
+        using var offBoundaryEncoded = offBoundary.ToByteArray();
+
+        // Assert
+        Assert.Equal(-1, boundary.Sign);
+        Assert.Equal(-1, offBoundary.Sign);
+        Assert.Equal(9, boundaryEncoded.Length);
+        Assert.Equal(boundaryBytes, boundaryEncoded.PoolArray.Take(boundaryEncoded.Length));
+        Assert.Equal(10, offBoundaryEncoded.Length);
+        Assert.Equal(offBoundaryBytes, offBoundaryEncoded.PoolArray.Take(offBoundaryEncoded.Length));
+
+        // Round-trip: the encoded form must rebuild the same value via the byte-array ctor.
+        using var boundaryDecoded = new SecureBigInteger(boundaryEncoded.PoolArray.Take(boundaryEncoded.Length).ToArray());
+        using var offBoundaryDecoded = new SecureBigInteger(offBoundaryEncoded.PoolArray.Take(offBoundaryEncoded.Length).ToArray());
+        Assert.Equal(boundary, boundaryDecoded);
+        Assert.Equal(offBoundary, offBoundaryDecoded);
+
+        // SerializedByteCount must agree with the encoded length on both shapes.
+        Assert.Equal(boundaryEncoded.Length, boundary.SerializedByteCount);
+        Assert.Equal(offBoundaryEncoded.Length, offBoundary.SerializedByteCount);
+    }
+
+    /// <summary>
     /// Tests that the <see cref="SecureBigInteger(byte[])"/> ctor preserves positive
     /// boundary values across two's-complement encodings — including the high-bit
     /// boundaries (128, 256, 32768) that require a trailing <c>0x00</c> sentinel.
@@ -2150,8 +2273,14 @@ public class SecureBigIntegerTests
     [InlineData(32767L)]
     [InlineData(32768L)]
     [InlineData(-1L)]
+    [InlineData(-127L)]
     [InlineData(-128L)]
     [InlineData(-129L)]
+    [InlineData(-255L)]
+    [InlineData(-256L)]
+    [InlineData(-32767L)]
+    [InlineData(-32768L)]
+    [InlineData(-32769L)]
     [InlineData(long.MaxValue)]
     [InlineData(long.MinValue)]
     public void SerializedByteCount_MatchesToByteArrayLength(long value)

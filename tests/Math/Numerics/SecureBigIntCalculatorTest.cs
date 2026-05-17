@@ -516,7 +516,14 @@ public class SecureBigIntCalculatorTest
     [InlineData(32768L)]        // multi-byte magnitude, high byte high-bit set
     [InlineData(1234567890L)]
     [InlineData(-1L)]           // negative: no sentinel
+    [InlineData(-127L)]         // negative, magnitude high-bit clear: no sentinel
     [InlineData(-128L)]         // negative two's-complement boundary
+    [InlineData(-129L)]         // P1: negative, magnitude high-bit set off-boundary → sentinel
+    [InlineData(-255L)]         // P1: same shape as -129
+    [InlineData(-256L)]         // negative, multi-byte magnitude high-bit clear: no sentinel
+    [InlineData(-32767L)]       // P1: negative, magnitude high-bit set off-boundary → sentinel
+    [InlineData(-32768L)]       // negative two's-complement boundary (multi-byte)
+    [InlineData(-32769L)]       // P1: negative, magnitude high-bit set off-boundary → sentinel
     [InlineData(long.MaxValue)]
     [InlineData(long.MinValue)]
     public void ByteCount_MatchesByteRepresentationLength(long value)

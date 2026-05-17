@@ -417,15 +417,19 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
 
             int highBytes = BytesInLimb(highLimb);
             int magnitudeBytes = ((this.limbs.Length - 1) * 8) + highBytes;
+            bool highByteMsbSet = ((highLimb >> (((highBytes - 1) * 8) + 7)) & 1UL) != 0;
             if (this.isNegative)
             {
-                return magnitudeBytes;
+                // Negative: append a 0xFF sign byte when the minimal two's-complement
+                // form of the magnitude would leave the result's high byte's sign bit
+                // clear. Mirrors the rule applied in ToByteArray.
+                bool needsSignByte = highByteMsbSet && !this.IsExactByteBoundaryPowerOfTwo();
+                return needsSignByte ? magnitudeBytes + 1 : magnitudeBytes;
             }
 
             // Positive: append a 0x00 sentinel if the magnitude's high byte has its
             // MSB set, so the unsigned interpretation survives a round-trip through
             // sign-aware decoders. Mirrors the rule applied in ToByteArray.
-            bool highByteMsbSet = ((highLimb >> (((highBytes - 1) * 8) + 7)) & 1UL) != 0;
             return highByteMsbSet ? magnitudeBytes + 1 : magnitudeBytes;
         }
     }
@@ -1109,19 +1113,35 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             actualByteLength = ((this.limbs.Length - 1) * 8) + BytesInLimb(highLimb);
         }
 
+        bool magnitudeHighBitSet = highLimb != 0
+            && ((highLimb >> (((BytesInLimb(highLimb) - 1) * 8) + 7)) & 1UL) != 0;
+
         if (this.isNegative)
         {
-            using var rawBytes = new PinnedPoolArray<byte>(length: actualByteLength);
+            // Add a trailing 0xFF sign byte when the two's-complement of the
+            // minimal magnitude representation would leave the result's high
+            // byte's sign bit clear. That happens exactly when the magnitude's
+            // high byte's high bit is set AND the +1 ripple stops short of the
+            // high byte — i.e., some byte below the high byte is non-zero.
+            // For exact byte-boundary powers of two (-128, -32768, …) the
+            // carry propagates and the minimal form already has its sign bit
+            // set, so no pad is needed (mirrors System.Numerics.BigInteger).
+            // Without this pad, e.g. -129 would serialise as [0x7F] and
+            // decode back as +127.
+            bool needsSignByte = magnitudeHighBitSet
+                && !this.IsExactByteBoundaryPowerOfTwo();
+            int negResultLen = needsSignByte ? actualByteLength + 1 : actualByteLength;
+            using var rawBytes = new PinnedPoolArray<byte>(length: negResultLen);
+            rawBytes.Length = actualByteLength;
             LimbsToBytes(this.limbs, rawBytes);
-            return TwosComplement(rawBytes.PoolArray, actualByteLength);
+            rawBytes.Length = negResultLen;
+            return TwosComplement(rawBytes.PoolArray, negResultLen);
         }
 
         // Pad with one trailing zero byte if the magnitude's high bit is set,
         // so the unsigned interpretation survives a round-trip through
         // sign-aware decoders (matching System.Numerics.BigInteger semantics).
-        bool needsPadding = highLimb != 0
-            && ((highLimb >> (((BytesInLimb(highLimb) - 1) * 8) + 7)) & 1UL) != 0;
-        int resultLen = needsPadding ? actualByteLength + 1 : actualByteLength;
+        int resultLen = magnitudeHighBitSet ? actualByteLength + 1 : actualByteLength;
         var result = new PinnedPoolArray<byte>(length: resultLen);
         // LimbsToBytes is output-driven on bytesOut.Length — temporarily shrink
         // result.Length so only the magnitude bytes are written; the optional
@@ -1130,6 +1150,38 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         LimbsToBytes(this.limbs, result);
         result.Length = resultLen;
         return result;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the magnitude is exactly a byte-boundary
+    /// power of two — i.e., the high limb is a single bit at position 8k−1 and every
+    /// lower limb is zero. Used by <see cref="ToByteArray"/>'s negative path to
+    /// decide whether the minimal two's-complement form already has its sign bit
+    /// set without needing an extra pad byte.
+    /// </summary>
+    private bool IsExactByteBoundaryPowerOfTwo()
+    {
+        ulong high = this.limbs[this.limbs.Length - 1];
+        if (high == 0)
+        {
+            return false;
+        }
+
+        ulong expectedSingleBit = 1UL << (((BytesInLimb(high) - 1) * 8) + 7);
+        if (high != expectedSingleBit)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < this.limbs.Length - 1; i++)
+        {
+            if (this.limbs[i] != 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     #region Limb conversion helpers
