@@ -634,7 +634,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <param name="obj">The object to compare.</param>
     /// <returns><see langword="true"/> if the <paramref name="obj"/> argument is a <see cref="Secret{TNumber}"/> object,
     /// and its value is equal to the value of the current <see cref="Secret{TNumber}"/> instance; otherwise, <see langword="false"/>.</returns>
-    public override bool Equals(object obj) => obj != null && this.Equals((Secret<TNumber>)obj);
+    public override bool Equals(object obj) => obj is Secret<TNumber> other && this.Equals(other);
 
     /// <summary>
     /// Returns the hash code for the current <see cref="Secret{TNumber}"/> structure.

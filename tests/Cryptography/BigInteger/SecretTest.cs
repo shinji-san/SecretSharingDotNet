@@ -184,6 +184,54 @@ public class SecretTest
     }
 
     /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.Equals(object)"/> returns
+    /// <see langword="false"/> when the argument is not a
+    /// <see cref="Secret{TNumber}"/> instance, instead of throwing
+    /// <see cref="InvalidCastException"/>.
+    /// </summary>
+    [Fact]
+    public void Equal_WithObjectOfDifferentType_ReturnsFalse()
+    {
+        // Arrange
+        var secret = new Secret<BigInteger>(Calculator<BigInteger>.One);
+        try
+        {
+            // Act
+            bool result = secret.Equals((object)"not a secret");
+
+            // Assert
+            Assert.False(result);
+        }
+        finally
+        {
+            secret.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.Equals(object)"/> returns
+    /// <see langword="false"/> when the argument is <see langword="null"/>.
+    /// </summary>
+    [Fact]
+    public void Equal_WithNullObject_ReturnsFalse()
+    {
+        // Arrange
+        var secret = new Secret<BigInteger>(Calculator<BigInteger>.One);
+        try
+        {
+            // Act
+            bool result = secret.Equals((object)null);
+
+            // Assert
+            Assert.False(result);
+        }
+        finally
+        {
+            secret.Dispose();
+        }
+    }
+
+    /// <summary>
     /// Lower or equal than secrets for testing.
     /// </summary>
     public static IEnumerable<object[]> LowerOrEqualThanSecrets =>
