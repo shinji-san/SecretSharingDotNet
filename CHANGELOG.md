@@ -6,16 +6,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added `SecureBigInteger` type with constant-time arithmetic primitives; timing depends only on the public operand bit-length, not on operand values.
+- Added `SecureBigIntCalculator` as `Calculator<SecureBigInteger>` backend.
+- Added `MersenneSafeGcdAlgorithm<TNumber>` — Bernstein–Yang divstep modular inverse for a constant-time `SecretReconstructor.DivMod`.
+- Added `PinnedPoolArray<T>` — GC-pinned, securely-cleared buffer wrapper with fixed-time equality.
+- Added `PinnedPoolArrayList<T>` — cascade-dispose container for multiple pinned buffers.
+- Added `CountedEqualityComparer<T>` and `ICountedEqualityComparer<T>` for length-aware structural equality.
+- Added `Cryptography.SecureInput.ConsolePasswordReader` — interactive keystroke-by-keystroke reader that lands input directly in a pinned `PinnedPoolArray<char>`.
+- Added `Cryptography.SecureInput.SecureCharBufferExtensions` — converts `string` / `char[]` / `ReadOnlySpan<char>` into pinned char buffers, with a clearing variant for caller-owned `char[]`.
+- Added `Cryptography.SecureInput.SecureNumericBufferExtensions` — pinned-buffer conversions for `int`, `long`, and `BigInteger` (forward and reverse).
+- Added `Secret<TNumber>.FromText(PinnedPoolArray<char>)`, `FromText(PinnedPoolArray<char>, Encoding)`, and `FromBase64(PinnedPoolArray<char>)` factories.
+- Added `Secret<TNumber>.ToCharArray()`, `ToCharArray(Encoding)`, `ToBase64String()`, `ToBase64CharArray()`, and `AsReadOnlySpan()` (.NET 8 and newer).
+- Added `Share<TNumber>(PinnedPoolArray<char>)` constructor and `Share<TNumber>.ToCharArray(...)` overloads.
+- Added `Shares<TNumber>.FromText(PinnedPoolArray<char>)`, `FromTextLines(IEnumerable<PinnedPoolArray<char>>)`, and `ToCharArray(...)` overloads.
+- Added `SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult>` 3-generic overload to wire in alternative GCD strategies, including `MersenneSafeGcdAlgorithm`.
+- Added `Calculator.Create<TNumber>(byte[], int)` generic helper that disposes the orphan instance on type-mismatch.
+
 ### Changed
-- Set `FinitePoint` struct internal instead public to reduce the public API surface.
+- `Secret<TNumber>` is now `IDisposable`; secret bytes are stored in a GC-pinned, securely-cleared `PinnedPoolArray<byte>`. `ToString()` returns the redaction sentinel `"*** Secured Value ***"` in Release builds; equality and ordering are fixed-time over the value bytes.
+- `Shares<TNumber>` is now `IDisposable`; disposal cascades to every contained share.
+- `Share<TNumber>` is now a `sealed record` (was `readonly record struct`) and implements `IDisposable`. Properties `X` / `Y` renamed to `Index` / `Value`.
+- `IMakeSharesUseCase<TNumber>` and `IReconstructionUseCase<TNumber>` now extend `IDisposable`; DI registrations must use `Transient` or `Scoped` lifetimes so the container disposes them.
+- Moved `BigIntCalculator` from namespace `SecretSharingDotNet.Math` to `SecretSharingDotNet.Math.Numerics`.
+- `Calculator<TNumber>.Clone` is now `abstract` (was `virtual`).
+- `ExtendedEuclideanAlgorithm<TNumber>` is now `sealed`.
+- `SecretReconstructor<TNumber>.SecurityLevel` is now read-only; the level is derived from the shares passed to `Reconstruction`.
+- Renamed `Secret<TNumber>.ToBase64()` to `ToBase64String()`; new `ToBase64CharArray()` returns a pinned char buffer.
+- Text I/O on `Secret`, `Share`, and `Shares` is pinned-buffer-only (no `string` overloads on the wire path).
+- Share x-coordinate encoding is little-endian on the wire (`BinaryPrimitives.WriteInt32LittleEndian`) for cross-architecture stability.
 - Set data type of `numberOfMinimumShares` and `numberOfShares` parameters from `TNumber` to `int` in `MakeShares` method.
 
-### Fixed
-- Fix `README.md`: Added support for .NET Framework 4.8.1
-
 ### Removed
-- Removed support for .NET Framework 4.7.1
-- Removed support for .NET Framework 4.7
+- Removed support for .NET Framework 4.7.1.
+- Removed support for .NET Framework 4.7.
+- Removed `FinitePoint<TNumber>` struct (replaced by internal polynomial representation).
 - Removed `OriginalSecret` property from `Shares` class.
 - Removed `OriginalSecretExists` property from `Shares` class.
 - Removed `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)` method.
@@ -23,8 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `Secret<TNumber> Reconstruction(Share<TNumber>[] shares)` method.
 - Removed `Secret<TNumber> Reconstruction(string[] shares)` method.
 - Removed `Secret<TNumber> Reconstruction(string shares)` method.
-- Removed `X` property from `Share` struct.
-- Removed `Y` property from `Share` struct.
 - Removed `ToInt32()` method from `BigIntCalculator` class.
 - Removed `ToInt32()` method from `Calculator` class.
 
