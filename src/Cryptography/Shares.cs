@@ -214,17 +214,46 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
         }
 
         var shares = new List<Share<TNumber>>();
-        foreach (var line in lines)
+        try
         {
-            if (line is null || line.Length == 0)
+            foreach (var line in lines)
             {
-                continue;
+                if (line is null || line.Length == 0)
+                {
+                    continue;
+                }
+
+                // Allocate the share before handing it to the list. If the list's
+                // own Add (e.g. internal resize) throws after the share has been
+                // constructed, the local would otherwise leak the share's
+                // index+value Calculator pinned buffers.
+                Share<TNumber> share = null;
+                try
+                {
+                    share = new Share<TNumber>(line);
+                    shares.Add(share);
+                    share = null;
+                }
+                catch
+                {
+                    share?.Dispose();
+                    throw;
+                }
             }
 
-            shares.Add(new Share<TNumber>(line));
+            var result = new Shares<TNumber>(shares);
+            // Ownership of every share is now held by the returned Shares<TNumber>.
+            // Null the local so the catch path below does not double-dispose.
+            shares = null;
+            return result;
         }
-
-        return new Shares<TNumber>(shares);
+        catch
+        {
+            // Mid-loop failure (malformed share line, OOM in List resize, etc.) —
+            // dispose every share already accumulated before re-throwing.
+            shares?.DisposeAll();
+            throw;
+        }
     }
 
     /// <summary>

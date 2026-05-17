@@ -109,6 +109,28 @@ public class SharesTest
     }
 
     /// <summary>
+    /// Regression guard mirroring <c>FromText_MidParseFailure_DisposesAccumulatedSharesBeforeRethrow</c>
+    /// for the <see cref="Shares{TNumber}.FromTextLines"/> sibling entry point: when a later
+    /// pinned line buffer fails to parse, every share already accumulated for earlier
+    /// (valid) entries must be disposed before the exception propagates. Without the
+    /// try/catch around the accumulation loop, the share-Calculator pinned buffers
+    /// would survive via the dropped local list until non-deterministic finalisation.
+    /// </summary>
+    [Fact]
+    public void FromTextLines_MidParseFailure_DisposesAccumulatedSharesBeforeRethrow()
+    {
+        // Arrange — 4 valid pinned share lines + one malformed entry. The Share<TNumber>
+        // ctor rejects lines that do not parse as INDEX-VALUE; "GARBAGE" trips that
+        // rejection mid-loop, after several shares have been added to the local list.
+        var validShares = TestData.GetPredefinedShares();
+        using var lines = new[] { validShares[0], validShares[1], validShares[2], validShares[3], "GARBAGE" }.ToPinnedSecureShareLines();
+
+        // Act & Assert — the throw is expected; the regression guard is that no pinned
+        // Calculator buffer survives via a leaked Share<TNumber> in the partial list.
+        Assert.ThrowsAny<Exception>(() => Shares<SecureBigInteger>.FromTextLines(lines));
+    }
+
+    /// <summary>
     /// Verifies that the <see cref="Shares{TNumber}.ToString"/> method returns a string representation
     /// that accurately reflects the expected format and content of the shares.
     /// </summary>
