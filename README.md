@@ -808,6 +808,104 @@ public class Program
 }
 ```
 
+## Secure console input ⌨️
+`ConsolePasswordReader` reads keyboard input one keystroke at a time directly into a pinned `PinnedPoolArray<char>` — no `string`, no `StringBuilder`, no intermediate heap copy. The pinned buffer is the same shape that `Secret<TNumber>.FromText(...)`, `Share<TNumber>(...)`, and `Shares<TNumber>.FromText(...)` / `Shares<TNumber>.FromTextLines(...)` accept directly, so secrets and shares can flow end-to-end without ever materialising as a `string`. The two sub-examples below cover both directions: reading a secret to split, and reading shares to reconstruct.
+
+Editing behaviour of `ConsolePasswordReader.ReadPassword(int maxLength, char? echoChar = null)`:
+
+- Pressing **Enter** ends the input and returns the pinned buffer; the buffer's `Length` reflects the number of characters actually entered.
+- Pressing **Backspace** deletes the most recently accepted character and erases the echo on the console if `echoChar` is set.
+- Once `maxLength` characters have been entered, additional printable keystrokes are silently ignored until the user presses **Enter** or **Backspace**.
+- Non-printable control keys other than **Enter** and **Backspace** are ignored.
+- **Ctrl+C** is not intercepted — the default console behaviour (process termination) applies.
+- `ReadPassword` throws `InvalidOperationException` when standard input is redirected (`Console.IsInputRedirected == true`); the API is interactive-only and cannot read from a pipe or a redirected file.
+
+### Read a secret, then split
+```csharp
+using System;
+using System.Numerics;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureInput;
+using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
+using SecretSharingDotNet.Math;
+
+namespace Example7a;
+
+public class Program
+{
+  public static void Main(string[] args)
+  {
+    //// Read up to 64 characters from the console, echoing '*' per keystroke.
+    //// The returned buffer is pinned and securely cleared on dispose.
+    Console.Write("Secret: ");
+    using var pinnedSecret = ConsolePasswordReader.ReadPassword(maxLength: 64, echoChar: '*');
+    Console.WriteLine();
+    using var secret = Secret<BigInteger>.FromText(pinnedSecret);
+
+    //// Split the secret into 7 shares; any 3 are enough to reconstruct.
+    using var splitter = new SecretSplitter<BigInteger>();
+    using var shares = splitter.MakeShares(3, 7, secret);
+
+    //// Emit all shares as hex lines (pinned char buffer, not redaction-gated).
+    using var sharesChars = shares.ToCharArray();
+    Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
+    Console.WriteLine();
+  }
+}
+```
+
+### Read shares, then reconstruct
+```csharp
+using System;
+using System.Numerics;
+
+using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.Cryptography.SecureInput;
+using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
+using SecretSharingDotNet.Math;
+
+namespace Example7b;
+
+public class Program
+{
+  public static void Main(string[] args)
+  {
+    //// Read three share lines from the console — silent input, since
+    //// echoChar defaults to null. Each line lands in its own pinned buffer.
+    const int shareCount = 3;
+    var entries = new PinnedPoolArray<char>[shareCount];
+    for (int i = 0; i < shareCount; i++)
+    {
+      Console.Write($"Share {i + 1}: ");
+      entries[i] = ConsolePasswordReader.ReadPassword(maxLength: 256);
+      Console.WriteLine();
+    }
+
+    //// Wrap the per-line buffers in a PinnedPoolArrayList — disposing it
+    //// cascades to every contained PinnedPoolArray<char>. Shares.FromTextLines
+    //// reads from the lines without taking ownership; the caller (this scope)
+    //// retains and disposes them.
+    using var pinnedLines = new PinnedPoolArrayList<char>(entries);
+    using var shares = Shares<BigInteger>.FromTextLines(pinnedLines);
+
+    //// Reconstruct via the variable-time ExtendedEuclideanAlgorithm; for the
+    //// constant-time path with SecureBigInteger and MersenneSafeGcdAlgorithm,
+    //// see the Security & Threat Model section.
+    var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
+    using var combiner = new SecretReconstructor<BigInteger>(gcd);
+    using var recovered = combiner.Reconstruction(shares);
+
+    //// Emit the recovered secret as UTF-8 text (pinned char buffer, not
+    //// redaction-gated).
+    using var recoveredChars = recovered.ToCharArray();
+    Console.Out.Write(recoveredChars.PoolArray, 0, recoveredChars.Length);
+    Console.WriteLine();
+  }
+}
+```
+
 # Security & Threat Model 🛡️
 
 The library targets two backends through the `Calculator<TNumber>` strategy pattern: the
