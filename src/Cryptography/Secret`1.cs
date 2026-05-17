@@ -442,9 +442,12 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     private const int WhitespaceSextet = -3;
 
     /// <summary>
-    /// Gets the <see cref="Secret{TNumber}"/> byte size.
+    /// Gets the <see cref="Secret{TNumber}"/> byte size, or <c>0</c> for the
+    /// default-value struct (where <see cref="secretNumber"/> is <see langword="null"/>).
+    /// Null-tolerant so callers can read the size on an uninitialized instance
+    /// without an <see cref="NullReferenceException"/>.
     /// </summary>
-    internal int SecretByteSize => this.secretNumber.Length;
+    internal int SecretByteSize => this.secretNumber?.Length ?? 0;
 
     /// <summary>
     /// Gets this <see cref="Secret{TNumber}"/> as an a0 coefficient.
@@ -599,6 +602,31 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     {
         this.ThrowIfDisposed();
         other.ThrowIfDisposed();
+
+        // Empty / uninitialized handling. A Secret with no payload beyond the mark byte
+        // (or the default-value struct with a null secretNumber) compares as the smallest
+        // possible value. Without this guard, default(Secret<T>) would NRE on the
+        // Subset access (secretNumber is null) and a content-empty Secret would call
+        // Subset(0, -1). All three branches are taken on public size/init state.
+        // No new secret leakage versus the variable-time PinnedPoolArray lex-compare that
+        // follows.
+        bool thisIsEmpty = this.secretNumber is not { Length: > MarkByteCount };
+        bool otherIsEmpty = other.secretNumber is not { Length: > MarkByteCount };
+        if (thisIsEmpty && otherIsEmpty)
+        {
+            return 0;
+        }
+
+        if (thisIsEmpty)
+        {
+            return -1;
+        }
+
+        if (otherIsEmpty)
+        {
+            return 1;
+        }
+
         using var pinnedPoolArrayLeft = this.secretNumber.Subset(0, this.SecretByteSize - MarkByteCount);
         using var pinnedPoolArrayRight = other.secretNumber.Subset(0, other.SecretByteSize - MarkByteCount);
         return pinnedPoolArrayLeft.CompareTo(pinnedPoolArrayRight);
@@ -614,18 +642,21 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     {
         this.ThrowIfDisposed();
         other.ThrowIfDisposed();
-        if (this.SecretByteSize < MarkByteCount && other.SecretByteSize < MarkByteCount)
+
+        // Empty / uninitialized handling: collapse the two degenerate cases (default-value
+        // struct with null secretNumber, or content-empty Secret with only the mark byte)
+        // into a single guard before touching secretNumber.PoolArray. Branches are taken
+        // on public size/init state only — the payload-content compare below remains the
+        // single sink for secret material and stays on the CryptographicOperations.
+        // FixedTimeEquals path.
+        bool thisIsEmpty = this.secretNumber is not { Length: > MarkByteCount };
+        bool otherIsEmpty = other.secretNumber is not { Length: > MarkByteCount };
+        if (thisIsEmpty && otherIsEmpty)
         {
-#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
-            var secretSpan = this.secretNumber.PoolArray.AsSpan(0, this.secretNumber.Length);
-            var otherSecretSpan = other.secretNumber.PoolArray.AsSpan(0, other.secretNumber.Length);
-            return CryptographicOperations.FixedTimeEquals(secretSpan, otherSecretSpan);
-#else
-            return this.secretNumber.FixedTimeEquals(other.secretNumber);
-#endif
+            return true;
         }
 
-        if (this.SecretByteSize < MarkByteCount || other.SecretByteSize < MarkByteCount)
+        if (thisIsEmpty || otherIsEmpty)
         {
             return false;
         }
@@ -659,7 +690,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public override int GetHashCode()
     {
         this.ThrowIfDisposed();
-        return this.secretNumber.GetHashCode();
+        return this.secretNumber?.GetHashCode() ?? 0;
     }
 
     /// <summary>
@@ -725,6 +756,11 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public PinnedPoolArray<byte> ToByteArray()
     {
         this.ThrowIfDisposed();
+        if (this.secretNumber is not { Length: > MarkByteCount })
+        {
+            return new PinnedPoolArray<byte>(0);
+        }
+
         return this.secretNumber.Subset(0, this.secretNumber.Length - MarkByteCount);
     }
 
@@ -811,6 +847,11 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public ReadOnlySpan<byte> AsReadOnlySpan()
     {
         this.ThrowIfDisposed();
+        if (this.secretNumber is not { Length: > MarkByteCount })
+        {
+            return ReadOnlySpan<byte>.Empty;
+        }
+
         return this.secretNumber.PoolArray.AsSpan(0, this.secretNumber.Length - MarkByteCount);
     }
 #endif

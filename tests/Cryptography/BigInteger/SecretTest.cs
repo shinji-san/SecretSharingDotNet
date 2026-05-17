@@ -713,6 +713,135 @@ public class SecretTest
     }
 
     /// <summary>
+    /// Regression guard for ultrareview Bug 4: <see cref="Secret{TNumber}.Equals(Secret{TNumber})"/>
+    /// on two default-value structs returns <see langword="true"/> rather than dereferencing
+    /// the <see langword="null"/> <c>secretNumber</c>.
+    /// </summary>
+    [Fact]
+    public void Equals_BothDefault_ReturnsTrue()
+    {
+        // Arrange
+        Secret<BigInteger> a = default;
+        Secret<BigInteger> b = default;
+
+        // Act & Assert
+        Assert.True(a.Equals(b));
+        Assert.True(a == b);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.Equals(Secret{TNumber})"/> between a default
+    /// struct and an initialized secret returns <see langword="false"/> (and does not NRE).
+    /// </summary>
+    [Fact]
+    public void Equals_DefaultVsInitialized_ReturnsFalse()
+    {
+        // Arrange
+        Secret<BigInteger> emptySecret = default;
+        using var initialized = new Secret<BigInteger>(new byte[] { 1, 2, 3 }, 3);
+
+        // Act & Assert
+        Assert.False(emptySecret.Equals(initialized));
+        Assert.False(initialized.Equals(emptySecret));
+    }
+
+    /// <summary>
+    /// Regression guard for ultrareview Bug 4: <see cref="Secret{TNumber}.CompareTo(Secret{TNumber})"/>
+    /// on two default-value structs returns <c>0</c> rather than dereferencing
+    /// the <see langword="null"/> <c>secretNumber</c>.
+    /// </summary>
+    [Fact]
+    public void CompareTo_BothDefault_ReturnsZero()
+    {
+        // Arrange
+        Secret<BigInteger> a = default;
+        Secret<BigInteger> b = default;
+
+        // Act & Assert
+        Assert.Equal(0, a.CompareTo(b));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Secret{TNumber}.CompareTo(Secret{TNumber})"/> orders the default
+    /// struct as smaller than any initialized secret.
+    /// </summary>
+    [Fact]
+    public void CompareTo_DefaultIsSmallerThanInitialized()
+    {
+        // Arrange
+        Secret<BigInteger> emptySecret = default;
+        using var initialized = new Secret<BigInteger>(new byte[] { 1, 2, 3 }, 3);
+
+        // Act
+        int defaultVsInit = emptySecret.CompareTo(initialized);
+        int initVsDefault = initialized.CompareTo(emptySecret);
+
+        // Assert
+        Assert.True(defaultVsInit < 0);
+        Assert.True(initVsDefault > 0);
+    }
+
+    /// <summary>
+    /// Regression guard for ultrareview Bug 4: <see cref="Secret{TNumber}.GetHashCode"/>
+    /// on a default-value struct returns a defined value rather than NRE on the
+    /// <see langword="null"/> <c>secretNumber</c>.
+    /// </summary>
+    [Fact]
+    public void GetHashCode_OnDefaultSecret_DoesNotThrow()
+    {
+        // Arrange
+        Secret<BigInteger> emptySecret = default;
+
+        // Act
+        var ex = Record.Exception(() => _ = emptySecret.GetHashCode());
+
+        // Assert
+        Assert.Null(ex);
+    }
+
+    /// <summary>
+    /// Regression guard for ultrareview Bug 4: <see cref="Secret{TNumber}.ToByteArray"/>
+    /// on a default-value struct returns an empty <see cref="PinnedPoolArray{Byte}"/>
+    /// rather than NRE-ing on the <see langword="null"/> <c>secretNumber</c>. Without
+    /// the guard the implicit <c>Secret &#x2192; PinnedPoolArray&lt;byte&gt;</c> operator
+    /// (which routes through <c>ToByteArray</c>) would also NRE for default-struct inputs.
+    /// </summary>
+    [Fact]
+    public void ToByteArray_FromDefaultSecret_ReturnsEmptyByteArray()
+    {
+        // Arrange
+        Secret<BigInteger> emptySecret = default;
+
+        // Act
+        using var bytes = emptySecret.ToByteArray();
+
+        // Assert
+        Assert.Equal(0, bytes.Length);
+    }
+
+#if NET8_0_OR_GREATER
+    /// <summary>
+    /// Regression guard for ultrareview Bug 4: <see cref="Secret{TNumber}.AsReadOnlySpan"/>
+    /// on a default-value struct returns <see cref="ReadOnlySpan{Byte}.Empty"/> rather than
+    /// NRE-ing on the <see langword="null"/> <c>secretNumber</c>. This also closes the
+    /// implicit <c>Secret &#x2192; ReadOnlySpan&lt;byte&gt;</c> operator's cascading-NRE
+    /// path for default-struct inputs on NET 8+.
+    /// </summary>
+    [Fact]
+    public void AsReadOnlySpan_FromDefaultSecret_ReturnsEmpty()
+    {
+        // Arrange
+        Secret<BigInteger> emptySecret = default;
+
+        // Act
+        var span = emptySecret.AsReadOnlySpan();
+
+        // Assert
+        Assert.True(span.IsEmpty);
+    }
+#endif
+
+    /// <summary>
     /// Tests that a <see cref="string"/> password constructed via
     /// <see cref="Secret{TNumber}.FromText(PinnedPoolArray{char})"/> round-trips back to the original.
     /// </summary>
