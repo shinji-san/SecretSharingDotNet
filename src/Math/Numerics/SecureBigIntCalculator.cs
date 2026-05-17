@@ -181,7 +181,18 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <param name="right">Right value to add (right summand).</param>
     /// <returns>The sum of the current <see cref="SecureBigIntCalculator"/> instance and the <paramref name="right"/>
     /// <see cref="SecureBigIntCalculator"/> instance.</returns>
-    protected override Calculator<SecureBigInteger> Add(SecureBigInteger right) => this.Value + right;
+    /// <remarks>
+    /// The intermediate <see cref="SecureBigInteger"/> sum is held in a <c>using</c> local so the
+    /// <c>SecureBigInteger → Calculator&lt;SecureBigInteger&gt;</c> implicit conversion (which
+    /// deep-copies via <see cref="SecureBigIntCalculator(SecureBigInteger)"/>) runs before the
+    /// finally block wipes the temporary's pinned limb buffer. Without the <c>using</c> the
+    /// pinned plaintext intermediate would remain reachable until finalisation.
+    /// </remarks>
+    protected override Calculator<SecureBigInteger> Add(SecureBigInteger right)
+    {
+        using var sum = this.Value + right;
+        return sum;
+    }
 
     /// <summary>
     /// Subtracts the current <see cref="SecureBigIntCalculator"/> instance with the <paramref name="right"/>
@@ -190,7 +201,12 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <param name="right">Right value to subtract (subtrahend).</param>
     /// <returns>The difference of the current <see cref="SecureBigIntCalculator"/> instance and the <paramref name="right"/>
     /// <see cref="SecureBigIntCalculator"/> instance.</returns>
-    protected override Calculator<SecureBigInteger> Subtract(SecureBigInteger right) => this.Value - right;
+    /// <remarks>See <see cref="Add"/> for the dispose-temporary-before-finalisation rationale.</remarks>
+    protected override Calculator<SecureBigInteger> Subtract(SecureBigInteger right)
+    {
+        using var difference = this.Value - right;
+        return difference;
+    }
 
     /// <summary>
     /// Multiplies the current <see cref="SecureBigIntCalculator"/> instance with the <paramref name="right"/>
@@ -199,7 +215,12 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <param name="right">multiplicand</param>
     /// <returns>The product of the current <see cref="SecureBigIntCalculator"/> instance and the <paramref name="right"/>
     /// <see cref="SecureBigIntCalculator"/> instance.</returns>
-    protected override Calculator<SecureBigInteger> Multiply(SecureBigInteger right) => this.Value * right;
+    /// <remarks>See <see cref="Add"/> for the dispose-temporary-before-finalisation rationale.</remarks>
+    protected override Calculator<SecureBigInteger> Multiply(SecureBigInteger right)
+    {
+        using var product = this.Value * right;
+        return product;
+    }
 
     /// <summary>
     /// Divides the current <see cref="SecureBigIntCalculator"/> instance with the <paramref name="right"/>
@@ -208,14 +229,24 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <param name="right">divisor</param>
     /// <returns>The quotient of the current <see cref="SecureBigIntCalculator"/> instance and the <paramref name="right"/>
     /// <see cref="SecureBigIntCalculator"/> instance.</returns>
-    protected override Calculator<SecureBigInteger> Divide(SecureBigInteger right) => this.Value / right;
+    /// <remarks>See <see cref="Add"/> for the dispose-temporary-before-finalisation rationale.</remarks>
+    protected override Calculator<SecureBigInteger> Divide(SecureBigInteger right)
+    {
+        using var quotient = this.Value / right;
+        return quotient;
+    }
 
     /// <summary>
     /// The modulo operation
     /// </summary>
     /// <param name="right">divisor</param>
     /// <returns>The remainder as <see cref="SecureBigIntCalculator"/> instance.</returns>
-    protected override Calculator<SecureBigInteger> Modulo(SecureBigInteger right) => this.Value % right;
+    /// <remarks>See <see cref="Add"/> for the dispose-temporary-before-finalisation rationale.</remarks>
+    protected override Calculator<SecureBigInteger> Modulo(SecureBigInteger right)
+    {
+        using var remainder = this.Value % right;
+        return remainder;
+    }
 
     /// <summary>
     /// Returns a new <see cref="SecureBigIntCalculator"/> instance whose value is one greater
@@ -225,7 +256,8 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     protected override Calculator<SecureBigInteger> Increment()
     {
         using var one = new SecureBigInteger(1);
-        return this.Value + one;
+        using var sum = this.Value + one;
+        return sum;
     }
 
     /// <summary>
@@ -236,7 +268,8 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     protected override Calculator<SecureBigInteger> Decrement()
     {
         using var one = new SecureBigInteger(1);
-        return this.Value - one;
+        using var difference = this.Value - one;
+        return difference;
     }
 
     /// <summary>
@@ -245,8 +278,13 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <returns>The absolute value of this instance.</returns>
     /// <remarks>This instance is greater than or equal to zero, the return value will be this instance.
     /// This instance is lower than zero, the return value will be this instance multiply with minus one.
+    /// See <see cref="Add"/> for the dispose-temporary-before-finalisation rationale.
     /// </remarks>
-    public override Calculator<SecureBigInteger> Abs() => this.Value.Abs();
+    public override Calculator<SecureBigInteger> Abs()
+    {
+        using var abs = this.Value.Abs();
+        return abs;
+    }
 
     /// <summary>
     /// Raises this <see cref="SecureBigIntCalculator"/> value to the power of a specified value.
@@ -257,7 +295,12 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// secret-derived exponents through this method. The per-iteration arithmetic on the
     /// secret base remains constant-time on the public bit length.</param>
     /// <returns>The result of raising instance to the <paramref name="expo"/> power.</returns>
-    public override Calculator<SecureBigInteger> Pow(int expo) => this.Value.Pow(expo);
+    /// <remarks>See <see cref="Add"/> for the dispose-temporary-before-finalisation rationale.</remarks>
+    public override Calculator<SecureBigInteger> Pow(int expo)
+    {
+        using var power = this.Value.Pow(expo);
+        return power;
+    }
 
     /// <summary>
     /// Reduces this value modulo <c>2^<paramref name="mersenneExponent"/> - 1</c>
@@ -268,8 +311,12 @@ public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
     /// <paramref name="mersenneExponent"/> is not positive.
     /// </exception>
     /// <exception cref="ArgumentException">The current instance is negative.</exception>
+    /// <remarks>See <see cref="Add"/> for the dispose-temporary-before-finalisation rationale.</remarks>
     public override Calculator<SecureBigInteger> MersenneModulo(int mersenneExponent)
-        => this.Value.MersenneModulo(mersenneExponent);
+    {
+        using var reduced = this.Value.MersenneModulo(mersenneExponent);
+        return reduced;
+    }
 
     /// <summary>
     /// Gets the length of the byte representation of the <see cref="SecureBigIntCalculator"/>
