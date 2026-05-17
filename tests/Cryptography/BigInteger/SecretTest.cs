@@ -39,6 +39,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using System.Text;
 using Xunit;
 
@@ -1167,4 +1168,26 @@ public class SecretTest
         Assert.Equal(bytes, readOnlySpan.ToArray());
     }
 #endif
+
+    /// <summary>
+    /// P2 regression (PR #296 Codex review): a private static readonly
+    /// <see cref="Secret{TNumber}"/> singleton previously aliased a shared
+    /// <c>PinnedPoolArray</c>, so the first caller's <c>using</c> disposal
+    /// wiped the buffer and subsequent zero-draw returns from
+    /// <c>Secret&lt;TNumber&gt;.CreateRandom</c> handed out an already-disposed
+    /// instance. The fix removed the static field. This test fails if any static
+    /// <see cref="Secret{TNumber}"/> field reappears at the class level.
+    /// </summary>
+    [Fact]
+    public void Secret_HasNoStaticSingletonField_P2Regression()
+    {
+        // Arrange
+        var staticSecretFields = typeof(Secret<BigInteger>)
+            .GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+            .Where(f => f.FieldType == typeof(Secret<BigInteger>))
+            .ToArray();
+
+        // Act & Assert
+        Assert.Empty(staticSecretFields);
+    }
 }

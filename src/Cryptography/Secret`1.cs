@@ -99,11 +99,6 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     private const int MarkByteCount = 1;
 
     /// <summary>
-    ///  Represents an empty secret.
-    /// </summary>
-    private static readonly Secret<TNumber> EmptySecret = new Secret<TNumber>([0x00], 1) ;
-
-    /// <summary>
     /// Saves the secret
     /// </summary>
     private readonly PinnedPoolArray<byte> secretNumber;
@@ -906,7 +901,10 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
 
             if (a0.IsZero)
             {
-                return Secret<TNumberStatic>.EmptySecret;
+                // Fresh instance per call — must not alias a static singleton, because
+                // the caller's `using` would dispose the shared backing buffer and break
+                // every subsequent zero-draw return.
+                return new Secret<TNumberStatic>(new byte[] { 0x00 }, 1);
             }
 
             randomSecretBytes.PoolArray[i--] = 0x00;
