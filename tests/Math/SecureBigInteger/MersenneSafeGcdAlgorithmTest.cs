@@ -410,4 +410,50 @@ public class MersenneSafeGcdAlgorithmTest
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => MersenneSafeGcdAlgorithm<SecureBigInteger>.ExtendedGcd(fCalc, gCalc, bitLengthBound));
     }
+
+    /// <summary>
+    /// Tests <c>ComputeIterationCount</c> against the closed-form
+    /// <c>ceil((49.39 × bitLengthBound + 80) / 17)</c> formula from §11 of
+    /// Bernstein &amp; Yang (2019). Covers (a) small values reached by the existing
+    /// <c>ExtendedGcd</c> theories, (b) the int32-overflow boundary at
+    /// <c>bitLengthBound ≈ 434,801</c> (where <c>4939 × bitLengthBound</c> first
+    /// exceeds <see cref="int.MaxValue"/>), and (c) every Mersenne exponent
+    /// above 756,839 in <c>MersennePrimeProvider.KnownMersennePrimeExponents</c>
+    /// — the 16 exponents that silently wrapped when the multiplication was
+    /// performed in int32.
+    /// </summary>
+    /// <param name="bitLengthBound">Public upper bound on the bit length of the operands.</param>
+    /// <param name="expectedIterations">The expected divsteps iteration count.</param>
+    [Theory]
+    [InlineData(1, 8)]
+    [InlineData(13, 43)]
+    [InlineData(31, 95)]
+    [InlineData(127, 374)]
+    [InlineData(434801, 1263230)]
+    [InlineData(434802, 1263233)]
+    [InlineData(756839, 2198845)]
+    [InlineData(859433, 2496911)]
+    [InlineData(1257787, 3654246)]
+    [InlineData(1398269, 4062388)]
+    [InlineData(2976221, 8646803)]
+    [InlineData(3021377, 8777994)]
+    [InlineData(6972593, 20257439)]
+    [InlineData(13466917, 39125360)]
+    [InlineData(20996011, 60999592)]
+    [InlineData(24036583, 69833348)]
+    [InlineData(25964951, 75435825)]
+    [InlineData(30402457, 88328085)]
+    [InlineData(32582657, 94662207)]
+    [InlineData(37156667, 107951051)]
+    [InlineData(42643801, 123892789)]
+    [InlineData(43112609, 125254815)]
+    public void ComputeIterationCount_MatchesBernsteinYangFormula(int bitLengthBound, int expectedIterations)
+    {
+        // Act
+        int actual = MersenneSafeGcdAlgorithm<SecureBigInteger>.ComputeIterationCount(bitLengthBound);
+
+        // Assert
+        Assert.Equal(expectedIterations, actual);
+        Assert.True(actual > 0, "iteration count must be strictly positive across the supported bound range");
+    }
 }

@@ -363,7 +363,7 @@ public sealed class MersenneSafeGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TN
             throw new ArgumentException(string.Format(ErrorMessages.ValueLowerThanX, 0), nameof(gInput));
         }
 
-        int iterations = ((4939 * bitLengthBound) + 8000 + 1699) / 1700;
+        int iterations = ComputeIterationCount(bitLengthBound);
 
         Calculator<TNumber> f = fInput.Clone();
         Calculator<TNumber> g = gInput.Clone();
@@ -530,6 +530,26 @@ public sealed class MersenneSafeGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TN
         vG = newVG;
         delta = newDelta;
     }
+
+    /// <summary>
+    /// Computes the constant divsteps iteration count for the Bernstein–Yang
+    /// recurrence at the given operand bit-length bound. Returns
+    /// <c>ceil((49.39 × bitLengthBound + 80) / 17)</c> per §11 of Bernstein &amp;
+    /// Yang (2019), rendered as the integer expression
+    /// <c>(4939 · bitLengthBound + 9699) / 1700</c>.
+    /// </summary>
+    /// <remarks>
+    /// The multiplication is performed in <see cref="long"/> to avoid int32
+    /// overflow: <c>4939 × bitLengthBound</c> exceeds <see cref="int.MaxValue"/>
+    /// for any <c>bitLengthBound &gt; 434801</c>, which would otherwise silently
+    /// wrap and corrupt the iteration count for the 16 publicly supported
+    /// Mersenne exponents above 756,839. At the documented maximum exponent
+    /// (43,112,609) the unwrapped quotient is ~125 million — well within
+    /// <see cref="int.MaxValue"/>, so the final cast back to <see cref="int"/>
+    /// is safe across the entire supported range.
+    /// </remarks>
+    internal static int ComputeIterationCount(int bitLengthBound) =>
+        (int)((4939L * bitLengthBound + 8000L + 1699L) / 1700L);
 
     /// <summary>
     /// Returns the bit length of <paramref name="publicValue"/> — i.e. the
