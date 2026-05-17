@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Share x-coordinate encoding is little-endian on the wire (`BinaryPrimitives.WriteInt32LittleEndian`) for cross-architecture stability.
 - Set data type of `numberOfMinimumShares` and `numberOfShares` parameters from `TNumber` to `int` in `MakeShares` method.
 
+### Fixed
+- Resolved MSB3277 `System.Memory` version conflict in the test project on `net472`/`net48`/`net481` by centrally pinning `System.Memory` to `4.6.3` and adding explicit `System.Memory` / `System.Buffers` references for the .NET Framework TFMs.
+
 ### Removed
 - Removed support for .NET Framework 4.7.1.
 - Removed support for .NET Framework 4.7.
