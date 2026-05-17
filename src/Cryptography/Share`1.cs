@@ -35,6 +35,7 @@ using Math;
 using SecureArray;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -262,6 +263,91 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         }
 
         return this.Index.CompareTo(other.Index);
+    }
+
+    /// <summary>
+    /// Determines whether this share is equal to <paramref name="other"/>. Value-based
+    /// equality derived from <see cref="Index"/> and <see cref="Value"/>; the per-Calculator
+    /// comparisons delegate to the underlying <typeparamref name="TNumber"/> backend
+    /// (constant-time on operand value for the
+    /// <see cref="SecretSharingDotNet.Math.Numerics.SecureBigInteger"/> backend via its
+    /// fixed-time-limbs equality).
+    /// </summary>
+    /// <param name="other">The other share to compare to. May be <see langword="null"/>.</param>
+    /// <returns>
+    /// <see langword="true"/> when both shares carry the same <see cref="Index"/> and
+    /// <see cref="Value"/>; otherwise <see langword="false"/>. Returns <see langword="false"/>
+    /// when <paramref name="other"/> is <see langword="null"/>.
+    /// </returns>
+    /// <remarks>
+    /// Replaces the compiler-synthesised record equality, which would (a) compare the internal
+    /// <c>disposed</c> flag and therefore disagree on equality between a live and a just-disposed
+    /// share with otherwise-identical content (contradicting the value-based contract documented
+    /// on the class), and (b) route through the SecureBigInteger backend's <c>Equals</c> on a
+    /// disposed operand and surface <see cref="ObjectDisposedException"/>.
+    ///
+    /// The two Calculator-level comparison results are pre-computed into local <see cref="bool"/>s
+    /// and folded with a non-short-circuit <c>&amp;</c>; this mirrors the constant-time pattern
+    /// of <c>SecureBigInteger.Equals</c> (see the matching S2178 suppression there) and remains
+    /// resilient against later refactors that might inline either side of the equality fold
+    /// into a short-circuit-sensitive expression.
+    /// </remarks>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    [SuppressMessage("SonarQube", "S2178",
+        Justification = "Non-short-circuit AND is intentional in this constant-time context. " +
+                        "Using && would emit a conditional branch on `indexEqual` to skip the " +
+                        "second operand; the `&` form documents the CT-design intent and is " +
+                        "resilient to future refactors that inline either side. Mirrors the " +
+                        "established pattern in SecureBigInteger.Equals.")]
+    public bool Equals(Share<TNumber> other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        this.ThrowIfDisposed();
+        other.ThrowIfDisposed();
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        bool indexEqual = this.index.Equals(other.index);
+        bool valueEqual = this.value.Equals(other.value);
+        return indexEqual & valueEqual;
+    }
+
+    /// <summary>
+    /// Returns a hash code consistent with <see cref="Equals(Share{TNumber})"/>, derived from
+    /// <see cref="Index"/> and <see cref="Value"/>. The internal <c>disposed</c> flag is
+    /// intentionally excluded from the hash so that an otherwise-identical live and disposed
+    /// share would produce the same hash — matching the equality contract.
+    /// </summary>
+    /// <returns>A hash code for the current share.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode",
+        Justification = "The index/value Calculator fields are assigned once in the ctor and never reassigned.")]
+    [SuppressMessage("SonarQube", "S2328",
+        Justification = "The index/value Calculator fields are assigned once in the ctor and never reassigned.")]
+    public override int GetHashCode()
+    {
+        this.ThrowIfDisposed();
+#if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
+        var hash = new HashCode();
+        hash.Add(this.index);
+        hash.Add(this.value);
+        return hash.ToHashCode();
+#else
+        unchecked
+        {
+            int h = 17;
+            h = h * 31 + this.index.GetHashCode();
+            h = h * 31 + this.value.GetHashCode();
+            return h;
+        }
+#endif
     }
 
     /// <summary>

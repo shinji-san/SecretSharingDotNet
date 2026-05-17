@@ -867,4 +867,155 @@ public class ShareTest
             var (_, _) = share;
         });
     }
+
+    /// <summary>
+    /// Tests <see cref="Share{TNumber}.Equals(Share{TNumber})"/>: two live shares with
+    /// identical <see cref="Share{TNumber}.Index"/> and <see cref="Share{TNumber}.Value"/>
+    /// compare equal via the user-provided override.
+    /// </summary>
+    [Fact]
+    public void Equals_BothLive_SameIndexAndValue_ReturnsTrue()
+    {
+        // Arrange
+        using var share1 = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        using var share2 = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+
+        // Act & Assert
+        Assert.True(share1.Equals(share2));
+        Assert.True(share1 == share2);
+        Assert.False(share1 != share2);
+    }
+
+    /// <summary>
+    /// Tests <see cref="Share{TNumber}.Equals(Share{TNumber})"/>: shares with identical
+    /// indices but differing values are not equal.
+    /// </summary>
+    [Fact]
+    public void Equals_BothLive_DifferentValue_ReturnsFalse()
+    {
+        // Arrange
+        using var share1 = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        using var share2 = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(99));
+
+        // Act & Assert
+        Assert.False(share1.Equals(share2));
+        Assert.False(share1 == share2);
+        Assert.True(share1 != share2);
+    }
+
+    /// <summary>
+    /// Tests <see cref="Share{TNumber}.Equals(Share{TNumber})"/>: shares with differing
+    /// indices are not equal even when values match.
+    /// </summary>
+    [Fact]
+    public void Equals_BothLive_DifferentIndex_ReturnsFalse()
+    {
+        // Arrange
+        using var share1 = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        using var share2 = new Share<SecureBigInteger>(new SecureBigIntCalculator(7), new SecureBigIntCalculator(10));
+
+        // Act & Assert
+        Assert.False(share1.Equals(share2));
+    }
+
+    /// <summary>
+    /// Tests <see cref="Share{TNumber}.Equals(Share{TNumber})"/>: a <see langword="null"/>
+    /// <paramref name="other"/> argument returns <see langword="false"/>.
+    /// </summary>
+    [Fact]
+    public void Equals_NullOther_ReturnsFalse()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+
+        // Act & Assert
+        Assert.False(share.Equals(null));
+    }
+
+    /// <summary>
+    /// Tests <see cref="Share{TNumber}.Equals(Share{TNumber})"/>: a self-comparison short-circuits
+    /// to <see langword="true"/> via the <see cref="object.ReferenceEquals"/> fast-path.
+    /// </summary>
+    [Fact]
+    public void Equals_SameReference_ReturnsTrue()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+
+        // Act & Assert
+        Assert.True(share.Equals(share));
+    }
+
+    /// <summary>
+    /// Regression guard for the ultrareview Bug 3 finding: the compiler-synthesised record
+    /// <see cref="object.Equals(object)"/> would route through the underlying
+    /// <c>SecureBigInteger.Equals</c> on a disposed operand and surface
+    /// <see cref="ObjectDisposedException"/> from deep in the cascade. The user-provided
+    /// override gates with <c>ThrowIfDisposed</c> up front, so the failure surfaces from
+    /// the share-level guard with a stable, documented type.
+    /// </summary>
+    [Fact]
+    public void PostDispose_Equals_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var share1 = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        using var share2 = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        share1.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => share1.Equals(share2));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.Equals(Share{TNumber})"/> throws when only the
+    /// <paramref name="other"/> operand has been disposed (symmetric counterpart to
+    /// <c>PostDispose_Equals_ThrowsObjectDisposedException</c>).
+    /// </summary>
+    [Fact]
+    public void Equals_OtherDisposed_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        using var live = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        var disposed = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        disposed.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => live.Equals(disposed));
+    }
+
+    /// <summary>
+    /// Tests <see cref="Share{TNumber}.GetHashCode"/>: two live shares with identical
+    /// <see cref="Share{TNumber}.Index"/> and <see cref="Share{TNumber}.Value"/> produce the
+    /// same hash code. The internal <c>disposed</c> flag is deliberately excluded from the
+    /// hash to keep the hash contract aligned with the value-based equality.
+    /// </summary>
+    [Fact]
+    public void GetHashCode_BothLive_SameIndexAndValue_ProducesSameHash()
+    {
+        // Arrange
+        using var share1 = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        using var share2 = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+
+        // Act
+        int hash1 = share1.GetHashCode();
+        int hash2 = share2.GetHashCode();
+
+        // Assert
+        Assert.Equal(hash1, hash2);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="Share{TNumber}.GetHashCode"/> post-dispose throws
+    /// <see cref="ObjectDisposedException"/> via the share-level <c>ThrowIfDisposed</c> guard.
+    /// </summary>
+    [Fact]
+    public void PostDispose_GetHashCode_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        share.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => share.GetHashCode());
+    }
 }
