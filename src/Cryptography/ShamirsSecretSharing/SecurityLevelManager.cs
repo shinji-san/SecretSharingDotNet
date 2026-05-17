@@ -212,7 +212,10 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     {
         int exponent = this.mersennePrimeProvider.GetMersennePrimeExponentByIndex(index);
         using var prime = NewMersennePrime(exponent);
-        return (maximumY % prime + prime) % prime == maximumY;
+        using var reduced = maximumY % prime;
+        using var shifted = reduced + prime;
+        using var normalized = shifted % prime;
+        return normalized == maximumY;
     }
 
     /// <summary>
@@ -223,7 +226,8 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     {
         using var one = Calculator<TNumber>.One;
         using var two = Calculator<TNumber>.Two;
-        return two.Pow(exponent) - one;
+        using var power = two.Pow(exponent);
+        return power - one;
     }
 
     /// <summary>
