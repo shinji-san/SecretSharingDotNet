@@ -1180,6 +1180,23 @@ public class SecretTest
     }
 
     /// <summary>
+    /// Tests that casting a <c>default(Secret&lt;BigInteger&gt;)</c> to
+    /// <see cref="BigInteger"/> throws <see cref="InvalidOperationException"/>
+    /// rather than silently returning <see cref="BigInteger.Zero"/>. Mirrors the
+    /// SecureBigInteger-side test that checks the same throw on the class backend;
+    /// the symmetric throw is what closes the prior null-vs-Zero backend asymmetry.
+    /// </summary>
+    [Fact]
+    public void CastToBigInteger_FromDefaultSecret_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        Secret<BigInteger> uninitialized = default;
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => { BigInteger _ = uninitialized; });
+    }
+
+    /// <summary>
     /// Mirror of <c>SecureBigInteger.SecretTest.CastToSecret_FromSecureBigInteger_LeavesOriginalUsable</c>.
     /// For the value-type <see cref="BigInteger"/> backend the wrap operates on a struct copy, so the
     /// dispose-of-caller hazard is structurally absent. Mirror kept so a future change that broke the

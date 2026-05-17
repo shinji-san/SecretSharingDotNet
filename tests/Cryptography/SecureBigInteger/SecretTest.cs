@@ -1226,6 +1226,28 @@ public class SecretTest
     }
 
     /// <summary>
+    /// Tests that casting a <c>default(Secret&lt;SecureBigInteger&gt;)</c> to
+    /// <see cref="SecureBigInteger"/> throws <see cref="InvalidOperationException"/>
+    /// rather than silently returning a <see langword="null"/> reference.
+    /// </summary>
+    /// <remarks>
+    /// The class-typed backend is the asymmetry-side that motivated the fix: prior
+    /// behaviour (<c>return default</c>) leaked a <see langword="null"/> here while
+    /// returning <c>BigInteger.Zero</c> on the struct backend. The mirror in
+    /// <c>BigInteger.SecretTest</c> ensures both backends now surface the same
+    /// <see cref="InvalidOperationException"/> on default-initialised input.
+    /// </remarks>
+    [Fact]
+    public void CastToSecureBigInteger_FromDefaultSecret_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        Secret<SecureBigInteger> uninitialized = default;
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => { SecureBigInteger _ = uninitialized; });
+    }
+
+    /// <summary>
     /// Tests that the implicit <see cref="SecureBigInteger"/>-to-<see cref="Secret{TNumber}"/>
     /// cast does <b>not</b> dispose the caller-owned <see cref="SecureBigInteger"/> instance.
     /// </summary>

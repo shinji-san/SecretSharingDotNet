@@ -138,6 +138,9 @@
     <data name="MersenneModulusMustBeOdd" xml:space="preserve">
         <value>Der Modul muss eine Mersenne-Primzahl sein (M_p = 2^p - 1); gerade Werte werden zurückgewiesen.</value>
     </data>
+    <data name="SecretNotInitialized" xml:space="preserve">
+        <value>Das Geheimnis ist nicht initialisiert. Eine standardinitialisierte Secret&lt;TNumber&gt;-Instanz kann nicht konvertiert werden.</value>
+    </data>
     <data name="LengthOutOfRangeForUlong" xml:space="preserve">
         <value>Die Länge muss im Bereich [0, 8] liegen.</value>
     </data>

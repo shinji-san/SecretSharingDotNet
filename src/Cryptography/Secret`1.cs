@@ -462,13 +462,26 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     }
 
     /// <summary>
-    /// Casts the <see cref="Secret{TNumber}"/> instance to an <typeparamref name="TNumber"/> instance
+    /// Casts the <see cref="Secret{TNumber}"/> instance to an <typeparamref name="TNumber"/> instance.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The <paramref name="secret"/> has not been initialized — its underlying buffer is
+    /// <see langword="null"/> or empty. This occurs when <c>default(Secret&lt;TNumber&gt;)</c>
+    /// is cast directly; the public constructors reject empty input, so a properly
+    /// constructed instance never triggers this throw. Replaces the prior silent
+    /// <c>return default</c>, which leaked a <see langword="null"/> reference for
+    /// class-typed <typeparamref name="TNumber"/> (e.g. <see cref="SecretSharingDotNet.Math.Numerics.SecureBigInteger"/>)
+    /// while returning <see cref="System.Numerics.BigInteger.Zero"/> for the struct-typed backend.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">
+    /// The <paramref name="secret"/>'s underlying buffer has already been disposed.
+    /// </exception>
     public static implicit operator TNumber(Secret<TNumber> secret)
     {
-        if (secret.secretNumber == null || secret.secretNumber.Length == 0)
+        secret.ThrowIfDisposed();
+        if (secret.secretNumber is null || secret.secretNumber.Length == 0)
         {
-            return default;
+            throw new InvalidOperationException(ErrorMessages.SecretNotInitialized);
         }
 
         using var calc = (Calculator<TNumber>)secret;

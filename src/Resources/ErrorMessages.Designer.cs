@@ -300,6 +300,12 @@ namespace SecretSharingDotNet {
             }
         }
 
+        internal static string SecretNotInitialized {
+            get {
+                return ResourceManager.GetString("SecretNotInitialized", resourceCulture);
+            }
+        }
+
         internal static string LengthOutOfRangeForUlong {
             get {
                 return ResourceManager.GetString("LengthOutOfRangeForUlong", resourceCulture);
