@@ -119,7 +119,7 @@ A C# implementation of Shamir's Secret Sharing.
 
 # Usage 🔧
 > [!IMPORTANT]
-> Breaking changes in v1.0.0-rc01 (major version bump from v0.14.0). Highlights for migrating consumers — see [`CHANGELOG.md`](./CHANGELOG.md) for the full list.
+> Breaking changes in v1.0.1-rc01 (major version bump from v0.14.0). Highlights for migrating consumers — see [`CHANGELOG.md`](./CHANGELOG.md) for the full list.
 >
 > - **Text I/O is pinned-buffer-only.** The `string`-based entry points are gone. Wrap a `string` in `.ToPinnedSecure()` and use the pinned factories: `Secret<TNumber>.FromText(PinnedPoolArray<char>)`, `new Share<TNumber>(PinnedPoolArray<char>)`, `Shares<TNumber>.FromText(...)`, `Shares<TNumber>.FromTextLines(...)`. Read back via the matching `ToCharArray()` methods on `Secret`, `Share`, and `Shares`.
 > - **`Reconstruction(string)` and `Reconstruction(string[])` removed.** Build a `Shares<TNumber>` through one of the pinned factories above and pass that.
