@@ -103,6 +103,44 @@ public class SecureBigIntCalculatorTest
     }
 
     /// <summary>
+    /// Lifetime-probe for <see cref="Calculator{SecureBigInteger}.One"/>: if the getter's
+    /// internal <c>using var zero = Zero;</c> erroneously took ownership of the returned
+    /// instance, accessing <see cref="Calculator{TNumber}.Value"/> on the caller side would
+    /// throw <see cref="ObjectDisposedException"/>. Reaching the value assertion proves the
+    /// caller-owned <c>One</c> survived the temporary <c>Zero</c>'s disposal.
+    /// </summary>
+    [Fact]
+    public void Calculator_One_ReturnedInstanceIsLiveAfterInternalTemporaryDisposal()
+    {
+        // Arrange & Act
+        using var one = Calculator<SecureBigInteger>.One;
+
+        // Assert
+        Assert.True(one.Value.IsOne);
+    }
+
+    /// <summary>
+    /// Lifetime-probe for <see cref="Calculator{SecureBigInteger}.Two"/>: the getter chains
+    /// through <see cref="Calculator{SecureBigInteger}.One"/>, which itself disposes a
+    /// transient <see cref="Calculator{SecureBigInteger}.Zero"/>. If either inner
+    /// <c>using var</c> erroneously took ownership of the returned instance, the
+    /// <see cref="Calculator{TNumber}.Value"/> access here would throw
+    /// <see cref="ObjectDisposedException"/>.
+    /// </summary>
+    [Fact]
+    public void Calculator_Two_ReturnedInstanceIsLiveAfterInternalTemporaryDisposal()
+    {
+        // Arrange
+        using var expectedTwo = new SecureBigInteger(2);
+
+        // Act
+        using var two = Calculator<SecureBigInteger>.Two;
+
+        // Assert
+        Assert.Equal(expectedTwo, two.Value);
+    }
+
+    /// <summary>
     /// Tests that the <c>(byte[], int)</c> constructor decodes a little-endian
     /// two's-complement byte array into the matching <see cref="SecureBigInteger"/> value,
     /// including the boundary case <see cref="long.MinValue"/>.

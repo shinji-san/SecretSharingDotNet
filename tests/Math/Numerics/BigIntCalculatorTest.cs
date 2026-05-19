@@ -64,6 +64,42 @@ public class BigIntCalculatorTest
     }
 
     /// <summary>
+    /// Lifetime-probe for <see cref="Calculator{BigInteger}.One"/> — mirrors the
+    /// <see cref="Numerics.SecureBigInteger"/>-backend probe. If the getter's internal
+    /// <c>using var zero = Zero;</c> erroneously took ownership of the returned instance,
+    /// accessing <see cref="Calculator{TNumber}.Value"/> on the caller side would throw
+    /// <see cref="ObjectDisposedException"/>. <see cref="BigInteger"/> is a value type with
+    /// no observable post-dispose state, so the only check available here is reaching the
+    /// <see cref="BigInteger.One"/> equality assertion without an in-flight throw.
+    /// </summary>
+    [Fact]
+    public void Calculator_One_ReturnedInstanceIsLiveAfterInternalTemporaryDisposal()
+    {
+        // Arrange & Act
+        using var one = Calculator<BigInteger>.One;
+
+        // Assert
+        Assert.Equal(BigInteger.One, one.Value);
+    }
+
+    /// <summary>
+    /// Lifetime-probe for <see cref="Calculator{BigInteger}.Two"/> — mirrors the
+    /// <see cref="Numerics.SecureBigInteger"/>-backend probe. The getter chains through
+    /// <see cref="Calculator{BigInteger}.One"/>, which itself disposes a transient
+    /// <see cref="Calculator{BigInteger}.Zero"/>. As above, the lifetime check on this
+    /// value-type backend reduces to "value access reaches the assertion without throwing".
+    /// </summary>
+    [Fact]
+    public void Calculator_Two_ReturnedInstanceIsLiveAfterInternalTemporaryDisposal()
+    {
+        // Arrange & Act
+        using var two = Calculator<BigInteger>.Two;
+
+        // Assert
+        Assert.Equal(new BigInteger(2), two.Value);
+    }
+
+    /// <summary>
     /// Tests that the <c>(byte[], int)</c> constructor decodes a little-endian
     /// two's-complement byte array into the matching <see cref="BigInteger"/> value.
     /// </summary>

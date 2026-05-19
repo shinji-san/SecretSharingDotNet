@@ -491,25 +491,46 @@ public abstract class Calculator<TNumber> :
     /// Gets a freshly allocated <see cref="Calculator{TNumber}"/> representing one (1).
     /// </summary>
     /// <remarks>
-    /// Computed as <c>Zero.Increment()</c>, so every access allocates <em>two</em>
-    /// instances on entry — the transient <see cref="Zero"/> and the returned
-    /// <see cref="One"/>. The transient is discarded immediately; on the
-    /// <see cref="Numerics.SecureBigInteger"/> backend that means its pinned-limb buffer
-    /// is released only when the GC eventually finalises it. Hot loops should cache the
-    /// returned instance under <c>using var</c>.
+    /// Computed as <c>Zero.Increment()</c>. The transient <see cref="Zero"/> instance
+    /// allocated on entry is deterministically disposed inside this getter before
+    /// <see cref="One"/> is returned, so on the <see cref="Numerics.SecureBigInteger"/>
+    /// backend no undisposed pinned-limb buffer escapes to the caller's GC. The caller
+    /// owns the single returned instance and is responsible for disposing it. Hot loops
+    /// should still hoist a single <c>using var one = Calculator&lt;TNumber&gt;.One;</c>
+    /// rather than re-read the property per iteration to avoid the per-call allocation
+    /// pair entirely.
     /// </remarks>
-    public static Calculator<TNumber> One => Zero.Increment();
+    public static Calculator<TNumber> One
+    {
+        get
+        {
+            using var zero = Zero;
+            return zero.Increment();
+        }
+    }
 
     /// <summary>
     /// Gets a freshly allocated <see cref="Calculator{TNumber}"/> representing two (2).
     /// </summary>
     /// <remarks>
-    /// Computed as <c>One.Increment()</c> — see <see cref="One"/> for the cascade
-    /// allocation note. Total cost per access on the
-    /// <see cref="Numerics.SecureBigInteger"/> backend is three pinned-limb allocations
-    /// (Zero, One, Two) where only the last is returned to the caller.
+    /// Computed as <c>One.Increment()</c>. The transient <see cref="One"/> instance
+    /// allocated on entry is deterministically disposed inside this getter before
+    /// <see cref="Two"/> is returned (and the inner <see cref="One"/> getter in turn
+    /// disposes its own transient <see cref="Zero"/>), so on the
+    /// <see cref="Numerics.SecureBigInteger"/> backend no undisposed pinned-limb buffer
+    /// escapes to the caller's GC. The caller owns the single returned instance and is
+    /// responsible for disposing it. Hot loops should still hoist a single
+    /// <c>using var two = Calculator&lt;TNumber&gt;.Two;</c> rather than re-read the
+    /// property per iteration to avoid the per-call allocation cascade entirely.
     /// </remarks>
-    public static Calculator<TNumber> Two => One.Increment();
+    public static Calculator<TNumber> Two
+    {
+        get
+        {
+            using var one = One;
+            return one.Increment();
+        }
+    }
 
     /// <summary>
     /// Returns a deep, independent copy of the current <see cref="Calculator{TNumber}"/> instance.
