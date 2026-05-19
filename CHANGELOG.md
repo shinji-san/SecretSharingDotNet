@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Share<TNumber>` is now a `sealed record` (was `readonly record struct`) and implements `IDisposable`. Properties `X` / `Y` renamed to `Index` / `Value`.
 - `IMakeSharesUseCase<TNumber>` and `IReconstructionUseCase<TNumber>` now extend `IDisposable`; DI registrations must use `Transient` or `Scoped` lifetimes so the container disposes them.
 - Moved `BigIntCalculator` from namespace `SecretSharingDotNet.Math` to `SecretSharingDotNet.Math.Numerics`.
-- `Calculator<TNumber>.Clone` is now `abstract` (was `virtual`).
+- `Calculator<TNumber>.Clone` is now `abstract` (was a non-virtual default that returned `MemberwiseClone()`). Subclasses must now provide a true deep copy — `MemberwiseClone` is not safe when `TNumber` is a reference type (e.g. `SecureBigInteger`) or when the subtype carries reference-type fields.
 - `ExtendedEuclideanAlgorithm<TNumber>` is now `sealed`.
 - `SecretReconstructor<TNumber>.SecurityLevel` is now read-only; the level is derived from the shares passed to `Reconstruction`.
 - Renamed `Secret<TNumber>.ToBase64()` to `ToBase64String()`; new `ToBase64CharArray()` returns a pinned char buffer.
