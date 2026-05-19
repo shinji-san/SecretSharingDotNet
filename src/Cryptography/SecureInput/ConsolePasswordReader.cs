@@ -125,36 +125,111 @@ public static class ConsolePasswordReader
         char? echoChar,
         Action<string> echoSink)
     {
-        var pinned = new PinnedPoolArray<char>(maxLength);
-        int count = 0;
-
-        while (true)
-        {
-            var key = readKey();
-
-            if (key.Key == ConsoleKey.Enter)
-            {
-                break;
-            }
-
-            if (key.Key == ConsoleKey.Backspace)
-            {
-                count = HandleBackspace(pinned, count, echoChar, echoSink);
-                continue;
-            }
-
-            if (char.IsControl(key.KeyChar))
-            {
-                continue;
-            }
-
-            count = HandlePrintable(pinned, count, key.KeyChar, maxLength, echoChar, echoSink);
-        }
-
-        pinned.Length = count;
-        return pinned;
+        return ReadPasswordLoop(readKey, maxLength, echoChar, echoSink, CreatePinnedBuffer);
     }
 
+    /// <summary>
+    /// Buffer-factory-injected overload of
+    /// <see cref="ReadPasswordLoop(Func{ConsoleKeyInfo},int,char?,Action{string})"/>.
+    /// Exists so unit tests can capture the <see cref="PinnedPoolArray{T}"/> instance the
+    /// loop allocates and assert that it is disposed on the failure path — when
+    /// <paramref name="readKey"/> or <paramref name="echoSink"/> throws while
+    /// partially-typed secret material is already resident in the buffer.
+    /// </summary>
+    /// <param name="readKey">Source of keystrokes. Invoked once per loop iteration.</param>
+    /// <param name="maxLength">Maximum number of characters to accept.</param>
+    /// <param name="echoChar">Mask character to emit, or <see langword="null"/> for silent input.</param>
+    /// <param name="echoSink">
+    /// Sink for echo output. Receives a single mask character per accepted keystroke and
+    /// the literal string <c>"\b \b"</c> per accepted backspace. Only invoked when
+    /// <paramref name="echoChar"/> has a value.
+    /// </param>
+    /// <param name="bufferFactory">
+    /// Allocates the pinned receive-buffer of the requested capacity. The production path
+    /// passes <see cref="CreatePinnedBuffer"/>; tests pass a capturing lambda so they can
+    /// inspect the buffer's disposed state after the loop returns or throws.
+    /// </param>
+    /// <returns>
+    /// The pinned buffer with <see cref="PinnedPoolArray{T}.Length"/> set to the number of
+    /// characters accepted before <c>Enter</c> was pressed. If <paramref name="readKey"/>
+    /// or <paramref name="echoSink"/> throws, the buffer is disposed and the exception is
+    /// rethrown — no reference to it escapes.
+    /// </returns>
+    internal static PinnedPoolArray<char> ReadPasswordLoop(
+        Func<ConsoleKeyInfo> readKey,
+        int maxLength,
+        char? echoChar,
+        Action<string> echoSink,
+        Func<int, PinnedPoolArray<char>> bufferFactory)
+    {
+        var pinned = bufferFactory(maxLength);
+        try
+        {
+            int count = 0;
+
+            while (true)
+            {
+                var key = readKey();
+
+                if (key.Key == ConsoleKey.Enter)
+                {
+                    break;
+                }
+
+                if (key.Key == ConsoleKey.Backspace)
+                {
+                    count = HandleBackspace(pinned, count, echoChar, echoSink);
+                    continue;
+                }
+
+                if (char.IsControl(key.KeyChar))
+                {
+                    continue;
+                }
+
+                count = HandlePrintable(pinned, count, key.KeyChar, maxLength, echoChar, echoSink);
+            }
+
+            pinned.Length = count;
+            return pinned;
+        }
+        catch
+        {
+            pinned.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Default factory used by the four-parameter
+    /// <see cref="ReadPasswordLoop(Func{ConsoleKeyInfo},int,char?,Action{string})"/> wrapper
+    /// to allocate the pinned receive-buffer in production. Wrapped as a named method so the
+    /// wrapper can pass it as a method-group reference without a per-call closure
+    /// allocation.
+    /// </summary>
+    /// <param name="capacity">Capacity in characters of the buffer to allocate.</param>
+    /// <returns>
+    /// A new <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> with the requested
+    /// capacity and zero logical length.
+    /// </returns>
+    private static PinnedPoolArray<char> CreatePinnedBuffer(int capacity)
+    {
+        return new PinnedPoolArray<char>(capacity);
+    }
+
+    /// <summary>
+    /// Handles a <c>Backspace</c> keystroke inside
+    /// <see cref="ReadPasswordLoop(Func{ConsoleKeyInfo},int,char?,Action{string})"/>: removes
+    /// the most recently entered character (if any), wipes the freed slot to <c>'\0'</c>
+    /// so no stale character survives in pinned memory beyond the logical length, and
+    /// emits the canonical <c>"\b \b"</c> erase sequence to <paramref name="echoSink"/>
+    /// when echo is enabled.
+    /// </summary>
+    /// <param name="pinned">The pinned receive-buffer being filled.</param>
+    /// <param name="count">Current logical length of <paramref name="pinned"/>.</param>
+    /// <param name="echoChar">Mask character configured for echo, or <see langword="null"/> for silent input.</param>
+    /// <param name="echoSink">Sink that receives the erase sequence when echo is enabled.</param>
+    /// <returns>The new logical length after the backspace has been applied.</returns>
     private static int HandleBackspace(
         PinnedPoolArray<char> pinned,
         int count,
@@ -176,6 +251,21 @@ public static class ConsolePasswordReader
         return count;
     }
 
+    /// <summary>
+    /// Handles a printable-character keystroke inside
+    /// <see cref="ReadPasswordLoop(Func{ConsoleKeyInfo},int,char?,Action{string})"/>:
+    /// appends the character to the pinned buffer if capacity remains and emits the
+    /// configured mask character to <paramref name="echoSink"/> when echo is enabled.
+    /// Once the buffer has reached <paramref name="maxLength"/>, additional printable
+    /// keystrokes are silently dropped.
+    /// </summary>
+    /// <param name="pinned">The pinned receive-buffer being filled.</param>
+    /// <param name="count">Current logical length of <paramref name="pinned"/>.</param>
+    /// <param name="ch">The printable character to append.</param>
+    /// <param name="maxLength">Maximum allowed logical length for <paramref name="pinned"/>.</param>
+    /// <param name="echoChar">Mask character configured for echo, or <see langword="null"/> for silent input.</param>
+    /// <param name="echoSink">Sink that receives the mask character when echo is enabled.</param>
+    /// <returns>The new logical length after the character has been appended (or dropped).</returns>
     private static int HandlePrintable(
         PinnedPoolArray<char> pinned,
         int count,

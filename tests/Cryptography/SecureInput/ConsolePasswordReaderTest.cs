@@ -33,7 +33,9 @@ namespace SecretSharingDotNetTest.Cryptography.SecureInput;
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
+using SecretSharingDotNet.Cryptography.SecureArray;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 
@@ -308,6 +310,72 @@ public class ConsolePasswordReaderTest
         // Assert
         Assert.Equal("*", sink.ToString());
         Assert.Equal(1, pinned.Length);
+    }
+
+    /// <summary>
+    /// Tests that when <c>readKey</c> throws after at least one character has already been
+    /// typed into the pinned buffer, <see cref="ConsolePasswordReader.ReadPasswordLoop(System.Func{System.ConsoleKeyInfo},int,char?,System.Action{string},System.Func{int,PinnedPoolArray{char}})"/>
+    /// disposes that buffer before rethrowing — sensitive partial input must not survive in
+    /// pinned memory until the non-deterministic finalizer runs.
+    /// </summary>
+    [Fact]
+    public void ReadPasswordLoop_WhenReadKeyThrows_DisposesPinnedBuffer()
+    {
+        // Arrange
+        PinnedPoolArray<char> captured = null;
+        int step = 0;
+        Func<ConsoleKeyInfo> readKey = () =>
+        {
+            if (step++ == 0)
+            {
+                return Char('a');
+            }
+
+            throw new IOException("simulated readKey failure");
+        };
+        Func<int, PinnedPoolArray<char>> factory = capacity =>
+        {
+            captured = new PinnedPoolArray<char>(capacity);
+            return captured;
+        };
+
+        // Act
+        var thrown = Assert.Throws<IOException>(() =>
+            ConsolePasswordReader.ReadPasswordLoop(readKey, 8, null, _ => { }, factory));
+
+        // Assert
+        Assert.Equal("simulated readKey failure", thrown.Message);
+        Assert.NotNull(captured);
+        Assert.True(captured.IsDisposed);
+    }
+
+    /// <summary>
+    /// Tests that when <c>echoSink</c> throws while the loop is forwarding an accepted
+    /// keystroke, <see cref="ConsolePasswordReader.ReadPasswordLoop(System.Func{System.ConsoleKeyInfo},int,char?,System.Action{string},System.Func{int,PinnedPoolArray{char}})"/>
+    /// disposes the pinned buffer before rethrowing — the just-accepted character is
+    /// already resident in pinned memory and must be wiped on the failure path.
+    /// </summary>
+    [Fact]
+    public void ReadPasswordLoop_WhenEchoSinkThrows_DisposesPinnedBuffer()
+    {
+        // Arrange
+        PinnedPoolArray<char> captured = null;
+        var keys = MakeKeys(Char('a'), Enter());
+        Action<string> echoSink = _ => throw new IOException("simulated echoSink failure");
+        Func<int, PinnedPoolArray<char>> factory = capacity =>
+        {
+            captured = new PinnedPoolArray<char>(capacity);
+            return captured;
+        };
+
+        // Act
+        var thrown = Assert.Throws<IOException>(() =>
+            ConsolePasswordReader.ReadPasswordLoop(keys.Dequeue, 8, '*', echoSink, factory));
+
+        // Assert
+        Assert.Equal("simulated echoSink failure", thrown.Message);
+        Assert.NotNull(captured);
+        Assert.True(captured.IsDisposed);
     }
 
     private static Queue<ConsoleKeyInfo> MakeKeys(params ConsoleKeyInfo[] items)
