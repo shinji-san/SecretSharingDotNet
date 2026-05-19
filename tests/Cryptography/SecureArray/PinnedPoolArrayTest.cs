@@ -5,6 +5,8 @@ using Xunit;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 /// <summary>
@@ -224,6 +226,39 @@ public class PinnedPoolArrayTest
         // Assert
         Assert.Null(exception1);
         Assert.Null(exception2);
+    }
+
+    /// <summary>
+    /// Regression guard for the post-Rent-pre-Alloc construction-failure state on
+    /// legacy TFMs (net472/net48/netstandard2.0): if <see cref="GCHandle.Alloc(object, GCHandleType)"/>
+    /// throws after <see cref="System.Buffers.ArrayPool{T}.Rent(int)"/> succeeded, the
+    /// finalizer would previously call <see cref="GCHandle.AddrOfPinnedObject"/> on the
+    /// default-valued, unallocated handle and crash with
+    /// <see cref="InvalidOperationException"/>. The constructor's catch path + the legacy
+    /// wipe-path guard in <c>SecureClearCore</c> together make
+    /// <see cref="IDisposable.Dispose"/> safe in that partial-construction state. This
+    /// test simulates the state via reflection: it constructs an instance legally, frees
+    /// the real pin handle, then resets the handle field to <see langword="default"/> so
+    /// the subsequent dispose call exercises the unallocated-handle path on all TFMs.
+    /// </summary>
+    [Fact]
+    public void Dispose_WhenPinHandleNeverAllocated_DoesNotThrow()
+    {
+        // Arrange
+        var pinnedArray = new PinnedPoolArray<byte>(16);
+        var handleField = typeof(PinnedPoolArray<byte>).GetField(
+            "poolArrayHandle",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(handleField);
+        var realHandle = (GCHandle)handleField!.GetValue(pinnedArray)!;
+        realHandle.Free();
+        handleField.SetValue(pinnedArray, default(GCHandle));
+
+        // Act
+        var exception = Record.Exception(pinnedArray.Dispose);
+
+        // Assert
+        Assert.Null(exception);
     }
 
     /// <summary>

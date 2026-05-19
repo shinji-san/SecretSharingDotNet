@@ -92,10 +92,30 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// Initializes a new instance of the <see cref="PinnedPoolArray{T}"/> class.
     /// </summary>
     /// <param name="length">The length of the byte array to be pinned.</param>
+    /// <remarks>
+    /// If <see cref="GCHandle.Alloc(object, GCHandleType)"/> throws after the pool buffer
+    /// has been rented (e.g. <see cref="OutOfMemoryException"/> under memory pressure),
+    /// the rented buffer is returned to <see cref="ArrayPool{T}.Shared"/> and the
+    /// instance's <c>disposed</c> flag is set so that the finalizer running on this
+    /// partial-construction state exits early and skips the pin-handle-dependent
+    /// secure-wipe path on legacy TFMs. The original construction exception is
+    /// rethrown unchanged.
+    /// </remarks>
     public PinnedPoolArray(int length)
     {
         this.poolArray = ArrayPool<T>.Shared.Rent(length);
-        this.poolArrayHandle = GCHandle.Alloc(this.poolArray, GCHandleType.Pinned);
+        try
+        {
+            this.poolArrayHandle = GCHandle.Alloc(this.poolArray, GCHandleType.Pinned);
+        }
+        catch
+        {
+            ArrayPool<T>.Shared.Return(this.poolArray);
+            Volatile.Write(ref this.disposed, 1);
+            GC.SuppressFinalize(this);
+            throw;
+        }
+
         Array.Clear(this.poolArray, 0, this.poolArray.Length);
         this.Length = length;
     }
@@ -526,6 +546,18 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
 
         CryptographicOperations.ZeroMemory(data);
 #else
+        // Defense-in-depth: if construction failed between ArrayPool.Rent and
+        // GCHandle.Alloc, the handle is default(GCHandle) and AddrOfPinnedObject()
+        // would throw InvalidOperationException out of a finalizer-driven dispose.
+        // The constructor's catch path already short-circuits this via the disposed
+        // flag + SuppressFinalize, but a guard here keeps the legacy wipe path safe
+        // against any future caller that reaches SecureClearCore on a partially
+        // constructed instance (e.g. via FormatterServices.GetUninitializedObject).
+        if (!this.poolArrayHandle.IsAllocated)
+        {
+            return;
+        }
+
         LegacySecureClear(this.poolArrayHandle.AddrOfPinnedObject(), this.poolArray.Length * SizeOf());
 #endif
     }
