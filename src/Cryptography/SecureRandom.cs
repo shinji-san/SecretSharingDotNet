@@ -42,6 +42,7 @@ using System.Security.Cryptography;
 /// </summary>
 internal static class SecureRandom
 {
+#if !NET8_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER
     /// <summary>
     /// Maximum value of <c>toExclusive - fromInclusive</c> that
     /// <see cref="NextInt32"/>'s legacy fallback can serve. The fallback rejection-samples
@@ -50,6 +51,7 @@ internal static class SecureRandom
     /// <c>GetInt32(int, int)</c> static helper and have no such restriction.
     /// </summary>
     private const int LegacyFallbackMaxRange = 256;
+#endif
 
     /// <summary>
     /// Fills <paramref name="count"/> bytes of <paramref name="buffer"/> starting at
