@@ -164,7 +164,8 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             throw new ArgumentNullException(nameof(index));
         }
 
-        if (index < Calculator<TNumber>.One)
+        using var one = Calculator<TNumber>.One;
+        if (index < one)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(index),
@@ -611,7 +612,8 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         {
             index = DecodeHexToCalculator(buf, indexStart, indexLen);
             value = DecodeHexToCalculator(buf, valueStart, valueLen);
-            if (index < Calculator<TNumber>.One)
+            using var one = Calculator<TNumber>.One;
+            if (index < one)
             {
                 throw new FormatException(ErrorMessages.ShareIndexMustBePositive);
             }
@@ -652,7 +654,8 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         try
         {
             index = Calculator.Create<TNumber>(indexBytes, indexBytes.Length);
-            if (index < Calculator<TNumber>.One)
+            using var one = Calculator<TNumber>.One;
+            if (index < one)
             {
                 throw new ArgumentOutOfRangeException(nameof(indexBytes), ErrorMessages.ShareIndexMustBePositive);
             }
