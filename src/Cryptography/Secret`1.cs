@@ -36,7 +36,9 @@ using Math;
 using SecureArray;
 using System;
 using System.Diagnostics;
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
 using System.Security.Cryptography;
+#endif
 using System.Text;
 
 /// <summary>
@@ -423,38 +425,23 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </summary>
     private static int DecodeBase64Char(char c)
     {
-        if (c >= 'A' && c <= 'Z')
-        {
-            return c - 'A';
-        }
-
-        if (c >= 'a' && c <= 'z')
-        {
-            return c - 'a' + 26;
-        }
-
-        if (c >= '0' && c <= '9')
-        {
-            return c - '0' + 52;
-        }
-
         switch (c)
         {
-            case '+':
-                return 62;
-            case '/':
-                return 63;
-            case '=':
-                return PaddingSextet;
-            case ' ':
-            case '\t':
-            case '\r':
-            case '\n':
-            case '\f':
-            case '\v':
-                return WhitespaceSextet;
+            case >= 'A' and <= 'Z':
+                return c - 'A';
+            case >= 'a' and <= 'z':
+                return c - 'a' + 26;
+            case >= '0' and <= '9':
+                return c - '0' + 52;
             default:
-                return InvalidSextet;
+                return c switch
+                {
+                    '+' => 62,
+                    '/' => 63,
+                    '=' => PaddingSextet,
+                    ' ' or '\t' or '\r' or '\n' or '\f' or '\v' => WhitespaceSextet,
+                    _ => InvalidSextet
+                };
         }
     }
 
@@ -954,8 +941,8 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         }
 
         int byteCount = this.secretNumber.Length - MarkByteCount;
-        int charCount = ((byteCount + 2) / 3) * 4;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+        int charCount = ((byteCount + 2) / 3) * 4;
         ReadOnlySpan<byte> sourceSpan = this.secretNumber.PoolArray.AsSpan(0, byteCount);
         var result = new PinnedPoolArray<char>(charCount);
         Convert.TryToBase64Chars(sourceSpan, result.PoolArray.AsSpan(0, charCount), out int charsWritten);
@@ -1009,7 +996,7 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
                 // Fresh instance per call — must not alias a static singleton, because
                 // the caller's `using` would dispose the shared backing buffer and break
                 // every subsequent zero-draw return.
-                return new Secret<TNumberStatic>(new byte[] { 0x00 }, 1);
+                return new Secret<TNumberStatic>([0x00], 1);
             }
 
             randomSecretBytes.PoolArray[i--] = 0x00;
