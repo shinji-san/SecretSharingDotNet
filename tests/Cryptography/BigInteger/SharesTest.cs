@@ -38,6 +38,7 @@ using SecretSharingDotNet.Extension;
 using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Xunit;
@@ -538,6 +539,50 @@ public class SharesTest
 
         // Assert
         Assert.Null(ex);
+    }
+
+    /// <summary>
+    /// Regression guard for PR #296 codex P1 (r3291168176): after
+    /// <see cref="Shares{TNumber}.Dispose"/>, every public and explicit-interface member
+    /// must throw <see cref="ObjectDisposedException"/>. The disposed-flag check must
+    /// dominate other guards (e.g. <see cref="Shares{TNumber}.IsReadOnly"/>-driven
+    /// <see cref="NotSupportedException"/> on Add/Remove/Clear). Closes the
+    /// <see cref="IDisposable"/>-contract gap where reads such as
+    /// <see cref="Shares{TNumber}.Count"/>, the indexer, enumerators, and CopyTo
+    /// previously continued to operate on a disposed collection.
+    /// </summary>
+    [Fact]
+    public void PublicMembers_AfterDispose_ThrowObjectDisposedException()
+    {
+        // Arrange — build a Shares, capture a non-collected fresh share for argument-position
+        // calls, then dispose the collection.
+        var share1 = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        var share2 = new Share<BigInteger>(new BigIntCalculator(7), new BigIntCalculator(20));
+        Shares<BigInteger> shares = new[] { share1, share2 };
+        using var freshShare = new Share<BigInteger>(new BigIntCalculator(11), new BigIntCalculator(30));
+        var destinationArray = new Share<BigInteger>[10];
+        shares.Dispose();
+
+        // Act & Assert — every guarded surface must reject the call.
+        Assert.Throws<ObjectDisposedException>(() => _ = shares[0]);
+        Assert.Throws<ObjectDisposedException>(() => shares.ToCharArray());
+        Assert.Throws<ObjectDisposedException>(() => shares.ToCharArray(uppercase: true, withPrefix: true));
+        Assert.Throws<ObjectDisposedException>(() => shares.GetEnumerator());
+        Assert.Throws<ObjectDisposedException>(() => ((IEnumerable<Share<BigInteger>>)shares).GetEnumerator());
+        Assert.Throws<ObjectDisposedException>(() => ((IEnumerable)shares).GetEnumerator());
+        Assert.Throws<ObjectDisposedException>(() => _ = shares.IsReadOnly);
+        Assert.Throws<ObjectDisposedException>(() => _ = shares.Count);
+        Assert.Throws<ObjectDisposedException>(() => shares.Contains(freshShare));
+        Assert.Throws<ObjectDisposedException>(() => shares.Clear());
+        Assert.Throws<ObjectDisposedException>(() => shares.Add(freshShare));
+        Assert.Throws<ObjectDisposedException>(() => shares.Remove(freshShare));
+        Assert.Throws<ObjectDisposedException>(() => ((ICollection)shares).CopyTo(destinationArray, 0));
+        Assert.Throws<ObjectDisposedException>(() => shares.CopyTo(destinationArray, 0));
+        Assert.Throws<ObjectDisposedException>(() => _ = ((ICollection)shares).SyncRoot);
+        Assert.Throws<ObjectDisposedException>(() => _ = ((ICollection)shares).IsSynchronized);
+#if DEBUG
+        Assert.Throws<ObjectDisposedException>(() => shares.ToString());
+#endif
     }
 
     /// <summary>

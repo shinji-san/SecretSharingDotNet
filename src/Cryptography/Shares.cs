@@ -92,8 +92,16 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// </summary>
     /// <param name="i">The index of the <see cref="Share{TNumber}"/> to get.</param>
     /// <returns>Returns a share (shared secret) represented by a <see cref="Share{TNumber}"/>.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "i")]
-    public Share<TNumber> this[int i] => this.shareList[i];
+    public Share<TNumber> this[int i]
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.shareList[i];
+        }
+    }
 
     /// <summary>
     /// Casts a <see cref="Shares{TNumber}"/> object to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/>
@@ -278,7 +286,12 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// A pinned character buffer with the serialized shares. The caller is responsible for disposing
     /// the returned instance. Returns a buffer of length zero if the collection is empty.
     /// </returns>
-    public PinnedPoolArray<char> ToCharArray() => this.ToCharArray(uppercase: true, withPrefix: false);
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public PinnedPoolArray<char> ToCharArray()
+    {
+        this.ThrowIfDisposed();
+        return this.ToCharArray(uppercase: true, withPrefix: false);
+    }
 
     /// <summary>
     /// Converts the collection to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing
@@ -298,8 +311,10 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// The share material is written directly into the final pinned buffer in a single pass, without any
     /// intermediate unpinned <see cref="string"/> or <see cref="System.Text.StringBuilder"/> allocation.
     /// </remarks>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
     {
+        this.ThrowIfDisposed();
         if (this.shareList.Count == 0)
         {
             return new PinnedPoolArray<char>(0);
@@ -346,6 +361,7 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     public override string ToString()
     {
 #if DEBUG
+        this.ThrowIfDisposed();
         var stringBuilder = new StringBuilder();
         var shares = this.shareList as Share<TNumber>[] ?? this.shareList.ToArray();
         foreach (var share in shares)
@@ -363,37 +379,73 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     /// <returns>An enumerator that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-    IEnumerator<Share<TNumber>> IEnumerable<Share<TNumber>>.GetEnumerator() => this.GetEnumerator();
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    IEnumerator<Share<TNumber>> IEnumerable<Share<TNumber>>.GetEnumerator()
+    {
+        this.ThrowIfDisposed();
+        return this.GetEnumerator();
+    }
 
     /// <summary>
     /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     /// <returns>An <see cref="IEnumerator"/> object that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        this.ThrowIfDisposed();
+        return this.GetEnumerator();
+    }
 
     /// <summary>
     /// Returns an <see cref="SharesEnumerator{TNumber}"/> that iterates through the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     /// <returns>An <see cref="SharesEnumerator{TNumber}"/> that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-    public SharesEnumerator<TNumber> GetEnumerator() => new SharesEnumerator<TNumber>(this.shareList);
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public SharesEnumerator<TNumber> GetEnumerator()
+    {
+        this.ThrowIfDisposed();
+        return new SharesEnumerator<TNumber>(this.shareList);
+    }
 
     /// <summary>
     /// Gets a value indicating whether the <see cref="Shares{TNumber}"/> collection is read-only.
     /// </summary>
     /// <remarks>Currently, this property always returns <see langword="true"/>.</remarks>
-    public bool IsReadOnly => true;
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public bool IsReadOnly
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return true;
+        }
+    }
 
     /// <summary>
     /// Gets the number of <see cref="Share{TNumber}"/> items contained in the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
-    public int Count => this.shareList.Count;
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public int Count
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.shareList.Count;
+        }
+    }
 
     /// <summary>
     /// Determines whether the <see cref="Shares{TNumber}"/> collection contains a specific <see cref="Share{TNumber}"/>.
     /// </summary>
     /// <param name="item">The <see cref="Share{TNumber}"/> to locate in the <see cref="Shares{TNumber}"/> collection.</param>
     /// <returns><see langword="true"/> if item is found in the <see cref="Shares{TNumber}"/> collection; otherwise, <see langword="false"/>.</returns>
-    public bool Contains(Share<TNumber> item) => this.shareList.Any(share => share.Equals(item));
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public bool Contains(Share<TNumber> item)
+    {
+        this.ThrowIfDisposed();
+        return this.shareList.Any(share => share.Equals(item));
+    }
 
     /// <summary>
     /// Removes all items from the <see cref="Shares{TNumber}"/> collection.
@@ -401,8 +453,10 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
     /// set to <see langword="true"/>.</remarks>
     /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public void Clear()
     {
+        this.ThrowIfDisposed();
         if (this.IsReadOnly)
         {
             throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
@@ -418,8 +472,10 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
     /// set to <see langword="true"/>.</remarks>
     /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public void Add(Share<TNumber> item)
     {
+        this.ThrowIfDisposed();
         if (this.IsReadOnly)
         {
             throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
@@ -439,8 +495,10 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
     /// set to <see langword="true"/>.</remarks>
     /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public bool Remove(Share<TNumber> item)
     {
+        this.ThrowIfDisposed();
         if (this.IsReadOnly)
         {
             throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
@@ -455,8 +513,10 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the items copied from <see cref="Shares{TNumber}"/> collection.
     /// The  <see cref="Array"/> must have zero-based indexing.</param>
     /// <param name="index">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     void ICollection.CopyTo(Array array, int index)
     {
+        this.ThrowIfDisposed();
         _ = array ?? throw new ArgumentNullException(nameof(array));
         switch (array)
         {
@@ -476,8 +536,10 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// items copied from <see cref="Shares{TNumber}"/> collection.
     /// The array must have zero-based indexing.</param>
     /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public void CopyTo(Share<TNumber>[] array, int arrayIndex)
     {
+        this.ThrowIfDisposed();
         _ = array ?? throw new ArgumentNullException(nameof(array));
         if (arrayIndex < 0)
         {
@@ -498,10 +560,12 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <summary>
     /// Gets an object that can be used to synchronize access to the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     object ICollection.SyncRoot
     {
         get
         {
+            this.ThrowIfDisposed();
             object newValue = new object();
             return (this.syncRoot ?? Interlocked.CompareExchange(ref this.syncRoot, newValue, null)) ?? newValue;
         }
@@ -510,7 +574,15 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <summary>
     /// Gets a value indicating whether access to the <see cref="Shares{TNumber}"/> collection is synchronized (thread safe).
     /// </summary>
-    bool ICollection.IsSynchronized => false;
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    bool ICollection.IsSynchronized
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return false;
+        }
+    }
 
     /// <summary>
     /// Disposes every <see cref="Share{TNumber}"/> in the collection. Idempotent — subsequent calls
@@ -531,6 +603,17 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
         foreach (var share in this.shareList)
         {
             share?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Throws <see cref="ObjectDisposedException"/> if the collection has been disposed.
+    /// </summary>
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref this.disposed) == 1)
+        {
+            throw new ObjectDisposedException(nameof(Shares<>));
         }
     }
 }
