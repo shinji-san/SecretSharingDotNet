@@ -124,6 +124,9 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <param name="secretSource">A secret as array of type <see cref="byte"/></param>
     /// <param name="length">Length of the secret</param>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="secretSource"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="length"/> is negative or greater than the length of <paramref name="secretSource"/>.
+    /// </exception>
 #if NET8_0_OR_GREATER
     public Secret(ReadOnlySpan<byte> secretSource, int length)
     {
@@ -136,6 +139,16 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         {
 #endif
             throw new ArgumentNullException(nameof(secretSource));
+        }
+
+        if (length < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), string.Format(ErrorMessages.ValueLowerThanX, 0));
+        }
+
+        if (length > secretSource.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), string.Format(ErrorMessages.CountExceedsArrayLength, length, secretSource.Length));
         }
 
         if (length == 0)

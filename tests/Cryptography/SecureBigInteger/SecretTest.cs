@@ -935,6 +935,42 @@ public class SecretTest
     }
 
     /// <summary>
+    /// Regression guard for PR #296 codex P2 (r3290314263): the
+    /// <see cref="Secret{TNumber}(byte[], int)"/> ctor must reject a negative <c>length</c>
+    /// with a caller-facing <see cref="ArgumentOutOfRangeException"/> identifying
+    /// <c>length</c> as the offending parameter, instead of falling through to an
+    /// internal <see cref="IndexOutOfRangeException"/> on the termination-byte write.
+    /// </summary>
+    [Fact]
+    public void Constructor_ByteArrayWithNegativeLength_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        byte[] source = { 1, 2, 3 };
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Secret<SecureBigInteger>(source, -1));
+        Assert.Equal("length", ex.ParamName);
+    }
+
+    /// <summary>
+    /// Regression guard for PR #296 codex P2 (r3290314263): the
+    /// <see cref="Secret{TNumber}(byte[], int)"/> ctor must reject a <c>length</c> greater
+    /// than the source length with a caller-facing <see cref="ArgumentOutOfRangeException"/>
+    /// rather than allowing a downstream slice/copy to throw an inconsistent exception type
+    /// across TFMs.
+    /// </summary>
+    [Fact]
+    public void Constructor_ByteArrayWithLengthExceedingSource_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        byte[] source = { 1, 2, 3 };
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Secret<SecureBigInteger>(source, source.Length + 1));
+        Assert.Equal("length", ex.ParamName);
+    }
+
+    /// <summary>
     /// Tests that a <see cref="string"/> password constructed via
     /// <see cref="Secret{TNumber}.FromText(PinnedPoolArray{char})"/> round-trips back to the
     /// original. Mirror of the BigInteger-side test of the same name.
