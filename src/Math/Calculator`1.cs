@@ -34,7 +34,6 @@ using System;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq.Expressions;
 
 /// <summary>
 /// Generic strategy-pattern base that decouples Shamir's Secret Sharing from the concrete
