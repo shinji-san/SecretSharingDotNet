@@ -2307,10 +2307,11 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         int leftLen = this.limbs.Length;
         int rightLen = other.limbs.Length;
         int maxLen = leftLen >= rightLen ? leftLen : rightLen;
+        // PinnedPoolArray's ctor zero-clears the full rented capacity, so the
+        // tail bytes [leftLen..maxLen) / [rightLen..maxLen) are already zero
+        // before Array.Copy writes the live prefix — no extra clear needed.
         using var leftBuf = new PinnedPoolArray<ulong>(length: maxLen);
         using var rightBuf = new PinnedPoolArray<ulong>(length: maxLen);
-        Array.Clear(leftBuf.PoolArray, 0, maxLen);
-        Array.Clear(rightBuf.PoolArray, 0, maxLen);
         Array.Copy(this.limbs.PoolArray, leftBuf.PoolArray, leftLen);
         Array.Copy(other.limbs.PoolArray, rightBuf.PoolArray, rightLen);
 
