@@ -193,7 +193,8 @@ internal sealed class DemoApp
         Console.WriteLine("Configuration (press Enter to accept the default):");
         var maxChars = PromptInt("  Max secret length", DefaultMaxSecretChars, min: 1);
         var total = PromptInt("  Total shares (N)", DefaultTotalShares, min: 2);
-        var threshold = PromptInt("  Threshold (K)", DefaultThreshold, min: 2, max: total);
+        var thresholdDefault = Math.Min(DefaultThreshold, total);
+        var threshold = PromptInt("  Threshold (K)", thresholdDefault, min: 2, max: total);
         return new DemoConfig(maxChars, total, threshold);
     }
 
@@ -202,13 +203,27 @@ internal sealed class DemoApp
     /// or out-of-range input. Empty input returns <paramref name="default"/>.
     /// </summary>
     /// <param name="label">Label written before the input prompt (e.g. <c>"Total shares (N)"</c>).</param>
-    /// <param name="default">Value returned when the user submits an empty line.</param>
+    /// <param name="default">
+    /// Value returned when the user submits an empty line. Silently clamped into the
+    /// <c>[<paramref name="min"/>, <paramref name="max"/>]</c> range so callers can
+    /// pass a notional default without recomputing it against runtime bounds.
+    /// </param>
     /// <param name="min">Inclusive lower bound for accepted input.</param>
     /// <param name="max">Optional inclusive upper bound; <see langword="null"/> means no upper bound.</param>
-    /// <returns>The validated integer entered by the user, or <paramref name="default"/> on empty input.</returns>
+    /// <returns>The validated integer entered by the user, or the clamped <paramref name="default"/> on empty input.</returns>
     /// <exception cref="InvalidOperationException">Standard input is closed before a value can be read.</exception>
     private static int PromptInt(string label, int @default, int min, int? max = null)
     {
+        if (max.HasValue && @default > max.Value)
+        {
+            @default = max.Value;
+        }
+
+        if (@default < min)
+        {
+            @default = min;
+        }
+
         var range = max.HasValue ? $"{min}..{max.Value}" : $">= {min}";
         while (true)
         {
