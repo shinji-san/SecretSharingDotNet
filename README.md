@@ -138,6 +138,9 @@ A C# implementation of Shamir's Secret Sharing.
 >
 > The text-secret encoding is UTF-8 (introduced in v0.14.0).
 
+> [!TIP]
+> A runnable end-to-end example lives in [`samples/SecretSharingDotNet.Demo.Console`](./samples/SecretSharingDotNet.Demo.Console). It wires the `SecureBigInteger` backend with `MersenneSafeGcdAlgorithm` through `Microsoft.Extensions.DependencyInjection`, reads the secret via `ConsolePasswordReader` (no `string` materialisation), splits it, and reconstructs it from a user-selected K-of-N subset of the generated shares.
+
 ## Basics
 Use the function `MakeShares` to generate the shares, based on a random or pre-defined secret.
 Afterwards, use the function `Reconstruction` to reconstruct the original secret.
