@@ -137,6 +137,45 @@ public class SecretSplitterTest
     }
 
     /// <summary>
+    /// Regression for PR #296 review comment <c>r3291559151</c>: when
+    /// <see cref="SecretSplitter{TNumber}.MakeShares(int, int, int, out Secret{TNumber})"/>
+    /// throws after the random <see cref="Secret{TNumber}"/> has already been allocated, the
+    /// pinned bytes must be wiped internally and the out slot reset to <see langword="default"/>.
+    /// Callers fielding the exception cannot reliably reach an out parameter from a failed
+    /// call, so leaving the allocated secret in place would leak pinned memory.
+    /// </summary>
+    [Fact]
+    public void MakeShares_RandomSecret_ThrowingAfterAllocation_ResetsOutToDefault()
+    {
+        // Arrange — one above the implementation cap so CreateShares throws AFTER
+        // MakeShares has already allocated the random Secret via CreateRandom. The
+        // implementation-cap check (M3) is evaluated before the prime guard (H3), so
+        // it fires deterministically at securityLevel = 13.
+        using var splitter = new SecretSplitter<SecureBigInteger>();
+        Secret<SecureBigInteger> generatedSecret = default;
+
+        // Act
+        ArgumentOutOfRangeException caught = null;
+        try
+        {
+            splitter.MakeShares(
+                2,
+                SecretSplitter<SecureBigInteger>.MaxAllowedNumberOfShares + 1,
+                13,
+                out generatedSecret);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            caught = ex;
+        }
+
+        // Assert
+        Assert.NotNull(caught);
+        Assert.Equal("numberOfShares", caught.ParamName);
+        Assert.Equal(default, generatedSecret);
+    }
+
+    /// <summary>
     /// Tests that the <c>(min, n, secret, securityLevel)</c>
     /// <see cref="SecretSplitter{TNumber}.MakeShares(int, int, Secret{TNumber}, int)"/>
     /// overload rejects calls after disposal with <see cref="ObjectDisposedException"/>.

@@ -151,7 +151,10 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// <param name="securityLevel">Security level (in number of bits). The minimum is 13.</param>
     /// <param name="generatedSecret">
     /// Output parameter receiving the generated random <see cref="Secret{TNumber}"/>. The caller
-    /// takes ownership and is responsible for disposing it when no longer needed.
+    /// takes ownership and is responsible for disposing it when no longer needed. If the method
+    /// throws after the secret has been allocated, the pinned bytes are wiped internally and
+    /// <paramref name="generatedSecret"/> is reset to <see langword="default"/>; callers do not
+    /// need to dispose the out value on the exception path.
     /// </param>
     /// <returns>A <see cref="Shares{TNumber}"/> collection containing the generated shares.</returns>
     /// <exception cref="ArgumentOutOfRangeException">
@@ -196,15 +199,27 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         generatedSecret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime);
-        var polynomial = this.CreatePolynomial(numberOfMinimumShares, generatedSecret.ToCoefficient);
+        Calculator<TNumber>[] polynomial = null;
         try
         {
+            polynomial = this.CreatePolynomial(numberOfMinimumShares, generatedSecret.ToCoefficient);
             var shares = this.CreateShares(numberOfShares, polynomial);
             return new Shares<TNumber>(shares);
         }
+        catch
+        {
+            // CreatePolynomial / CreateShares may throw (e.g. ArgumentOutOfRangeException when
+            // numberOfShares exceeds MaxAllowedNumberOfShares or the Mersenne-prime bound). The
+            // out parameter is already assigned to a freshly allocated pinned-memory secret;
+            // callers fielding the exception cannot reliably dispose an out value from a failed
+            // call, so wipe the bytes here and reset the slot to default before rethrowing.
+            generatedSecret.Dispose();
+            generatedSecret = default;
+            throw;
+        }
         finally
         {
-            polynomial.DisposeAll();
+            polynomial?.DisposeAll();
         }
     }
 
