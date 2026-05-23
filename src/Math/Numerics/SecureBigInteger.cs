@@ -1032,9 +1032,16 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// instance, by contrast, is treated as secret and the per-iteration arithmetic does not
     /// branch on its bits.
     /// </para>
+    /// <para>
+    /// The implementation also takes degenerate-exponent early returns for
+    /// <c><paramref name="exponent"/> == 0</c> (returns <c>1</c>, regardless of the base) and
+    /// <c><paramref name="exponent"/> == 1</c> (returns a fresh copy of the base). These
+    /// shortcuts are observable in timing on top of the bit-length distinction above, so they
+    /// reinforce — rather than weaken — the rule that the exponent must be treated as public.
+    /// </para>
     /// </param>
     /// <returns>A new <see cref="SecureBigInteger"/> representing <c>this^exponent</c>.</returns>
-    /// <exception cref="ArgumentException">Thrown if <paramref name="exponent"/> is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="exponent"/> is negative.</exception>
     public SecureBigInteger Pow(int exponent)
     {
         this.ThrowIfDisposed();
@@ -1042,7 +1049,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
         switch (exponent)
         {
             case < 0:
-                throw new ArgumentException(ErrorMessages.ExponentMustBeNonNegative, nameof(exponent));
+                throw new ArgumentOutOfRangeException(nameof(exponent), exponent, ErrorMessages.ExponentMustBeNonNegative);
             case 0:
                 return new SecureBigInteger(1);
             case 1:

@@ -1042,16 +1042,18 @@ public class SecureBigIntegerTests
 
     /// <summary>
     /// Tests that <see cref="SecureBigInteger.Pow(int)"/> rejects a negative exponent
-    /// with <see cref="ArgumentException"/>.
+    /// with <see cref="ArgumentOutOfRangeException"/> (consistent with the other length /
+    /// exponent validations on the type, e.g. the byte-array constructors and
+    /// <c>nthRoot</c>; tightened for PR #296 P2 #4).
     /// </summary>
     [Fact]
-    public void Pow_NegativeExponent_ThrowsArgumentException()
+    public void Pow_NegativeExponent_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
         using var num = new SecureBigInteger(2);
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
             using var _ = num.Pow(-1);
         });
