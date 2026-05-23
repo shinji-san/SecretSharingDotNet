@@ -449,6 +449,67 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     private const int PaddingSextet = -2;
     private const int WhitespaceSextet = -3;
 
+#if !(NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+    /// <summary>
+    /// Standard Base64 alphabet (RFC 4648). Used by <see cref="EncodeBase64Inline"/> to
+    /// write encoded characters directly into a pinned destination buffer without an
+    /// intermediate <see cref="string"/> allocation. The dual of <see cref="DecodeBase64Char"/>.
+    /// Compiled only on legacy target frameworks; modern TFMs route the encode path through
+    /// the span-based <c>Convert.TryToBase64Chars</c> in <see cref="ToBase64CharArray"/>.
+    /// </summary>
+    private const string Base64Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    /// <summary>
+    /// Encodes <paramref name="source"/><c>[0..<paramref name="byteCount"/>)</c> as Base64 directly
+    /// into <paramref name="dest"/>, using the standard alphabet defined in <see cref="Base64Alphabet"/>.
+    /// The destination must have at least <c>((<paramref name="byteCount"/> + 2) / 3) * 4</c> chars of
+    /// capacity. Iterates the 24-bit input window in a straight-line loop with no intermediate
+    /// <see cref="string"/> allocation; a tail of 1 or 2 bytes is written as the corresponding
+    /// partial quad with <c>'='</c> padding. Compiled only on legacy target frameworks where
+    /// <see cref="Convert"/> does not expose a span-based Base64 encoder — the modern path uses
+    /// <c>Convert.TryToBase64Chars</c> directly.
+    /// </summary>
+    /// <returns>The number of characters written to <paramref name="dest"/>.</returns>
+    private static int EncodeBase64Inline(byte[] source, int byteCount, char[] dest)
+    {
+        int srcPos = 0;
+        int dstPos = 0;
+        int fullTriples = byteCount / 3;
+        for (int i = 0; i < fullTriples; i++)
+        {
+            int b0 = source[srcPos++];
+            int b1 = source[srcPos++];
+            int b2 = source[srcPos++];
+
+            dest[dstPos++] = Base64Alphabet[b0 >> 2];
+            dest[dstPos++] = Base64Alphabet[((b0 & 0x03) << 4) | (b1 >> 4)];
+            dest[dstPos++] = Base64Alphabet[((b1 & 0x0F) << 2) | (b2 >> 6)];
+            dest[dstPos++] = Base64Alphabet[b2 & 0x3F];
+        }
+
+        int remaining = byteCount - srcPos;
+        if (remaining == 1)
+        {
+            int b0 = source[srcPos];
+            dest[dstPos++] = Base64Alphabet[b0 >> 2];
+            dest[dstPos++] = Base64Alphabet[(b0 & 0x03) << 4];
+            dest[dstPos++] = '=';
+            dest[dstPos++] = '=';
+        }
+        else if (remaining == 2)
+        {
+            int b0 = source[srcPos];
+            int b1 = source[srcPos + 1];
+            dest[dstPos++] = Base64Alphabet[b0 >> 2];
+            dest[dstPos++] = Base64Alphabet[((b0 & 0x03) << 4) | (b1 >> 4)];
+            dest[dstPos++] = Base64Alphabet[(b1 & 0x0F) << 2];
+            dest[dstPos++] = '=';
+        }
+
+        return dstPos;
+    }
+#endif
+
     /// <summary>
     /// Gets the <see cref="Secret{TNumber}"/> byte size, or <c>0</c> for the
     /// default-value struct (where <see cref="secretNumber"/> is <see langword="null"/>).
@@ -941,19 +1002,19 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         }
 
         int byteCount = this.secretNumber.Length - MarkByteCount;
-#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
         int charCount = ((byteCount + 2) / 3) * 4;
-        ReadOnlySpan<byte> sourceSpan = this.secretNumber.PoolArray.AsSpan(0, byteCount);
         var result = new PinnedPoolArray<char>(charCount);
+#if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
+        ReadOnlySpan<byte> sourceSpan = this.secretNumber.PoolArray.AsSpan(0, byteCount);
         Convert.TryToBase64Chars(sourceSpan, result.PoolArray.AsSpan(0, charCount), out int charsWritten);
+#else
+        // Legacy target frameworks have no span-based Base64 encoder; Convert.ToBase64String
+        // would materialise the secret as an unpinned, GC-relocatable, possibly-interned
+        // managed string. Encode in-place into the pinned destination buffer instead.
+        int charsWritten = EncodeBase64Inline(this.secretNumber.PoolArray, byteCount, result.PoolArray);
+#endif
         result.Length = charsWritten;
         return result;
-#else
-        string base64 = Convert.ToBase64String(this.secretNumber.PoolArray, 0, byteCount);
-        var result = new PinnedPoolArray<char>(base64.Length);
-        base64.CopyTo(0, result.PoolArray, 0, base64.Length);
-        return result;
-#endif
     }
 
     /// <summary>
