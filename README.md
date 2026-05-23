@@ -130,6 +130,8 @@ A C# implementation of Shamir's Secret Sharing.
 > - **`SecretReconstructor<TNumber>.SecurityLevel` is now read-only** — it is derived from the supplied shares on every `Reconstruction` call (see Basics).
 > - **`Calculator<TNumber>.Clone` is now `abstract`** — custom backends must override it.
 > - **`ExtendedEuclideanAlgorithm<TNumber>` is now `sealed`** — derive from `IExtendedGcdAlgorithm<TNumber>` or compose around it instead.
+> - **`SecretSplitter<TNumber>` is now `sealed`** — compose around `IMakeSharesUseCase<TNumber>` instead of deriving.
+> - **`SecureBigInteger.Pow(int)` throws `ArgumentOutOfRangeException`** (was `ArgumentException`) for negative exponents, consistent with the other length / exponent validations on the type. `ArgumentOutOfRangeException` derives from `ArgumentException`, so wide catches still work.
 > - **`Shares<TNumber>.OriginalSecret` and `Shares<TNumber>.OriginalSecretExists` removed** (deprecated since v0.14.0).
 > - **Platform support.** The minimum supported .NET Framework is now 4.7.2; net4.7 and net4.7.1 are removed.
 > - **`FinitePoint<TNumber>` is now `internal`** (was public).
@@ -918,6 +920,12 @@ for hardened native crypto stacks.
 - **Passive memory disclosure.** The internal byte buffer is GC-pinned and overwritten with
   a 3-pass scramble plus `CryptographicOperations.ZeroMemory` on dispose. Heap snapshots,
   swap files, and reuse-after-free of the same physical pages cannot recover plaintext.
+- **No string materialisation in Base64 encoding.** `Secret<TNumber>.ToBase64CharArray()`
+  encodes directly into the pinned destination buffer on every supported TFM —
+  net8/9/10 and netstandard2.1 via `Convert.TryToBase64Chars`, legacy TFMs
+  (netstandard2.0 / net4.7.2 / net4.8 / net4.8.1) via an inline 24-bit-window encoder
+  mirroring the existing pinned Base64 decoder. No intermediate, GC-relocatable,
+  possibly-interned managed `string` is created on any TFM.
 - **Length-vs-content equality leaks.** `SecureBigInteger.Equals` pre-pads to
   `max(left, right)` and uses fixed-time comparison; equality timing does not leak which
   prefix bytes match. The comparison runs uniformly across all targeted TFMs via a
@@ -940,9 +948,18 @@ for hardened native crypto stacks.
 - **Timing leaks in modular inversion** (when the consumer opts in).
   `MersenneSafeGcdAlgorithm<TNumber>` implements the Bernstein–Yang "safegcd" / divstep
   recurrence and provides a constant-time modular inverse for use inside
-  `SecretReconstructor.DivMod`. The iteration count is fixed at the public Mersenne
-  exponent, independent of operand values. The exponent is derived from the
-  modulus passed to `Compute` at call time — the algorithm holds no
+  `SecretReconstructor.DivMod`. The **outer iteration count** is fixed at the public
+  Mersenne exponent, independent of operand values; that is the only timing guarantee
+  the algorithm gives out of the box. **Per-iteration wall-clock time is not uniform**
+  on the SecureBigInteger backend — the three divstep branches dispatch a different
+  number of fresh `Calculator` allocations (six / six / four) and funnel `g` (or
+  `g − f`) through `SecureBigInteger.Divide`, whose bit-loop count tracks the limb
+  count of the shrinking intermediate working values. The branch selector itself reads
+  the LSB of secret `g` plus the public sign of `delta`. See the class XDoc for the
+  full breakdown. Strict branchless mask-select (all three branches run; result
+  chosen via constant-time mask) is future work to lift this from
+  "outer-iteration-count constant-time" to "per-iteration uniform". The exponent is
+  derived from the modulus passed to `Compute` at call time — the algorithm holds no
   `ISecurityLevelManager` reference, so it cannot drift from the
   `SecretReconstructor` consuming it. To wire it in, pass a
   `MersenneSafeGcdAlgorithm<TNumber>` instance as the GCD strategy when constructing
@@ -957,9 +974,11 @@ for hardened native crypto stacks.
 **Public-input dependence (treated as public, not secret):**
 
 - **`Pow(int exponent)`** is variable-time *on the exponent value* (iteration count is
-  `O(log₂(exponent))`). The exponent is **not** treated as secret; the per-iteration
-  arithmetic on the secret base goes through the constant-time-on-bit-length `Multiply`.
-  Callers must not pass secret-derived exponents through this method.
+  `O(log₂(exponent))`, with additional early-return shortcuts for `exponent ∈ {0, 1}`
+  that distinguish those two values from all others). The exponent is **not** treated
+  as secret; the per-iteration arithmetic on the secret base goes through the
+  constant-time-on-bit-length `Multiply`. Callers must not pass secret-derived
+  exponents through this method.
 
 **`SecureBigInteger` does *not* protect against:**
 

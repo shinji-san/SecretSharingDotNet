@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved `BigIntCalculator` from namespace `SecretSharingDotNet.Math` to `SecretSharingDotNet.Math.Numerics`.
 - `Calculator<TNumber>.Clone` is now `abstract` (was a non-virtual default that returned `MemberwiseClone()`). Subclasses must now provide a true deep copy — `MemberwiseClone` is not safe when `TNumber` is a reference type (e.g. `SecureBigInteger`) or when the subtype carries reference-type fields.
 - `ExtendedEuclideanAlgorithm<TNumber>` is now `sealed`.
+- `SecretSplitter<TNumber>` is now `sealed`.
+- `SecureBigInteger.Pow(int)` now throws `ArgumentOutOfRangeException` (was `ArgumentException`) for negative exponents, consistent with the other length / exponent validations on the type. `ArgumentOutOfRangeException` derives from `ArgumentException`, so wide catches still work.
 - `SecretReconstructor<TNumber>.SecurityLevel` is now read-only; the level is derived from the shares passed to `Reconstruction`.
 - Renamed `Secret<TNumber>.ToBase64()` to `ToBase64String()`; new `ToBase64CharArray()` returns a pinned char buffer.
 - Text I/O on `Secret`, `Share`, and `Shares` is pinned-buffer-only (no `string` overloads on the wire path).
@@ -39,6 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Resolved MSB3277 `System.Memory` version conflict in the test project on `net472`/`net48`/`net481` by centrally pinning `System.Memory` to `4.6.3` and adding explicit `System.Memory` / `System.Buffers` references for the .NET Framework TFMs.
+- `Secret<TNumber>.ToBase64CharArray()` no longer materialises an intermediate managed `string` on netstandard2.0 / net4.7.2 / net4.8 / net4.8.1 — encodes directly into the pinned destination buffer via an inline 24-bit-window encoder mirroring the existing pinned Base64 decoder.
+- `SecretSplitter<TNumber>.MakeShares(int, int, int, out Secret<TNumber>)` now disposes the generated random secret and resets the `out` parameter to `default` when the post-allocation work (`CreatePolynomial` / `CreateShares`) throws — callers fielding the exception could not previously clean up the leaked pinned secret.
+- `Share<TNumber>` record's compiler-synthesised copy constructor and the `with`-expression now throw `NotSupportedException` instead of producing a shallow clone that would alias the disposable `Calculator<TNumber>` backing fields across two share instances.
+- `Shares<TNumber>.{Clear, Add, Remove}` collapsed to an unconditional `NotSupportedException` throw — the post-`IsReadOnly`-guard branches were unreachable on the sealed collection.
+- `SecureBigInteger.Equals` no longer calls a redundant `Array.Clear` after `new PinnedPoolArray<ulong>(…)` — the constructor already zero-clears the rented capacity.
+- `MersenneSafeGcdAlgorithm<TNumber>` threat-model XDoc tightened: only the outer divstep iteration count is operand-independent; per-iteration wall-clock varies with the limb count of the shrinking intermediate working values. The README's Security & Threat Model section is updated to match.
+- `SecureBigInteger.Pow(int)` XDoc now flags the `exponent ∈ {0, 1}` early returns as additional timing distinctions beyond the documented `O(log₂(exponent))`.
 
 ### Removed
 - Removed support for .NET Framework 4.7.1.
