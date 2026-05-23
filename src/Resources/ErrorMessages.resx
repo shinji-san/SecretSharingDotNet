@@ -39,6 +39,9 @@
     <data name="MaxSharesExceedsImplementationLimit" xml:space="preserve">
         <value>The maximum number of shares must not exceed {0}.</value>
     </data>
+    <data name="ShareIsNonCopyable" xml:space="preserve">
+        <value>Share&lt;TNumber&gt; is non-copyable: it owns disposable Calculator fields, and a shallow record copy would alias them across two instances. Construct a new share via the public constructor or obtain shares from a Shares&lt;TNumber&gt; collection instead of using `with` or the copy constructor.</value>
+    </data>
     <data name="RandomRangeExceedsMaximum" xml:space="preserve">
         <value>The requested random range exceeds the maximum supported by the random helper.</value>
     </data>

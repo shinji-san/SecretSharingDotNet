@@ -1018,4 +1018,23 @@ public class ShareTest
         // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => share.GetHashCode());
     }
+
+    /// <summary>
+    /// Regression for PR #296 codex review comment <c>r3291559146</c>: the record
+    /// <c>with</c> expression must not be allowed to produce a shallow copy of
+    /// a <see cref="Share{TNumber}"/>. The protected copy constructor blocks the
+    /// compiler-synthesised <c>&lt;Clone&gt;$</c> path with
+    /// <see cref="NotSupportedException"/>, preventing two share instances from
+    /// aliasing the same disposable <see cref="Calculator{TNumber}"/> backing fields
+    /// (where the first <c>Dispose</c> would silently invalidate the second).
+    /// </summary>
+    [Fact]
+    public void With_Expression_ThrowsNotSupportedException()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+
+        // Act & Assert — empty `with { }` triggers the protected copy ctor.
+        Assert.Throws<NotSupportedException>(() => _ = share with { });
+    }
 }

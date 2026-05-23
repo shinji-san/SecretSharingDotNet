@@ -32,6 +32,9 @@
     <data name="MaxSharesExceedsImplementationLimit" xml:space="preserve">
         <value>Die maximale Anzahl der Teilgeheimnisse darf {0} nicht überschreiten.</value>
     </data>
+    <data name="ShareIsNonCopyable" xml:space="preserve">
+        <value>Share&lt;TNumber&gt; ist nicht kopierbar: das Teilgeheimnis besitzt disposable Calculator-Felder, und eine flache Record-Kopie würde diese auf zwei Instanzen aliasieren. Erzeuge ein neues Share über den öffentlichen Konstruktor oder beziehe Shares aus einer Shares&lt;TNumber&gt;-Sammlung, anstatt `with` oder den Kopier-Konstruktor zu benutzen.</value>
+    </data>
     <data name="RandomRangeExceedsMaximum" xml:space="preserve">
         <value>Der angeforderte Zufallsbereich überschreitet das vom Zufallszahlen-Helfer unterstützte Maximum.</value>
     </data>

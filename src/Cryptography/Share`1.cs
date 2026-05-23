@@ -34,6 +34,7 @@ namespace SecretSharingDotNet.Cryptography;
 using Math;
 using SecureArray;
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -180,6 +181,27 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
         this.index = index;
         this.value = value;
+    }
+
+    /// <summary>
+    /// Blocks the record-synthesised copy constructor. <see cref="Share{TNumber}"/> owns
+    /// its <see cref="Index"/> / <see cref="Value"/> <see cref="Calculator{TNumber}"/>
+    /// backing fields under a single-owner contract (see the type-level remarks); a
+    /// shallow record clone would alias those references across two instances and the
+    /// first <see cref="Dispose"/> would silently invalidate the other copy. The
+    /// <c>with</c> expression and any other path that the compiler routes through this
+    /// constructor therefore throw <see cref="NotSupportedException"/>. Build new shares
+    /// via the public <c>(index, value)</c> constructor, or obtain them from a
+    /// <see cref="Shares{TNumber}"/> collection.
+    /// </summary>
+    /// <param name="original">Ignored — this constructor unconditionally throws.</param>
+    /// <exception cref="NotSupportedException">Always thrown.</exception>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+#pragma warning disable CS0628 // protected member in sealed type — required signature for the record copy constructor that the compiler routes `with` through.
+    protected Share(Share<TNumber> original)
+#pragma warning restore CS0628
+    {
+        throw new NotSupportedException(ErrorMessages.ShareIsNonCopyable);
     }
 
     /// <summary>

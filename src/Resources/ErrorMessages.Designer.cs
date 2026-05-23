@@ -84,6 +84,12 @@ namespace SecretSharingDotNet {
             }
         }
 
+        internal static string ShareIsNonCopyable {
+            get {
+                return ResourceManager.GetString("ShareIsNonCopyable", resourceCulture);
+            }
+        }
+
         internal static string MaxSharesExceedsImplementationLimit {
             get {
                 return ResourceManager.GetString("MaxSharesExceedsImplementationLimit", resourceCulture);
