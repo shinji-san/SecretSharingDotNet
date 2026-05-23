@@ -542,6 +542,28 @@ public class SharesTest
     }
 
     /// <summary>
+    /// Regression for PR #296 P3 #5: on a live <see cref="Shares{TNumber}"/>, the
+    /// mutating <see cref="ICollection{T}"/> members must throw
+    /// <see cref="NotSupportedException"/> unconditionally — the collection is
+    /// permanently read-only and the unreachable post-guard <c>shareList.{Clear, Add, Remove}</c>
+    /// branches were removed in this commit.
+    /// </summary>
+    [Fact]
+    public void MutatingMembers_OnLiveCollection_ThrowNotSupportedException()
+    {
+        // Arrange
+        using var share1 = new Share<BigInteger>(new BigIntCalculator(5), new BigIntCalculator(10));
+        using var share2 = new Share<BigInteger>(new BigIntCalculator(7), new BigIntCalculator(20));
+        using Shares<BigInteger> shares = new[] { share1, share2 };
+        using var freshShare = new Share<BigInteger>(new BigIntCalculator(11), new BigIntCalculator(30));
+
+        // Act & Assert
+        Assert.Throws<NotSupportedException>(() => shares.Clear());
+        Assert.Throws<NotSupportedException>(() => shares.Add(freshShare));
+        Assert.Throws<NotSupportedException>(() => shares.Remove(freshShare));
+    }
+
+    /// <summary>
     /// Regression guard for PR #296 codex P1 (r3291168176): after
     /// <see cref="Shares{TNumber}.Dispose"/>, every public and explicit-interface member
     /// must throw <see cref="ObjectDisposedException"/>. The disposed-flag check must

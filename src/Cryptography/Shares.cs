@@ -448,63 +448,48 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     }
 
     /// <summary>
-    /// Removes all items from the <see cref="Shares{TNumber}"/> collection.
+    /// Mutating ICollection member required by the interface contract.
+    /// <see cref="Shares{TNumber}"/> is permanently read-only
+    /// (<see cref="IsReadOnly"/> returns <see langword="true"/> unconditionally),
+    /// so this method always throws <see cref="NotSupportedException"/>.
     /// </summary>
-    /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
-    /// set to <see langword="true"/>.</remarks>
-    /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
+    /// <exception cref="NotSupportedException">Always thrown — the collection is read-only.</exception>
     /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public void Clear()
     {
         this.ThrowIfDisposed();
-        if (this.IsReadOnly)
-        {
-            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
-        }
-
-        this.shareList.Clear();
+        throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
     }
 
     /// <summary>
-    /// Adds an <see cref="Share{TNumber}"/> to the <see cref="Shares{TNumber}"/> collection.
+    /// Mutating ICollection member required by the interface contract.
+    /// <see cref="Shares{TNumber}"/> is permanently read-only
+    /// (<see cref="IsReadOnly"/> returns <see langword="true"/> unconditionally),
+    /// so this method always throws <see cref="NotSupportedException"/>.
     /// </summary>
-    /// <param name="item">The <see cref="Share{TNumber}"/> to add to the <see cref="Shares{TNumber}"/> collection.</param>
-    /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
-    /// set to <see langword="true"/>.</remarks>
-    /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
+    /// <param name="item">Ignored — the call is rejected before <paramref name="item"/> is inspected.</param>
+    /// <exception cref="NotSupportedException">Always thrown — the collection is read-only.</exception>
     /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public void Add(Share<TNumber> item)
     {
         this.ThrowIfDisposed();
-        if (this.IsReadOnly)
-        {
-            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
-        }
-
-        if (!this.Contains(item))
-        {
-            this.shareList.Add(item);
-        }
+        throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
     }
 
     /// <summary>
-    /// Removes the first occurrence of a specific <see cref="Share{TNumber}"/> from the <see cref="Shares{TNumber}"/> collection.
+    /// Mutating ICollection member required by the interface contract.
+    /// <see cref="Shares{TNumber}"/> is permanently read-only
+    /// (<see cref="IsReadOnly"/> returns <see langword="true"/> unconditionally),
+    /// so this method always throws <see cref="NotSupportedException"/>.
     /// </summary>
-    /// <param name="item">The <see cref="Share{TNumber}"/> to remove from the <see cref="Shares{TNumber}"/> collection.</param>
-    /// <returns></returns>
-    /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
-    /// set to <see langword="true"/>.</remarks>
-    /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
+    /// <param name="item">Ignored — the call is rejected before <paramref name="item"/> is inspected.</param>
+    /// <returns>This method never returns; it always throws.</returns>
+    /// <exception cref="NotSupportedException">Always thrown — the collection is read-only.</exception>
     /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public bool Remove(Share<TNumber> item)
     {
         this.ThrowIfDisposed();
-        if (this.IsReadOnly)
-        {
-            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
-        }
-
-        return this.shareList.Remove(item);
+        throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
     }
 
     /// <summary>
