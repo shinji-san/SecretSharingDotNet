@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// <copyright file="ShamirsSecretSharing`3.cs" company="Private">
+// <copyright file="SecretReconstructor`3.cs" company="Private">
 // Copyright (c) 2025 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
@@ -36,6 +36,7 @@ using Math;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 /// <summary>
 /// Represents a class used for reconstructing secrets using Shamir's Secret Sharing scheme.
@@ -59,7 +60,22 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     private readonly ISecurityLevelManager<TNumber> securityLevelManager;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
+    /// Indicates whether this instance owns <see cref="securityLevelManager"/> and is therefore
+    /// responsible for disposing it. <see langword="true"/> when the manager was created internally
+    /// by the parameterless constructor; <see langword="false"/> when it was supplied by the caller.
+    /// </summary>
+    private readonly bool ownsSecurityLevelManager;
+
+    /// <summary>
+    /// Disposal flag manipulated atomically via <see cref="Interlocked.Exchange(ref int, int)"/>:
+    /// 0 = alive, 1 = disposed.
+    /// </summary>
+    private int disposed;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class
+    /// using a default <see cref="SecurityLevelManager{TNumber}"/>. The created manager is owned by this
+    /// instance and disposed together with it.
     /// </summary>
     /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
     /// <exception cref="T:System.ArgumentNullException">The <paramref name="extendedGcd"/> parameter is <see langword="null"/>.</exception>
@@ -67,92 +83,175 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     {
         this.extendedGcd = extendedGcd ?? throw new ArgumentNullException(nameof(extendedGcd));
         this.securityLevelManager = new SecurityLevelManager<TNumber>();
+        this.ownsSecurityLevelManager = true;
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdResult, TExtendedGcdResult}"/> class.
+    /// Initializes a new instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class
+    /// with a caller-supplied <see cref="ISecurityLevelManager{TNumber}"/>. Ownership of the manager
+    /// remains with the caller; this instance will not dispose it.
     /// </summary>
     /// <param name="extendedGcd">Extended greatest common divisor algorithm</param>
     /// <param name="securityLevelManager">Manages security level configuration</param>
-    /// <exception cref="T:System.ArgumentNullException">The <paramref name="extendedGcd"/> parameter is <see langword="null"/>.</exception>
+    /// <exception cref="T:System.ArgumentNullException">
+    /// The <paramref name="extendedGcd"/> or <paramref name="securityLevelManager"/> parameter is <see langword="null"/>.
+    /// </exception>
     public SecretReconstructor(TExtendedGcdAlgorithm extendedGcd, ISecurityLevelManager<TNumber> securityLevelManager)
     {
         this.extendedGcd = extendedGcd ?? throw new ArgumentNullException(nameof(extendedGcd));
         this.securityLevelManager = securityLevelManager ?? throw new ArgumentNullException(nameof(securityLevelManager));
+        this.ownsSecurityLevelManager = false;
     }
 
     /// <summary>
-    /// Gets or sets the security level
+    /// Finalizes an instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
     /// </summary>
-    /// <remarks>The value is lower than 13 or greater than 43.112.609.</remarks>
-    /// <exception cref="T:System.ArgumentOutOfRangeException" accessor="set">The value is lower than 13 or greater than 43.112.609.</exception>
+    ~SecretReconstructor()
+    {
+        this.Dispose(false);
+    }
+
+    /// <summary>
+    /// Gets the security level (in bits) of the underlying
+    /// <see cref="ISecurityLevelManager{TNumber}"/>.
+    /// </summary>
+    /// <remarks>
+    /// Read-only on this type. Each <see cref="Reconstruction"/> call invokes
+    /// <see cref="ISecurityLevelManager{TNumber}.AdjustSecurityLevel"/> on the manager,
+    /// which fits the level to <c>maximumY</c>; a value pinned by the caller would be
+    /// overwritten and is therefore not exposed via a setter. Callers who need to control
+    /// the level must inject their own <see cref="ISecurityLevelManager{TNumber}"/> via
+    /// the 2-arg constructor and configure it directly.
+    /// </remarks>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public int SecurityLevel
     {
-        get => this.securityLevelManager.SecurityLevel;
-        set => this.securityLevelManager.SecurityLevel = value;
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.securityLevelManager.SecurityLevel;
+        }
     }
 
     /// <summary>
-    /// Find the y-value for the given x, given n (x, y) points;
-    /// k points will define a polynomial of up to kth order
+    /// Reconstructs the secret (the constant term <c>a₀</c> of the original polynomial) from
+    /// <paramref name="shares"/> by Lagrange interpolation in the finite field defined by the
+    /// Mersenne prime corresponding to <see cref="SecurityLevel"/>, evaluated at <c>x = 0</c>.
+    /// The security level must match the one used during share creation.
     /// </summary>
-    /// <param name="finitePoints">The shares represented by a set of <see cref="FinitePoint{TNumber}"/>.</param>
-    /// <param name="prime">A prime number must be defined to avoid computation with real numbers. In fact, it is finite field arithmetic.
-    /// The prime number must be the same as used for the construction of shares.</param>
-    /// <exception cref="ArgumentException"></exception>
-    /// <returns>The re-constructed secret.</returns>
-    private Secret<TNumber> LagrangeInterpolate(FinitePoint<TNumber>[] finitePoints, Calculator<TNumber> prime)
+    /// <param name="shares">The k or more shares (distinct-index points) on the polynomial.</param>
+    /// <returns>The reconstructed secret.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="shares"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="shares"/> contains fewer than two entries.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Two or more entries in <paramref name="shares"/> share the same <see cref="Share{TNumber}.Index"/>.
+    /// </exception>
+    /// <remarks>
+    /// The <paramref name="shares"/> are borrowed — this method reads <see cref="Share{TNumber}.Index"/>
+    /// and <see cref="Share{TNumber}.Value"/> but never disposes them. Ownership of the shares remains
+    /// with the caller (typically a <see cref="Shares{TNumber}"/> collection).
+    /// </remarks>
+    private Secret<TNumber> LagrangeInterpolate(IReadOnlyList<Share<TNumber>> shares)
     {
-        if (finitePoints is null)
+        if (shares is null)
         {
-            throw new ArgumentNullException(nameof(finitePoints));
+            throw new ArgumentNullException(nameof(shares));
         }
 
-        if (prime is null)
+        int mersenneExponent = this.securityLevelManager.SecurityLevel;
+
+        int numberOfPoints = shares.Count;
+        if (numberOfPoints < 2)
         {
-            throw new ArgumentNullException(nameof(prime));
+            throw new ArgumentOutOfRangeException(nameof(shares), numberOfPoints, ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
 
-        int numberOfPoints = finitePoints.Length;
-        if (finitePoints.Distinct().Count() != numberOfPoints)
+        if (shares.Select(s => s.Index).Distinct().Count() != numberOfPoints)
         {
-            throw new ArgumentException(ErrorMessages.FinitePointsNotDistinct, nameof(finitePoints));
+            throw new ArgumentException(ErrorMessages.ShareIndicesNotDistinct, nameof(shares));
         }
 
+        using var zero = Calculator<TNumber>.Zero;
         var numeratorProducts = new Calculator<TNumber>[numberOfPoints];
         var denominatorProducts = new Calculator<TNumber>[numberOfPoints];
-        var numeratorTerms = new Calculator<TNumber>[numberOfPoints];
-        var denominatorTerms = new Calculator<TNumber>[numberOfPoints];
-        var denominator = Calculator<TNumber>.One;
-        for (int i = 0; i < numberOfPoints; i++)
+        Calculator<TNumber> denominator = null;
+        Calculator<TNumber> numerator = null;
+        try
         {
-            for (int j = 0; j < numberOfPoints; j++)
+            denominator = Calculator<TNumber>.One;
+
+            for (int i = 0; i < numberOfPoints; i++)
             {
-                if (finitePoints[i] != finitePoints[j])
+                var numeratorProduct = Calculator<TNumber>.One;
+                var denominatorProduct = Calculator<TNumber>.One;
+                try
                 {
-                    numeratorTerms[j] = Calculator<TNumber>.Zero - finitePoints[j].X;
-                    denominatorTerms[j] = finitePoints[i].X - finitePoints[j].X;
+                    for (int j = 0; j < numberOfPoints; j++)
+                    {
+                        if (i == j)
+                        {
+                            continue;
+                        }
+
+                        using var numeratorTerm = zero - shares[j].Index;
+                        using var denominatorTerm = shares[i].Index - shares[j].Index;
+                        var numeratorPrev = numeratorProduct;
+                        numeratorProduct = numeratorProduct * numeratorTerm;
+                        numeratorPrev.Dispose();
+                        var denominatorPrev = denominatorProduct;
+                        denominatorProduct = denominatorProduct * denominatorTerm;
+                        denominatorPrev.Dispose();
+                    }
+
+                    numeratorProducts[i] = numeratorProduct;
+                    denominatorProducts[i] = denominatorProduct;
+                    // Ownership transferred to the *Products arrays; the outer finally
+                    // is now responsible. Null the locals so the catch below does not
+                    // double-dispose values already owned by the arrays.
+                    numeratorProduct = denominatorProduct = null;
+                    var denominatorTemp = denominator;
+                    denominator *= denominatorProducts[i];
+                    denominatorTemp.Dispose();
                 }
-                else
+                catch
                 {
-                    numeratorTerms[j] = denominatorTerms[j] = Calculator<TNumber>.One;
+                    numeratorProduct?.Dispose();
+                    denominatorProduct?.Dispose();
+                    throw;
                 }
             }
 
-            numeratorProducts[i] = Product(numeratorTerms);
-            denominatorProducts[i] = Product(denominatorTerms);
-            denominator *= denominatorProducts[i];
-        }
+            numerator = zero.Clone();
+            for (int i = 0; i < numberOfPoints; i++)
+            {
+                using var weightedNumerator = numeratorProducts[i] * denominator;
+                using var normalizedYCoordinate = shares[i].Value.MersenneModulo(mersenneExponent);
+                using var currentNumerator = weightedNumerator * normalizedYCoordinate;
+                using var modInversePerPoint = this.DivMod(currentNumerator, denominatorProducts[i]);
+                var numeratorTemp = numerator;
+                numerator += modInversePerPoint;
+                numeratorTemp.Dispose();
+            }
 
-        var numerator = Calculator<TNumber>.Zero;
-        for (int i = 0; i < numberOfPoints; i++)
+            // DivMod returns the result already reduced into [0, p-1], so it is the
+            // normalised secret coefficient a0 directly.
+            using var a0 = this.DivMod(numerator, denominator);
+
+            return Secret<TNumber>.FromCoefficient(a0);
+        }
+        finally
         {
-            numerator += this.DivMod(numeratorProducts[i] * denominator * ((finitePoints[i].Y % prime + prime) % prime), denominatorProducts[i], prime);
+            // prime is provided from Mersenne prime provider and is not disposed here.
+            // Shares are provided from outside and are not disposed here.
+            numerator?.Dispose();
+            denominator?.Dispose();
+            numeratorProducts.DisposeAll();
+            denominatorProducts.DisposeAll();
         }
-
-        var a = this.DivMod(numerator, denominator, prime) + prime;
-        a = (a % prime + prime) % prime; //// mathematical modulo
-        return Secret<TNumber>.FromCoefficient(a);
     }
 
     /// <summary>
@@ -160,8 +259,18 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </summary>
     /// <param name="shares">For details <see cref="Shares{TNumber}"/></param>
     /// <returns>Re-constructed secret</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="shares"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="shares"/> contains fewer than two entries.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="shares"/> has no maximum y-value, or contains entries with duplicate
+    /// <see cref="Share{TNumber}.Index"/> values.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public Secret<TNumber> Reconstruction(Shares<TNumber> shares)
     {
+        this.ThrowIfDisposed();
         if (shares is null)
         {
             throw new ArgumentNullException(nameof(shares));
@@ -172,36 +281,41 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentOutOfRangeException(nameof(shares), ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
 
-        var finitePoints = shares.ToFinitePoints();
-        var maximumY = finitePoints.Select(point => point.Y).Max();
+        var shareList = shares.ToArray();
+        var maximumY = shareList.Select(share => share.Value).Max();
         if (maximumY is null)
         {
             throw new ArgumentException(ErrorMessages.NoMaximumY, nameof(shares));
         }
 
         this.securityLevelManager.AdjustSecurityLevel(maximumY);
-        return this.LagrangeInterpolate(finitePoints, this.securityLevelManager.MersennePrime);
+        return this.LagrangeInterpolate(shareList);
     }
 
     /// <summary>
-    /// Performs division in a finite field, returning the modular result of dividing the numerator by the denominator modulo a given prime.
+    /// Performs division in the finite field defined by the configured Mersenne
+    /// prime, returning the modular result of dividing the numerator by the
+    /// denominator. The prime modulus and exponent are sourced from
+    /// <see cref="securityLevelManager"/>; callers must ensure the manager is
+    /// configured before invoking this method (the public
+    /// <see cref="Reconstruction"/> entry point handles that automatically).
     /// </summary>
     /// <param name="numerator">The value to be divided.</param>
     /// <param name="denominator">The value by which the numerator is divided.</param>
-    /// <param name="prime">The prime modulus for the finite field operations.</param>
     /// <returns>The result of the division operation in the finite field, reduced modulo the prime.</returns>
     /// <exception cref="System.ArgumentNullException">
-    /// Thrown when the <paramref name="numerator"/>, <paramref name="denominator"/> or <paramref name="prime"/> parameter is null.
+    /// Thrown when the <paramref name="numerator"/> or <paramref name="denominator"/> parameter is null.
     /// </exception>
     /// <exception cref="System.ArgumentException">
     /// Thrown when the <paramref name="denominator"/> is zero (its modular inverse does not exist) or
     /// when the denominator is not invertible modulo the prime (gcd does not equal 1).
     /// </exception>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     internal Calculator<TNumber> DivMod(
         Calculator<TNumber> numerator,
-        Calculator<TNumber> denominator,
-        Calculator<TNumber> prime)
+        Calculator<TNumber> denominator)
     {
+        this.ThrowIfDisposed();
         if (numerator is null)
         {
             throw new ArgumentNullException(nameof(numerator));
@@ -212,59 +326,83 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentNullException(nameof(denominator));
         }
 
-        if (prime is null)
-        {
-            throw new ArgumentNullException(nameof(prime));
-        }
+        var prime = this.securityLevelManager.MersennePrime;
+        int mersenneExponent = this.securityLevelManager.SecurityLevel;
 
         // Normalize denominator into [0, p-1]
-        denominator = ModReduce(denominator, prime);
-        if (denominator.IsZero)
+        using var normalizedDenominator = denominator.MersenneModulo(mersenneExponent);
+        if (normalizedDenominator.IsZero)
         {
             throw new ArgumentException(ErrorMessages.InverseOfZeroDoesNotExist, nameof(denominator));
         }
 
-        var result = this.extendedGcd.Compute(denominator, prime);
+        // The extended GCD still operates on the prime VALUE: the algorithm is
+        // generic and does not exploit the Mersenne structure. Mersenne-fold
+        // optimisation only kicks in for the modulo reductions below.
+        using var result = this.extendedGcd.Compute(normalizedDenominator, prime);
         // Check whether the denominator is invertible modulo the prime
         if (!result.GreatestCommonDivisor.IsOne)
         {
             throw new ArgumentException(ErrorMessages.DenominatorIsNotInvertibleModuloPrime, nameof(denominator));
         }
 
-        // Normalize inverse: x mod prime
-        var inverse = (result.BezoutCoefficients[0] % prime + prime) % prime;
-        // Normalize numerator: numerator mod prime
-        var normalizedNumerator = (numerator % prime + prime) % prime;
+        // Normalize inverse: x mod M_p (Bezout coefficient may be negative)
+        using var inverse = result.BezoutCoefficients[0].MersenneModulo(mersenneExponent);
 
-        // (numerator * inverse) mod prime
-        var value = normalizedNumerator * inverse;
-        value = (value % prime + prime) % prime;
-        return value;
+        // Normalize numerator: numerator mod M_p (caller may pass signed values)
+        using var normalizedNumerator = numerator.MersenneModulo(mersenneExponent);
+
+        // (numerator * inverse) mod M_p
+        using var modInverse = normalizedNumerator * inverse;
+        return modInverse.MersenneModulo(mersenneExponent);
     }
 
     /// <summary>
-    /// Reduces <paramref name="x"/> into the canonical range [0, p-1].
+    /// Releases all resources used by the current instance of the
+    /// <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
     /// </summary>
-    private static Calculator<TNumber> ModReduce(Calculator<TNumber> x, Calculator<TNumber> prime)
+    /// <remarks>
+    /// Idempotent and safe to call from multiple threads concurrently. The owned
+    /// <see cref="ISecurityLevelManager{TNumber}"/> (when present) is disposed exactly once.
+    /// </remarks>
+    public void Dispose()
     {
-        var r = (x % prime + prime) % prime;
-        return r.Sign < 0 ? r + prime : r;
-    }
-
-    /// <summary>
-    /// Computes the mathematical product of a series of <paramref name="values"/>
-    /// </summary>
-    /// <param name="values"></param>
-    /// <returns></returns>
-    /// <remarks>Helper method for LagrangeInterpolate</remarks>
-    private static Calculator<TNumber> Product(IReadOnlyList<Calculator<TNumber>> values)
-    {
-        var result = Calculator<TNumber>.One;
-        for (int i = 0; i < values.Count; i++)
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
         {
-            result *= values[i];
+            return;
         }
 
-        return result;
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases the resources used by the
+    /// <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> instance.
+    /// </summary>
+    /// <param name="disposing">A boolean value indicating whether to release managed resources (<see langword="true"/>)
+    /// or only unmanaged resources (<see langword="false"/>).</param>
+    /// <remarks>
+    /// Disposes the contained <see cref="ISecurityLevelManager{TNumber}"/> only when this instance owns it
+    /// (i.e. when constructed via the parameterless-manager overload).
+    /// </remarks>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing && this.ownsSecurityLevelManager)
+        {
+            this.securityLevelManager.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Throws <see cref="ObjectDisposedException"/> if this instance has already been disposed.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref this.disposed) == 1)
+        {
+            throw new ObjectDisposedException(this.GetType().FullName);
+        }
     }
 }

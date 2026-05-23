@@ -27,11 +27,23 @@
     <data name="MinNumberOfSharesLowerThanTwo" xml:space="preserve">
         <value>The minimum number of shares is lower than 2! Please set the minimum number of shares to 2 or higher.</value>
     </data>
-    <data name="FinitePointsNotDistinct" xml:space="preserve">
-        <value>Finite points (aka shares) are not distinct!</value>
+    <data name="ShareIndicesNotDistinct" xml:space="preserve">
+        <value>Share indices are not distinct.</value>
     </data>
     <data name="MaxSharesLowerThanMinShares" xml:space="preserve">
         <value>The pool secret would be irrecoverable, if you use these parameters, because the maximum number of shares is lower than the minimum number of shares.</value>
+    </data>
+    <data name="MaxSharesExceedsMersennePrime" xml:space="preserve">
+        <value>The maximum number of shares must be lower than the current Mersenne prime defining the finite field.</value>
+    </data>
+    <data name="MaxSharesExceedsImplementationLimit" xml:space="preserve">
+        <value>The maximum number of shares must not exceed {0}.</value>
+    </data>
+    <data name="ShareIsNonCopyable" xml:space="preserve">
+        <value>Share&lt;TNumber&gt; is non-copyable: it owns disposable Calculator fields, and a shallow record copy would alias them across two instances. Construct a new share via the public constructor or obtain shares from a Shares&lt;TNumber&gt; collection instead of using `with` or the copy constructor.</value>
+    </data>
+    <data name="RandomRangeExceedsMaximum" xml:space="preserve">
+        <value>The requested random range exceeds the maximum supported by the random helper.</value>
     </data>
     <data name="ReadOnlyCollection" xml:space="preserve">
         <value>The {0} collection is read-only.</value>
@@ -84,5 +96,92 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     </data>
     <data name="InvalidShareFormat" xml:space="preserve">
         <value>Invalid share format. Expected format: 'X{0}Y' where X and Y are hexadecimal values.</value>
+    </data>
+    <data name="LengthOutOfRangeForCapacity" xml:space="preserve">
+        <value>Length must be non-negative and less than or equal to the capacity of the array.</value>
+    </data>
+    <data name="IndexOutOfRangeForLength" xml:space="preserve">
+        <value>Index must be non-negative and less than the length of the array.</value>
+    </data>
+    <data name="ArgumentMustBeArrayButWasX" xml:space="preserve">
+        <value>Argument must be an Array, but was {0}.</value>
+    </data>
+    <data name="ArgumentArrayLengthMismatch" xml:space="preserve">
+        <value>Argument must be an Array of the same length, but was {0} instead of {1}.</value>
+    </data>
+    <data name="CountedComparerRequiredForCompare" xml:space="preserve">
+        <value>A counted comparer is required. Use '{0}' to specify the number of elements to compare.</value>
+    </data>
+    <data name="CountedComparerRequiredForHash" xml:space="preserve">
+        <value>A counted comparer is required. Use '{0}' to specify the number of elements to hash.</value>
+    </data>
+    <data name="CountExceedsBothArrayLengths" xml:space="preserve">
+        <value>Count '{0}' exceeds one of the array lengths ({1}, {2}).</value>
+    </data>
+    <data name="CountExceedsArrayLength" xml:space="preserve">
+        <value>Count '{0}' exceeds the array length ({1}).</value>
+    </data>
+    <data name="ComparerExpectedTypeX" xml:space="preserve">
+        <value>Comparer expected elements of type '{0}'.</value>
+    </data>
+    <data name="ValueCannotBeEmpty" xml:space="preserve">
+        <value>Value cannot be empty.</value>
+    </data>
+    <data name="NumberFormatSignWithoutDigits" xml:space="preserve">
+        <value>Invalid number format. Sign without digits.</value>
+    </data>
+    <data name="NumberFormatInvalidChar" xml:space="preserve">
+        <value>Invalid character in number: '{0}'.</value>
+    </data>
+    <data name="DivisionByZero" xml:space="preserve">
+        <value>Division by zero is not allowed.</value>
+    </data>
+    <data name="ExponentMustBeNonNegative" xml:space="preserve">
+        <value>Exponent must be non-negative.</value>
+    </data>
+    <data name="OperandMustBeNonNegative" xml:space="preserve">
+        <value>Operand must be non-negative.</value>
+    </data>
+    <data name="OperandMustBePositiveAndOdd" xml:space="preserve">
+        <value>Operand must be positive and odd.</value>
+    </data>
+    <data name="MersenneModulusMustBeOdd" xml:space="preserve">
+        <value>The modulus must be a Mersenne prime (M_p = 2^p - 1); even values are rejected.</value>
+    </data>
+    <data name="SecretNotInitialized" xml:space="preserve">
+        <value>The secret has not been initialized. A default-initialized Secret&lt;TNumber&gt; instance cannot be converted.</value>
+    </data>
+    <data name="LengthOutOfRangeForUlong" xml:space="preserve">
+        <value>Length must be in [0, 8].</value>
+    </data>
+    <data name="ModulusMustNotBeZero" xml:space="preserve">
+        <value>Modulus must not be zero.</value>
+    </data>
+    <data name="ValueTooLargeForInt" xml:space="preserve">
+        <value>Value is too large for 'int'.</value>
+    </data>
+    <data name="ValueTooLargeForLong" xml:space="preserve">
+        <value>Value is too large for 'long'.</value>
+    </data>
+    <data name="MaxLengthMustBePositive" xml:space="preserve">
+        <value>Maximum length must be a positive integer greater than zero.</value>
+    </data>
+    <data name="ConsoleInputRedirected" xml:space="preserve">
+        <value>Standard input is redirected; interactive password reading is not available.</value>
+    </data>
+    <data name="InvalidBase64CharAtPosition" xml:space="preserve">
+        <value>Invalid Base64 character '{0}' at position {1}.</value>
+    </data>
+    <data name="InvalidBase64Length" xml:space="preserve">
+        <value>Base64 input length (excluding whitespace) must be a multiple of 4.</value>
+    </data>
+    <data name="InvalidBase64Padding" xml:space="preserve">
+        <value>Base64 input contains invalid '=' padding.</value>
+    </data>
+    <data name="SecurityLevelNotInitialized" xml:space="preserve">
+        <value>Security level is not initialized.</value>
+    </data>
+    <data name="PinnedBufferLengthMismatch" xml:space="preserve">
+        <value>Expected a pinned buffer of length {0}, but was {1}.</value>
     </data>
 </root>

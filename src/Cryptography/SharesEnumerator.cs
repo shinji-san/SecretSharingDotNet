@@ -37,14 +37,14 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
 /// <summary>
-/// Supports a iteration over <see cref="Shares{TNumber}"/> collection.
+/// Supports an iteration over <see cref="Shares{TNumber}"/> collection.
 /// </summary>
-/// <typeparam name="TNumber">The type of integer which is used by the <see cref="FinitePoint{TNumber}"/> items of the
+/// <typeparam name="TNumber">The type of integer that is used by the <see cref="Share{TNumber}"/> items of the
 /// <see cref="Shares{TNumber}"/> collection.</typeparam>
 public sealed class SharesEnumerator<TNumber> : IEnumerator<Share<TNumber>>
 {
     /// <summary>
-    /// Saves a list of <see cref="FinitePoint{TNumber}"/>.
+    /// Saves a list of <see cref="Share{TNumber}"/>.
     /// </summary>
     private readonly ReadOnlyCollection<Share<TNumber>> shareList;
 
@@ -56,7 +56,7 @@ public sealed class SharesEnumerator<TNumber> : IEnumerator<Share<TNumber>>
     /// <summary>
     /// Initializes a new instance of the <see cref="SharesEnumerator{TNumber}"/> class.
     /// </summary>
-    /// <param name="shares">A collection of <see cref="FinitePoint{TNumber}"/> items representing the shares.</param>
+    /// <param name="shares">A collection of <see cref="Share{TNumber}"/> items representing the shares.</param>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="shares"/> is <see langword="null"/></exception>
     public SharesEnumerator(Collection<Share<TNumber>> shares)
     {
@@ -83,6 +83,15 @@ public sealed class SharesEnumerator<TNumber> : IEnumerator<Share<TNumber>>
     /// <summary>
     /// Performs tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
+    /// <remarks>
+    /// Intentionally a no-op. The enumerator does not own any disposable
+    /// resources of its own: <see cref="shareList"/> is a borrowed
+    /// <see cref="ReadOnlyCollection{T}"/> wrapper around the caller-supplied
+    /// <see cref="Collection{T}"/>, and the enumerated <see cref="Share{TNumber}"/>
+    /// instances are owned by the parent <see cref="Shares{TNumber}"/>.
+    /// Disposing them here would leave the parent container holding
+    /// references to disposed shares.
+    /// </remarks>
     public void Dispose() { }
 
     /// <summary>
