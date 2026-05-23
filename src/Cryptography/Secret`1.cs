@@ -445,8 +445,28 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         }
     }
 
+    /// <summary>
+    /// Sentinel returned by <see cref="DecodeBase64Char"/> for any character that is not a
+    /// Base64 alphabet character, padding (<c>'='</c>), or recognised whitespace. Triggers the
+    /// pass-1 <see cref="FormatException"/> in <see cref="DecodeBase64"/>. Negative so it
+    /// cannot collide with a legitimate sextet value in the range <c>0..63</c>.
+    /// </summary>
     private const int InvalidSextet = -1;
+
+    /// <summary>
+    /// Sentinel returned by <see cref="DecodeBase64Char"/> for the Base64 padding character
+    /// <c>'='</c>. <see cref="DecodeBase64"/> counts these to decide whether the final quad
+    /// emits 1, 2, or 3 output bytes and to reject more than two padding characters.
+    /// Negative so it cannot collide with a legitimate sextet value in the range <c>0..63</c>.
+    /// </summary>
     private const int PaddingSextet = -2;
+
+    /// <summary>
+    /// Sentinel returned by <see cref="DecodeBase64Char"/> for whitespace characters (space,
+    /// tab, CR, LF, FF, VT) that should be silently skipped by <see cref="DecodeBase64"/> —
+    /// matching the behaviour of <see cref="Convert.FromBase64String(string)"/>. Negative so
+    /// it cannot collide with a legitimate sextet value in the range <c>0..63</c>.
+    /// </summary>
     private const int WhitespaceSextet = -3;
 
 #if !(NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
