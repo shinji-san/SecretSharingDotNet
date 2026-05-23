@@ -650,6 +650,32 @@ public class SecretTest
     }
 
     /// <summary>
+    /// Regression for PR #296 codex review comment <c>r3293128648</c>: when the underlying
+    /// secret bytes are not a valid sequence for the supplied <see cref="Encoding"/> and
+    /// that encoding uses a strict <see cref="DecoderExceptionFallback"/>, the pinned
+    /// output buffer that <see cref="Secret{TNumber}.ToCharArray(Encoding)"/> allocates
+    /// before <c>GetChars</c> must be disposed before the
+    /// <see cref="DecoderFallbackException"/> escapes — callers cannot dispose a return
+    /// value they never received.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_WithStrictEncodingAndInvalidBytes_ThrowsAndDoesNotLeak()
+    {
+        // Arrange — UTF-8 with strict decoder fallback so an invalid byte sequence
+        // (a lone 0xFF continuation byte) triggers a DecoderFallbackException inside
+        // encoding.GetChars(...) after the pinned char buffer has been allocated.
+        var strictUtf8 = Encoding.GetEncoding(
+            "UTF-8",
+            EncoderFallback.ExceptionFallback,
+            DecoderFallback.ExceptionFallback);
+        using var secret = new Secret<SecureBigInteger>([0xFF]);
+
+        // Act & Assert — exception must escape; the internal pinned buffer is wiped
+        // by the catch block before the throw propagates.
+        Assert.Throws<DecoderFallbackException>(() => secret.ToCharArray(strictUtf8));
+    }
+
+    /// <summary>
     /// Tests the ToBase64String method of the <see cref="Secret{TNumber}"/> class.
     /// </summary>
     /// <param name="base64Secret">Secret as base64 string</param>
@@ -766,7 +792,7 @@ public class SecretTest
     {
         // Arrange
         Secret<SecureBigInteger> emptySecret = default;
-        using var initialized = new Secret<SecureBigInteger>(new byte[] { 1, 2, 3 }, 3);
+        using var initialized = new Secret<SecureBigInteger>([1, 2, 3], 3);
 
         // Act & Assert
         Assert.False(emptySecret.Equals(initialized));
@@ -798,7 +824,7 @@ public class SecretTest
     {
         // Arrange
         Secret<SecureBigInteger> emptySecret = default;
-        using var initialized = new Secret<SecureBigInteger>(new byte[] { 1, 2, 3 }, 3);
+        using var initialized = new Secret<SecureBigInteger>([1, 2, 3], 3);
 
         // Act
         int defaultVsInit = emptySecret.CompareTo(initialized);
@@ -945,7 +971,7 @@ public class SecretTest
     public void Constructor_ByteArrayWithNegativeLength_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
-        byte[] source = { 1, 2, 3 };
+        byte[] source = [1, 2, 3];
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Secret<SecureBigInteger>(source, -1));
@@ -963,7 +989,7 @@ public class SecretTest
     public void Constructor_ByteArrayWithLengthExceedingSource_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
-        byte[] source = { 1, 2, 3 };
+        byte[] source = [1, 2, 3];
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Secret<SecureBigInteger>(source, source.Length + 1));
@@ -1408,7 +1434,7 @@ public class SecretTest
     {
         // Arrange — single value byte 0x2A (= 42, LE/positive); the Secret ctor appends
         // a random termination byte that the (Calculator)secret cast strips back off.
-        byte[] valueBytes = { 0x2A };
+        byte[] valueBytes = [0x2A];
         using var secret = new Secret<SecureBigInteger>(valueBytes, valueBytes.Length);
         using var expected = new SecureBigInteger(42L);
 
@@ -1436,7 +1462,7 @@ public class SecretTest
     public void CastToSecureBigInteger_FromSecret_TwiceReturnsIndependentInstances()
     {
         // Arrange
-        byte[] valueBytes = { 0x2A };
+        byte[] valueBytes = [0x2A];
         using var secret = new Secret<SecureBigInteger>(valueBytes, valueBytes.Length);
 
         // Act

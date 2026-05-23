@@ -947,13 +947,39 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
         ReadOnlySpan<byte> sourceSpan = this.secretNumber.PoolArray.AsSpan(0, byteCount);
         int charCount = encoding.GetCharCount(sourceSpan);
+        // GetCharCount succeeded but GetChars may still throw on a strict
+        // DecoderFallback. Hold the pinned buffer in a temporary that the catch wipes
+        // before the exception escapes — the caller cannot dispose a return value
+        // it never received.
         var result = new PinnedPoolArray<char>(charCount);
-        encoding.GetChars(sourceSpan, result.PoolArray.AsSpan(0, charCount));
+        try
+        {
+            encoding.GetChars(sourceSpan, result.PoolArray.AsSpan(0, charCount));
+        }
+        catch
+        {
+            result.Dispose();
+            throw;
+        }
+
         return result;
 #else
         int charCount = encoding.GetCharCount(this.secretNumber.PoolArray, 0, byteCount);
+        // GetCharCount succeeded but GetChars may still throw on a strict
+        // DecoderFallback. Hold the pinned buffer in a temporary that the catch wipes
+        // before the exception escapes — the caller cannot dispose a return value
+        // it never received.
         var result = new PinnedPoolArray<char>(charCount);
-        encoding.GetChars(this.secretNumber.PoolArray, 0, byteCount, result.PoolArray, 0);
+        try
+        {
+            encoding.GetChars(this.secretNumber.PoolArray, 0, byteCount, result.PoolArray, 0);
+        }
+        catch
+        {
+            result.Dispose();
+            throw;
+        }
+
         return result;
 #endif
     }
