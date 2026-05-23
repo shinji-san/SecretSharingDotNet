@@ -108,17 +108,32 @@ using System;
 /// <para>
 /// <b>Threat model — backend-conditional.</b> The outer iteration count is
 /// fixed at the public Mersenne exponent, independent of operand values.
+/// This is the only timing guarantee the algorithm gives out of the box —
+/// per-iteration wall-clock time is <em>not</em> uniform, see below.
 /// Whether per-iteration work is itself constant-time depends on the
 /// <see cref="Calculator{TNumber}"/> backend the type is instantiated with:
 /// <list type="bullet">
 ///   <item>With <c>TNumber = </c><see cref="SecureBigInteger"/>, the
 ///   divstep loop's per-iter arithmetic flows through that backend's CT
-///   primitives. Per-iter wall-clock time is approximately uniform across
-///   branches and independent of secret operand values. The
-///   <c>2^{-n} mod M_p</c> correction is computed via
-///   <see cref="SecureBigInteger.Pow"/>, whose iteration count depends only on
-///   the public correction exponent. This is the configuration the
-///   threat-model guarantees of this library are written against.</item>
+///   primitives, so the timing of each individual <c>Add</c> / <c>Subtract</c>
+///   / <c>Multiply</c> call depends only on the public bit-length of its
+///   operands. Per-iter <em>aggregate</em> wall-clock time, however, is
+///   <em>not</em> uniform: the three divstep branches in
+///   <c>ApplyExtendedDivstep</c> dispatch a different number of fresh
+///   <see cref="Calculator{TNumber}"/> allocations (six / six / four) and
+///   call distinct operator combinations on them. In particular the two
+///   odd-<c>g</c> branches funnel <c>g</c> (or <c>g − f</c>) through
+///   <see cref="SecureBigInteger"/>'s division, whose bit-loop count tracks
+///   the limb count of the intermediate working values — which decreases
+///   over the loop and is therefore observable through per-iter timing.
+///   The branch selector itself reads the LSB of secret <c>g</c> plus
+///   the public sign of <c>delta</c>. The <c>2^{-n} mod M_p</c> correction
+///   is computed via <see cref="SecureBigInteger.Pow"/>, whose iteration
+///   count depends only on the public correction exponent.
+///   This is the configuration the threat-model guarantees of this library
+///   are written against — but the guarantee is <em>"the total number of
+///   divstep iterations is operand-independent,"</em> not
+///   <em>"each iteration costs the same wall-clock time."</em></item>
 ///   <item>With <c>TNumber = </c><see cref="System.Numerics.BigInteger"/>, the
 ///   algorithm is mathematically equivalent but per-iter wall-clock time is
 ///   variable on operand magnitude. The fixed iteration count alone does
@@ -127,9 +142,11 @@ using System;
 ///   excludes timing side channels (e.g. trusted-local computation or
 ///   testing-/cross-check use cases).</item>
 /// </list>
-/// Strict branchless mask-select between precomputed alternatives is a
-/// future-work optimisation aligned with a limb-level rewrite of the CT
-/// primitives.
+/// Strict branchless mask-select between precomputed alternatives (all three
+/// branches always run; the winning result is chosen via constant-time mask
+/// select) is a future-work optimisation aligned with a limb-level rewrite of
+/// the CT primitives — it would lift the SecureBigInteger configuration from
+/// "outer-iteration-count constant-time" to genuinely per-iteration uniform.
 /// </para>
 /// <para>
 /// <b>Implementation provenance.</b> Implemented from the Bernstein–Yang
