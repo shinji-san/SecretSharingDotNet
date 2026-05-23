@@ -48,7 +48,7 @@ using System.Threading;
 /// The numeric type used to represent shares and secret values.
 /// It must support arithmetic operations and be compatible with the Shamir's Secret Sharing implementation.
 /// </typeparam>
-public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
+public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
 {
     /// <summary>
     /// Hard upper bound on the maximum number of shares (<c>numberOfShares</c>) that
@@ -532,6 +532,8 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
 
     /// <summary>
     /// Releases the resources used by the <see cref="SecretSplitter{TNumber}"/> instance.
+    /// Internal helper invoked exactly once by <see cref="Dispose"/> after the disposed
+    /// flag has been flipped.
     /// </summary>
     /// <param name="disposing">A boolean value indicating whether to release managed resources (<see langword="true"/>)
     /// or only unmanaged resources (<see langword="false"/>).</param>
@@ -539,7 +541,7 @@ public class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     /// Disposes the contained <see cref="ISecurityLevelManager{TNumber}"/> only when this instance owns it
     /// (i.e. when constructed via the parameterless-manager overload).
     /// </remarks>
-    protected virtual void Dispose(bool disposing)
+    private void Dispose(bool disposing)
     {
         if (disposing && this.ownsSecurityLevelManager)
         {
