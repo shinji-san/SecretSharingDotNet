@@ -65,6 +65,10 @@ public static class SecureCharBufferExtensions
     /// characters into a pinned buffer from the start — for example via
     /// <see cref="ConsolePasswordReader.ReadPassword(int, char?)"/>.
     /// </para>
+    /// <para>
+    /// If the post-allocation write throws, the pinned buffer is disposed before the
+    /// exception is rethrown — no reference to a partially-filled buffer escapes.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="source"/> is <see langword="null"/>.
@@ -77,9 +81,17 @@ public static class SecureCharBufferExtensions
         }
 
         var pinned = new PinnedPoolArray<char>(source.Length);
-        if (source.Length > 0)
+        try
         {
-            source.CopyTo(0, pinned.PoolArray, 0, source.Length);
+            if (source.Length > 0)
+            {
+                source.CopyTo(0, pinned.PoolArray, 0, source.Length);
+            }
+        }
+        catch
+        {
+            pinned.Dispose();
+            throw;
         }
 
         return pinned;
@@ -99,13 +111,25 @@ public static class SecureCharBufferExtensions
     /// The pinning guarantee covers only the destination buffer. If <paramref name="source"/>
     /// is backed by an unpinned managed array or a <see cref="string"/>, the original
     /// characters remain recoverable from that backing store after this method returns.
+    /// <para>
+    /// If the post-allocation write throws, the pinned buffer is disposed before the
+    /// exception is rethrown — no reference to a partially-filled buffer escapes.
+    /// </para>
     /// </remarks>
     public static PinnedPoolArray<char> ToPinnedSecure(this ReadOnlySpan<char> source)
     {
         var pinned = new PinnedPoolArray<char>(source.Length);
-        if (source.Length > 0)
+        try
         {
-            source.CopyTo(pinned.PoolArray.AsSpan(0, source.Length));
+            if (source.Length > 0)
+            {
+                source.CopyTo(pinned.PoolArray.AsSpan(0, source.Length));
+            }
+        }
+        catch
+        {
+            pinned.Dispose();
+            throw;
         }
 
         return pinned;
@@ -128,6 +152,10 @@ public static class SecureCharBufferExtensions
     /// The pinning guarantee covers only the destination buffer — the GC may have relocated
     /// <paramref name="source"/> at any point in its lifetime, so prior unpinned residue may
     /// still exist elsewhere in process memory.
+    /// <para>
+    /// If the post-allocation write throws, the pinned buffer is disposed before the
+    /// exception is rethrown — no reference to a partially-filled buffer escapes.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="source"/> is <see langword="null"/>.
@@ -140,10 +168,18 @@ public static class SecureCharBufferExtensions
         }
 
         var pinned = new PinnedPoolArray<char>(source.Length);
-        if (source.Length > 0)
+        try
         {
-            Array.Copy(source, 0, pinned.PoolArray, 0, source.Length);
-            Array.Clear(source, 0, source.Length);
+            if (source.Length > 0)
+            {
+                Array.Copy(source, 0, pinned.PoolArray, 0, source.Length);
+                Array.Clear(source, 0, source.Length);
+            }
+        }
+        catch
+        {
+            pinned.Dispose();
+            throw;
         }
 
         return pinned;

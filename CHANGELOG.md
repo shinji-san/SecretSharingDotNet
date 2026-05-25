@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SecureBigInteger.Equals` no longer calls a redundant `Array.Clear` after `new PinnedPoolArray<ulong>(…)` — the constructor already zero-clears the rented capacity.
 - `MersenneSafeGcdAlgorithm<TNumber>` threat-model XDoc tightened: only the outer divstep iteration count is operand-independent; per-iteration wall-clock varies with the limb count of the shrinking intermediate working values. The README's Security & Threat Model section is updated to match.
 - `SecureBigInteger.Pow(int)` XDoc now flags the `exponent ∈ {0, 1}` early returns as additional timing distinctions beyond the documented `O(log₂(exponent))`.
+- Hardened pinned-buffer allocations across `SecureCharBufferExtensions`, `SecureNumericBufferExtensions`, and `PinnedPoolArrayExtensions.Subset<T>` to dispose the freshly-allocated pinned buffer if the post-allocation write throws. The failure paths are unreachable in clean code, so no behavioural change in practice — defense-in-depth against partial-fill leaks if the copy/write ever does throw.
 
 ### Removed
 - Removed support for .NET Framework 4.7.1.
