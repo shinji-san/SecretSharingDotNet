@@ -281,8 +281,11 @@ internal sealed class DemoApp
         Console.WriteLine($"Generated {shares.Count} shares (keep each one confidential):");
         for (int i = 0; i < shares.Count; i++)
         {
-            // Share.ToString() emits the public "INDEX-VALUE" hex serialisation; safe to print.
-            Console.WriteLine($"  [{i + 1}] {shares[i]}");
+            Console.Write($"  [{i + 1}] ");
+            // Pinned-buffer write path — no intermediate managed string; the char buffer is wiped on dispose.
+            using var charArray = shares[i].ToCharArray();
+            Console.Write(charArray.PoolArray, 0, charArray.Length);
+            Console.WriteLine();
         }
 
         Console.WriteLine();
