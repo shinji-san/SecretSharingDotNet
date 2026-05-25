@@ -47,6 +47,12 @@ internal static class PinnedPoolArrayExtensions
     /// <param name="index">start index</param>
     /// <param name="count">number of elements to copy to a new subset array</param>
     /// <returns>An array that contains the specified number of elements from the <paramref name="index"/> of the <paramref name="array"/>.</returns>
+    /// <remarks>
+    /// <para>
+    /// If the post-allocation write throws, the pinned buffer is disposed before the
+    /// exception is rethrown — no reference to a partially-filled buffer escapes.
+    /// </para>
+    /// </remarks>
     internal static PinnedPoolArray<TArray> Subset<TArray>(this PinnedPoolArray<TArray> array, int index, int count)
         where TArray : unmanaged
     {
@@ -73,7 +79,16 @@ internal static class PinnedPoolArrayExtensions
         }
 
         var subset = new PinnedPoolArray<TArray>(count);
-        Array.Copy(array.PoolArray, index, subset.PoolArray, 0, count);
+        try
+        {
+            Array.Copy(array.PoolArray, index, subset.PoolArray, 0, count);
+        }
+        catch
+        {
+            subset.Dispose();
+            throw;
+        }
+
         return subset;
     }
 

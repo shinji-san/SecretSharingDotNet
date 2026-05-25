@@ -68,11 +68,24 @@ public static class SecureNumericBufferExtensions
     /// than the platform-endian <see cref="BitConverter.GetBytes(int)"/>), so callers on
     /// big-endian hosts do not silently produce shares with reversed coordinates.
     /// </para>
+    /// <para>
+    /// If the post-allocation write throws, the pinned buffer is disposed before the
+    /// exception is rethrown — no reference to a partially-filled buffer escapes.
+    /// </para>
     /// </remarks>
     public static PinnedPoolArray<byte> ToPinnedSecureBytes(this int source)
     {
         var pinned = new PinnedPoolArray<byte>(sizeof(int));
-        BinaryPrimitives.WriteInt32LittleEndian(pinned.PoolArray.AsSpan(0, sizeof(int)), source);
+        try
+        {
+            BinaryPrimitives.WriteInt32LittleEndian(pinned.PoolArray.AsSpan(0, sizeof(int)), source);
+        }
+        catch
+        {
+            pinned.Dispose();
+            throw;
+        }
+
         return pinned;
     }
 
@@ -99,11 +112,24 @@ public static class SecureNumericBufferExtensions
     /// than the platform-endian <see cref="BitConverter.GetBytes(long)"/>), so callers on
     /// big-endian hosts do not silently produce shares with reversed coordinates.
     /// </para>
+    /// <para>
+    /// If the post-allocation write throws, the pinned buffer is disposed before the
+    /// exception is rethrown — no reference to a partially-filled buffer escapes.
+    /// </para>
     /// </remarks>
     public static PinnedPoolArray<byte> ToPinnedSecureBytes(this long source)
     {
         var pinned = new PinnedPoolArray<byte>(sizeof(long));
-        BinaryPrimitives.WriteInt64LittleEndian(pinned.PoolArray.AsSpan(0, sizeof(long)), source);
+        try
+        {
+            BinaryPrimitives.WriteInt64LittleEndian(pinned.PoolArray.AsSpan(0, sizeof(long)), source);
+        }
+        catch
+        {
+            pinned.Dispose();
+            throw;
+        }
+
         return pinned;
     }
 
@@ -131,6 +157,11 @@ public static class SecureNumericBufferExtensions
     /// snapshots taken before the wipe (or of relocation residue) can still expose the
     /// secret. Prefer callers that hold the value in pinned memory from the start.
     /// </para>
+    /// <para>
+    /// If the post-allocation write throws, the pinned buffer is disposed before the
+    /// exception is rethrown — no reference to a partially-filled buffer escapes. The
+    /// intermediate unpinned byte array is wiped on both the success and failure path.
+    /// </para>
     /// </remarks>
     public static PinnedPoolArray<byte> ToPinnedSecureBytes(this BigInteger source)
     {
@@ -138,9 +169,17 @@ public static class SecureNumericBufferExtensions
         try
         {
             var pinned = new PinnedPoolArray<byte>(bytes.Length);
-            if (bytes.Length > 0)
+            try
             {
-                Array.Copy(bytes, 0, pinned.PoolArray, 0, bytes.Length);
+                if (bytes.Length > 0)
+                {
+                    Array.Copy(bytes, 0, pinned.PoolArray, 0, bytes.Length);
+                }
+            }
+            catch
+            {
+                pinned.Dispose();
+                throw;
             }
 
             return pinned;
@@ -167,6 +206,10 @@ public static class SecureNumericBufferExtensions
     /// pinning guarantee covers only the destination buffer — the GC may have relocated
     /// <paramref name="source"/> at any point in its lifetime, so prior unpinned residue may
     /// still exist elsewhere in process memory.
+    /// <para>
+    /// If the post-allocation write throws, the pinned buffer is disposed before the
+    /// exception is rethrown — no reference to a partially-filled buffer escapes.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="source"/> is <see langword="null"/>.
@@ -179,10 +222,18 @@ public static class SecureNumericBufferExtensions
         }
 
         var pinned = new PinnedPoolArray<byte>(source.Length);
-        if (source.Length > 0)
+        try
         {
-            Array.Copy(source, 0, pinned.PoolArray, 0, source.Length);
-            Array.Clear(source, 0, source.Length);
+            if (source.Length > 0)
+            {
+                Array.Copy(source, 0, pinned.PoolArray, 0, source.Length);
+                Array.Clear(source, 0, source.Length);
+            }
+        }
+        catch
+        {
+            pinned.Dispose();
+            throw;
         }
 
         return pinned;
