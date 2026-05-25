@@ -992,6 +992,21 @@ for hardened native crypto stacks.
   analysis of reconstruction must inject `MersenneSafeGcdAlgorithm<TNumber>`
   explicitly. A convenience overload routing the SecureBigInteger backend to
   `MersenneSafeGcdAlgorithm<SecureBigInteger>` by default is planned future work.
+- **Hex- and Base64-decoder input-character timing.** `Share<TNumber>`'s
+  hex-deserialisation pipeline (`DecodeHexToCalculator` → `GetHexValue`) and
+  `Secret<TNumber>`'s Base64 decode (`DecodeBase64Char`) are not constant-time on
+  input characters — both compile to branchy range-pattern switches whose
+  wall-clock time varies by which character class the input belongs to. Both
+  decoders are treated as boundary parsers: only the resulting
+  `Calculator<TNumber>` value / decoded secret bytes flow through the CT
+  primitives.
+- **Ordering of `Secret<TNumber>`.** `Secret<TNumber>.CompareTo` and the
+  relational operators (`<`, `>`, `<=`, `>=`) ultimately use
+  `PinnedPoolArray<byte>.IStructuralComparable.CompareTo`, which short-circuits
+  on the first differing byte. Wall-clock time leaks the length of the common
+  prefix between two secrets. Sorting or comparing secret material where
+  ordering timing matters is out of scope — only equality
+  (`Secret<TNumber>.Equals` over the fixed-time path) is CT.
 
 Constant-time big-integer arithmetic in pure managed .NET is non-trivial; canonical
 implementations (libsodium, BoringSSL) rely on fixed-width representation, branchless
