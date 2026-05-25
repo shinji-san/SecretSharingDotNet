@@ -45,7 +45,7 @@ using System.Threading;
 /// <summary>
 /// <see cref="Calculator"/> implementation of <see cref="System.Numerics.BigInteger"/>
 /// </summary>
-public sealed class BigIntCalculator : Calculator<BigInteger>
+internal sealed class BigIntCalculator : Calculator<BigInteger>
 {
     /// <summary>
     /// Lazily computes and gets the number of bytes allocated by the byte-array representation
