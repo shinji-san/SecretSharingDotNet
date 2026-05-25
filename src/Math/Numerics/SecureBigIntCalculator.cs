@@ -55,7 +55,7 @@ using System.Threading;
 /// <see cref="SecureBigInteger"/> once <see cref="Dispose(bool)"/> has run.
 /// </para>
 /// </remarks>
-public sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
+internal sealed class SecureBigIntCalculator : Calculator<SecureBigInteger>
 {
     /// <summary>
     /// Indicates whether the instance has been disposed (<c>0</c> = live, <c>1</c> = disposed).

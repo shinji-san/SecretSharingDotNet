@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Added `SecureBigInteger` type with constant-time arithmetic primitives; timing depends only on the public operand bit-length, not on operand values.
-- Added `SecureBigIntCalculator` as `Calculator<SecureBigInteger>` backend.
 - Added `MersenneSafeGcdAlgorithm<TNumber>` — Bernstein–Yang divstep modular inverse for a constant-time `SecretReconstructor.DivMod`.
 - Added `PinnedPoolArray<T>` — GC-pinned, securely-cleared buffer wrapper with fixed-time equality.
 - Added `PinnedPoolArrayList<T>` — cascade-dispose container for multiple pinned buffers.
@@ -28,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Shares<TNumber>` is now `IDisposable`; disposal cascades to every contained share.
 - `Share<TNumber>` is now a `sealed record` (was `readonly record struct`) and implements `IDisposable`. Properties `X` / `Y` renamed to `Index` / `Value`.
 - `IMakeSharesUseCase<TNumber>` and `IReconstructionUseCase<TNumber>` now extend `IDisposable`; DI registrations must use `Transient` or `Scoped` lifetimes so the container disposes them.
-- Moved `BigIntCalculator` from namespace `SecretSharingDotNet.Math` to `SecretSharingDotNet.Math.Numerics`.
+- `BigIntCalculator` and `SecureBigIntCalculator` are now `internal`. The numeric backends are reflection-discovered by `Calculator.Create<TNumber>()`; consumer code should use `Calculator<TNumber>` (abstract base) for typed access.
 - `Calculator<TNumber>.Clone` is now `abstract` (was a non-virtual default that returned `MemberwiseClone()`). Subclasses must now provide a true deep copy — `MemberwiseClone` is not safe when `TNumber` is a reference type (e.g. `SecureBigInteger`) or when the subtype carries reference-type fields.
 - `ExtendedEuclideanAlgorithm<TNumber>` is now `sealed`.
 - `SecretSplitter<TNumber>` is now `sealed`.
