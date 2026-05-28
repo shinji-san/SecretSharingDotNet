@@ -170,9 +170,22 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentOutOfRangeException(nameof(shares), numberOfPoints, ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
 
-        if (shares.Select(s => s.Index).Distinct().Count() != numberOfPoints)
+        // Explicit HashSet loop instead of shares.Select(s => s.Index).Distinct().Count()
+        // — avoids the SelectIterator + DistinctIterator + enumerator allocations on the
+        // unpinned managed heap. Throws on first-duplicate detection instead of after full
+        // enumeration; eager-vs-lazy throw on the public x-coordinates yields the same
+        // exception type and message, no observable difference on the success path.
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+        var seenIndices = new HashSet<Calculator<TNumber>>(numberOfPoints);
+#else
+        var seenIndices = new HashSet<Calculator<TNumber>>();
+#endif
+        for (int i = 0; i < numberOfPoints; i++)
         {
-            throw new ArgumentException(ErrorMessages.ShareIndicesNotDistinct, nameof(shares));
+            if (!seenIndices.Add(shares[i].Index))
+            {
+                throw new ArgumentException(ErrorMessages.ShareIndicesNotDistinct, nameof(shares));
+            }
         }
 
         using var zero = Calculator<TNumber>.Zero;
@@ -282,7 +295,25 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         var shareList = shares.ToArray();
-        var maximumY = shareList.Select(share => share.Value).Max();
+        // Explicit loop instead of shareList.Select(share => share.Value).Max() —
+        // avoids the SelectArrayIterator + enumerator allocations on the unpinned
+        // managed heap. Null-skip matches Enumerable.Max semantics for reference
+        // types: the maximum of all non-null values, or null if every value is null.
+        Calculator<TNumber> maximumY = null;
+        for (int i = 0; i < shareList.Length; i++)
+        {
+            var candidate = shareList[i].Value;
+            if (candidate is null)
+            {
+                continue;
+            }
+
+            if (maximumY is null || candidate > maximumY)
+            {
+                maximumY = candidate;
+            }
+        }
+
         if (maximumY is null)
         {
             throw new ArgumentException(ErrorMessages.NoMaximumY, nameof(shares));
