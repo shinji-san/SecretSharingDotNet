@@ -1007,6 +1007,30 @@ for hardened native crypto stacks.
   prefix between two secrets. Sorting or comparing secret material where
   ordering timing matters is out of scope — only equality
   (`Secret<TNumber>.Equals` over the fixed-time path) is CT.
+- **Mathematically-small Mersenne security levels.**
+  `ISecurityLevelManager.SecurityLevel` accepts every Mersenne prime exponent
+  from the library's table, starting at `MinMersennePrimeExponent = 13`
+  (prime `2^13 − 1 = 8191`). A 13-bit modulus is mathematically tiny and is
+  included for round-trip / parameter-exploration scenarios, *not* as a
+  recommended cipher-strength floor. The auto-upgrade in
+  `SecretSplitter<TNumber>.MakeShares` raises the level whenever the
+  secret's bit-length exceeds the current prime; reconstruction additionally
+  fits the level to the maximum share value via
+  `SecurityLevelManager.AdjustSecurityLevel`, which may raise or lower the
+  level. Either way, consumers who explicitly construct shares at low
+  exponents on a small secret receive what they ask for. Treat
+  `MinMersennePrimeExponent` as a representational floor, not a security
+  floor; production secrets should use a security level of `127` or higher,
+  in line with the README examples.
+- **Silent reconstruction on tampered shares.** Shamir's scheme carries no
+  integrity check on individual shares: if a single share's `Index` or
+  `Value` is mutated in transit, in storage, or by a malicious participant,
+  `SecretReconstructor.Reconstruction` produces a wrong secret with no
+  exception, no warning, and no signal that anything is off. The library
+  implements plain Shamir; it does not implement verifiable secret sharing
+  (VSS — e.g. Feldman or Pedersen) or per-share MACs. Consumers whose threat
+  model includes share manipulation must layer an integrity scheme (signed
+  shares, HMAC-keyed envelopes, VSS) on top.
 
 Constant-time big-integer arithmetic in pure managed .NET is non-trivial; canonical
 implementations (libsodium, BoringSSL) rely on fixed-width representation, branchless
