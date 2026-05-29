@@ -31,52 +31,103 @@
 
 namespace SecretSharingDotNet.Math;
 
+using System;
+
 /// <summary>
 /// Extended Euclidean algorithm implementation
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
-public class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>
+public sealed class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>
 {
-    /// <summary>
-    /// Computes, in addition to the greatest common divisor of integers <paramref name="a"/> and <paramref name="b"/>, also the coefficients of Bézout's identity.
-    /// </summary>
-    /// <param name="a">An integer</param>
-    /// <param name="b">An integer</param>
-    /// <returns>For details: <see cref="ExtendedGcdResult{TNumber}"/></returns>
-    /// <remarks>
-    /// https://en.wikipedia.org/wiki/Modular_multiplicative_inverse#Computation 
-    /// https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Example
-    /// </remarks>
+    /// <inheritdoc />
     public ExtendedGcdResult<TNumber> Compute(Calculator<TNumber> a, Calculator<TNumber> b)
     {
-        var x = Calculator<TNumber>.Zero;
-        var lastX = Calculator<TNumber>.One;
-        var y = Calculator<TNumber>.One;
-        var lastY = Calculator<TNumber>.Zero;
-        var r = b;
-        var lastR = a;
-        while (r != Calculator<TNumber>.Zero)
+        if (a is null)
         {
-            checked
-            {
-                var quotient = lastR / r;
-
-                var tmpR = r;
-                r = lastR - quotient * r;
-                lastR = tmpR;
-
-                var tmpX = x;
-                x = lastX - quotient * x;
-                lastX = tmpX;
-
-                var tmpY = y;
-                y = lastY - quotient * y;
-                lastY = tmpY;
-            }
+            throw new ArgumentNullException(nameof(a));
         }
 
-        var coefficients = new[] {lastX, lastY};
-        var quotients = new[] {x, y};
-        return new ExtendedGcdResult<TNumber>(lastR, coefficients, quotients);
+        if (b is null)
+        {
+            throw new ArgumentNullException(nameof(b));
+        }
+
+        // Loop state tracks the standard `(r_i, s_i, t_i)` triple of the extended
+        // Euclidean algorithm with the invariant a·s_i + b·t_i = r_i. `*Cur`
+        // carries the current iteration's value, `*Prev` the previous iteration's.
+        Calculator<TNumber> sCur = null;
+        Calculator<TNumber> sPrev = null;
+        Calculator<TNumber> tCur = null;
+        Calculator<TNumber> tPrev = null;
+        Calculator<TNumber> rCur = null;
+        Calculator<TNumber> rPrev = null;
+        try
+        {
+            sCur = Calculator<TNumber>.Zero;
+            sPrev = Calculator<TNumber>.One;
+            tCur = Calculator<TNumber>.One;
+            tPrev = Calculator<TNumber>.Zero;
+            rCur = b.Clone();
+            rPrev = a.Clone();
+
+            while (!rCur.IsZero)
+            {
+                checked
+                {
+                    using var quotient = rPrev / rCur;
+                    using var quotientTimesR = quotient * rCur;
+                    using var quotientTimesS = quotient * sCur;
+                    using var quotientTimesT = quotient * tCur;
+
+                    var tmpR = rCur;
+                    rCur = rPrev - quotientTimesR;
+                    rPrev.Dispose();
+                    rPrev = tmpR;
+
+                    var tmpS = sCur;
+                    sCur = sPrev - quotientTimesS;
+                    sPrev.Dispose();
+                    sPrev = tmpS;
+
+                    var tmpT = tCur;
+                    tCur = tPrev - quotientTimesT;
+                    tPrev.Dispose();
+                    tPrev = tmpT;
+                }
+            }
+
+            // rCur is zero at this point, still owned by us, and is not part of the
+            // result — release it explicitly to avoid leaking the final iteration's
+            // tail value.
+            rCur.Dispose();
+            rCur = null;
+
+            // Loop invariant at this point:
+            //   rPrev          = gcd(a, b)
+            //   (sPrev, tPrev) = Bézout pair satisfying a·s + b·t = gcd
+            //   (sCur,  tCur ) = trailing pair carried one iteration past gcd
+            var coefficients = new[] { sPrev, tPrev };
+            var quotients = new[] { sCur, tCur };
+            var result = new ExtendedGcdResult<TNumber>(rPrev, coefficients, quotients);
+
+            // Ownership of these calculators is now held by `result`. Null the locals
+            // so the finally block below does not double-dispose values the result owns.
+            rPrev = sPrev = tPrev = sCur = tCur = null;
+            return result;
+        }
+        finally
+        {
+            // sCur / sPrev / tCur / tPrev / rCur / rPrev are nulled on the success
+            // path above and non-null on a throw between their allocation and the
+            // ownership-transfer line — null-conditional disposal handles both.
+            // Mirrors the ownership-transfer cleanup pattern in
+            // MersenneSafeGcdAlgorithm.Compute.
+            sCur?.Dispose();
+            sPrev?.Dispose();
+            tCur?.Dispose();
+            tPrev?.Dispose();
+            rCur?.Dispose();
+            rPrev?.Dispose();
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // <copyright file="Shares.cs" company="Private">
 // Copyright (c) 2019 All Rights Reserved
 // </copyright>
@@ -31,10 +31,13 @@
 
 namespace SecretSharingDotNet.Cryptography;
 
+using Extension;
+using SecureArray;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -43,8 +46,13 @@ using System.Threading;
 /// Represents a set of shares
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
+#if DEBUG
+[DebuggerDisplay("{ToString()}")]
+#else
+[DebuggerDisplay("*** Secured Value ***")]
+#endif
 [Serializable]
-public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
+public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, IDisposable
 {
     /// <summary>
     /// Saves a collection of shares.
@@ -58,93 +66,206 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     private object syncRoot;
 
     /// <summary>
+    /// Indicates whether the collection and its contained shares have been disposed
+    /// (<c>0</c> = live, <c>1</c> = disposed). Updated atomically via
+    /// <see cref="Interlocked.Exchange(ref int, int)"/> so that concurrent
+    /// <see cref="Dispose"/> calls cannot both reach the share-cascade-dispose branch.
+    /// </summary>
+    [NonSerialized]
+    private int disposed;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="Shares{TNumber}"/> class.
     /// </summary>
     /// <param name="shares">A list of <see cref="Share{TNumber}"/> objects.</param>
     /// <exception cref="ArgumentNullException"><paramref name="shares"/> is <see langword="null"/>.</exception>
-    private Shares(IList<Share<TNumber>> shares)
+    internal Shares(IList<Share<TNumber>> shares)
     {
         _ = shares ?? throw new ArgumentNullException(nameof(shares));
+        // Always copy via ToArray(). The public implicit operator from
+        // Share<TNumber>[] reaches this ctor with caller-owned storage; an
+        // alias-cast to Share<TNumber>[] followed by Array.Sort would
+        // reorder the caller's array as a side effect of construction.
         var sortedShares = shares.ToArray();
         Array.Sort(sortedShares);
         this.shareList = new Collection<Share<TNumber>>(sortedShares);
     }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="Shares{TNumber}"/> class.
-    /// </summary>
-    /// <param name="secret">The original secret which was split into <paramref name="shares"/>.</param>
-    /// <param name="shares">A list of <see cref="Share{TNumber}"/> objects.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="secret"/> or <paramref name="shares"/> is <see langword="null"/>.</exception>
-    [Obsolete("This constructor is obsolete and will be removed in future versions.", false)]
-    internal Shares(Secret<TNumber> secret, IList<Share<TNumber>> shares)
-    {
-        this.OriginalSecret = secret;
-        _ = shares ?? throw new ArgumentNullException(nameof(shares));
-        var sortedShares = shares.ToArray();
-        Array.Sort(sortedShares);
-        this.shareList = new Collection<Share<TNumber>>(sortedShares);
-    }
-
-    /// <summary>
-    /// Gets the original secret
-    /// </summary>
-    [Obsolete("The property OriginalSecret is obsolete and will be removed in future versions.", false)]
-    public Secret<TNumber>? OriginalSecret { get; }
 
     /// <summary>
     /// Gets the <see cref="Share{TNumber}"/> associated with the specified index.
     /// </summary>
     /// <param name="i">The index of the <see cref="Share{TNumber}"/> to get.</param>
     /// <returns>Returns a share (shared secret) represented by a <see cref="Share{TNumber}"/>.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "i")]
-    public Share<TNumber> this[int i] => this.shareList[i];
-
-    /// <summary>
-    /// Gets a value indicating whether the original secret is available.
-    /// </summary>
-    [Obsolete("The property OriginalSecretExists is obsolete and will be removed in future versions.", false)]
-    public bool OriginalSecretExists => this.OriginalSecret != null;
-
-    /// <summary>
-    /// Casts a <see cref="Shares{TNumber}"/> object to an array of <see cref="string"/>s.
-    /// </summary>
-    /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
-    public static implicit operator string[](Shares<TNumber> shares) => shares?.Select(s => s.ToString()).ToArray();
-
-    /// <summary>
-    ///  Casts a <see cref="Shares{TNumber}"/> object to a <see cref="string"/> object.
-    /// </summary>
-    /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
-    public static implicit operator string(Shares<TNumber> shares) => shares?.ToString();
-
-    /// <summary>
-    /// Casts a <see cref="string"/> object to a <see cref="Shares{TNumber}"/> object.
-    /// </summary>
-    /// <param name="s">A <see cref="string"/> object representing two or more finite points separated by newline.</param>
-    public static implicit operator Shares<TNumber>(string s)
+    public Share<TNumber> this[int i]
     {
-        var points = s
-            .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => line.Trim())
-            .Where(line => !string.IsNullOrEmpty(line))
-            .Select(line => new Share<TNumber>(line))
-            .ToArray();
-        return new Shares<TNumber>(points);
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.shareList[i];
+        }
     }
 
     /// <summary>
-    /// Casts an array of <see cref="string"/> (representing two or more finite points) to a <see cref="Shares{TNumber}"/> object.
+    /// Casts a <see cref="Shares{TNumber}"/> object to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/>
+    /// containing the uppercase hex-encoded shares, one per line, separated by <see cref="Environment.NewLine"/>.
     /// </summary>
-    /// <param name="s">An array of <see cref="string"/> representing two or more finite points.</param>
-    public static implicit operator Shares<TNumber>(string[] s)
+    /// <param name="shares">A <see cref="Shares{TNumber}"/> object.</param>
+    /// <remarks>
+    /// Unlike <see cref="ToString"/>, this operator is not redacted in Release builds. It is the
+    /// secure serialization path intended for round-tripping shares into pinned storage. The returned
+    /// <see cref="PinnedPoolArray{T}"/> is owned by the caller and must be disposed; until then the share
+    /// material is only present in pinned, securely cleared memory.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="shares"/> is <see langword="null"/>.</exception>
+    public static implicit operator PinnedPoolArray<char>(Shares<TNumber> shares)
     {
-        var points = s
-            .Select(line => line.Trim())
-            .Where(line => !string.IsNullOrEmpty(line))
-            .Select(line => new Share<TNumber>(line))
-            .ToArray();
-        return new Shares<TNumber>(points);
+        return shares is null ? throw new ArgumentNullException(nameof(shares)) : shares.ToCharArray();
+    }
+
+    /// <summary>
+    /// Parses a pinned multi-line character buffer into a <see cref="Shares{TNumber}"/> instance.
+    /// </summary>
+    /// <param name="buffer">
+    /// A <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing two or more
+    /// <c>INDEX-VALUE</c> share lines separated by line feed (<c>\n</c>) or carriage return (<c>\r</c>).
+    /// Blank lines are skipped. The caller retains ownership of <paramref name="buffer"/>.
+    /// </param>
+    /// <returns>
+    /// A new <see cref="Shares{TNumber}"/> containing one entry per non-empty source line, or an
+    /// empty collection if <paramref name="buffer"/> is <see langword="null"/>.
+    /// </returns>
+    /// <remarks>
+    /// Each non-empty line is copied into its own short-lived pinned sub-buffer for the duration
+    /// of the share construction, then securely cleared on dispose. No unpinned heap copy of
+    /// the share material is created.
+    /// </remarks>
+    public static Shares<TNumber> FromText(PinnedPoolArray<char> buffer)
+    {
+        if (buffer is null)
+        {
+            return new Shares<TNumber>([]);
+        }
+
+        var buf = buffer.PoolArray;
+        var end = buffer.Length;
+        var shares = new List<Share<TNumber>>();
+        var lineStart = 0;
+
+        try
+        {
+            for (var i = 0; i <= end; i++)
+            {
+                if (i != end && buf[i] != '\n' && buf[i] != '\r')
+                {
+                    continue;
+                }
+
+                if (lineStart < i)
+                {
+                    var lineLen = i - lineStart;
+                    using var linePinned = new PinnedPoolArray<char>(lineLen);
+                    Array.Copy(buf, lineStart, linePinned.PoolArray, 0, lineLen);
+
+                    // Allocate the share before handing it to the list. If the list's
+                    // own Add (e.g. internal resize) throws after the share has been
+                    // constructed, the local would otherwise leak the share's
+                    // index+value Calculator pinned buffers.
+                    Share<TNumber> share = null;
+                    try
+                    {
+                        share = new Share<TNumber>(linePinned);
+                        shares.Add(share);
+                        share = null;
+                    }
+                    catch
+                    {
+                        share?.Dispose();
+                        throw;
+                    }
+                }
+
+                lineStart = i + 1;
+            }
+
+            var result = new Shares<TNumber>(shares);
+            // Ownership of every share is now held by the returned Shares<TNumber>.
+            // Null the local so the catch path below does not double-dispose.
+            shares = null;
+            return result;
+        }
+        catch
+        {
+            // Mid-loop failure (malformed share line, OOM in List resize, etc.) —
+            // dispose every share already accumulated before re-throwing.
+            shares?.DisposeAll();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Parses a sequence of pinned single-line buffers — each in <c>INDEX-VALUE</c> format —
+    /// into a <see cref="Shares{TNumber}"/> instance. Intended for callers whose share lines
+    /// arrive separately (e.g. from a UI form) and who want to keep each line pinned end-to-end
+    /// without going through a multi-line concatenation.
+    /// </summary>
+    /// <param name="lines">
+    /// The pinned single-line buffers. <see langword="null"/> entries and zero-length buffers
+    /// are skipped. The caller retains ownership of <paramref name="lines"/> and every entry.
+    /// </param>
+    /// <returns>A new <see cref="Shares{TNumber}"/> containing one entry per non-empty input line.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="lines"/> is <see langword="null"/>.
+    /// </exception>
+    public static Shares<TNumber> FromTextLines(IEnumerable<PinnedPoolArray<char>> lines)
+    {
+        if (lines is null)
+        {
+            throw new ArgumentNullException(nameof(lines));
+        }
+
+        var shares = new List<Share<TNumber>>();
+        try
+        {
+            foreach (var line in lines)
+            {
+                if (line is null || line.Length == 0)
+                {
+                    continue;
+                }
+
+                // Allocate the share before handing it to the list. If the list's
+                // own Add (e.g. internal resize) throws after the share has been
+                // constructed, the local would otherwise leak the share's
+                // index+value Calculator pinned buffers.
+                Share<TNumber> share = null;
+                try
+                {
+                    share = new Share<TNumber>(line);
+                    shares.Add(share);
+                    share = null;
+                }
+                catch
+                {
+                    share?.Dispose();
+                    throw;
+                }
+            }
+
+            var result = new Shares<TNumber>(shares);
+            // Ownership of every share is now held by the returned Shares<TNumber>.
+            // Null the local so the catch path below does not double-dispose.
+            shares = null;
+            return result;
+        }
+        catch
+        {
+            // Mid-loop failure (malformed share line, OOM in List resize, etc.) —
+            // dispose every share already accumulated before re-throwing.
+            shares?.DisposeAll();
+            throw;
+        }
     }
 
     /// <summary>
@@ -161,11 +282,90 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     public static implicit operator Shares<TNumber>(Share<TNumber>[] shares) => new Shares<TNumber>(shares);
 
     /// <summary>
+    /// Converts the collection to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing
+    /// the uppercase hex-encoded shares without coordinate prefixes, one per line, separated and
+    /// terminated by <see cref="Environment.NewLine"/>.
+    /// </summary>
+    /// <returns>
+    /// A pinned character buffer with the serialized shares. The caller is responsible for disposing
+    /// the returned instance. Returns a buffer of length zero if the collection is empty.
+    /// </returns>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public PinnedPoolArray<char> ToCharArray()
+    {
+        this.ThrowIfDisposed();
+        return this.ToCharArray(uppercase: true, withPrefix: false);
+    }
+
+    /// <summary>
+    /// Converts the collection to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing
+    /// the hex-encoded shares, one per line, separated and terminated by <see cref="Environment.NewLine"/>.
+    /// </summary>
+    /// <param name="uppercase">
+    /// <see langword="true"/> to use uppercase hex digits (0A–0F); <see langword="false"/> for lowercase (0a–0f).
+    /// </param>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to prepend <c>"0x"</c> before each coordinate; <see langword="false"/> for no prefix.
+    /// </param>
+    /// <returns>
+    /// A pinned character buffer with the serialized shares. The caller is responsible for disposing
+    /// the returned instance. Returns a buffer of length zero if the collection is empty.
+    /// </returns>
+    /// <remarks>
+    /// The share material is written directly into the final pinned buffer in a single pass, without any
+    /// intermediate unpinned <see cref="string"/> or <see cref="System.Text.StringBuilder"/> allocation.
+    /// </remarks>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
+    {
+        this.ThrowIfDisposed();
+        if (this.shareList.Count == 0)
+        {
+            return new PinnedPoolArray<char>(0);
+        }
+
+        var newline = Environment.NewLine;
+        var newlineLen = newline.Length;
+        var total = 0;
+        for (int i = 0; i < this.shareList.Count; i++)
+        {
+            total += this.shareList[i].GetCharCount(withPrefix) + newlineLen;
+        }
+
+        var result = new PinnedPoolArray<char>(total);
+        var pos = 0;
+        for (int i = 0; i < this.shareList.Count; i++)
+        {
+            pos += this.shareList[i].WriteCharsTo(result.PoolArray, pos, uppercase, withPrefix);
+            newline.CopyTo(0, result.PoolArray, pos, newlineLen);
+            pos += newlineLen;
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Returns the string representation of the <see cref="Shares{TNumber}"/> instance.
     /// </summary>
-    /// <returns>A human-readable list of shares separated by newlines</returns>
+    /// <returns>
+    /// In Debug builds: a human-readable list of shares separated by newlines.
+    /// In Release builds: always returns <c>"*** Secured Value ***"</c> to prevent accidental exposure
+    /// in logs, exception messages, or other output. Use <see cref="ToCharArray()"/> for explicit serialization.
+    /// </returns>
+    /// <remarks>
+    /// <b>Security warning:</b> DEBUG builds expose share material on the unpinned managed heap — both
+    /// via the intermediate <see cref="StringBuilder"/> buffer and the returned <see cref="string"/>.
+    /// Neither can be securely cleared: the <see cref="string"/> is immutable, and the
+    /// <see cref="StringBuilder"/> internal buffer lives on the GC heap without pinning. Contents remain
+    /// recoverable from process memory until collected (and may persist in swap files or crash dumps).
+    /// Do not log, serialize, or otherwise persist <see cref="ToString"/> output in any build that
+    /// handles real secrets. For secure serialization use <see cref="ToCharArray()"/>, which returns
+    /// share material in pinned memory that is securely cleared on <see cref="IDisposable.Dispose"/>.
+    /// </remarks>
     public override string ToString()
     {
+#if DEBUG
+        this.ThrowIfDisposed();
         var stringBuilder = new StringBuilder();
         var shares = this.shareList as Share<TNumber>[] ?? this.shareList.ToArray();
         foreach (var share in shares)
@@ -174,96 +374,126 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
         }
 
         return stringBuilder.ToString();
+#else
+        return "*** Secured Value ***";
+#endif
     }
 
     /// <summary>
     /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     /// <returns>An enumerator that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-    IEnumerator<Share<TNumber>> IEnumerable<Share<TNumber>>.GetEnumerator() => this.GetEnumerator();
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    IEnumerator<Share<TNumber>> IEnumerable<Share<TNumber>>.GetEnumerator()
+    {
+        this.ThrowIfDisposed();
+        return this.GetEnumerator();
+    }
 
     /// <summary>
     /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     /// <returns>An <see cref="IEnumerator"/> object that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        this.ThrowIfDisposed();
+        return this.GetEnumerator();
+    }
 
     /// <summary>
     /// Returns an <see cref="SharesEnumerator{TNumber}"/> that iterates through the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
     /// <returns>An <see cref="SharesEnumerator{TNumber}"/> that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-    public SharesEnumerator<TNumber> GetEnumerator() => new SharesEnumerator<TNumber>(this.shareList);
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public SharesEnumerator<TNumber> GetEnumerator()
+    {
+        this.ThrowIfDisposed();
+        return new SharesEnumerator<TNumber>(this.shareList);
+    }
 
     /// <summary>
     /// Gets a value indicating whether the <see cref="Shares{TNumber}"/> collection is read-only.
     /// </summary>
     /// <remarks>Currently, this property always returns <see langword="true"/>.</remarks>
-    public bool IsReadOnly => true;
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public bool IsReadOnly
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return true;
+        }
+    }
 
     /// <summary>
     /// Gets the number of <see cref="Share{TNumber}"/> items contained in the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
-    public int Count => this.shareList.Count;
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public int Count
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.shareList.Count;
+        }
+    }
 
     /// <summary>
     /// Determines whether the <see cref="Shares{TNumber}"/> collection contains a specific <see cref="Share{TNumber}"/>.
     /// </summary>
     /// <param name="item">The <see cref="Share{TNumber}"/> to locate in the <see cref="Shares{TNumber}"/> collection.</param>
     /// <returns><see langword="true"/> if item is found in the <see cref="Shares{TNumber}"/> collection; otherwise, <see langword="false"/>.</returns>
-    public bool Contains(Share<TNumber> item) => this.shareList.Any(share => share.Equals(item));
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    public bool Contains(Share<TNumber> item)
+    {
+        this.ThrowIfDisposed();
+        return this.shareList.Any(share => share.Equals(item));
+    }
 
     /// <summary>
-    /// Removes all items from the <see cref="Shares{TNumber}"/> collection.
+    /// Mutating ICollection member required by the interface contract.
+    /// <see cref="Shares{TNumber}"/> is permanently read-only
+    /// (<see cref="IsReadOnly"/> returns <see langword="true"/> unconditionally),
+    /// so this method always throws <see cref="NotSupportedException"/>.
     /// </summary>
-    /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
-    /// set to <see langword="true"/>.</remarks>
-    /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
+    /// <exception cref="NotSupportedException">Always thrown — the collection is read-only.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public void Clear()
     {
-        if (this.IsReadOnly)
-        {
-            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<TNumber>)));
-        }
-
-        this.shareList.Clear();
+        this.ThrowIfDisposed();
+        throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
     }
 
     /// <summary>
-    /// Adds an <see cref="Share{TNumber}"/> to the <see cref="Shares{TNumber}"/> collection.
+    /// Mutating ICollection member required by the interface contract.
+    /// <see cref="Shares{TNumber}"/> is permanently read-only
+    /// (<see cref="IsReadOnly"/> returns <see langword="true"/> unconditionally),
+    /// so this method always throws <see cref="NotSupportedException"/>.
     /// </summary>
-    /// <param name="item">The <see cref="Share{TNumber}"/> to add to the <see cref="Shares{TNumber}"/> collection.</param>
-    /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
-    /// set to <see langword="true"/>.</remarks>
-    /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
+    /// <param name="item">Ignored — the call is rejected before <paramref name="item"/> is inspected.</param>
+    /// <exception cref="NotSupportedException">Always thrown — the collection is read-only.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public void Add(Share<TNumber> item)
     {
-        if (this.IsReadOnly)
-        {
-            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<TNumber>)));
-        }
-
-        if (!this.Contains(item))
-        {
-            this.shareList.Add(item);
-        }
+        this.ThrowIfDisposed();
+        throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
     }
 
     /// <summary>
-    /// Removes the first occurrence of a specific <see cref="Share{TNumber}"/> from the <see cref="Shares{TNumber}"/> collection.
+    /// Mutating ICollection member required by the interface contract.
+    /// <see cref="Shares{TNumber}"/> is permanently read-only
+    /// (<see cref="IsReadOnly"/> returns <see langword="true"/> unconditionally),
+    /// so this method always throws <see cref="NotSupportedException"/>.
     /// </summary>
-    /// <param name="item">The <see cref="FinitePoint{TNumber}"/> to remove from the <see cref="Shares{TNumber}"/> collection.</param>
-    /// <returns></returns>
-    /// <remarks>This method is implemented. However, this method does nothing as long as the property <see cref="IsReadOnly"/> is
-    /// set to <see langword="true"/>.</remarks>
-    /// <exception cref="NotSupportedException">The <see cref="Shares{TNumber}"/> collection is read-only.</exception>
+    /// <param name="item">Ignored — the call is rejected before <paramref name="item"/> is inspected.</param>
+    /// <returns>This method never returns; it always throws.</returns>
+    /// <exception cref="NotSupportedException">Always thrown — the collection is read-only.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public bool Remove(Share<TNumber> item)
     {
-        if (this.IsReadOnly)
-        {
-            throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<TNumber>)));
-        }
-
-        return this.shareList.Remove(item);
+        this.ThrowIfDisposed();
+        throw new NotSupportedException(string.Format(ErrorMessages.ReadOnlyCollection, nameof(Shares<>)));
     }
 
     /// <summary>
@@ -272,8 +502,10 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the items copied from <see cref="Shares{TNumber}"/> collection.
     /// The  <see cref="Array"/> must have zero-based indexing.</param>
     /// <param name="index">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     void ICollection.CopyTo(Array array, int index)
     {
+        this.ThrowIfDisposed();
         _ = array ?? throw new ArgumentNullException(nameof(array));
         switch (array)
         {
@@ -293,15 +525,17 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// items copied from <see cref="Shares{TNumber}"/> collection.
     /// The array must have zero-based indexing.</param>
     /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     public void CopyTo(Share<TNumber>[] array, int arrayIndex)
     {
+        this.ThrowIfDisposed();
         _ = array ?? throw new ArgumentNullException(nameof(array));
         if (arrayIndex < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(arrayIndex), ErrorMessages.StartArrayIndexNegative);
         }
 
-        if (this.Count > array.Length - arrayIndex + 1)
+        if (this.Count > array.Length - arrayIndex)
         {
             throw new ArgumentException(ErrorMessages.DestinationArrayHasFewerElements, nameof(array));
         }
@@ -315,10 +549,12 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// <summary>
     /// Gets an object that can be used to synchronize access to the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     object ICollection.SyncRoot
     {
         get
         {
+            this.ThrowIfDisposed();
             object newValue = new object();
             return (this.syncRoot ?? Interlocked.CompareExchange(ref this.syncRoot, newValue, null)) ?? newValue;
         }
@@ -327,5 +563,46 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection
     /// <summary>
     /// Gets a value indicating whether access to the <see cref="Shares{TNumber}"/> collection is synchronized (thread safe).
     /// </summary>
-    bool ICollection.IsSynchronized => false;
+    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
+    bool ICollection.IsSynchronized
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Disposes every <see cref="Share{TNumber}"/> in the collection. Idempotent — subsequent calls
+    /// are no-ops.
+    /// </summary>
+    /// <remarks>
+    /// <b>Ownership:</b> a <see cref="Shares{TNumber}"/> collection owns every share it contains.
+    /// Disposing the collection disposes all contained shares. Shares removed via
+    /// <see cref="Remove"/> are returned to the caller, who then owns disposal.
+    /// </remarks>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
+        {
+            return;
+        }
+
+        foreach (var share in this.shareList)
+        {
+            share?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Throws <see cref="ObjectDisposedException"/> if the collection has been disposed.
+    /// </summary>
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref this.disposed) == 1)
+        {
+            throw new ObjectDisposedException(nameof(Shares<>));
+        }
+    }
 }

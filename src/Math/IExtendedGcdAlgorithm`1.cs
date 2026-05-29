@@ -31,5 +31,10 @@
 
 namespace SecretSharingDotNet.Math;
 
-/// <inheritdoc />
+/// <summary>
+/// Convenience specialisation of <see cref="IExtendedGcdAlgorithm{TNumber, TExtendedGcdResult}"/>
+/// fixed to the default <see cref="ExtendedGcdResult{TNumber}"/> result type. Use this
+/// interface to refer to the algorithm without spelling out the result-type generic argument.
+/// </summary>
+/// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
 public interface IExtendedGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber, ExtendedGcdResult<TNumber>>;

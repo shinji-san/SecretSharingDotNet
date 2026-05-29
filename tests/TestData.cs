@@ -42,6 +42,35 @@ public static class TestData
     public const string DefaultTestPassword = "Hello World!!";
 
     /// <summary>
+    /// Redaction sentinel that <c>SecureBigInteger.ToString()</c> (and types embedding
+    /// it) emit in release builds in place of the actual value.
+    /// </summary>
+    public const string SecuredValueSentinel = "*** Secured Value ***";
+
+    /// <summary>
+    /// Decimal representation of the Mersenne prime M127 = 2^127 - 1.
+    /// </summary>
+    public const string M127Decimal = "170141183460469231731687303715884105727";
+
+    /// <summary>
+    /// Decimal representation of the negation of the Mersenne prime M127.
+    /// </summary>
+    public const string M127NegDecimal = "-170141183460469231731687303715884105727";
+
+    /// <summary>
+    /// Base64 encoding of the ASCII proverb <c>"Many hands make light work."</c>.
+    /// Used as a compact Base64 round-trip / decode fixture.
+    /// </summary>
+    public const string Base64SimpleSentence = "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu";
+
+    /// <summary>
+    /// Base64 encoding of a German pangram with diacritics (<c>"Polyfon zwitschernd
+    /// aßen Mäxchens Vögel Rüben, Joghurt und Quark"</c>). Used to exercise multi-byte
+    /// UTF-8 in the Base64 surface.
+    /// </summary>
+    public const string Base64GermanPangram = "UG9seWZvbiB6d2l0c2NoZXJuZCBhw59lbiBNw6R4Y2hlbnMgVsO2Z2VsIFLDvGJlbiwgSm9naHVydCB1bmQgUXVhcms=";
+
+    /// <summary>
     /// A positive test number as secret (value is 2000).
     /// </summary>
     public static BigInteger DefaultPosTestNumber => 20000;
@@ -100,7 +129,8 @@ public static class TestData
             new object[] {127, 127, DefaultTestPassword},
             new object[] {130, 521, DefaultTestPassword},
             new object[] {500, 521, DefaultTestPassword},
-            new object[] {1279, 1279, DefaultTestPassword}
+            new object[] {1279, 1279, DefaultTestPassword},
+            new object[]{ 500, 4253, "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}
         };
 
     /// <summary>
@@ -167,20 +197,44 @@ public static class TestData
         };
 
     /// <summary>
-    /// Gets a list of secrets of different data types
+    /// Gets a list of <see cref="string"/> secrets for the FromText construction path.
     /// </summary>
-    public static IEnumerable<object[]> MixedSecrets =>
+    public static IEnumerable<object[]> StringSecrets =>
         new List<object[]>
         {
-            new object[] { 333331},
-            new object[] { -333331},
-            new object[] { 2007671},
-            new object[] { new BigInteger(2007671)},
-            new object[] { new BigInteger(-2007671)},
-            new object[] { DefaultPosTestNumber},
-            new object[] { DefaultNegTestNumber},
-            new object[] { DefaultTestPassword},
-            new object[] { new byte[] {0x00}},
-            new object[] { new byte[] {0xFF, 0XFF}},
+            new object[] { DefaultTestPassword },
+        };
+
+    /// <summary>
+    /// Gets a list of <see cref="int"/> secrets for the implicit-cast construction path.
+    /// </summary>
+    public static IEnumerable<object[]> IntSecrets =>
+        new List<object[]>
+        {
+            new object[] { 333331 },
+            new object[] { -333331 },
+            new object[] { 2007671 },
+        };
+
+    /// <summary>
+    /// Gets a list of <see cref="BigInteger"/> secrets for the implicit-cast construction path.
+    /// </summary>
+    public static IEnumerable<object[]> BigIntegerSecrets =>
+        new List<object[]>
+        {
+            new object[] { new BigInteger(2007671) },
+            new object[] { new BigInteger(-2007671) },
+            new object[] { DefaultPosTestNumber },
+            new object[] { DefaultNegTestNumber },
+        };
+
+    /// <summary>
+    /// Gets a list of <see cref="byte"/>[] secrets for the byte-array construction path.
+    /// </summary>
+    public static IEnumerable<object[]> ByteArraySecrets =>
+        new List<object[]>
+        {
+            new object[] { new byte[] { 0x00 } },
+            new object[] { new byte[] { 0xFF, 0xFF } },
         };
 }

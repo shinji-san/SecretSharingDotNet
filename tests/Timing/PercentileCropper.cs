@@ -1,14 +1,13 @@
 // ----------------------------------------------------------------------------
-// <copyright file="ShareExtensions.cs" company="Private">
-// Copyright (c) 2025 All Rights Reserved
+// <copyright file="PercentileCropper.cs" company="Private">
+// Copyright (c) 2026 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
-// <date>12/24/2025 10:44:47 PM</date>
 // ----------------------------------------------------------------------------
 
 #region License
 // ----------------------------------------------------------------------------
-// Copyright 2025 Sebastian Walther
+// Copyright 2026 Sebastian Walther
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,44 +28,48 @@
 // THE SOFTWARE.
 #endregion
 
-namespace SecretSharingDotNet.Extension;
+#if NET8_0_OR_GREATER
 
-using Cryptography;
+namespace SecretSharingDotNetTest.Timing;
+
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 /// <summary>
-/// Provides extension methods for working with shares.
+/// Crops a sample array at a given percentile threshold from above. Used to
+/// remove outlier observations (GC pauses, thread preemption, OS interrupts)
+/// that would otherwise inflate variance and mask real timing differences.
 /// </summary>
-public static class ShareExtensions
+internal static class PercentileCropper
 {
     /// <summary>
-    /// Converts a collection of shares to an array of <see cref="FinitePoint{TNumber}"/>.
+    /// Returns the subset of <paramref name="samples"/> whose values are at
+    /// or below the <paramref name="percentile"/>-th percentile.
     /// </summary>
-    /// <param name="shares">The collection of shares to convert.</param>
-    /// <returns>An array of finite points.</returns>
-    public static FinitePoint<TNumber>[] ToFinitePoints<TNumber>(this IEnumerable<Share<TNumber>> shares)
+    /// <param name="samples">The input timing samples.</param>
+    /// <param name="percentile">A value in <c>(0, 1]</c>. <c>1.0</c> is a no-op.</param>
+    public static long[] CropAbove(long[] samples, double percentile)
     {
-        if (shares is null)
+        if (samples is null)
         {
-            throw new ArgumentNullException(nameof(shares));
+            throw new ArgumentNullException(nameof(samples));
         }
 
-        return shares.Select(s => new FinitePoint<TNumber>(s.Index, s.Value)).ToArray();
-    }
-
-    /// <summary>
-    /// Converts a collection of <see cref="FinitePoint{T}"/> to an array of shares.
-    /// </summary>
-    /// <param name="points">The collection of finite points to convert.</param>
-    /// <returns>An array of shares.</returns>
-    public static Share<TNumber>[] ToShares<TNumber>(this IEnumerable<FinitePoint<TNumber>> points)
-    {
-        if (points is null)
+        if (percentile <= 0 || percentile > 1)
         {
-            throw new ArgumentNullException(nameof(points));
+            throw new ArgumentOutOfRangeException(nameof(percentile));
         }
-        return points.Select(p => new Share<TNumber>(p.X, p.Y)).ToArray();
+
+        if (samples.Length == 0 || percentile >= 1.0)
+        {
+            return samples;
+        }
+
+        var sorted = samples.OrderBy(x => x).ToArray();
+        int idx = (int)Math.Ceiling(sorted.Length * percentile) - 1;
+        long threshold = sorted[Math.Max(0, idx)];
+        return samples.Where(x => x <= threshold).ToArray();
     }
 }
+
+#endif

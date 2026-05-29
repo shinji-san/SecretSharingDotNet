@@ -4,6 +4,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1-rc01] - 2026-05-29
+
+### Added
+- Added `SecureBigInteger` type with constant-time arithmetic primitives; timing depends only on the public operand bit-length, not on operand values.
+- Added `MersenneSafeGcdAlgorithm<TNumber>` — Bernstein–Yang divstep modular inverse for a constant-time `SecretReconstructor.DivMod`.
+- Added `PinnedPoolArray<T>` — GC-pinned, securely-cleared buffer wrapper with fixed-time equality.
+- Added `PinnedPoolArrayList<T>` — cascade-dispose container for multiple pinned buffers.
+- Added `CountedEqualityComparer<T>` and `ICountedEqualityComparer<T>` for length-aware structural equality.
+- Added `Cryptography.SecureInput.ConsolePasswordReader` — interactive keystroke-by-keystroke reader that lands input directly in a pinned `PinnedPoolArray<char>`.
+- Added `Cryptography.SecureInput.SecureCharBufferExtensions` — converts `string` / `char[]` / `ReadOnlySpan<char>` into pinned char buffers, with a clearing variant for caller-owned `char[]`.
+- Added `Cryptography.SecureInput.SecureNumericBufferExtensions` — pinned-buffer conversions for `int`, `long`, and `BigInteger` (forward and reverse).
+- Added `Secret<TNumber>.FromText(PinnedPoolArray<char>)`, `FromText(PinnedPoolArray<char>, Encoding)`, and `FromBase64(PinnedPoolArray<char>)` factories.
+- Added `Secret<TNumber>.ToCharArray()`, `ToCharArray(Encoding)`, `ToBase64String()`, `ToBase64CharArray()`, and `AsReadOnlySpan()` (.NET 8 and newer).
+- Added `Share<TNumber>(PinnedPoolArray<char>)` constructor and `Share<TNumber>.ToCharArray(...)` overloads.
+- Added `Shares<TNumber>.FromText(PinnedPoolArray<char>)`, `FromTextLines(IEnumerable<PinnedPoolArray<char>>)`, and `ToCharArray(...)` overloads.
+- Added `SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult>` 3-generic overload to wire in alternative GCD strategies, including `MersenneSafeGcdAlgorithm`.
+- Added `Calculator.Create<TNumber>(byte[], int)` generic helper that disposes the orphan instance on type-mismatch.
+
+### Changed
+- `Secret<TNumber>` is now `IDisposable`; secret bytes are stored in a GC-pinned, securely-cleared `PinnedPoolArray<byte>`. `ToString()` returns the redaction sentinel `"*** Secured Value ***"` in Release builds; equality and ordering are fixed-time over the value bytes.
+- `Shares<TNumber>` is now `IDisposable`; disposal cascades to every contained share.
+- `Share<TNumber>` is now a `sealed record` (was `readonly record struct`) and implements `IDisposable`. Properties `X` / `Y` renamed to `Index` / `Value`.
+- `IMakeSharesUseCase<TNumber>` and `IReconstructionUseCase<TNumber>` now extend `IDisposable`; DI registrations must use `Transient` or `Scoped` lifetimes so the container disposes them.
+- `BigIntCalculator` and `SecureBigIntCalculator` are now `internal`. The numeric backends are reflection-discovered by `Calculator.Create<TNumber>()`; consumer code should use `Calculator<TNumber>` (abstract base) for typed access.
+- `Calculator<TNumber>.Clone` is now `abstract` (was a non-virtual default that returned `MemberwiseClone()`). Subclasses must now provide a true deep copy — `MemberwiseClone` is not safe when `TNumber` is a reference type (e.g. `SecureBigInteger`) or when the subtype carries reference-type fields.
+- `ExtendedEuclideanAlgorithm<TNumber>` is now `sealed`.
+- `SecretSplitter<TNumber>` is now `sealed`.
+- `SecureBigInteger.Pow(int)` now throws `ArgumentOutOfRangeException` (was `ArgumentException`) for negative exponents, consistent with the other length / exponent validations on the type. `ArgumentOutOfRangeException` derives from `ArgumentException`, so wide catches still work.
+- `SecretReconstructor<TNumber>.SecurityLevel` is now read-only; the level is derived from the shares passed to `Reconstruction`.
+- Renamed `Secret<TNumber>.ToBase64()` to `ToBase64String()`; new `ToBase64CharArray()` returns a pinned char buffer.
+- Text I/O on `Secret`, `Share`, and `Shares` is pinned-buffer-only (no `string` overloads on the wire path).
+- Share x-coordinate encoding is little-endian on the wire (`BinaryPrimitives.WriteInt32LittleEndian`) for cross-architecture stability.
+- Set data type of `numberOfMinimumShares` and `numberOfShares` parameters from `TNumber` to `int` in `MakeShares` method.
+
+### Fixed
+- Resolved MSB3277 `System.Memory` version conflict in the test project on `net472`/`net48`/`net481` by centrally pinning `System.Memory` to `4.6.3` and adding explicit `System.Memory` / `System.Buffers` references for the .NET Framework TFMs.
+- `Secret<TNumber>.ToBase64CharArray()` no longer materialises an intermediate managed `string` on netstandard2.0 / net4.7.2 / net4.8 / net4.8.1 — encodes directly into the pinned destination buffer via an inline 24-bit-window encoder mirroring the existing pinned Base64 decoder.
+- `SecretSplitter<TNumber>.MakeShares(int, int, int, out Secret<TNumber>)` now disposes the generated random secret and resets the `out` parameter to `default` when the post-allocation work (`CreatePolynomial` / `CreateShares`) throws — callers fielding the exception could not previously clean up the leaked pinned secret.
+- `Share<TNumber>` record's compiler-synthesised copy constructor and the `with`-expression now throw `NotSupportedException` instead of producing a shallow clone that would alias the disposable `Calculator<TNumber>` backing fields across two share instances.
+- `Shares<TNumber>.{Clear, Add, Remove}` collapsed to an unconditional `NotSupportedException` throw — the post-`IsReadOnly`-guard branches were unreachable on the sealed collection.
+- `SecureBigInteger.Equals` no longer calls a redundant `Array.Clear` after `new PinnedPoolArray<ulong>(…)` — the constructor already zero-clears the rented capacity.
+- `MersenneSafeGcdAlgorithm<TNumber>` threat-model XDoc tightened: only the outer divstep iteration count is operand-independent; per-iteration wall-clock varies with the limb count of the shrinking intermediate working values. The README's Security & Threat Model section is updated to match. The "does not protect against" block additionally documents that `MinMersennePrimeExponent` is a representational floor (not a cipher-strength floor) and that plain Shamir produces a wrong secret silently on tampered shares — the library implements neither verifiable secret sharing nor per-share integrity checks.
+- `SecureBigInteger.Pow(int)` XDoc now flags the `exponent ∈ {0, 1}` early returns as additional timing distinctions beyond the documented `O(log₂(exponent))`.
+- Hardened pinned-buffer allocations across `SecureCharBufferExtensions`, `SecureNumericBufferExtensions`, and `PinnedPoolArrayExtensions.Subset<T>` to dispose the freshly-allocated pinned buffer if the post-allocation write throws. The failure paths are unreachable in clean code, so no behavioural change in practice — defense-in-depth against partial-fill leaks if the copy/write ever does throw.
+
+### Removed
+- Removed support for .NET Framework 4.7.1.
+- Removed support for .NET Framework 4.7.
+- Removed `FinitePoint<TNumber>` struct (replaced by internal polynomial representation).
+- Removed `OriginalSecret` property from `Shares` class.
+- Removed `OriginalSecretExists` property from `Shares` class.
+- Removed `MakeShares(TNumber numberOfMinimumShares, TNumber numberOfShares, int securityLevel)` method.
+- Removed `Secret<TNumber> Reconstruction(FinitePoint<TNumber>[] shares)` method.
+- Removed `Secret<TNumber> Reconstruction(Share<TNumber>[] shares)` method.
+- Removed `Secret<TNumber> Reconstruction(string[] shares)` method.
+- Removed `Secret<TNumber> Reconstruction(string shares)` method.
+- Removed `ToInt32()` method from `BigIntCalculator` class.
+- Removed `ToInt32()` method from `Calculator` class.
+
 ## [0.14.0] - 2025-12-25
 ### Added
 - Added `Share` struct to represent individual shares for future extensibility.
@@ -257,7 +316,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `LICENSE.md`
 - Added `README.md`
 
-[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.14.0...develop
+[1.0.1-rc01]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.14.0...v1.0.1-rc01
 [0.14.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.11.0...v0.12.0

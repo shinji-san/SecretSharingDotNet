@@ -1,0 +1,161 @@
+// ----------------------------------------------------------------------------
+// <copyright file="CountedEqualityComparer`1.cs" company="Private">
+// Copyright (c) 2026 All Rights Reserved
+// </copyright>
+// <author>Sebastian Walther</author>
+// <date>01/29/2026 09:32:26 PM</date>
+// ----------------------------------------------------------------------------
+
+#region License
+
+// ----------------------------------------------------------------------------
+// Copyright 2026 Sebastian Walther
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+#endregion
+
+namespace SecretSharingDotNet.Cryptography.SecureArray;
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+
+/// <summary>
+/// An element comparer that additionally carries the number of elements to compare.
+/// Pass this instance into <see cref="IStructuralEquatable.Equals(object, IEqualityComparer)"/>.
+/// </summary>
+/// <typeparam name="T">Element type.</typeparam>
+[DebuggerDisplay("{ToString(),nq}")]
+public sealed class CountedEqualityComparer<T> : ICountedEqualityComparer<T>
+{
+    /// <summary>
+    /// The element comparer used to compare individual elements of type <typeparamref name="T"/>.
+    /// This comparer is utilized within the implementation of equality checks and hash code generation
+    /// for comparing elements based on the logic defined in the associated <see cref="IEqualityComparer{T}"/>.
+    /// </summary>
+    private readonly IEqualityComparer<T> elementComparer;
+
+    /// <summary>
+    /// Creates a new instance.
+    /// </summary>
+    /// <param name="count">Number of elements to compare.</param>
+    /// <param name="elementComparer">Optional element comparer; defaults to <see cref="EqualityComparer{T}.Default"/>.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="count"/> is negative.</exception>
+    public CountedEqualityComparer(int count, IEqualityComparer<T> elementComparer = null)
+    {
+        if (count < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), string.Format(ErrorMessages.ValueLowerThanX, 0));
+        }
+
+        this.Count = count;
+        this.elementComparer = elementComparer ?? EqualityComparer<T>.Default;
+    }
+
+    /// <inheritdoc />
+    public int Count { get; }
+
+    /// <inheritdoc />
+    public bool Equals(T x, T y) => this.elementComparer.Equals(x, y);
+
+    /// <inheritdoc />
+    public int GetHashCode(T obj) => this.elementComparer.GetHashCode(obj);
+
+    /// <summary>
+    /// Determines whether the specified objects are equal.
+    /// </summary>
+    /// <param name="x">The first object to compare.</param>
+    /// <param name="y">The second object to compare.</param>
+    /// <returns>
+    /// <see langword="true"/> if both arguments are <see langword="null"/> or compare equal under
+    /// the configured element comparer; <see langword="false"/> if exactly one is <see langword="null"/>
+    /// or the elements differ.
+    /// </returns>
+    /// <remarks>
+    /// Type-mismatched arguments are reported via <see cref="ArgumentException"/> rather than
+    /// silently returning <see langword="false"/>. This matches the strict-validation convention
+    /// used elsewhere in this project (null arguments throw <see cref="ArgumentNullException"/>;
+    /// disposed instances throw <see cref="ObjectDisposedException"/>) as well as the behavior of
+    /// <c>EqualityComparer&lt;T&gt;.Default</c> when accessed via the non-generic
+    /// <see cref="IEqualityComparer"/> interface — both throw on type-mismatch instead of
+    /// returning <see langword="false"/>.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the type of <paramref name="x"/> or <paramref name="y"/> does not match
+    /// the expected type <typeparamref name="T"/>. <see cref="ArgumentException.ParamName"/>
+    /// identifies which argument is at fault.
+    /// </exception>
+    bool IEqualityComparer.Equals(object x, object y)
+    {
+        if (x is null || y is null)
+        {
+            return x is null && y is null;
+        }
+
+        if (x is not T firstElement)
+        {
+            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName), nameof(x));
+        }
+
+        if (y is not T secondElement)
+        {
+            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName), nameof(y));
+        }
+
+        return this.Equals(firstElement, secondElement);
+    }
+
+    /// <summary>
+    /// Computes the hash code for the specified object.
+    /// </summary>
+    /// <param name="obj">The object for which the hash code is to be computed.</param>
+    /// <returns>The hash code of the specified object.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="obj"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="obj"/> is not of the expected type <typeparamref name="T"/>.
+    /// </exception>
+    int IEqualityComparer.GetHashCode(object obj)
+    {
+        if (obj is null)
+        {
+            throw new ArgumentNullException(nameof(obj));
+        }
+
+        if (obj is not T value)
+        {
+            throw new ArgumentException(string.Format(ErrorMessages.ComparerExpectedTypeX, typeof(T).FullName), nameof(obj));
+        }
+
+        return this.GetHashCode(value);
+    }
+
+    /// <summary>
+    /// Returns a diagnostic representation of this comparer including the element type,
+    /// the configured <see cref="Count"/>, and the runtime type of the element comparer
+    /// in use. Intended for debugging, log output, and assertion diagnostics — the exact
+    /// format is not part of the public contract and may change.
+    /// </summary>
+    /// <returns>A diagnostic string describing this comparer.</returns>
+    public override string ToString() =>
+        $"CountedEqualityComparer<{typeof(T).Name}>(Count={this.Count}, Element={this.elementComparer.GetType().Name})";
+}

@@ -31,13 +31,21 @@
 
 namespace SecretSharingDotNet.Math;
 
+using System;
 using System.Collections.ObjectModel;
 
 /// <summary>
 /// Represents the result of the extended greatest common divisor computation.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type</typeparam>
-public interface IExtendedGcdResult<TNumber>
+/// <remarks>
+/// Owns the <see cref="Calculator{TNumber}"/> instances exposed via
+/// <see cref="GreatestCommonDivisor"/>, <see cref="BezoutCoefficients"/>, and
+/// <see cref="Quotients"/>. The caller takes ownership of the result returned by
+/// <see cref="IExtendedGcdAlgorithm{TNumber, TExtendedGcdResult}.Compute"/> and must
+/// dispose it; the contained calculators are released as part of disposal.
+/// </remarks>
+public interface IExtendedGcdResult<TNumber> : IDisposable
 {
     /// <summary>
     /// Gets the greatest common divisor
@@ -45,12 +53,27 @@ public interface IExtendedGcdResult<TNumber>
     Calculator<TNumber> GreatestCommonDivisor { get; }
 
     /// <summary>
-    /// Gets the Bézout coefficients
+    /// Gets the Bézout coefficients <c>(s, t)</c> for the input pair <c>(a, b)</c>, satisfying
+    /// <c>a·s + b·t = gcd(a, b)</c>.
     /// </summary>
+    /// <remarks>
+    /// Two-element collection: <c>BezoutCoefficients[0] = s</c> (paired with the first input
+    /// <c>a</c>), <c>BezoutCoefficients[1] = t</c> (paired with the second input <c>b</c>).
+    /// The pairing matches <see cref="Quotients"/>.
+    /// </remarks>
     ReadOnlyCollection<Calculator<TNumber>> BezoutCoefficients { get; }
 
     /// <summary>
-    /// Gets the quotients by the gcd
+    /// Gets the trailing Bézout-coefficient pair — i.e. the running <c>(s, t)</c> pair carried
+    /// past the final iteration of the extended Euclidean algorithm, when the residual reached
+    /// zero.
     /// </summary>
+    /// <remarks>
+    /// Indexed pairwise with <see cref="BezoutCoefficients"/>: <c>Quotients[0]</c> corresponds
+    /// to <c>BezoutCoefficients[0]</c> and likewise for <c>[1]</c>. For positive inputs the
+    /// relationship <c>Quotients[0] = ±b/gcd(a, b)</c> and <c>Quotients[1] = ∓a/gcd(a, b)</c>
+    /// holds (sign chosen by the iteration count's parity), which lets callers recover
+    /// <c>a/gcd</c> and <c>b/gcd</c> without rerunning the algorithm.
+    /// </remarks>
     ReadOnlyCollection<Calculator<TNumber>> Quotients { get; }
 }
