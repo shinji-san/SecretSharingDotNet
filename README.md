@@ -1012,10 +1012,13 @@ for hardened native crypto stacks.
   from the library's table, starting at `MinMersennePrimeExponent = 13`
   (prime `2^13 − 1 = 8191`). A 13-bit modulus is mathematically tiny and is
   included for round-trip / parameter-exploration scenarios, *not* as a
-  recommended cipher-strength floor. The auto-upgrade logic in
-  `SecurityLevelManager.AdjustSecurityLevel` raises the level whenever the
-  secret bit-length exceeds the current prime, but consumers who explicitly
-  construct shares at low exponents receive what they ask for. Treat
+  recommended cipher-strength floor. The auto-upgrade in
+  `SecretSplitter<TNumber>.MakeShares` raises the level whenever the
+  secret's bit-length exceeds the current prime; reconstruction additionally
+  fits the level to the maximum share value via
+  `SecurityLevelManager.AdjustSecurityLevel`, which may raise or lower the
+  level. Either way, consumers who explicitly construct shares at low
+  exponents on a small secret receive what they ask for. Treat
   `MinMersennePrimeExponent` as a representational floor, not a security
   floor; production secrets should use a security level of `127` or higher,
   in line with the README examples.
