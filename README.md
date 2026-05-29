@@ -56,8 +56,8 @@ A C# implementation of Shamir's Secret Sharing.
   <tbody>
       <tr>
           <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml/badge.svg" alt="SecretSharingDotNet - NuGet Publishing"/></a></td>
-          <td rowspan=8><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.14.0"/></a></td>
-          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.14.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.14.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=8><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 1.0.1-rc01"/></a></td>
+          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v1.0.1-rc01" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-1.0.1--rc01-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -88,10 +88,10 @@ A C# implementation of Shamir's Secret Sharing.
 
 1. Open a console and switch to the directory containing your project file.
 
-2. Use the following command to install version 0.14.0 of the SecretSharingDotNet package:
+2. Use the following command to install version 1.0.1-rc01 of the SecretSharingDotNet package:
 
     ```dotnetcli
-    dotnet add package SecretSharingDotNet -v 0.14.0 -f <FRAMEWORK>
+    dotnet add package SecretSharingDotNet -v 1.0.1-rc01 -f <FRAMEWORK>
     ```
 
 3. After the completion of the command, look at the project file to make sure that the package is successfully installed.
@@ -100,7 +100,7 @@ A C# implementation of Shamir's Secret Sharing.
 
     ```xml
     <ItemGroup>
-      <PackageReference Include="SecretSharingDotNet" Version="0.14.0" />
+      <PackageReference Include="SecretSharingDotNet" Version="1.0.1-rc01" />
     </ItemGroup>
     ```
 ## Remove SecretSharingDotNet package 📤
@@ -1048,7 +1048,7 @@ For the following instructions, please make sure that you are connected to the i
 
 If you start the unit tests on Linux or macOS, you must install the `mono-complete` package in case of the .NET Frameworks 4.7.2, 4.8 and 4.8.1.
 You can find the Mono installation instructions [here](https://www.mono-project.com/download/stable/#download-lin).
-Mono 6.8 on Linux occasionally writes diagnostic `mono_crash.*.json` files after Framework-TFM test runs; these are tracked by `.gitignore` and do not indicate test failures — the runners report green and the crash sits in runner shutdown / finalizer drain.
+Mono 6.8 on Linux occasionally writes diagnostic `mono_crash.<session>.<n>.json` files into `tests/` after Framework-TFM test runs. These are Mono runtime crash reports produced *after* assertion reporting, during runner shutdown / finalizer drain — every test still passes (the crash is post-test). The pattern is tracked by `.gitignore` so it never pollutes `git status`. CoreCLR targets (`net8.0` / `net9.0` / `net10.0`) are unaffected. Treat any such files as runner-shutdown artefacts of the Mono 6.8 host; they do not indicate a library defect.
 
 The .NET Frameworks 4.7.2, 4.8 and 4.8.1 can be found [here](https://dotnet.microsoft.com/download/dotnet-framework).
 
