@@ -111,19 +111,23 @@ public sealed class ExtendedEuclideanAlgorithm<TNumber> : IExtendedGcdAlgorithm<
             var result = new ExtendedGcdResult<TNumber>(rPrev, coefficients, quotients);
 
             // Ownership of these calculators is now held by `result`. Null the locals
-            // so the catch block below does not double-dispose values the result owns.
+            // so the finally block below does not double-dispose values the result owns.
             rPrev = sPrev = tPrev = sCur = tCur = null;
             return result;
         }
-        catch
+        finally
         {
+            // sCur / sPrev / tCur / tPrev / rCur / rPrev are nulled on the success
+            // path above and non-null on a throw between their allocation and the
+            // ownership-transfer line — null-conditional disposal handles both.
+            // Mirrors the ownership-transfer cleanup pattern in
+            // MersenneSafeGcdAlgorithm.Compute.
             sCur?.Dispose();
             sPrev?.Dispose();
             tCur?.Dispose();
             tPrev?.Dispose();
             rCur?.Dispose();
             rPrev?.Dispose();
-            throw;
         }
     }
 }
