@@ -56,8 +56,8 @@ A C# implementation of Shamir's Secret Sharing.
   <tbody>
       <tr>
           <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml/badge.svg" alt="SecretSharingDotNet - NuGet Publishing"/></a></td>
-          <td rowspan=8><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 0.14.0"/></a></td>
-          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v0.14.0" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-0.14.0-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=8><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 1.0.1-rc01"/></a></td>
+          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v1.0.1-rc01" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-1.0.1--rc01-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -88,10 +88,10 @@ A C# implementation of Shamir's Secret Sharing.
 
 1. Open a console and switch to the directory containing your project file.
 
-2. Use the following command to install version 0.14.0 of the SecretSharingDotNet package:
+2. Use the following command to install version 1.0.1-rc01 of the SecretSharingDotNet package:
 
     ```dotnetcli
-    dotnet add package SecretSharingDotNet -v 0.14.0 -f <FRAMEWORK>
+    dotnet add package SecretSharingDotNet -v 1.0.1-rc01 -f <FRAMEWORK>
     ```
 
 3. After the completion of the command, look at the project file to make sure that the package is successfully installed.
@@ -100,7 +100,7 @@ A C# implementation of Shamir's Secret Sharing.
 
     ```xml
     <ItemGroup>
-      <PackageReference Include="SecretSharingDotNet" Version="0.14.0" />
+      <PackageReference Include="SecretSharingDotNet" Version="1.0.1-rc01" />
     </ItemGroup>
     ```
 ## Remove SecretSharingDotNet package 📤
