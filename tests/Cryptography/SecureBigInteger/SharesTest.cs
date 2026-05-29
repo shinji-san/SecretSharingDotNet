@@ -413,6 +413,43 @@ public class SharesTest
     }
 
     /// <summary>
+    /// Regression test against the <see cref="Shares{TNumber}"/> ctor sorting the
+    /// caller-owned array in place. The public implicit operator from
+    /// <see cref="Share{TNumber}"/>[] reaches the internal ctor; an alias-cast there
+    /// followed by <see cref="Array.Sort{T}(T[])"/> would reorder the caller's array
+    /// as a side effect of construction. Reported by codex on PR #308 against the
+    /// v1.0.1-rc01 release candidate. The test asserts both halves: the caller's
+    /// array keeps its original ordering, and the wrapped collection is still sorted
+    /// internally (so the defensive copy does not break the sort contract).
+    /// </summary>
+    [Fact]
+    public void ImplicitOperatorFromArray_DoesNotMutateCallerArray()
+    {
+        // Arrange — three shares laid out in reverse-of-index order so an in-place
+        // sort would visibly reorder the caller's array.
+        using var p3 = "3-300".ToPinnedSecure();
+        using var p1 = "1-100".ToPinnedSecure();
+        using var p2 = "2-200".ToPinnedSecure();
+        using var s3 = new Share<SecureBigInteger>(p3);
+        using var s1 = new Share<SecureBigInteger>(p1);
+        using var s2 = new Share<SecureBigInteger>(p2);
+        var callerArray = new[] { s3, s1, s2 };
+
+        // Act — implicit operator wraps the caller-owned array.
+        using var wrapped = (Shares<SecureBigInteger>)callerArray;
+
+        // Assert — caller's array still in [s3, s1, s2] order (defensive copy in ctor).
+        Assert.Same(s3, callerArray[0]);
+        Assert.Same(s1, callerArray[1]);
+        Assert.Same(s2, callerArray[2]);
+
+        // Assert — wrapped collection sorted ascending by index: [s1, s2, s3].
+        Assert.Same(s1, wrapped[0]);
+        Assert.Same(s2, wrapped[1]);
+        Assert.Same(s3, wrapped[2]);
+    }
+
+    /// <summary>
     /// <see cref="Shares{TNumber}.ToCharArray()"/> emits uppercase hex without prefix, one share per line,
     /// separated and terminated by <see cref="Environment.NewLine"/>, regardless of build configuration.
     /// </summary>

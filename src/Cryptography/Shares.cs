@@ -82,7 +82,11 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     internal Shares(IList<Share<TNumber>> shares)
     {
         _ = shares ?? throw new ArgumentNullException(nameof(shares));
-        var sortedShares = shares as Share<TNumber>[] ?? shares.ToArray();
+        // Always copy via ToArray(). The public implicit operator from
+        // Share<TNumber>[] reaches this ctor with caller-owned storage; an
+        // alias-cast to Share<TNumber>[] followed by Array.Sort would
+        // reorder the caller's array as a side effect of construction.
+        var sortedShares = shares.ToArray();
         Array.Sort(sortedShares);
         this.shareList = new Collection<Share<TNumber>>(sortedShares);
     }
