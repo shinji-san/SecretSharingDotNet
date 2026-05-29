@@ -1048,7 +1048,7 @@ For the following instructions, please make sure that you are connected to the i
 
 If you start the unit tests on Linux or macOS, you must install the `mono-complete` package in case of the .NET Frameworks 4.7.2, 4.8 and 4.8.1.
 You can find the Mono installation instructions [here](https://www.mono-project.com/download/stable/#download-lin).
-Mono 6.8 on Linux occasionally writes diagnostic `mono_crash.*.json` files after Framework-TFM test runs; these are tracked by `.gitignore` and do not indicate test failures — the runners report green and the crash sits in runner shutdown / finalizer drain.
+Mono 6.8 on Linux occasionally writes diagnostic `mono_crash.<session>.<n>.json` files into `tests/` after Framework-TFM test runs. These are Mono runtime crash reports produced *after* assertion reporting, during runner shutdown / finalizer drain — every test still passes (the crash is post-test). The pattern is tracked by `.gitignore` so it never pollutes `git status`. CoreCLR targets (`net8.0` / `net9.0` / `net10.0`) are unaffected. Treat any such files as runner-shutdown artefacts of the Mono 6.8 host; they do not indicate a library defect.
 
 The .NET Frameworks 4.7.2, 4.8 and 4.8.1 can be found [here](https://dotnet.microsoft.com/download/dotnet-framework).
 
