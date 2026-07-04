@@ -809,7 +809,12 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public override int GetHashCode()
     {
         this.ThrowIfDisposed();
-        return this.secretNumber?.GetHashCode() ?? 0;
+        // Hash only the public payload length, never secret content: keeps the Equals/GetHashCode
+        // contract (equal payloads share a length) without a value-derived hash, and replaces the
+        // former identity hash that broke the contract (PinnedPoolArray does not override
+        // GetHashCode). Default / content-empty secrets (null secretNumber, or only the mark byte)
+        // hash to 0.
+        return this.secretNumber is { Length: > MarkByteCount } sn ? sn.Length - MarkByteCount : 0;
     }
 
     /// <summary>
