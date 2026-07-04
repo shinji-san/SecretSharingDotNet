@@ -149,12 +149,12 @@ The library is generic in the numeric backend: `BigInteger` (used in the example
 
 ### Choosing a backend and reconstructor
 
-| Backend | Reconstructor + GCD strategy | Pinned memory | Constant-time arithmetic | Fixed-iteration inverse | Choose when |
+| Backend | Reconstructor + GCD strategy | Pinned memory | Constant-time arithmetic † | Fixed-iteration inverse † | Choose when |
 |---|---|:---:|:---:|:---:|---|
 | `BigInteger` | `SecretReconstructor` + `ExtendedEuclideanAlgorithm` | no | no | no | performance matters and timing side channels are out of scope |
 | `SecureBigInteger` | `FixedIterationSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | yes | yes | secrets where passive timing analysis is in scope |
 
-Fixed-iteration inverse means the GCD iteration count is independent of secret operands, which removes the iteration-count side channel of a plain extended-Euclidean GCD. It is not per-operation constant-time — `MersenneSafeGcdAlgorithm`'s per-iteration timing is not uniform on managed backends. See the Security & Threat Model section for the exact scope.
+† Both constant-time properties are best-effort against passive timing analysis — managed .NET cannot guarantee constant time (see the Security & Threat Model section). *Constant-time arithmetic* covers the core primitives (add / subtract / multiply / square / divide / remainder) on the public bit length; it does not cover `Pow` (variable-time on its exponent), ordering (`CompareTo`), or the hex / Base64 decoders. *Fixed-iteration inverse* means the GCD iteration count is independent of secret operands, which removes the iteration-count side channel of a plain extended-Euclidean GCD; it is not per-operation constant-time (`MersenneSafeGcdAlgorithm`'s per-iteration timing is not uniform). Together these two properties **reduce but do not eliminate** reconstruction timing side channels — they do not make the whole reconstruction constant-time.
 
 > [!WARNING]
 > Do not pair `SecureBigInteger` with `ExtendedEuclideanAlgorithm`: you keep the pinned memory but reintroduce an operand-value-dependent iteration count — the side channel `FixedIterationSecretReconstructor` removes. `FixedIterationSecretReconstructor<SecureBigInteger>` accepts only fixed-iteration GCD strategies, so this mispairing is a compile-time error rather than a silent side channel. See the Security & Threat Model section for the exact scope.
