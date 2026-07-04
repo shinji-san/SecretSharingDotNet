@@ -139,7 +139,7 @@ A C# implementation of Shamir's Secret Sharing.
 > The text-secret encoding is UTF-8 (introduced in v0.14.0).
 
 > [!TIP]
-> A runnable end-to-end example lives in [`samples/SecretSharingDotNet.Demo.Console`](./samples/SecretSharingDotNet.Demo.Console). It wires the `SecureBigInteger` backend with `MersenneSafeGcdAlgorithm` through `Microsoft.Extensions.DependencyInjection`, reads the secret via `ConsolePasswordReader` (no `string` materialisation), splits it, and reconstructs it from a user-selected K-of-N subset of the generated shares.
+> A runnable end-to-end example lives in [`samples/SecretSharingDotNet.Demo.Console`](./samples/SecretSharingDotNet.Demo.Console). It wires the `SecureBigInteger` backend via `ConstantTimeSecretReconstructor` (constant-time `MersenneSafeGcdAlgorithm` inverse) through `Microsoft.Extensions.DependencyInjection`, reads the secret via `ConsolePasswordReader` (no `string` materialisation), splits it, and reconstructs it from a user-selected K-of-N subset of the generated shares.
 
 ## Basics
 Use the function `MakeShares` to generate the shares, based on a random or pre-defined secret.
@@ -147,12 +147,22 @@ Afterwards, use the function `Reconstruction` to reconstruct the original secret
 
 The library is generic in the numeric backend: `BigInteger` (used in the examples below) or `SecureBigInteger` (pinned-memory storage with constant-time arithmetic — see the Security & Threat Model section). Both `IMakeSharesUseCase<TNumber>` and `IReconstructionUseCase<TNumber>` implement `IDisposable`; wrap them in `using` so pinned, security-sensitive buffers are released deterministically.
 
+### Choosing a backend and reconstructor
+
+| Backend | Reconstructor + GCD strategy | Pinned memory | Constant-time arithmetic | Constant-time modular inverse | Choose when |
+|---|---|:---:|:---:|:---:|---|
+| `BigInteger` | `SecretReconstructor` + `ExtendedEuclideanAlgorithm` | no | no | no | performance matters and timing side channels are out of scope |
+| `SecureBigInteger` | `ConstantTimeSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | yes | yes (best-effort) | secrets where passive timing analysis is in scope |
+
+> [!WARNING]
+> Do not pair `SecureBigInteger` with `ExtendedEuclideanAlgorithm`: you keep the pinned memory but reintroduce a variable-time modular inverse, defeating the constant-time goal. `ConstantTimeSecretReconstructor<SecureBigInteger>` accepts only constant-time GCD strategies, so this mispairing is a compile-time error rather than a silent side channel. See the Security & Threat Model section for the exact constant-time scope.
+
 The length of the shares is based on the security level. On the splitter side, you can set it three ways: pass it as the `securityLevel` parameter of the `MakeShares` overload that takes one, assign the `SecretSplitter<TNumber>.SecurityLevel` property, or inject a pre-configured `ISecurityLevelManager<TNumber>` through the constructor. The configured level is overridden when the secret size exceeds the Mersenne prime derived from it — the library auto-adjusts upward. It is not necessary to define a security level for a reconstruction: `SecretReconstructor<TNumber>.SecurityLevel` is read-only and is derived from the supplied shares on every `Reconstruction` call.
 
 The `ToString()` overrides on `Secret<TNumber>`, `Share<TNumber>`, and `Shares<TNumber>` are build-mode-sensitive: DEBUG builds return the actual content, while Release builds return the redaction sentinel `"*** Secured Value ***"` so secrets cannot accidentally leak through logs, exception messages, or other diagnostic output.
 
 ## Using the SecretSharingDotNet library with DI in a .NET project
-This guide demonstrates two parallel DI wirings: the `BigInteger` backend with `ExtendedEuclideanAlgorithm` (BCL-native, variable-time arithmetic) and the `SecureBigInteger` backend with `MersenneSafeGcdAlgorithm` (pinned-memory storage, constant-time arithmetic on public bit-length — see the Security & Threat Model section for the trade-offs). Both variants share the same import block:
+This guide demonstrates two parallel DI wirings: the `BigInteger` backend with `ExtendedEuclideanAlgorithm` (BCL-native, variable-time arithmetic) and the `SecureBigInteger` backend via `ConstantTimeSecretReconstructor`, which wires the constant-time `MersenneSafeGcdAlgorithm` (pinned-memory storage, constant-time arithmetic on public bit-length — see the Security & Threat Model section for the trade-offs). Both variants share the same import block:
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -203,15 +213,14 @@ Console.Out.Write(reconstructionChars.PoolArray, 0, reconstructionChars.Length);
 Console.WriteLine();
 ```
 
-### Variant 2 — SecureBigInteger + MersenneSafeGcdAlgorithm
+### Variant 2 — SecureBigInteger + ConstantTimeSecretReconstructor
 
-The wiring is identical except for the substituted `TNumber` and the GCD algorithm — `MersenneSafeGcdAlgorithm<SecureBigInteger>` is the constant-time alternative to `ExtendedEuclideanAlgorithm<SecureBigInteger>` (see the Security & Threat Model section).
+`ConstantTimeSecretReconstructor<SecureBigInteger>` is a drop-in `IReconstructionUseCase<SecureBigInteger>` that supplies the constant-time `MersenneSafeGcdAlgorithm` itself, so no separate GCD registration is needed. To use a different constant-time strategy, additionally register `IConstantTimeExtendedGcdAlgorithm<SecureBigInteger>` and the reconstructor picks it up (see the Security & Threat Model section).
 
 ```csharp
 var serviceCollection = new ServiceCollection();
-serviceCollection.AddSingleton<IExtendedGcdAlgorithm<SecureBigInteger>, MersenneSafeGcdAlgorithm<SecureBigInteger>>();
 serviceCollection.AddTransient<IMakeSharesUseCase<SecureBigInteger>, SecretSplitter<SecureBigInteger>>();
-serviceCollection.AddTransient<IReconstructionUseCase<SecureBigInteger>, SecretReconstructor<SecureBigInteger>>();
+serviceCollection.AddTransient<IReconstructionUseCase<SecureBigInteger>, ConstantTimeSecretReconstructor<SecureBigInteger>>();
 using var serviceProvider = serviceCollection.BuildServiceProvider();
 
 var makeSharesUseCase = serviceProvider.GetRequiredService<IMakeSharesUseCase<SecureBigInteger>>();
@@ -622,11 +631,11 @@ public class Program
 
     //// SecretSplitter and SecretReconstructor auto-adjust their security
     //// level to the secret being processed, so one pair of instances
-    //// serves all three shapes. MersenneSafeGcdAlgorithm provides a
-    //// constant-time modular inverse during Lagrange interpolation.
+    //// serves all three shapes. ConstantTimeSecretReconstructor wires the
+    //// constant-time MersenneSafeGcdAlgorithm modular inverse used during
+    //// Lagrange interpolation.
     using var splitter = new SecretSplitter<SecureBigInteger>();
-    var safegcd = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
-    using var combiner = new SecretReconstructor<SecureBigInteger>(safegcd);
+    using var combiner = new ConstantTimeSecretReconstructor<SecureBigInteger>();
 
     //// (a) Text round-trip.
     using var textShares = splitter.MakeShares(3, 7, textSecret);
@@ -964,15 +973,17 @@ for hardened native crypto stacks.
   "outer-iteration-count constant-time" to "per-iteration uniform". The exponent is
   derived from the modulus passed to `Compute` at call time — the algorithm holds no
   `ISecurityLevelManager` reference, so it cannot drift from the
-  `SecretReconstructor` consuming it. To wire it in, pass a
-  `MersenneSafeGcdAlgorithm<TNumber>` instance as the GCD strategy when constructing
-  `SecretReconstructor<TNumber>`:
+  `SecretReconstructor` consuming it. The simplest way to opt in is
+  `ConstantTimeSecretReconstructor<TNumber>` — it accepts only constant-time GCD strategies
+  and defaults to `MersenneSafeGcdAlgorithm<TNumber>`, so the strategy cannot be mispaired:
 
   ```csharp
-  var gcd = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
-  var combiner = new SecretReconstructor<SecureBigInteger>(gcd);
-  var recovered = combiner.Reconstruction(shares);
+  using var combiner = new ConstantTimeSecretReconstructor<SecureBigInteger>();
+  using var recovered = combiner.Reconstruction(shares);
   ```
+
+  To pin a specific constant-time strategy, pass it to the same type:
+  `new ConstantTimeSecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>())`.
 
 **Public-input dependence (treated as public, not secret):**
 
@@ -985,13 +996,14 @@ for hardened native crypto stacks.
 
 **`SecureBigInteger` does *not* protect against:**
 
-- **Variable-time modular inverse on the default reconstruction path.** When
-  `SecretReconstructor` is constructed with the customary
-  `ExtendedEuclideanAlgorithm<TNumber>` GCD strategy, its iteration count is
-  variable on the operand values. Consumers whose threat model includes timing
-  analysis of reconstruction must inject `MersenneSafeGcdAlgorithm<TNumber>`
-  explicitly. A convenience overload routing the SecureBigInteger backend to
-  `MersenneSafeGcdAlgorithm<SecureBigInteger>` by default is planned future work.
+- **Variable-time modular inverse when a variable-time GCD is chosen.** The base
+  `SecretReconstructor<TNumber>` requires an explicit GCD strategy; pairing it with
+  `ExtendedEuclideanAlgorithm<TNumber>` yields an iteration count that is variable on the
+  operand values. This is a deliberate opt-out, not a default — use
+  `ConstantTimeSecretReconstructor<TNumber>` (which accepts only constant-time strategies and
+  defaults to `MersenneSafeGcdAlgorithm<TNumber>`) for reconstruction whose timing does not
+  depend on secret operands. The variable-time pairing remains available for the `BigInteger`
+  backend and other cases where constant time is not a goal.
 - **Hex- and Base64-decoder input-character timing.** `Share<TNumber>`'s
   hex-deserialisation pipeline (`DecodeHexToCalculator` → `GetHexValue`) and
   `Secret<TNumber>`'s Base64 decode (`DecodeBase64Char`) are not constant-time on
