@@ -152,7 +152,9 @@ The library is generic in the numeric backend: `BigInteger` (used in the example
 | Backend | Reconstructor + GCD strategy | Pinned memory | Constant-time arithmetic | Constant-time modular inverse | Choose when |
 |---|---|:---:|:---:|:---:|---|
 | `BigInteger` | `SecretReconstructor` + `ExtendedEuclideanAlgorithm` | no | no | no | performance matters and timing side channels are out of scope |
-| `SecureBigInteger` | `ConstantTimeSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | yes | yes (best-effort) | secrets where passive timing analysis is in scope |
+| `SecureBigInteger` | `ConstantTimeSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | yes | iteration-count (best-effort) | secrets where passive timing analysis is in scope |
+
+Constant-time modular inverse is best-effort: `MersenneSafeGcdAlgorithm` fixes the GCD iteration count on public parameters, but per-iteration timing is not yet uniform on managed backends. See the Security & Threat Model section for the exact scope.
 
 > [!WARNING]
 > Do not pair `SecureBigInteger` with `ExtendedEuclideanAlgorithm`: you keep the pinned memory but reintroduce a variable-time modular inverse, defeating the constant-time goal. `ConstantTimeSecretReconstructor<SecureBigInteger>` accepts only constant-time GCD strategies, so this mispairing is a compile-time error rather than a silent side channel. See the Security & Threat Model section for the exact constant-time scope.

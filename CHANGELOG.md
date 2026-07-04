@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Added `ConstantTimeSecretReconstructor<TNumber>` — a constant-time-by-construction `SecretReconstructor<TNumber>` that accepts only `IConstantTimeExtendedGcdAlgorithm<TNumber>` strategies (pairing it with a variable-time GCD is a compile-time error) and whose parameterless constructor defaults to `MersenneSafeGcdAlgorithm<TNumber>`.
-- Added `IConstantTimeExtendedGcdAlgorithm<TNumber>` — marker interface tagging extended-GCD strategies whose modular-inverse timing depends only on public quantities; `MersenneSafeGcdAlgorithm<TNumber>` implements it, `ExtendedEuclideanAlgorithm<TNumber>` does not.
+- Added `ConstantTimeSecretReconstructor<TNumber>` — a `SecretReconstructor<TNumber>` that accepts only `IConstantTimeExtendedGcdAlgorithm<TNumber>` strategies (pairing it with a variable-time GCD is a compile-time error) and whose parameterless constructor defaults to `MersenneSafeGcdAlgorithm<TNumber>`.
+- Added `IConstantTimeExtendedGcdAlgorithm<TNumber>` — marker interface tagging extended-GCD strategies whose iteration count is operand-independent (removing the iteration-count side channel of a plain extended-Euclidean GCD); `MersenneSafeGcdAlgorithm<TNumber>` implements it, `ExtendedEuclideanAlgorithm<TNumber>` does not.
 
 ## [1.0.1-rc01] - 2026-05-29
 
