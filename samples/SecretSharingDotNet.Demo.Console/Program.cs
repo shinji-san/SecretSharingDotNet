@@ -62,7 +62,7 @@ internal static class Program
     /// <summary>
     /// Configures and builds the DI container for the demo. Registers the two Shamir use
     /// cases as scoped (they own disposable state and are released on scope dispose) — the
-    /// reconstructor is the constant-time <see cref="ConstantTimeSecretReconstructor{TNumber}"/>
+    /// reconstructor is the <see cref="FixedIterationSecretReconstructor{TNumber}"/>
     /// — and <see cref="DemoApp"/> as scoped.
     /// <see cref="ServiceProviderOptions.ValidateOnBuild"/> and
     /// <see cref="ServiceProviderOptions.ValidateScopes"/> are enabled so that wiring
@@ -75,14 +75,14 @@ internal static class Program
     {
         var services = new ServiceCollection();
 
-        // SecretSplitter and ConstantTimeSecretReconstructor own internal disposables
+        // SecretSplitter and FixedIterationSecretReconstructor own internal disposables
         // (SecurityLevelManager). Registered as scoped, so the DI scope tracks and disposes
-        // them deterministically. ConstantTimeSecretReconstructor supplies the constant-time
+        // them deterministically. FixedIterationSecretReconstructor supplies the fixed-iteration
         // MersenneSafeGcdAlgorithm inverse itself — the inverse path required for the
         // security-conscious SecureBigInteger backend — so no separate GCD registration is
         // needed; the base ExtendedEuclideanAlgorithm would be variable-time on operand values.
         services.AddScoped<IMakeSharesUseCase<SecureBigInteger>, SecretSplitter<SecureBigInteger>>();
-        services.AddScoped<IReconstructionUseCase<SecureBigInteger>, ConstantTimeSecretReconstructor<SecureBigInteger>>();
+        services.AddScoped<IReconstructionUseCase<SecureBigInteger>, FixedIterationSecretReconstructor<SecureBigInteger>>();
 
         services.AddScoped<DemoApp>();
 

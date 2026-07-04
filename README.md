@@ -139,7 +139,7 @@ A C# implementation of Shamir's Secret Sharing.
 > The text-secret encoding is UTF-8 (introduced in v0.14.0).
 
 > [!TIP]
-> A runnable end-to-end example lives in [`samples/SecretSharingDotNet.Demo.Console`](./samples/SecretSharingDotNet.Demo.Console). It wires the `SecureBigInteger` backend via `ConstantTimeSecretReconstructor` (constant-time `MersenneSafeGcdAlgorithm` inverse) through `Microsoft.Extensions.DependencyInjection`, reads the secret via `ConsolePasswordReader` (no `string` materialisation), splits it, and reconstructs it from a user-selected K-of-N subset of the generated shares.
+> A runnable end-to-end example lives in [`samples/SecretSharingDotNet.Demo.Console`](./samples/SecretSharingDotNet.Demo.Console). It wires the `SecureBigInteger` backend via `FixedIterationSecretReconstructor` (fixed-iteration `MersenneSafeGcdAlgorithm` inverse) through `Microsoft.Extensions.DependencyInjection`, reads the secret via `ConsolePasswordReader` (no `string` materialisation), splits it, and reconstructs it from a user-selected K-of-N subset of the generated shares.
 
 ## Basics
 Use the function `MakeShares` to generate the shares, based on a random or pre-defined secret.
@@ -149,22 +149,22 @@ The library is generic in the numeric backend: `BigInteger` (used in the example
 
 ### Choosing a backend and reconstructor
 
-| Backend | Reconstructor + GCD strategy | Pinned memory | Constant-time arithmetic | Constant-time modular inverse | Choose when |
+| Backend | Reconstructor + GCD strategy | Pinned memory | Constant-time arithmetic | Fixed-iteration inverse | Choose when |
 |---|---|:---:|:---:|:---:|---|
 | `BigInteger` | `SecretReconstructor` + `ExtendedEuclideanAlgorithm` | no | no | no | performance matters and timing side channels are out of scope |
-| `SecureBigInteger` | `ConstantTimeSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | yes | iteration-count (best-effort) | secrets where passive timing analysis is in scope |
+| `SecureBigInteger` | `FixedIterationSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | yes | yes | secrets where passive timing analysis is in scope |
 
-Constant-time modular inverse is best-effort: `MersenneSafeGcdAlgorithm` fixes the GCD iteration count on public parameters, but per-iteration timing is not yet uniform on managed backends. See the Security & Threat Model section for the exact scope.
+Fixed-iteration inverse means the GCD iteration count is independent of secret operands, which removes the iteration-count side channel of a plain extended-Euclidean GCD. It is not per-operation constant-time — `MersenneSafeGcdAlgorithm`'s per-iteration timing is not uniform on managed backends. See the Security & Threat Model section for the exact scope.
 
 > [!WARNING]
-> Do not pair `SecureBigInteger` with `ExtendedEuclideanAlgorithm`: you keep the pinned memory but reintroduce a variable-time modular inverse, defeating the constant-time goal. `ConstantTimeSecretReconstructor<SecureBigInteger>` accepts only constant-time GCD strategies, so this mispairing is a compile-time error rather than a silent side channel. See the Security & Threat Model section for the exact constant-time scope.
+> Do not pair `SecureBigInteger` with `ExtendedEuclideanAlgorithm`: you keep the pinned memory but reintroduce an operand-value-dependent iteration count — the side channel `FixedIterationSecretReconstructor` removes. `FixedIterationSecretReconstructor<SecureBigInteger>` accepts only fixed-iteration GCD strategies, so this mispairing is a compile-time error rather than a silent side channel. See the Security & Threat Model section for the exact scope.
 
 The length of the shares is based on the security level. On the splitter side, you can set it three ways: pass it as the `securityLevel` parameter of the `MakeShares` overload that takes one, assign the `SecretSplitter<TNumber>.SecurityLevel` property, or inject a pre-configured `ISecurityLevelManager<TNumber>` through the constructor. The configured level is overridden when the secret size exceeds the Mersenne prime derived from it — the library auto-adjusts upward. It is not necessary to define a security level for a reconstruction: `SecretReconstructor<TNumber>.SecurityLevel` is read-only and is derived from the supplied shares on every `Reconstruction` call.
 
 The `ToString()` overrides on `Secret<TNumber>`, `Share<TNumber>`, and `Shares<TNumber>` are build-mode-sensitive: DEBUG builds return the actual content, while Release builds return the redaction sentinel `"*** Secured Value ***"` so secrets cannot accidentally leak through logs, exception messages, or other diagnostic output.
 
 ## Using the SecretSharingDotNet library with DI in a .NET project
-This guide demonstrates two parallel DI wirings: the `BigInteger` backend with `ExtendedEuclideanAlgorithm` (BCL-native, variable-time arithmetic) and the `SecureBigInteger` backend via `ConstantTimeSecretReconstructor`, which wires the constant-time `MersenneSafeGcdAlgorithm` (pinned-memory storage, constant-time arithmetic on public bit-length — see the Security & Threat Model section for the trade-offs). Both variants share the same import block:
+This guide demonstrates two parallel DI wirings: the `BigInteger` backend with `ExtendedEuclideanAlgorithm` (BCL-native, variable-time arithmetic) and the `SecureBigInteger` backend via `FixedIterationSecretReconstructor`, which wires the constant-time `MersenneSafeGcdAlgorithm` (pinned-memory storage, constant-time arithmetic on public bit-length — see the Security & Threat Model section for the trade-offs). Both variants share the same import block:
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -215,14 +215,14 @@ Console.Out.Write(reconstructionChars.PoolArray, 0, reconstructionChars.Length);
 Console.WriteLine();
 ```
 
-### Variant 2 — SecureBigInteger + ConstantTimeSecretReconstructor
+### Variant 2 — SecureBigInteger + FixedIterationSecretReconstructor
 
-`ConstantTimeSecretReconstructor<SecureBigInteger>` is a drop-in `IReconstructionUseCase<SecureBigInteger>` that supplies the constant-time `MersenneSafeGcdAlgorithm` itself, so no separate GCD registration is needed. To use a different constant-time strategy, additionally register `IConstantTimeExtendedGcdAlgorithm<SecureBigInteger>` and the reconstructor picks it up (see the Security & Threat Model section).
+`FixedIterationSecretReconstructor<SecureBigInteger>` is a drop-in `IReconstructionUseCase<SecureBigInteger>` that supplies the fixed-iteration `MersenneSafeGcdAlgorithm` itself, so no separate GCD registration is needed. To use a different fixed-iteration strategy, additionally register `IFixedIterationExtendedGcdAlgorithm<SecureBigInteger>` and the reconstructor picks it up (see the Security & Threat Model section).
 
 ```csharp
 var serviceCollection = new ServiceCollection();
 serviceCollection.AddTransient<IMakeSharesUseCase<SecureBigInteger>, SecretSplitter<SecureBigInteger>>();
-serviceCollection.AddTransient<IReconstructionUseCase<SecureBigInteger>, ConstantTimeSecretReconstructor<SecureBigInteger>>();
+serviceCollection.AddTransient<IReconstructionUseCase<SecureBigInteger>, FixedIterationSecretReconstructor<SecureBigInteger>>();
 using var serviceProvider = serviceCollection.BuildServiceProvider();
 
 var makeSharesUseCase = serviceProvider.GetRequiredService<IMakeSharesUseCase<SecureBigInteger>>();
@@ -244,7 +244,7 @@ Console.WriteLine();
 Both use-case interfaces extend `IDisposable` and — under the `SecureBigInteger` backend — own pinned, security-sensitive buffers. Note that the use-case instances are not wrapped in `using` after `GetRequiredService`: the container owns the lifetime of services it resolves and disposes every tracked `IDisposable` transient when the `ServiceProvider` itself is disposed (here via `using var`). Disposing them explicitly at the call site would double-dispose against the container's cascade. In long-running hosts (ASP.NET, worker services) the root provider lives for the application's lifetime, so tracked transients accumulate until process exit — wrap each unit of work in a `using var scope = serviceProvider.CreateScope();` block (or register the use-cases as `AddScoped`) so the container disposes the resolved instances at scope end. The results of the calls (`secret`, `shares`, `reconstruction`, and the `ToCharArray` outputs) are caller-owned and remain wrapped in `using`.
 
 ## Random secret 🎲
-Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127 using the `BigInteger` backend; for the constant-time `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
+Create a random secret in conjunction with the generation of shares. The length of the generated shares and of the secret are based on the security level. Here is an example with a pre-defined security level of 127 using the `BigInteger` backend; for the `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
 ```csharp
 using System;
 using System.Linq;
@@ -308,7 +308,7 @@ public class Program
 ```
 ## Pre-defined secret: text 📄
 Use a text as secret, which can be divided into shares. The length of the generated shares is based on the security level.
-Here is an example with auto-detected security level using the `BigInteger` backend; for the constant-time `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
+Here is an example with auto-detected security level using the `BigInteger` backend; for the `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
 ```csharp
 using System;
 using System.Linq;
@@ -362,7 +362,7 @@ public class Program
 
 ## Pre-defined secret: number 🔢
 Use an integer number as secret, which can be divided into shares. The length of the generated shares is based on the security level.
-Here is an example with a pre-defined security level of 521 using the `BigInteger` backend; for the constant-time `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
+Here is an example with a pre-defined security level of 521 using the `BigInteger` backend; for the `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
 ```csharp
 using System;
 using System.Linq;
@@ -410,7 +410,7 @@ public class Program
 ```
 ## Pre-defined secret: byte array ▦
 Use a byte array as secret, which can be divided into shares. The length of the generated shares is based on the security level.
-Here is an example with auto-detected security level using the `BigInteger` backend; for the constant-time `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
+Here is an example with auto-detected security level using the `BigInteger` backend; for the `SecureBigInteger + MersenneSafeGcdAlgorithm` wiring, see the Security & Threat Model section.
 ```csharp
 using System;
 using System.Linq;
@@ -454,7 +454,7 @@ public class Program
 ```
 
 ## Secret 🔐
-The `Secret<TNumber>` type is the unified envelope for the secrets that flow through `SecretSplitter` and `SecretReconstructor`. The four sub-examples below cover every public construction, inspection, and serialisation path on the `BigInteger` backend, plus a constant-time round-trip on the `SecureBigInteger` backend. Sub-examples 5a–5c share the same payload — UTF-8 text `"Hello World!!"` — so each path can be traced end-to-end with the same expected output.
+The `Secret<TNumber>` type is the unified envelope for the secrets that flow through `SecretSplitter` and `SecretReconstructor`. The four sub-examples below cover every public construction, inspection, and serialisation path on the `BigInteger` backend, plus a fixed-iteration round-trip on the `SecureBigInteger` backend. Sub-examples 5a–5c share the same payload — UTF-8 text `"Hello World!!"` — so each path can be traced end-to-end with the same expected output.
 
 ### Secret<T> — construct
 ```csharp
@@ -600,7 +600,7 @@ public class Program
 }
 ```
 
-### Secret<SecureBigInteger> — text, number, bytes + constant-time round-trip
+### Secret<SecureBigInteger> — text, number, bytes + fixed-iteration round-trip
 ```csharp
 using System;
 
@@ -618,7 +618,7 @@ public class Program
   {
     //// Three Secret<SecureBigInteger> instances — one per input shape.
     //// Each one is split through SecretSplitter<SecureBigInteger> and
-    //// reconstructed via the constant-time MersenneSafeGcdAlgorithm path.
+    //// reconstructed via the fixed-iteration MersenneSafeGcdAlgorithm path.
 
     //// (a) Text — pinned UTF-8 chars in, Secret<SecureBigInteger> out.
     using var pinnedText = "Hello World!!".ToPinnedSecure();
@@ -633,11 +633,11 @@ public class Program
 
     //// SecretSplitter and SecretReconstructor auto-adjust their security
     //// level to the secret being processed, so one pair of instances
-    //// serves all three shapes. ConstantTimeSecretReconstructor wires the
-    //// constant-time MersenneSafeGcdAlgorithm modular inverse used during
+    //// serves all three shapes. FixedIterationSecretReconstructor wires the
+    //// fixed-iteration MersenneSafeGcdAlgorithm modular inverse used during
     //// Lagrange interpolation.
     using var splitter = new SecretSplitter<SecureBigInteger>();
-    using var combiner = new ConstantTimeSecretReconstructor<SecureBigInteger>();
+    using var combiner = new FixedIterationSecretReconstructor<SecureBigInteger>();
 
     //// (a) Text round-trip.
     using var textShares = splitter.MakeShares(3, 7, textSecret);
@@ -812,7 +812,7 @@ public class Program
     using var shares = Shares<BigInteger>.FromText(pinnedBlob);
 
     //// Reconstruct via the variable-time ExtendedEuclideanAlgorithm; for the
-    //// constant-time path with SecureBigInteger + MersenneSafeGcdAlgorithm,
+    //// fixed-iteration path with SecureBigInteger + MersenneSafeGcdAlgorithm,
     //// see the Security & Threat Model section.
     var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
     using var combiner = new SecretReconstructor<BigInteger>(gcd);
@@ -907,7 +907,7 @@ public class Program
     using var shares = Shares<BigInteger>.FromTextLines(pinnedLines);
 
     //// Reconstruct via the variable-time ExtendedEuclideanAlgorithm; for the
-    //// constant-time path with SecureBigInteger and MersenneSafeGcdAlgorithm,
+    //// fixed-iteration path with SecureBigInteger and MersenneSafeGcdAlgorithm,
     //// see the Security & Threat Model section.
     var gcd = new ExtendedEuclideanAlgorithm<BigInteger>();
     using var combiner = new SecretReconstructor<BigInteger>(gcd);
@@ -976,16 +976,16 @@ for hardened native crypto stacks.
   derived from the modulus passed to `Compute` at call time — the algorithm holds no
   `ISecurityLevelManager` reference, so it cannot drift from the
   `SecretReconstructor` consuming it. The simplest way to opt in is
-  `ConstantTimeSecretReconstructor<TNumber>` — it accepts only constant-time GCD strategies
+  `FixedIterationSecretReconstructor<TNumber>` — it accepts only fixed-iteration GCD strategies
   and defaults to `MersenneSafeGcdAlgorithm<TNumber>`, so the strategy cannot be mispaired:
 
   ```csharp
-  using var combiner = new ConstantTimeSecretReconstructor<SecureBigInteger>();
+  using var combiner = new FixedIterationSecretReconstructor<SecureBigInteger>();
   using var recovered = combiner.Reconstruction(shares);
   ```
 
-  To pin a specific constant-time strategy, pass it to the same type:
-  `new ConstantTimeSecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>())`.
+  To pin a specific fixed-iteration strategy, pass it to the same type:
+  `new FixedIterationSecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>())`.
 
 **Public-input dependence (treated as public, not secret):**
 
@@ -1002,7 +1002,7 @@ for hardened native crypto stacks.
   `SecretReconstructor<TNumber>` requires an explicit GCD strategy; pairing it with
   `ExtendedEuclideanAlgorithm<TNumber>` yields an iteration count that is variable on the
   operand values. This is a deliberate opt-out, not a default — use
-  `ConstantTimeSecretReconstructor<TNumber>` (which accepts only constant-time strategies and
+  `FixedIterationSecretReconstructor<TNumber>` (which accepts only fixed-iteration strategies and
   defaults to `MersenneSafeGcdAlgorithm<TNumber>`) for reconstruction whose timing does not
   depend on secret operands. The variable-time pairing remains available for the `BigInteger`
   backend and other cases where constant time is not a goal.

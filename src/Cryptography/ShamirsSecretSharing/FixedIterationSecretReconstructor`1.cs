@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// <copyright file="ConstantTimeSecretReconstructor`1.cs" company="Private">
+// <copyright file="FixedIterationSecretReconstructor`1.cs" company="Private">
 // Copyright (c) 2026 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
@@ -34,10 +34,12 @@ namespace SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using Math;
 
 /// <summary>
-/// A <see cref="SecretReconstructor{TNumber}"/> that is constant-time by construction: it
-/// accepts only constant-time extended-GCD strategies
-/// (<see cref="IConstantTimeExtendedGcdAlgorithm{TNumber}"/>), so it cannot be paired with
-/// a variable-time modular inverse by mistake.
+/// A <see cref="SecretReconstructor{TNumber}"/> that accepts only fixed-iteration
+/// extended-GCD strategies (<see cref="IFixedIterationExtendedGcdAlgorithm{TNumber}"/>) —
+/// strategies whose iteration count does not vary with secret operand values. Pairing it
+/// with a variable-time strategy is a compile-time error, so the operand-value-dependent
+/// iteration-count side channel of a plain extended-Euclidean GCD cannot be reintroduced
+/// by mistake.
 /// </summary>
 /// <typeparam name="TNumber">
 /// The mathematical type used in the secret reconstruction process.
@@ -46,32 +48,31 @@ using Math;
 /// <para>
 /// Supplying a variable-time strategy such as <see cref="ExtendedEuclideanAlgorithm{TNumber}"/>
 /// is a compile-time error here, because it does not carry the
-/// <see cref="IConstantTimeExtendedGcdAlgorithm{TNumber}"/> marker. Consumers that need a
-/// variable-time strategy (for example the <c>BigInteger</c> backend, where constant time is
-/// not a goal) use the base <see cref="SecretReconstructor{TNumber}"/> directly.
+/// <see cref="IFixedIterationExtendedGcdAlgorithm{TNumber}"/> marker. Consumers that need a
+/// variable-time strategy (for example the <c>BigInteger</c> backend, where timing side
+/// channels are not a goal) use the base <see cref="SecretReconstructor{TNumber}"/> directly.
 /// </para>
 /// <para>
-/// The parameterless constructor wires the library's recommended constant-time default,
+/// The parameterless constructor wires the library's recommended fixed-iteration default,
 /// <see cref="MersenneSafeGcdAlgorithm{TNumber}"/>. That default may change in a future
 /// <b>major</b> version; pass an explicit strategy if you need the choice pinned across
 /// upgrades.
 /// </para>
 /// <para>
-/// The constant-time guarantee is scoped and best-effort. It is only meaningful when the
-/// underlying <see cref="Math.Calculator{TNumber}"/> arithmetic is itself constant-time
-/// (the <c>SecureBigInteger</c> backend); on a variable-time backend this type is
-/// constant-time in shape only. Even on <c>SecureBigInteger</c>,
-/// <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> guarantees a constant <em>outer</em>
-/// iteration count on the public Mersenne exponent, not per-iteration uniform timing — see
-/// the Security &amp; Threat Model section of the README and the strategy's own documentation
-/// for the exact scope.
+/// The guarantee is scoped: the GCD iteration count is fixed on public parameters, which
+/// removes the iteration-count side channel of a plain extended-Euclidean GCD. It is
+/// <b>not</b> a per-operation constant-time guarantee — even on the <c>SecureBigInteger</c>
+/// backend, <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> is constant in its <em>outer</em>
+/// iteration count but its per-iteration timing is not uniform, and full constant-time in
+/// managed .NET is best-effort regardless. See the Security &amp; Threat Model section of the
+/// README and the strategy's own documentation for the exact scope.
 /// </para>
 /// </remarks>
-public sealed class ConstantTimeSecretReconstructor<TNumber> : SecretReconstructor<TNumber>
+public sealed class FixedIterationSecretReconstructor<TNumber> : SecretReconstructor<TNumber>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConstantTimeSecretReconstructor{TNumber}"/>
-    /// class using the recommended constant-time modular-inverse strategy
+    /// Initializes a new instance of the <see cref="FixedIterationSecretReconstructor{TNumber}"/>
+    /// class using the recommended fixed-iteration modular-inverse strategy
     /// (<see cref="MersenneSafeGcdAlgorithm{TNumber}"/>).
     /// </summary>
     /// <remarks>
@@ -81,41 +82,41 @@ public sealed class ConstantTimeSecretReconstructor<TNumber> : SecretReconstruct
     /// </para>
     /// <para>
     /// This is the only constructor that creates its own GCD strategy rather than receiving
-    /// one. That is safe today because no <see cref="IConstantTimeExtendedGcdAlgorithm{TNumber}"/>
+    /// one. That is safe today because no <see cref="IFixedIterationExtendedGcdAlgorithm{TNumber}"/>
     /// implementation is <see cref="System.IDisposable"/>, and the base reconstructor disposes
-    /// only the security-level manager, never the GCD strategy. Should a future constant-time
+    /// only the security-level manager, never the GCD strategy. Should a future fixed-iteration
     /// strategy hold disposable state, GCD ownership would need to be tracked on the base
     /// <see cref="SecretReconstructor{TNumber}"/>, since this internally created instance has
     /// no other owner.
     /// </para>
     /// </remarks>
-    public ConstantTimeSecretReconstructor() : base(new MersenneSafeGcdAlgorithm<TNumber>()) { }
+    public FixedIterationSecretReconstructor() : base(new MersenneSafeGcdAlgorithm<TNumber>()) { }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConstantTimeSecretReconstructor{TNumber}"/>
-    /// class with a caller-supplied constant-time extended-GCD strategy.
+    /// Initializes a new instance of the <see cref="FixedIterationSecretReconstructor{TNumber}"/>
+    /// class with a caller-supplied fixed-iteration extended-GCD strategy.
     /// </summary>
-    /// <param name="constantTimeGcd">A constant-time extended greatest common divisor algorithm.</param>
+    /// <param name="fixedIterationGcd">A fixed-iteration extended greatest common divisor algorithm.</param>
     /// <exception cref="System.ArgumentNullException">
-    /// The <paramref name="constantTimeGcd"/> parameter is <see langword="null"/>.
+    /// The <paramref name="fixedIterationGcd"/> parameter is <see langword="null"/>.
     /// </exception>
-    public ConstantTimeSecretReconstructor(IConstantTimeExtendedGcdAlgorithm<TNumber> constantTimeGcd)
-        : base(constantTimeGcd) { }
+    public FixedIterationSecretReconstructor(IFixedIterationExtendedGcdAlgorithm<TNumber> fixedIterationGcd)
+        : base(fixedIterationGcd) { }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConstantTimeSecretReconstructor{TNumber}"/>
-    /// class with a caller-supplied constant-time extended-GCD strategy and a caller-supplied
+    /// Initializes a new instance of the <see cref="FixedIterationSecretReconstructor{TNumber}"/>
+    /// class with a caller-supplied fixed-iteration extended-GCD strategy and a caller-supplied
     /// <see cref="ISecurityLevelManager{TNumber}"/>. Ownership of the manager remains with the
     /// caller; this instance will not dispose it.
     /// </summary>
-    /// <param name="constantTimeGcd">A constant-time extended greatest common divisor algorithm.</param>
+    /// <param name="fixedIterationGcd">A fixed-iteration extended greatest common divisor algorithm.</param>
     /// <param name="securityLevelManager">Manages security level configuration.</param>
     /// <exception cref="System.ArgumentNullException">
-    /// The <paramref name="constantTimeGcd"/> or <paramref name="securityLevelManager"/> parameter
+    /// The <paramref name="fixedIterationGcd"/> or <paramref name="securityLevelManager"/> parameter
     /// is <see langword="null"/>.
     /// </exception>
-    public ConstantTimeSecretReconstructor(
-        IConstantTimeExtendedGcdAlgorithm<TNumber> constantTimeGcd,
+    public FixedIterationSecretReconstructor(
+        IFixedIterationExtendedGcdAlgorithm<TNumber> fixedIterationGcd,
         ISecurityLevelManager<TNumber> securityLevelManager)
-        : base(constantTimeGcd, securityLevelManager) { }
+        : base(fixedIterationGcd, securityLevelManager) { }
 }

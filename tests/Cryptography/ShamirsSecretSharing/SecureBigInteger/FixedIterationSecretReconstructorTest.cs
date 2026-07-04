@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// <copyright file="ConstantTimeSecretReconstructorTest.cs" company="Private">
+// <copyright file="FixedIterationSecretReconstructorTest.cs" company="Private">
 // Copyright (c) 2026 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
@@ -44,17 +44,16 @@ using System.Linq;
 using Xunit;
 
 /// <summary>
-/// Tests for <see cref="ConstantTimeSecretReconstructor{TNumber}"/> on the
-/// <see cref="SecureBigInteger"/> backend — the backend on which the constant-time guarantee
-/// is meaningful. Covers the split/reconstruct round-trip through each constructor, the
-/// caller-owned security-level-manager ownership contract, and the type / marker
-/// relationships that make the constant-time pairing safe by construction. Mirror of the
-/// BigInteger-side test class.
+/// Tests for <see cref="FixedIterationSecretReconstructor{TNumber}"/> on the
+/// <see cref="SecureBigInteger"/> backend. Covers the split/reconstruct round-trip through
+/// each constructor, the caller-owned security-level-manager ownership contract, and the
+/// type / marker relationships that make the fixed-iteration pairing safe by construction.
+/// Mirror of the BigInteger-side test class.
 /// </summary>
-public class ConstantTimeSecretReconstructorTest
+public class FixedIterationSecretReconstructorTest
 {
     /// <summary>
-    /// Tests that the parameterless constructor — which wires the recommended constant-time
+    /// Tests that the parameterless constructor — which wires the recommended fixed-iteration
     /// default (<see cref="MersenneSafeGcdAlgorithm{TNumber}"/>) — reconstructs the original
     /// secret from a K-of-N subset of shares.
     /// </summary>
@@ -63,8 +62,8 @@ public class ConstantTimeSecretReconstructorTest
     {
         // Arrange
         using var splitter = new SecretSplitter<SecureBigInteger>();
-        using var reconstructor = new ConstantTimeSecretReconstructor<SecureBigInteger>();
-        using var pinnedText = "constant-time round-trip".ToPinnedSecure();
+        using var reconstructor = new FixedIterationSecretReconstructor<SecureBigInteger>();
+        using var pinnedText = "fixed-iteration round-trip".ToPinnedSecure();
         using var secret = Secret<SecureBigInteger>.FromText(pinnedText);
 
         // Act
@@ -77,7 +76,7 @@ public class ConstantTimeSecretReconstructorTest
     }
 
     /// <summary>
-    /// Tests that the constructor taking an explicit constant-time strategy reconstructs the
+    /// Tests that the constructor taking an explicit fixed-iteration strategy reconstructs the
     /// original secret from a K-of-N subset of shares.
     /// </summary>
     [Fact]
@@ -85,9 +84,9 @@ public class ConstantTimeSecretReconstructorTest
     {
         // Arrange
         using var splitter = new SecretSplitter<SecureBigInteger>();
-        using var reconstructor = new ConstantTimeSecretReconstructor<SecureBigInteger>(
+        using var reconstructor = new FixedIterationSecretReconstructor<SecureBigInteger>(
             new MersenneSafeGcdAlgorithm<SecureBigInteger>());
-        using var pinnedText = "constant-time round-trip".ToPinnedSecure();
+        using var pinnedText = "fixed-iteration round-trip".ToPinnedSecure();
         using var secret = Secret<SecureBigInteger>.FromText(pinnedText);
 
         // Act
@@ -100,7 +99,7 @@ public class ConstantTimeSecretReconstructorTest
     }
 
     /// <summary>
-    /// Tests that disposing a <see cref="ConstantTimeSecretReconstructor{TNumber}"/> built
+    /// Tests that disposing a <see cref="FixedIterationSecretReconstructor{TNumber}"/> built
     /// around a caller-supplied <see cref="ISecurityLevelManager{TNumber}"/> does NOT cascade
     /// dispose to the injected manager — ownership stays with the caller, matching the base
     /// reconstructor contract.
@@ -110,7 +109,7 @@ public class ConstantTimeSecretReconstructorTest
     {
         // Arrange
         var managerMock = new Mock<ISecurityLevelManager<SecureBigInteger>>();
-        var reconstructor = new ConstantTimeSecretReconstructor<SecureBigInteger>(
+        var reconstructor = new FixedIterationSecretReconstructor<SecureBigInteger>(
             new MersenneSafeGcdAlgorithm<SecureBigInteger>(),
             managerMock.Object);
 
@@ -124,7 +123,7 @@ public class ConstantTimeSecretReconstructorTest
     }
 
     /// <summary>
-    /// Tests that <see cref="ConstantTimeSecretReconstructor{TNumber}"/> is a
+    /// Tests that <see cref="FixedIterationSecretReconstructor{TNumber}"/> is a
     /// <see cref="SecretReconstructor{TNumber}"/> and an <see cref="IReconstructionUseCase{TNumber}"/>,
     /// so it is a drop-in wherever the base reconstructor or the use-case interface is expected
     /// (including dependency-injection registration).
@@ -133,7 +132,7 @@ public class ConstantTimeSecretReconstructorTest
     public void Instance_IsAssignableToBaseReconstructorAndUseCase()
     {
         // Arrange
-        using var reconstructor = new ConstantTimeSecretReconstructor<SecureBigInteger>();
+        using var reconstructor = new FixedIterationSecretReconstructor<SecureBigInteger>();
 
         // Act & Assert
         Assert.IsAssignableFrom<SecretReconstructor<SecureBigInteger>>(reconstructor);
@@ -142,17 +141,17 @@ public class ConstantTimeSecretReconstructorTest
 
     /// <summary>
     /// Tests that <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> is a member of the
-    /// constant-time GCD family (<see cref="IConstantTimeExtendedGcdAlgorithm{TNumber}"/>) —
-    /// the property that lets it be passed to the constant-time reconstructor while a
+    /// fixed-iteration GCD family (<see cref="IFixedIterationExtendedGcdAlgorithm{TNumber}"/>) —
+    /// the property that lets it be passed to the fixed-iteration reconstructor while a
     /// variable-time strategy cannot.
     /// </summary>
     [Fact]
-    public void MersenneSafeGcdAlgorithm_IsMemberOfConstantTimeGcdFamily()
+    public void MersenneSafeGcdAlgorithm_IsMemberOfFixedIterationGcdFamily()
     {
         // Arrange
         var algorithm = new MersenneSafeGcdAlgorithm<SecureBigInteger>();
 
         // Act & Assert
-        Assert.IsAssignableFrom<IConstantTimeExtendedGcdAlgorithm<SecureBigInteger>>(algorithm);
+        Assert.IsAssignableFrom<IFixedIterationExtendedGcdAlgorithm<SecureBigInteger>>(algorithm);
     }
 }

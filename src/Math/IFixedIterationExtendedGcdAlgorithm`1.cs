@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// <copyright file="IConstantTimeExtendedGcdAlgorithm`1.cs" company="Private">
+// <copyright file="IFixedIterationExtendedGcdAlgorithm`1.cs" company="Private">
 // Copyright (c) 2026 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
@@ -41,9 +41,9 @@ namespace SecretSharingDotNet.Math;
 /// <remarks>
 /// <para>
 /// This interface adds no members over <see cref="IExtendedGcdAlgorithm{TNumber}"/>; it
-/// exists to type-tag the constant-time members of the GCD-strategy family. The tag is
-/// load-bearing rather than documentary: the constant-time reconstructor
-/// (<c>ConstantTimeSecretReconstructor&lt;TNumber&gt;</c>) accepts only implementations of
+/// exists to type-tag the fixed-iteration members of the GCD-strategy family. The tag is
+/// load-bearing rather than documentary: the fixed-iteration reconstructor
+/// (<c>FixedIterationSecretReconstructor&lt;TNumber&gt;</c>) accepts only implementations of
 /// this interface, so a variable-time strategy cannot be supplied to it by mistake — the
 /// mispairing becomes a compile-time error instead of a silent side-channel.
 /// </para>
@@ -65,4 +65,4 @@ namespace SecretSharingDotNet.Math;
 /// <c>SecureBigInteger</c> backend). See the Security &amp; Threat Model section of the README.
 /// </para>
 /// </remarks>
-public interface IConstantTimeExtendedGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>;
+public interface IFixedIterationExtendedGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>;
