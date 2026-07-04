@@ -59,13 +59,25 @@ using Math;
 /// upgrades.
 /// </para>
 /// <para>
-/// The guarantee is scoped: the GCD iteration count is fixed on public parameters, which
-/// removes the iteration-count side channel of a plain extended-Euclidean GCD. It is
-/// <b>not</b> a per-operation constant-time guarantee — even on the <c>SecureBigInteger</c>
-/// backend, <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> is constant in its <em>outer</em>
-/// iteration count but its per-iteration timing is not uniform, and full constant-time in
-/// managed .NET is best-effort regardless. See the Security &amp; Threat Model section of the
-/// README and the strategy's own documentation for the exact scope.
+/// The guarantee is scoped and relative to a fixed security level: for a given Mersenne
+/// modulus, the GCD iteration count depends only on that (public) modulus, not on the secret
+/// operand values — which removes the operand-value-dependent iteration-count side channel of
+/// a plain extended-Euclidean GCD. It is <b>not</b> a per-operation constant-time guarantee —
+/// even on the <c>SecureBigInteger</c> backend, <see cref="MersenneSafeGcdAlgorithm{TNumber}"/>
+/// is constant in its <em>outer</em> iteration count but its per-iteration timing is not
+/// uniform, and full constant-time in managed .NET is best-effort regardless.
+/// </para>
+/// <para>
+/// The security level is not pinned by this type: the base reconstructor's <c>Reconstruction</c>
+/// selects it from the shares — it calls <see cref="ISecurityLevelManager{TNumber}"/>'s
+/// <c>AdjustSecurityLevel</c> with the maximum share value — so across reconstructions of
+/// different secrets the chosen modulus, and therefore the iteration count, reflects that
+/// level. The level is already revealed by the share sizes, so this leaks nothing to anyone
+/// who holds or has seen the shares; only a pure-timing observer with no share access could
+/// infer the (coarse, usually deployment-fixed) level from it. What this type removes is the
+/// operand-value dependence <em>within</em> a level; the level-selection dependence is
+/// inherent to <c>Reconstruction</c>. See the Security &amp; Threat Model section of the README
+/// and the strategy's own documentation for the exact scope.
 /// </para>
 /// </remarks>
 public sealed class FixedIterationSecretReconstructor<TNumber> : SecretReconstructor<TNumber>
