@@ -2370,16 +2370,14 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     public override int GetHashCode()
     {
         this.ThrowIfDisposed();
+        // Hash only public metadata (sign + limb count), never the secret limb content: keeps the
+        // Equals/GetHashCode contract (equal values share sign + trimmed limb count) without
+        // exposing a value-derived hash of secret material.
         int len = this.limbs.Length;
 #if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
         var hash = new HashCode();
         hash.Add(this.Sign);
         hash.Add(len);
-        for (int i = 0; i < len; i++)
-        {
-            hash.Add(this.limbs[i]);
-        }
-
         return hash.ToHashCode();
 #else
         unchecked
@@ -2387,11 +2385,6 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
             var hash = 17;
             hash = hash * 31 + this.Sign.GetHashCode();
             hash = hash * 31 + len.GetHashCode();
-            for (int i = 0; i < len; i++)
-            {
-                hash = hash * 31 + this.limbs[i].GetHashCode();
-            }
-
             return hash;
         }
 #endif

@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `FixedIterationSecretReconstructor<TNumber>` — a `SecretReconstructor<TNumber>` that accepts only `IFixedIterationExtendedGcdAlgorithm<TNumber>` strategies (pairing it with a variable-time GCD is a compile-time error) and whose parameterless constructor defaults to `MersenneSafeGcdAlgorithm<TNumber>`.
 - Added `IFixedIterationExtendedGcdAlgorithm<TNumber>` — marker interface tagging extended-GCD strategies whose iteration count is operand-independent (removing the iteration-count side channel of a plain extended-Euclidean GCD); `MersenneSafeGcdAlgorithm<TNumber>` implements it, `ExtendedEuclideanAlgorithm<TNumber>` does not.
 
+### Changed
+- `SecureBigInteger.GetHashCode` now hashes only public metadata (sign and limb count) instead of the full limb content, so it no longer produces a value-derived hash of secret material. `Calculator<TNumber>`, `Share<TNumber>`, and `ExtendedGcdResult<TNumber>` inherit this via delegation.
+
+### Fixed
+- `Secret<TNumber>.GetHashCode` is now consistent with by-value `Secret<TNumber>.Equals`: equal secrets produce equal hash codes. It now hashes only the public payload length; previously it was identity-based (`PinnedPoolArray<T>` does not override `GetHashCode`) while equality is by value, violating the `Equals`/`GetHashCode` contract and silently breaking `Secret<TNumber>` as a dictionary/set key.
+
 ## [1.0.1-rc01] - 2026-05-29
 
 ### Added
