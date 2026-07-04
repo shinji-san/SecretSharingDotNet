@@ -43,7 +43,7 @@ jobs:
       run: dotnet test --no-restore --no-build --configuration Release SecretSharingDotNet.slnx -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 
     - name: Remove obsolete NuGet packages
-      run: rm -f src/bin/Release/SecretSharingDotNet*.nupk
+      run: rm -f src/bin/Release/SecretSharingDotNet*.nupkg
 
     - name: Prepare README.md for NuGet package
       run: |
