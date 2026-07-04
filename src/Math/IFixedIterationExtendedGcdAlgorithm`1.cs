@@ -53,10 +53,12 @@ namespace SecretSharingDotNet.Math;
 /// count is variable on the operand values.
 /// </para>
 /// <para>
-/// This marker asserts iteration-count / control-flow operand-independence, <b>not</b>
-/// per-operation uniform wall-clock timing: an implementation's per-iteration cost may still
-/// vary with secret operands (see the implementing type's threat-model documentation for its
-/// exact scope — for example <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> is
+/// This marker asserts <b>iteration-count</b> operand-independence only — the number of
+/// iterations is fixed on public parameters. It does <b>not</b> assert per-iteration
+/// control-flow or wall-clock uniformity: an implementation may still select its per-iteration
+/// branches from, and vary its per-iteration cost with, secret operands (see the implementing
+/// type's threat-model documentation for its exact scope — for example
+/// <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> is
 /// "outer-iteration-count constant-time" but not per-iteration uniform on the
 /// <c>SecureBigInteger</c> backend). Like the rest of the library's constant-time surface it
 /// is best-effort against passive timing analysis and has not been audited against active
