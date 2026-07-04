@@ -34,7 +34,6 @@ namespace SecretSharingDotNet.Demo.Console;
 using Microsoft.Extensions.DependencyInjection;
 using Cryptography;
 using Cryptography.ShamirsSecretSharing;
-using Math;
 using Math.Numerics;
 
 /// <summary>
@@ -61,10 +60,11 @@ internal static class Program
     }
 
     /// <summary>
-    /// Configures and builds the DI container for the demo. Registers the constant-time
-    /// GCD as a singleton (stateless), the two Shamir use cases as scoped (they own
-    /// disposable state and are released on scope dispose), and <see cref="DemoApp"/> as
-    /// scoped. <see cref="ServiceProviderOptions.ValidateOnBuild"/> and
+    /// Configures and builds the DI container for the demo. Registers the two Shamir use
+    /// cases as scoped (they own disposable state and are released on scope dispose) — the
+    /// reconstructor is the <see cref="FixedIterationSecretReconstructor{TNumber}"/>
+    /// — and <see cref="DemoApp"/> as scoped.
+    /// <see cref="ServiceProviderOptions.ValidateOnBuild"/> and
     /// <see cref="ServiceProviderOptions.ValidateScopes"/> are enabled so that wiring
     /// mistakes fail fast at startup rather than mid-run.
     /// </summary>
@@ -75,16 +75,14 @@ internal static class Program
     {
         var services = new ServiceCollection();
 
-        // Stateless constant-time GCD. Registered as singleton:
-        // MersenneSafeGcdAlgorithm is the constant-time inverse path required for the
-        // security-conscious SecureBigInteger backend; the default ExtendedEuclideanAlgorithm
-        // is variable-time on operand values.
-        services.AddSingleton<IExtendedGcdAlgorithm<SecureBigInteger>, MersenneSafeGcdAlgorithm<SecureBigInteger>>();
-
-        // SecretSplitter and SecretReconstructor own internal disposables (SecurityLevelManager).
-        // Registered as scoped, so the DI scope tracks and disposes them deterministically.
+        // SecretSplitter and FixedIterationSecretReconstructor own internal disposables
+        // (SecurityLevelManager). Registered as scoped, so the DI scope tracks and disposes
+        // them deterministically. FixedIterationSecretReconstructor supplies the fixed-iteration
+        // MersenneSafeGcdAlgorithm inverse itself — the inverse path required for the
+        // security-conscious SecureBigInteger backend — so no separate GCD registration is
+        // needed; the base ExtendedEuclideanAlgorithm would be variable-time on operand values.
         services.AddScoped<IMakeSharesUseCase<SecureBigInteger>, SecretSplitter<SecureBigInteger>>();
-        services.AddScoped<IReconstructionUseCase<SecureBigInteger>, SecretReconstructor<SecureBigInteger>>();
+        services.AddScoped<IReconstructionUseCase<SecureBigInteger>, FixedIterationSecretReconstructor<SecureBigInteger>>();
 
         services.AddScoped<DemoApp>();
 

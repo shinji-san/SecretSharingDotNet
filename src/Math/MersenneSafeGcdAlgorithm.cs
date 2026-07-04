@@ -158,7 +158,7 @@ using System;
 /// operator surface.
 /// </para>
 /// </remarks>
-public sealed class MersenneSafeGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>
+public sealed class MersenneSafeGcdAlgorithm<TNumber> : IFixedIterationExtendedGcdAlgorithm<TNumber>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="MersenneSafeGcdAlgorithm{TNumber}"/> class.
