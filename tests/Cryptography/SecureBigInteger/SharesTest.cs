@@ -193,6 +193,25 @@ public class SharesTest
     }
 
     /// <summary>
+    /// Regression (SE-1): <see cref="System.Collections.IEnumerator.Current"/> must throw
+    /// <see cref="InvalidOperationException"/> when accessed before the first <c>MoveNext</c>
+    /// (undefined position per the enumerator contract). Previously the getter surfaced the raw
+    /// <see cref="ArgumentOutOfRangeException"/> from the backing indexer.
+    /// </summary>
+    [Fact]
+    public void GetEnumerator_CurrentBeforeMoveNext_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        using var lines = TestData.GetPredefinedShares().ToPinnedSecureShareLines();
+        using var shares = Shares<SecureBigInteger>.FromTextLines(lines);
+        var enumerator = ((IEnumerable)shares).GetEnumerator();
+        using var disposable = enumerator as IDisposable;
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => _ = enumerator.Current);
+    }
+
+    /// <summary>
     /// Tests that <see cref="Shares{TNumber}.Count"/> reports the number of shares parsed
     /// from the pre-defined predefined-shares fixture.
     /// </summary>

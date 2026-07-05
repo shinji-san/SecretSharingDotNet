@@ -578,9 +578,9 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// are no-ops.
     /// </summary>
     /// <remarks>
-    /// <b>Ownership:</b> a <see cref="Shares{TNumber}"/> collection owns every share it contains.
-    /// Disposing the collection disposes all contained shares. Shares removed via
-    /// <see cref="Remove"/> are returned to the caller, who then owns disposal.
+    /// <b>Ownership:</b> a <see cref="Shares{TNumber}"/> collection owns every share it contains, and
+    /// disposing the collection disposes them all. The collection is read-only, so there is no removal
+    /// path (<see cref="Remove"/> throws) that hands an individual share's ownership back to the caller.
     /// </remarks>
     public void Dispose()
     {

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `Secret<TNumber>.GetHashCode` is now consistent with by-value `Secret<TNumber>.Equals`: equal secrets produce equal hash codes. It now hashes only the public payload length; previously it was identity-based (`PinnedPoolArray<T>` does not override `GetHashCode`) while equality is by value, violating the `Equals`/`GetHashCode` contract and silently breaking `Secret<TNumber>` as a dictionary/set key.
+- `SharesEnumerator<TNumber>.Current` now throws `InvalidOperationException` when accessed before the first `MoveNext` or past the end, per the `IEnumerator` contract. Previously it caught `IndexOutOfRangeException`, which the backing `ReadOnlyCollection` indexer never throws (it throws `ArgumentOutOfRangeException`), so the raw `ArgumentOutOfRangeException` surfaced instead.
 
 ## [1.0.1-rc01] - 2026-05-29
 
