@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write   # OIDC token for NuGet Trusted Publishing
 
 jobs:
   build:
@@ -53,5 +54,11 @@ jobs:
     - name: Create package
       run: dotnet pack --no-restore --no-build --configuration Release SecretSharingDotNet.slnx
 
+    - name: NuGet login (OIDC → temp API key)
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: ${{ secrets.NUGET_USER }}
+
     - name: Publish package
-      run: dotnet nuget push $(find src/bin/Release -type f  -name 'SecretSharingDotNet*.nupkg' -print 2> /dev/null) -k  ${{ secrets.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json --skip-duplicate
+      run: dotnet nuget push $(find src/bin/Release -type f  -name 'SecretSharingDotNet*.nupkg' -print 2> /dev/null) -k  ${{ steps.login.outputs.NUGET_API_KEY }}  -s https://api.nuget.org/v3/index.json --skip-duplicate
