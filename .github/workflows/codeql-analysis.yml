@@ -28,13 +28,13 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v7
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
     # The .NET build steps apply only to the C# analysis; 'actions' is a no-build
     # CodeQL language, so its matrix leg skips setup / restore / build.
     - name: Setup .NET SDKs
       if: matrix.language == 'csharp'
-      uses: actions/setup-dotnet@v5.4.0
+      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
       with:
         dotnet-version: |
           8.0.416
@@ -42,7 +42,7 @@ jobs:
           10.0.100
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
+      uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
       with:
         languages: ${{ matrix.language }}
 
@@ -55,4 +55,4 @@ jobs:
       run: dotnet build --configuration Release SecretSharingDotNet.slnx
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
+      uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
