@@ -74,6 +74,12 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     private readonly bool ownsSecurityLevelManager;
 
     /// <summary>
+    /// The random source used for the polynomial coefficients and the random secret. Defaults to
+    /// <see cref="CryptoRandomSource.Instance"/>; a deterministic source may be injected for testing.
+    /// </summary>
+    private readonly IRandomSource randomSource;
+
+    /// <summary>
     /// Disposal flag manipulated atomically via <see cref="Interlocked.Exchange(ref int, int)"/>:
     /// 0 = alive, 1 = disposed.
     /// </summary>
@@ -88,6 +94,7 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     {
         this.securityLevelManager = new SecurityLevelManager<TNumber>();
         this.ownsSecurityLevelManager = true;
+        this.randomSource = CryptoRandomSource.Instance;
     }
 
     /// <summary>
@@ -103,6 +110,24 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     {
         this.securityLevelManager = securityLevelManager ?? throw new ArgumentNullException(nameof(securityLevelManager));
         this.ownsSecurityLevelManager = false;
+        this.randomSource = CryptoRandomSource.Instance;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SecretSplitter{TNumber}"/> class using a default
+    /// <see cref="SecurityLevelManager{TNumber}"/> (owned by this instance and disposed together with
+    /// it) and a caller-supplied <see cref="IRandomSource"/>. Intended for testing with a
+    /// deterministic random source.
+    /// </summary>
+    /// <param name="randomSource">The random source used for the polynomial coefficients and the random secret.</param>
+    /// <exception cref="ArgumentNullException">
+    /// The <paramref name="randomSource"/> parameter is <see langword="null"/>.
+    /// </exception>
+    internal SecretSplitter(IRandomSource randomSource)
+    {
+        this.securityLevelManager = new SecurityLevelManager<TNumber>();
+        this.ownsSecurityLevelManager = true;
+        this.randomSource = randomSource ?? throw new ArgumentNullException(nameof(randomSource));
     }
 
     /// <summary>
@@ -198,7 +223,7 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
             throw new InvalidOperationException(ErrorMessages.SecurityLevelNotInitialized);
         }
 
-        generatedSecret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime);
+        generatedSecret = Secret<TNumber>.CreateRandom(this.securityLevelManager.MersennePrime, this.randomSource);
         Calculator<TNumber>[] polynomial = null;
         try
         {
@@ -359,7 +384,7 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
             {
                 while (true)
                 {
-                    SecureRandom.Fill(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
+                    this.randomSource.Fill(randomBytePool.PoolArray, 0, mersennePrimeByteCount);
                     using var randomValue = Calculator.Create<TNumber>(randomBytePool.PoolArray, randomBytePool.Length);
 
                     if (randomValue >= rangeBound)
