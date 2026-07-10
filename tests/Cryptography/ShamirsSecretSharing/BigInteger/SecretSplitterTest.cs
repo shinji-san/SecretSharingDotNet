@@ -325,4 +325,56 @@ public class SecretSplitterTest
 
         Assert.Equal(new BigInteger[] { 1, 2, 3, 4, 5 }, actualIndices);
     }
+
+    /// <summary>
+    /// Tests that injecting a deterministic <see cref="IRandomSource"/> makes
+    /// <see cref="SecretSplitter{TNumber}.MakeShares(int, int, int, out Secret{TNumber})"/>
+    /// fully reproducible: two splitters seeded identically produce the same random secret and
+    /// the same shares. This is the capability the RNG seam unlocks — without it the split is
+    /// non-deterministic and only round-trip assertions are possible.
+    /// </summary>
+    [Fact]
+    public void MakeShares_WithDeterministicRandomSource_ProducesReproducibleSecretAndShares()
+    {
+        // Arrange — two independent splitters, identical seed.
+        using var splitterA = new SecretSplitter<BigInteger>(new DeterministicRandomSource(20260710));
+        using var splitterB = new SecretSplitter<BigInteger>(new DeterministicRandomSource(20260710));
+
+        // Act
+        using var sharesA = splitterA.MakeShares(3, 5, 31, out var secretA);
+        using var sharesB = splitterB.MakeShares(3, 5, 31, out var secretB);
+        var sharesArrayA = new Share<BigInteger>[5];
+        var sharesArrayB = new Share<BigInteger>[5];
+        sharesA.CopyTo(sharesArrayA, 0);
+        sharesB.CopyTo(sharesArrayB, 0);
+
+        // Assert — identical generated secret and identical shares.
+        Assert.Equal(secretA, secretB);
+        Assert.Equal(sharesArrayA, sharesArrayB);
+
+        secretA.Dispose();
+        secretB.Dispose();
+    }
+
+    /// <summary>
+    /// Tests that a different seed yields a different random secret — proof that the split
+    /// output is genuinely wired to the injected <see cref="IRandomSource"/> and not a constant.
+    /// </summary>
+    [Fact]
+    public void MakeShares_WithDifferentSeeds_ProducesDifferentSecret()
+    {
+        // Arrange
+        using var splitterA = new SecretSplitter<BigInteger>(new DeterministicRandomSource(1));
+        using var splitterB = new SecretSplitter<BigInteger>(new DeterministicRandomSource(2));
+
+        // Act
+        using var sharesA = splitterA.MakeShares(3, 5, 31, out var secretA);
+        using var sharesB = splitterB.MakeShares(3, 5, 31, out var secretB);
+
+        // Assert
+        Assert.NotEqual(secretA, secretB);
+
+        secretA.Dispose();
+        secretB.Dispose();
+    }
 }
