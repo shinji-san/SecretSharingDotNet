@@ -36,6 +36,9 @@ namespace SecretSharingDotNetTest.Cryptography;
 
 using SecretSharingDotNet.Cryptography;
 using System;
+#if NET8_0_OR_GREATER
+using System.Threading.Tasks;
+#endif
 using Xunit;
 
 /// <summary>
@@ -112,4 +115,35 @@ public class CryptoRandomSourceTest
             Assert.InRange(value, 1, 127);
         }
     }
+
+#if NET8_0_OR_GREATER
+    /// <summary>
+    /// Concurrency stress test: many threads drawing from the shared
+    /// <see cref="CryptoRandomSource.Instance"/> in parallel must all receive valid, in-range output
+    /// without corruption or exceptions. Validates the documented thread-safety of the stateless
+    /// singleton (it forwards to the thread-safe <see cref="SecureRandom"/>). Opt-in via the
+    /// <c>Category=Stress</c> trait.
+    /// </summary>
+    [Fact]
+    [Trait(StressTraits.CategoryKey, StressTraits.CategoryValue)]
+    public void Instance_ConcurrentDraws_StayWithinRangeWithoutError()
+    {
+        // Arrange
+        const int degreeOfParallelism = 16;
+        const int drawsPerWorker = 250;
+
+        // Act & Assert
+        Parallel.For(0, degreeOfParallelism, _ =>
+        {
+            var buffer = new byte[32];
+            for (int i = 0; i < drawsPerWorker; i++)
+            {
+                int value = CryptoRandomSource.Instance.NextInt32(1, 128);
+                Assert.InRange(value, 1, 127);
+
+                CryptoRandomSource.Instance.Fill(buffer, 0, buffer.Length);
+            }
+        });
+    }
+#endif
 }
