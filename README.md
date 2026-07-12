@@ -56,8 +56,8 @@ A C# implementation of Shamir's Secret Sharing.
   <tbody>
       <tr>
           <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml" target="_blank"><img src="https://github.com/shinji-san/SecretSharingDotNet/actions/workflows/publishing.yml/badge.svg" alt="SecretSharingDotNet - NuGet Publishing"/></a></td>
-          <td rowspan=8><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 1.0.1-rc01"/></a></td>
-          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v1.0.1-rc01" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-1.0.1--rc01-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
+          <td rowspan=8><a href="https://badge.fury.io/nu/SecretSharingDotNet" target="_blank"><img src="https://badge.fury.io/nu/SecretSharingDotNet.svg" alt="NuGet Version 1.0.1-rc02"/></a></td>
+          <td rowspan=8><a href="https://github.com/shinji-san/SecretSharingDotNet/tree/v1.0.1-rc02" target="_blank"><img src="https://img.shields.io/badge/SecretSharingDotNet-1.0.1--rc02-green.svg?logo=github&logoColor=959da5&color=2ebb4e&labelColor=2b3137" alt="Tag"/></a></td>
           <td>Standard 2.0</td>
       </tr>
       <tr>
@@ -88,10 +88,10 @@ A C# implementation of Shamir's Secret Sharing.
 
 1. Open a console and switch to the directory containing your project file.
 
-2. Use the following command to install version 1.0.1-rc01 of the SecretSharingDotNet package:
+2. Use the following command to install version 1.0.1-rc02 of the SecretSharingDotNet package:
 
     ```dotnetcli
-    dotnet add package SecretSharingDotNet -v 1.0.1-rc01 -f <FRAMEWORK>
+    dotnet add package SecretSharingDotNet -v 1.0.1-rc02 -f <FRAMEWORK>
     ```
 
 3. After the completion of the command, look at the project file to make sure that the package is successfully installed.
@@ -100,7 +100,7 @@ A C# implementation of Shamir's Secret Sharing.
 
     ```xml
     <ItemGroup>
-      <PackageReference Include="SecretSharingDotNet" Version="1.0.1-rc01" />
+      <PackageReference Include="SecretSharingDotNet" Version="1.0.1-rc02" />
     </ItemGroup>
     ```
 ## Remove SecretSharingDotNet package 📤
@@ -119,7 +119,7 @@ A C# implementation of Shamir's Secret Sharing.
 
 # Usage 🔧
 > [!IMPORTANT]
-> Breaking changes in v1.0.1-rc01 (major version bump from v0.14.0). Highlights for migrating consumers — see [`CHANGELOG.md`](./CHANGELOG.md) for the full list.
+> Breaking changes in v1.0.1-rc02 (major version bump from v0.14.0). Highlights for migrating consumers — see [`CHANGELOG.md`](./CHANGELOG.md) for the full list.
 >
 > - **Text I/O is pinned-buffer-only.** The `string`-based entry points are gone. Wrap a `string` in `.ToPinnedSecure()` and use the pinned factories: `Secret<TNumber>.FromText(PinnedPoolArray<char>)`, `new Share<TNumber>(PinnedPoolArray<char>)`, `Shares<TNumber>.FromText(...)`, `Shares<TNumber>.FromTextLines(...)`. Read back via the matching `ToCharArray()` methods on `Secret`, `Share`, and `Shares`.
 > - **`Reconstruction(string)` and `Reconstruction(string[])` removed.** Build a `Shares<TNumber>` through one of the pinned factories above and pass that.

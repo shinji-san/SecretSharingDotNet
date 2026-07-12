@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1-rc02] - 2026-07-12
+
 ### Added
 - Added `FixedIterationSecretReconstructor<TNumber>` — a `SecretReconstructor<TNumber>` that accepts only `IFixedIterationExtendedGcdAlgorithm<TNumber>` strategies (pairing it with a variable-time GCD is a compile-time error) and whose parameterless constructor defaults to `MersenneSafeGcdAlgorithm<TNumber>`.
 - Added `IFixedIterationExtendedGcdAlgorithm<TNumber>` — marker interface tagging extended-GCD strategies whose iteration count is operand-independent (removing the iteration-count side channel of a plain extended-Euclidean GCD); `MersenneSafeGcdAlgorithm<TNumber>` implements it, `ExtendedEuclideanAlgorithm<TNumber>` does not.
@@ -329,7 +331,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `LICENSE.md`
 - Added `README.md`
 
-[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc01...develop
+[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc02...develop
+[1.0.1-rc02]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc01...v1.0.1-rc02
 [1.0.1-rc01]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.14.0...v1.0.1-rc01
 [0.14.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.12.0...v0.13.0
