@@ -1,7 +1,7 @@
 {
   "stryker-config": {
     "target-framework": "net10.0",
-    "test-case-filter": "Category!=Timing&Category!=Stress",
+    "test-case-filter": "Category!=Timing&Category!=Stress&FullyQualifiedName!~SecureBigInteger",
     "coverage-analysis": "perTest",
     "mutation-level": "Standard",
     "reporters": [

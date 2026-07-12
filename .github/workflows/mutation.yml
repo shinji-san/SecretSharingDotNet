@@ -21,6 +21,10 @@ jobs:
   mutation:
     name: Stryker.NET
     runs-on: ubuntu-22.04
+    # The mutation test-run is filtered to the fast BigInteger backend (see stryker-config.json):
+    # over the SecureBigInteger backend a run is impractically slow on GitHub's 2-core hosted
+    # runners. This timeout is a safety net, well under the 6h default.
+    timeout-minutes: 120
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
