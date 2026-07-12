@@ -110,7 +110,7 @@ public sealed class SharesEnumerator<TNumber> : IEnumerator<Share<TNumber>>
             {
                 return this.shareList[this.position];
             }
-            catch (IndexOutOfRangeException)
+            catch (ArgumentOutOfRangeException)
             {
                 throw new InvalidOperationException();
             }

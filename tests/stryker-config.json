@@ -1,0 +1,30 @@
+{
+  "stryker-config": {
+    "target-framework": "net10.0",
+    "test-case-filter": "Category!=Timing&Category!=Stress",
+    "coverage-analysis": "perTest",
+    "mutation-level": "Standard",
+    "reporters": [
+      "html",
+      "json",
+      "cleartext"
+    ],
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": 0
+    },
+    "mutate": [
+      "!**/SecureBigInteger.cs",
+      "!**/SecureBigIntCalculator.cs",
+      "!**/PinnedPoolArray`1.cs",
+      "!**/PinnedPoolArrayList.cs",
+      "!**/CountedEqualityComparer`1.cs",
+      "!**/ICountedEqualityComparer`1.cs",
+      "!**/SecureRandom.cs",
+      "!**/CryptoRandomSource.cs",
+      "!**/ErrorMessages.Designer.cs",
+      "!**/AssemblyInfo.cs"
+    ]
+  }
+}

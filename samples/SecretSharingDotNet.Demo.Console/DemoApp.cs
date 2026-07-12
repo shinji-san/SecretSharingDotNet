@@ -41,8 +41,9 @@ using Math.Numerics;
 
 /// <summary>
 /// Interactive demonstration of Shamir's Secret Sharing with the
-/// <see cref="SecureBigInteger"/> backend, a constant-time
-/// <c>MersenneSafeGcdAlgorithm</c> inverse, and
+/// <see cref="SecureBigInteger"/> backend, fixed-iteration reconstruction via
+/// <c>FixedIterationSecretReconstructor</c> (which wires the fixed-iteration
+/// <c>MersenneSafeGcdAlgorithm</c> inverse), and
 /// <see cref="ConsolePasswordReader"/> input that never materialises the
 /// secret as a <see cref="string"/>. The use cases are injected via
 /// <c>Microsoft.Extensions.DependencyInjection</c>; see
@@ -174,7 +175,7 @@ internal sealed class DemoApp
     {
         Console.WriteLine("=== SecretSharingDotNet Demo ===");
         Console.WriteLine("Backend : SecureBigInteger (pinned, zeroised on dispose)");
-        Console.WriteLine("GCD     : MersenneSafeGcdAlgorithm (constant-time inverse)");
+        Console.WriteLine("GCD     : MersenneSafeGcdAlgorithm (fixed-iteration inverse)");
         Console.WriteLine("Input   : ConsolePasswordReader (no string materialisation)");
         Console.WriteLine("Wiring  : Microsoft.Extensions.DependencyInjection");
         Console.WriteLine();

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.0.1-rc02] - 2026-07-12
+
+### Added
+- Added `FixedIterationSecretReconstructor<TNumber>` — a `SecretReconstructor<TNumber>` that accepts only `IFixedIterationExtendedGcdAlgorithm<TNumber>` strategies (pairing it with a variable-time GCD is a compile-time error) and whose parameterless constructor defaults to `MersenneSafeGcdAlgorithm<TNumber>`.
+- Added `IFixedIterationExtendedGcdAlgorithm<TNumber>` — marker interface tagging extended-GCD strategies whose iteration count is operand-independent (removing the iteration-count side channel of a plain extended-Euclidean GCD); `MersenneSafeGcdAlgorithm<TNumber>` implements it, `ExtendedEuclideanAlgorithm<TNumber>` does not.
+
+### Changed
+- `SecureBigInteger.GetHashCode` now hashes only public metadata (sign and limb count) instead of the full limb content, so it no longer produces a value-derived hash of secret material. `Calculator<TNumber>`, `Share<TNumber>`, and `ExtendedGcdResult<TNumber>` inherit this via delegation.
+
+### Fixed
+- `Secret<TNumber>.GetHashCode` is now consistent with by-value `Secret<TNumber>.Equals`: equal secrets produce equal hash codes. It now hashes only the public payload length; previously it was identity-based (`PinnedPoolArray<T>` does not override `GetHashCode`) while equality is by value, violating the `Equals`/`GetHashCode` contract and silently breaking `Secret<TNumber>` as a dictionary/set key.
+- `SharesEnumerator<TNumber>.Current` now throws `InvalidOperationException` when accessed before the first `MoveNext` or past the end, per the `IEnumerator` contract. Previously it caught `IndexOutOfRangeException`, which the backing `ReadOnlyCollection` indexer never throws (it throws `ArgumentOutOfRangeException`), so the raw `ArgumentOutOfRangeException` surfaced instead.
+
 ## [1.0.1-rc01] - 2026-05-29
 
 ### Added
@@ -316,6 +331,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `LICENSE.md`
 - Added `README.md`
 
+[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc02...develop
+[1.0.1-rc02]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc01...v1.0.1-rc02
 [1.0.1-rc01]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.14.0...v1.0.1-rc01
 [0.14.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.12.0...v0.13.0

@@ -854,6 +854,41 @@ public class SecretTest
     }
 
     /// <summary>
+    /// SEC-1 regression: <see cref="Secret{TNumber}.GetHashCode"/> is consistent with by-value
+    /// <see cref="Secret{TNumber}.Equals(Secret{TNumber})"/> — two distinct instances holding the
+    /// same payload produce equal hash codes (Equals/GetHashCode contract). Previously the hash was
+    /// identity-based, so equal secrets produced unequal hashes and Secret was broken as a hash key.
+    /// </summary>
+    [Fact]
+    public void GetHashCode_EqualSecrets_ReturnSameHashCode()
+    {
+        // Arrange — two independently constructed secrets with the same payload bytes.
+        byte[] payload = { 0x01, 0x02, 0x03, 0x04 };
+        using var secretA = new Secret<SecureBigInteger>(payload);
+        using var secretB = new Secret<SecureBigInteger>(payload);
+
+        // Act & Assert — equal by value, therefore equal hash.
+        Assert.Equal(secretA, secretB);
+        Assert.Equal(secretA.GetHashCode(), secretB.GetHashCode());
+    }
+
+    /// <summary>
+    /// SEC-1 (metadata only): the hash reflects only the public payload length, never secret
+    /// content — two same-length secrets with different payloads produce the same hash.
+    /// </summary>
+    [Fact]
+    public void GetHashCode_SameLengthDifferentPayload_ReturnSameHashCode()
+    {
+        // Arrange — equal payload length (4 bytes), different content.
+        using var secretA = new Secret<SecureBigInteger>(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+        using var secretB = new Secret<SecureBigInteger>(new byte[] { 0x11, 0x22, 0x33, 0x44 });
+
+        // Act & Assert — different payloads, but the hash carries only the length.
+        Assert.NotEqual(secretA, secretB);
+        Assert.Equal(secretA.GetHashCode(), secretB.GetHashCode());
+    }
+
+    /// <summary>
     /// Regression guard for ultrareview Bug 4: <see cref="Secret{TNumber}.ToByteArray"/>
     /// on a default-value struct returns an empty <see cref="PinnedPoolArray{Byte}"/>
     /// rather than NRE-ing on the <see langword="null"/> <c>secretNumber</c>. Without

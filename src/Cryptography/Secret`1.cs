@@ -130,12 +130,35 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// Thrown when <paramref name="length"/> is negative or greater than the length of <paramref name="secretSource"/>.
     /// </exception>
 #if NET8_0_OR_GREATER
-    public Secret(ReadOnlySpan<byte> secretSource, int length)
+    public Secret(ReadOnlySpan<byte> secretSource, int length) : this(secretSource, length, CryptoRandomSource.Instance)
+    {
+    }
+#else
+    public Secret(byte[] secretSource, int length) : this(secretSource, length, CryptoRandomSource.Instance)
+    {
+    }
+#endif
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Secret{TNumber}"/> class, drawing the
+    /// termination byte from a caller-supplied <see cref="IRandomSource"/>.
+    /// </summary>
+    /// <param name="secretSource">A secret as array of type <see cref="byte"/></param>
+    /// <param name="length">Length of the secret</param>
+    /// <param name="randomSource">The random source used to draw the termination byte.</param>
+    /// <exception cref="T:System.ArgumentNullException">
+    /// <paramref name="secretSource"/> or <paramref name="randomSource"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="length"/> is negative or greater than the length of <paramref name="secretSource"/>.
+    /// </exception>
+#if NET8_0_OR_GREATER
+    internal Secret(ReadOnlySpan<byte> secretSource, int length, IRandomSource randomSource)
     {
         if (secretSource.IsEmpty)
         {
 #else
-    public Secret(byte[] secretSource, int length)
+    internal Secret(byte[] secretSource, int length, IRandomSource randomSource)
     {
         if (secretSource == null)
         {
@@ -158,11 +181,16 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
             throw new ArgumentException(ErrorMessages.EmptyCollection, nameof(secretSource));
         }
 
+        if (randomSource is null)
+        {
+            throw new ArgumentNullException(nameof(randomSource));
+        }
+
         this.secretNumber = new PinnedPoolArray<byte>(length + 1);
         byte maxMarkByte = length == 1 ? MinMarkByte : MaxMarkByte;
-        // Termination byte uniformly distributed over [1, maxMarkByte]. SecureRandom.NextInt32
+        // Termination byte uniformly distributed over [1, maxMarkByte]. IRandomSource.NextInt32
         // performs rejection sampling internally — no `% maxMarkByte` modulo bias.
-        this.secretNumber.PoolArray[length] = (byte)SecureRandom.NextInt32(1, maxMarkByte + 1);
+        this.secretNumber.PoolArray[length] = (byte)randomSource.NextInt32(1, maxMarkByte + 1);
 #if NET8_0_OR_GREATER
         secretSource[..length].CopyTo(this.secretNumber.PoolArray);
 #else
@@ -809,7 +837,12 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     public override int GetHashCode()
     {
         this.ThrowIfDisposed();
-        return this.secretNumber?.GetHashCode() ?? 0;
+        // Hash only the public payload length, never secret content: keeps the Equals/GetHashCode
+        // contract (equal payloads share a length) without a value-derived hash, and replaces the
+        // former identity hash that broke the contract (PinnedPoolArray does not override
+        // GetHashCode). Default / content-empty secrets (null secretNumber, or only the mark byte)
+        // hash to 0.
+        return this.secretNumber is { Length: > MarkByteCount } sn ? sn.Length - MarkByteCount : 0;
     }
 
     /// <summary>
@@ -1082,8 +1115,20 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <remarks>Use this ctor to create a random secret</remarks>
     internal static Secret<TNumberStatic> CreateRandom<TNumberStatic>(Calculator<TNumberStatic> prime)
     {
+        return CreateRandom(prime, CryptoRandomSource.Instance);
+    }
+
+    /// <summary>
+    /// Creates a random secret, drawing all random data from a caller-supplied
+    /// <see cref="IRandomSource"/>.
+    /// </summary>
+    /// <param name="prime">mersenne prime number</param>
+    /// <param name="randomSource">The random source used for the secret bytes and the termination byte.</param>
+    /// <remarks>Use this overload to create a random secret from a specific random source.</remarks>
+    internal static Secret<TNumberStatic> CreateRandom<TNumberStatic>(Calculator<TNumberStatic> prime, IRandomSource randomSource)
+    {
         using var randomSecretBytes = new PinnedPoolArray<byte>(prime.ByteCount);
-        SecureRandom.Fill(randomSecretBytes.PoolArray, 0, randomSecretBytes.Length);
+        randomSource.Fill(randomSecretBytes.PoolArray, 0, randomSecretBytes.Length);
 
         int i = randomSecretBytes.Length - 1;
         while (i > 0)
@@ -1103,13 +1148,13 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
                 // Fresh instance per call — must not alias a static singleton, because
                 // the caller's `using` would dispose the shared backing buffer and break
                 // every subsequent zero-draw return.
-                return new Secret<TNumberStatic>([0x00], 1);
+                return new Secret<TNumberStatic>([0x00], 1, randomSource);
             }
 
             randomSecretBytes.PoolArray[i--] = 0x00;
         }
 
         using var secretBytes = randomSecretBytes.Subset(0, randomSecretBytes.Length - (randomSecretBytes.Length - i));
-        return new Secret<TNumberStatic>(secretBytes.PoolArray, secretBytes.Length);
+        return new Secret<TNumberStatic>(secretBytes.PoolArray, secretBytes.Length, randomSource);
     }
 }

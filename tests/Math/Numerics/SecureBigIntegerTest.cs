@@ -1722,6 +1722,23 @@ public class SecureBigIntegerTests
     }
 
     /// <summary>
+    /// Security property (SB-1): <c>GetHashCode</c> does not depend on secret value content. Two
+    /// distinct values that share the same sign and limb count produce the same hash, so the hash
+    /// carries only public metadata (sign, bit-length bucket), never value bits.
+    /// </summary>
+    [Fact]
+    public void GetHashCode_DifferentValuesSameLimbCount_ReturnsSameHashCode()
+    {
+        // Arrange — two distinct single-limb positive values (same sign, same limb count).
+        using var operandA = new SecureBigInteger(42);
+        using var operandB = new SecureBigInteger(99);
+
+        // Act & Assert — distinct values, but the hash reflects only sign + limb count.
+        Assert.NotEqual(operandA, operandB);
+        Assert.Equal(operandA.GetHashCode(), operandB.GetHashCode());
+    }
+
+    /// <summary>
     /// Tests the <see cref="IComparable{T}"/> convention that a non-null instance
     /// compared to <see langword="null"/> returns <c>1</c>.
     /// </summary>
