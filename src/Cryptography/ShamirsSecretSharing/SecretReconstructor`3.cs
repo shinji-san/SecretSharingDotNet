@@ -175,10 +175,17 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         // unpinned managed heap. Throws on first-duplicate detection instead of after full
         // enumeration; eager-vs-lazy throw on the public x-coordinates yields the same
         // exception type and message, no observable difference on the success path.
+        //
+        // Indices are hashed through PublicValueEqualityComparer: Calculator.GetHashCode delegates
+        // to TNumber.GetHashCode, and the SecureBigInteger backend deliberately hashes only public
+        // metadata (sign + limb count) so a value-derived hash of secret material cannot be observed.
+        // That makes every small positive one-limb index hash identically, which would collapse this
+        // check into one bucket (O(n²)). Indices are public (the X coordinate on the "INDEX-VALUE"
+        // wire), so a value-based hash of them is safe and restores O(n).
 #if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-        var seenIndices = new HashSet<Calculator<TNumber>>(numberOfPoints);
+        var seenIndices = new HashSet<Calculator<TNumber>>(numberOfPoints, PublicValueEqualityComparer<TNumber>.Instance);
 #else
-        var seenIndices = new HashSet<Calculator<TNumber>>();
+        var seenIndices = new HashSet<Calculator<TNumber>>(PublicValueEqualityComparer<TNumber>.Instance);
 #endif
         for (int i = 0; i < numberOfPoints; i++)
         {

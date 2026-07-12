@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Share-index de-duplication in `SecretReconstructor` is O(n) again on the `SecureBigInteger` backend. After the `GetHashCode` metadata hardening every small positive one-limb index hashed identically, collapsing the distinctness `HashSet` into one bucket (O(n²)); an internal public-value comparer restores O(n). No public API change; the secret-hash hardening is unchanged.
+
 ## [1.0.1-rc02] - 2026-07-12
 
 ### Added
