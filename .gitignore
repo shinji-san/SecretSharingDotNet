@@ -29,3 +29,7 @@
 # test executables crash under Mono on non-Windows hosts. Diagnostic
 # artefacts, not test failures (the tests themselves still pass).
 mono_crash.*.json
+
+# Ignore Stryker.NET mutation-testing output — per-run HTML/JSON reports and
+# logs written under tests/ by the mutation.yml workflow and local runs.
+StrykerOutput/
