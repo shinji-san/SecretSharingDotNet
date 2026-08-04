@@ -35,7 +35,7 @@ jobs:
         PUBLISHER_PUB_KEY: ${{ secrets.PUBLISHER_PUB_KEY }}
 
     - name: Restore
-      run: dotnet restore SecretSharingDotNet.slnx
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
 
     - name: Build
       run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx

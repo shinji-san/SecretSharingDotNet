@@ -40,7 +40,7 @@ jobs:
           10.0.100
 
     - name: Restore
-      run: dotnet restore SecretSharingDotNet.slnx
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
 
     - name: Build
       run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
