@@ -5,11 +5,15 @@ on:
     tags:
     - 'v*'
 
-# Serialize releases across all tags, and never cancel one: a publish interrupted
-# between pack and push leaves the release half-done. This deliberately differs from
-# the CI workflows, which group per ref and do cancel in progress.
+# Keep a tag from racing itself: a re-pushed tag or a re-run queues behind the run
+# already publishing that version instead of pushing it twice at once. Never cancel in
+# progress, because a publish interrupted between pack and push leaves the release
+# half-done -- this is where the CI workflows differ, they do cancel.
+# Grouped per ref on purpose. A workflow-level group holds only one pending run, so a
+# third tag arriving while one publishes and another waits would cancel the waiting
+# one and that version would never be published.
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
