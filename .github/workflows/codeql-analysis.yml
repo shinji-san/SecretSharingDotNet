@@ -48,7 +48,7 @@ jobs:
 
     - name: Restore
       if: matrix.language == 'csharp'
-      run: dotnet restore SecretSharingDotNet.slnx
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
 
     - name: Build
       if: matrix.language == 'csharp'
