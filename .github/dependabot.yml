@@ -22,3 +22,11 @@ updates:
       - "shinji-san"
     reviewers:
       - "shinji-san"
+    groups:
+      # The init and analyze steps of the CodeQL workflow must run the same
+      # action version: init writes a configuration file that analyze reads
+      # back, and a version skew aborts the job with a configuration error.
+      # Grouping keeps both steps in a single pull request.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
