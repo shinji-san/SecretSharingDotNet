@@ -4,8 +4,13 @@ on:
   push:
     tags:
     - 'v*'
-    paths-ignore:
-    - '**.md'
+
+# Serialize releases across all tags, and never cancel one: a publish interrupted
+# between pack and push leaves the release half-done. This deliberately differs from
+# the CI workflows, which group per ref and do cancel in progress.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -15,6 +20,7 @@ jobs:
   build:
 
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
@@ -82,9 +88,23 @@ jobs:
     - name: Remove obsolete NuGet packages
       run: rm -f src/bin/Release/SecretSharingDotNet*.nupkg
 
+    # The extraction below is driven entirely by these two headings. If one stops
+    # matching, the pipeline yields an empty README and pack fails with a NU5040 that
+    # names the empty file rather than the renamed heading; if one matches twice, the
+    # extraction duplicates content and ships a wrong README without any error at all.
+    # Check both up front so the real cause is named. The install heading is matched
+    # without its trailing emoji, so it stays in step with dotnetall.yml.
     - name: Prepare README.md for NuGet package
       run: |
-           grep -n "## Install SecretSharingDotNet package 📥" README.md | cut -d: -f 1| xargs -i tail -n +{} README.md > TMP.md && sed -i '1s/^/# Setup\r\n/' TMP.md && mv -f TMP.md README.md
+           set -euo pipefail
+           for heading in "## Install SecretSharingDotNet package" "# CLI building instructions"; do
+             matches="$(grep -cF "$heading" README.md || true)"
+             if [ "$matches" -ne 1 ]; then
+               echo "::error file=README.md::Expected exactly one line containing '$heading', found ${matches}. The packaged README is built by extracting between these headings."
+               exit 1
+             fi
+           done
+           grep -n "## Install SecretSharingDotNet package" README.md | cut -d: -f 1| xargs -i tail -n +{} README.md > TMP.md && sed -i '1s/^/# Setup\r\n/' TMP.md && mv -f TMP.md README.md
            grep -n "# CLI building instructions" README.md | cut -d: -f 1| xargs -i head -n {} README.md | head -n -1 > TMP.md && mv -f TMP.md README.md
 
     - name: Create package
