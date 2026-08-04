@@ -28,6 +28,42 @@ jobs:
           9.0.307
           10.0.100
 
+    # Guard against a tag that does not match the version being packed. Without it a
+    # tag pushed without bumping the version builds the previous release, and the push
+    # below hits --skip-duplicate, which reports success without publishing anything.
+    # Runs before the signing key is decrypted, so a mismatched tag never touches it.
+    - name: Verify tag matches package version
+      run: |
+        set -euo pipefail
+        tag_version="${GITHUB_REF_NAME#v}"
+        csproj_version="$(dotnet msbuild src/SecretSharingDotNet.csproj -getProperty:Version)"
+        release_notes="$(dotnet msbuild src/SecretSharingDotNet.csproj -getProperty:PackageReleaseNotes)"
+        informational_version="$(sed -n 's/.*AssemblyInformationalVersion("\([^"]*\)").*/\1/p' src/Properties/AssemblyInfo.cs)"
+
+        mismatch=0
+        if [ "$csproj_version" != "$tag_version" ]; then
+          echo "::error file=src/SecretSharingDotNet.csproj::<Version> is '$csproj_version', but tag ${GITHUB_REF_NAME} implies '$tag_version'"
+          mismatch=1
+        fi
+        if [ "$informational_version" != "$tag_version" ]; then
+          echo "::error file=src/Properties/AssemblyInfo.cs::AssemblyInformationalVersion is '$informational_version', but tag ${GITHUB_REF_NAME} implies '$tag_version'"
+          mismatch=1
+        fi
+        case "$release_notes" in
+          *"/blob/${GITHUB_REF_NAME}/"*) ;;
+          *)
+            echo "::error file=src/SecretSharingDotNet.csproj::PackageReleaseNotes does not link to tag ${GITHUB_REF_NAME}: ${release_notes}"
+            mismatch=1
+            ;;
+        esac
+
+        if [ "$mismatch" -ne 0 ]; then
+          echo "Refusing to publish: the release version is not in lockstep with the tag ${GITHUB_REF_NAME}."
+          echo "Publishing anyway would push an already-released version, which --skip-duplicate reports as success without publishing anything."
+          exit 1
+        fi
+        echo "Tag ${GITHUB_REF_NAME} matches version ${csproj_version}."
+
     - name: Decrypt large secret
       run: ./.github/secrets/decrypt_publisher_snk.sh
       env:
