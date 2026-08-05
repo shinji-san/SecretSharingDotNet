@@ -41,9 +41,9 @@ jobs:
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         dotnet-version: |
-          8.0.416
-          9.0.307
-          10.0.100
+          8.0.423
+          9.0.316
+          10.0.302
 
     - name: Restore
       run: dotnet restore --locked-mode SecretSharingDotNet.slnx
@@ -74,9 +74,9 @@ jobs:
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         dotnet-version: |
-          8.0.416
-          9.0.307
-          10.0.100
+          8.0.423
+          9.0.316
+          10.0.302
 
     # Guard against a tag that does not match the version being packed. Without it a
     # tag pushed without bumping the version builds the previous release, and the push
