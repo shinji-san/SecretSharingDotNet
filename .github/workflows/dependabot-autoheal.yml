@@ -1,0 +1,77 @@
+name: SecretSharingDotNet - Dependabot Lock-File Auto-Heal
+
+# Dependabot's NuGet updater regenerates a multi-targeted packages.lock.json
+# with only a single framework section (dependabot-core defect), so every
+# NuGet update PR fails the locked-mode restore with NU1004. This workflow
+# re-runs the restore over the full TFM matrix on Dependabot's own branch
+# and pushes the completed lock files back to the PR.
+#
+# pull_request_target instead of pull_request on purpose: the fix must push
+# to the PR branch, and a Dependabot-triggered pull_request run only gets a
+# read-only GITHUB_TOKEN. pull_request_target always executes the workflow
+# definition from the BASE branch (develop), never the PR's version of it.
+on:
+  pull_request_target:
+    branches:
+    - develop
+    paths:
+    - 'Directory.Packages.props'
+    - '**/packages.lock.json'
+
+permissions:
+  contents: write
+
+# Per PR: a newer synchronize event supersedes a running heal.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  heal:
+    # Hard-gated to in-repo branches authored by Dependabot. Only Dependabot
+    # and maintainers can create such branches and events, so the restore
+    # below never evaluates MSBuild logic from an untrusted fork.
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+    # AUTOHEAL_PUSH_TOKEN is a fine-grained PAT (this repository only,
+    # permission Contents: read/write, nothing else). It exists because a
+    # push made with the default GITHUB_TOKEN does not trigger workflows
+    # (recursion guard), so the healed commit would keep the PR's stale red
+    # checks. The fallback keeps the healing itself functional without the
+    # secret; CI then needs a manual re-run.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ github.event.pull_request.head.ref }}
+        token: ${{ secrets.AUTOHEAL_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
+
+    - name: Setup .NET SDKs
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: |
+          8.0.423
+          9.0.316
+          10.0.302
+
+    - name: Regenerate the lock files
+      run: dotnet restore --force-evaluate SecretSharingDotNet.slnx
+
+    - name: Push the completed lock files
+      run: |
+        set -euo pipefail
+        if git diff --quiet -- '*packages.lock.json'; then
+          echo "Lock files are already complete; nothing to heal."
+          exit 0
+        fi
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add -- '*packages.lock.json'
+        git commit -m "build: regenerate multi-TFM lock files after Dependabot update"
+        git push origin "HEAD:${HEAD_REF}"
+      env:
+        HEAD_REF: ${{ github.event.pull_request.head.ref }}
