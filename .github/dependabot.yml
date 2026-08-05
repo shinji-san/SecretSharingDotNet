@@ -12,6 +12,23 @@ updates:
       - "shinji-san"
     reviewers:
       - "shinji-san"
+    groups:
+      # One collective PR per week instead of one per package: a single
+      # lock-file regeneration, no two PRs rewriting the same
+      # packages.lock.json, and less open-PR time in which a develop merge
+      # can trigger a rebase.
+      nuget-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      nuget-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    # Dependabot's failing auto-rebases closed its own PRs as "no longer
+    # updatable" (#347-#350), silently dropping the bumps. Rebase only on an
+    # explicit "@dependabot rebase" comment.
+    rebase-strategy: "disabled"
 
   - package-ecosystem: github-actions
     directory: "/"
