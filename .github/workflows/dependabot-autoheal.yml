@@ -12,8 +12,13 @@ name: SecretSharingDotNet - Dependabot Lock-File Auto-Heal
 # definition from the BASE branch (develop), never the PR's version of it.
 on:
   pull_request_target:
+    # develop takes Dependabot's version updates; security updates always
+    # target the default branch (main). For main-based PRs this only takes
+    # effect once this file has reached main via a release merge --
+    # pull_request_target executes the base branch's workflow version.
     branches:
     - develop
+    - main
     paths:
     - 'Directory.Packages.props'
     - '**/packages.lock.json'
