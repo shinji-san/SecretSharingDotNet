@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Updated `Microsoft.SourceLink.GitHub` from `10.0.300` to `10.0.301` (build-time dependency; moves the transitive `System.IO.Hashing` from `10.0.8` to `10.0.10`).
+- Updated `Microsoft.NET.Test.Sdk` and `Microsoft.TestPlatform.ObjectModel` from `18.7.0` to `18.8.1`, and `Microsoft.Extensions.DependencyInjection` from `10.0.9` to `10.0.10` (test and sample dependencies).
 
 ### Fixed
 - Share-index de-duplication in `SecretReconstructor` is O(n) again on the `SecureBigInteger` backend. After the `GetHashCode` metadata hardening every small positive one-limb index hashed identically, collapsing the distinctness `HashSet` into one bucket (O(n²)); an internal public-value comparer restores O(n). No public API change; the secret-hash hardening is unchanged.
