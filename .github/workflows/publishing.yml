@@ -21,9 +21,49 @@ permissions:
   id-token: write   # OIDC token for NuGet Trusted Publishing
 
 jobs:
+  # The ubuntu-24.04 image ships without Mono, so the .NET Framework suites
+  # cannot run in the publishing job below. They gate it from here instead:
+  # 'needs' keeps a release from publishing unless net472/net48/net481 pass
+  # on the real .NET Framework, mirroring the job split in dotnetall.yml.
+  # contents: read only -- the OIDC id-token stays confined to the publish job.
+  test-windows:
+
+    runs-on: windows-2025
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Setup .NET SDKs
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: |
+          8.0.416
+          9.0.307
+          10.0.100
+
+    - name: Restore
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
+
+    - name: Test (net472)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net472 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net48)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net48 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net481)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net481 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
   build:
 
-    runs-on: ubuntu-22.04
+    needs: test-windows
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -86,8 +126,17 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
 
-    - name: Test
-      run: dotnet test --no-restore --no-build --configuration Release SecretSharingDotNet.slnx -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+    # The ubuntu-24.04 image ships without Mono, so only the modern TFMs run
+    # here. The .NET Framework suites already ran in the test-windows job,
+    # which gates this job through 'needs'.
+    - name: Test (net8.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net8.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net9.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net9.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net10.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net10.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 
     - name: Remove obsolete NuGet packages
       run: rm -f src/bin/Release/SecretSharingDotNet*.nupkg
