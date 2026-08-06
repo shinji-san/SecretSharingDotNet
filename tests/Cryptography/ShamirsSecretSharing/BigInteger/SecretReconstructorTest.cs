@@ -35,6 +35,7 @@
 namespace SecretSharingDotNetTest.Cryptography.ShamirsSecretSharing.BigInteger;
 
 using Moq;
+using SecretSharingDotNet;
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
@@ -200,12 +201,11 @@ public class SecretReconstructorTest
     /// <summary>
     /// Tests that <see cref="SecretReconstructor{TNumber}.Reconstruction"/> rejects share
     /// arrays that contain two entries with the same x-coordinate but inconsistent values
-    /// at the input-validation layer (<see cref="ArgumentException"/> with
-    /// <see cref="ArgumentException.ParamName"/> = <c>shares</c>), rather than failing
-    /// deep inside <c>DivMod</c> with a misleading "inverse of zero" diagnostic.
+    /// at the input-validation layer (<see cref="ReconstructionException"/>), rather than
+    /// failing deep inside <c>DivMod</c> with a misleading "inverse of zero" diagnostic.
     /// </summary>
     [Fact]
-    public void Reconstruction_WithDuplicateShareIndices_ThrowsArgumentException()
+    public void Reconstruction_WithDuplicateShareIndices_ThrowsReconstructionException()
     {
         // Arrange — two shares carrying the same index but inconsistent values
         // (e.g. mixed in from two different splits). Pre-fix this passed the
@@ -226,8 +226,8 @@ public class SecretReconstructorTest
         };
 
         // Act & Assert — fail at the input-validation layer, not in DivMod.
-        var ex = Assert.Throws<ArgumentException>(() => reconstructor.Reconstruction(shares));
-        Assert.Equal("shares", ex.ParamName);
+        var ex = Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+        Assert.IsAssignableFrom<SecretSharingException>(ex);
     }
 
     /// <summary>
@@ -236,7 +236,7 @@ public class SecretReconstructorTest
     /// — the validation is by x-coordinate only, since duplicate y-values are legitimate
     /// on a polynomial that happens to be locally flat. Reconstruction may legitimately
     /// fail later (the shares are not on a real polynomial), but never with the
-    /// share-distinctness ArgumentException.
+    /// share-distinctness ReconstructionException.
     /// </summary>
     [Fact]
     public void Reconstruction_WithDistinctIndicesAndDuplicateValues_DoesNotThrowAtValidation()
@@ -245,7 +245,7 @@ public class SecretReconstructorTest
         // the old Share-structural Distinct() check this would still pass; under
         // the index-only check it must continue to pass. The reconstruction
         // itself may legitimately fail later (these shares aren't on a real
-        // polynomial), but never with the share-distinctness ArgumentException.
+        // polynomial), but never with the share-distinctness ReconstructionException.
         using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
         var idx1 = (Calculator<BigInteger>)(BigInteger)1;
         var idx2 = (Calculator<BigInteger>)(BigInteger)2;
@@ -260,9 +260,9 @@ public class SecretReconstructorTest
         // Act & Assert — reconstruction completes (or fails later) but does not
         // raise the share-distinctness validation.
         var ex = Record.Exception(() => reconstructor.Reconstruction(shares));
-        if (ex is ArgumentException ae)
+        if (ex is ReconstructionException re)
         {
-            Assert.NotEqual("shares", ae.ParamName);
+            Assert.DoesNotContain(ErrorMessages.ShareIndicesNotDistinct, re.Message);
         }
     }
 }
