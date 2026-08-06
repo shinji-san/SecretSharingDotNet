@@ -220,13 +220,11 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="shareString"/> is <see langword="null"/>.
     /// </exception>
-    /// <exception cref="ArgumentException">
-    /// Thrown when <paramref name="shareString"/> does not contain the coordinate separator,
-    /// or contains non-hexadecimal characters. In the latter case, the exception message
-    /// identifies the zero-based position of the first invalid character.
-    /// </exception>
-    /// <exception cref="FormatException">
-    /// Thrown when either coordinate is empty after prefix stripping, or when the index is not positive.
+    /// <exception cref="InvalidShareException">
+    /// Thrown when <paramref name="shareString"/> is malformed: it does not contain the coordinate
+    /// separator, contains non-hexadecimal characters (the message identifies the zero-based position
+    /// of the first invalid character), has an empty coordinate after prefix stripping, or decodes to
+    /// an index that is not positive.
     /// </exception>
     public Share(PinnedPoolArray<char> shareString)
     {
@@ -243,7 +241,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="indexBytes"/> or <paramref name="valueBytes"/> is <see langword="null"/>.
     /// </exception>
-    /// <exception cref="ArgumentOutOfRangeException">
+    /// <exception cref="InvalidShareException">
     /// Thrown when the decoded index is less than one.
     /// </exception>
     /// <exception cref="NotSupportedException">
@@ -588,19 +586,17 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// <returns>A tuple containing the parsed index and value as instances of <see cref="Calculator{TNumber}"/>.</returns>
     /// <remarks>
     /// Validation and decoding run in a single pass: <see cref="DecodeHexToCalculator"/> emits an
-    /// <see cref="ArgumentException"/> at the first non-hexadecimal character it encounters, with
+    /// <see cref="InvalidShareException"/> at the first non-hexadecimal character it encounters, with
     /// the character's position included in the message.
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="serialized"/> is <see langword="null"/>.
     /// </exception>
-    /// <exception cref="ArgumentException">
-    /// Thrown when the provided <paramref name="serialized"/> does not contain a coordinate separator
-    /// or contains non-hexadecimal characters (a message includes the zero-based position of the first
-    /// invalid character).
-    /// </exception>
-    /// <exception cref="FormatException">
-    /// Thrown when either the share index or value is empty, or when the index is not positive.
+    /// <exception cref="InvalidShareException">
+    /// Thrown when the provided <paramref name="serialized"/> is malformed: it does not contain a
+    /// coordinate separator, contains non-hexadecimal characters (the message includes the zero-based
+    /// position of the first invalid character), has an empty coordinate, or decodes to an index that
+    /// is not positive.
     /// </exception>
     private static (Calculator<TNumber> Index, Calculator<TNumber> Value) ParseCore(PinnedPoolArray<char> serialized)
     {
@@ -615,7 +611,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         var separatorIndex = IndexOf(buf, start, end, CoordinateSeparator);
         if (separatorIndex < 0)
         {
-            throw new ArgumentException(string.Format(ErrorMessages.InvalidShareFormat, CoordinateSeparator));
+            throw new InvalidShareException(string.Format(ErrorMessages.InvalidShareFormat, CoordinateSeparator));
         }
 
         var indexStart = StripHexPrefix(buf, start, separatorIndex);
@@ -625,7 +621,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
         if (indexLen == 0 || valueLen == 0)
         {
-            throw new FormatException(ErrorMessages.ShareIndexAndValueMustBeNonEmpty);
+            throw new InvalidShareException(ErrorMessages.ShareIndexAndValueMustBeNonEmpty);
         }
 
         Calculator<TNumber> index = null;
@@ -637,7 +633,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             using var one = Calculator<TNumber>.One;
             if (index < one)
             {
-                throw new FormatException(ErrorMessages.ShareIndexMustBePositive);
+                throw new InvalidShareException(ErrorMessages.ShareIndexMustBePositive);
             }
 
             var result = (index, value);
@@ -661,7 +657,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// call or the index validation throws, any already-allocated <see cref="Calculator{TNumber}"/> is disposed
     /// to prevent resource leaks.
     /// </remarks>
-    /// <exception cref="ArgumentOutOfRangeException">
+    /// <exception cref="InvalidShareException">
     /// Thrown when the decoded index is less than one.
     /// </exception>
     /// <exception cref="NotSupportedException">
@@ -679,7 +675,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             using var one = Calculator<TNumber>.One;
             if (index < one)
             {
-                throw new ArgumentOutOfRangeException(nameof(indexBytes), ErrorMessages.ShareIndexMustBePositive);
+                throw new InvalidShareException(ErrorMessages.ShareIndexMustBePositive);
             }
 
             value = Calculator.Create<TNumber>(valueBytes, valueBytes.Length);
@@ -707,7 +703,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// cleared on dispose. Odd-length input is left-padded by writing the single high nibble into the
     /// first output byte.
     /// </remarks>
-    /// <exception cref="ArgumentException">
+    /// <exception cref="InvalidShareException">
     /// Thrown when a non-hexadecimal character is encountered. The message identifies the zero-based
     /// position of the invalid character within <paramref name="buf"/>.
     /// </exception>
@@ -724,7 +720,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             var low = GetHexValue(buf[offset]);
             if (low < 0)
             {
-                throw new ArgumentException(string.Format(ErrorMessages.InvalidHexCharacter, offset));
+                throw new InvalidShareException(string.Format(ErrorMessages.InvalidHexCharacter, offset));
             }
 
             bytesArray[writeIndex++] = (byte)low;
@@ -737,7 +733,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             var low = GetHexValue(buf[offset + readIndex + 1]);
             if (high < 0 || low < 0)
             {
-                throw new ArgumentException(
+                throw new InvalidShareException(
                     string.Format(ErrorMessages.InvalidHexCharacter, high < 0 ? offset + readIndex : offset + readIndex + 1));
             }
 
