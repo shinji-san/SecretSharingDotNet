@@ -59,8 +59,24 @@ jobs:
     - name: Test (net10.0)
       run: dotnet test --no-restore --no-build --configuration Release --framework net10.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 
+    # The extraction below is driven entirely by these two headings. If one stops
+    # matching, the pipeline yields an empty README and pack fails with a NU5040 that
+    # names the empty file rather than the renamed heading; if one matches twice, the
+    # extraction duplicates content and ships a wrong README without any error at all.
+    # Check both up front so the real cause is named and heading drift turns red on
+    # every push instead of first failing in the release workflow. The install
+    # heading is matched without its trailing emoji, so it stays in step with
+    # publishing.yml.
     - name: Prepare README.md for NuGet package
       run: |
+           set -euo pipefail
+           for heading in "## Install SecretSharingDotNet package" "# CLI building instructions"; do
+             matches="$(grep -cF "$heading" README.md || true)"
+             if [ "$matches" -ne 1 ]; then
+               echo "::error file=README.md::Expected exactly one line containing '$heading', found ${matches}. The packaged README is built by extracting between these headings."
+               exit 1
+             fi
+           done
            grep -n "## Install SecretSharingDotNet package" README.md | cut -d: -f 1| xargs -i tail -n +{} README.md > TMP.md && sed -i '1s/^/# Setup\r\n/' TMP.md && mv -f TMP.md README.md
            grep -n "# CLI building instructions" README.md | cut -d: -f 1| xargs -i head -n {} README.md | head -n -1 > TMP.md && mv -f TMP.md README.md
 
