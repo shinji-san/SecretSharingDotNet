@@ -26,10 +26,15 @@ jobs:
   build:
 
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
+    # No later step needs the git token: restore talks to nuget.org and
+    # nothing pushes.
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Setup .NET SDKs
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -86,10 +91,15 @@ jobs:
   build-windows:
 
     runs-on: windows-2025
+    timeout-minutes: 30
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
+    # No later step needs the git token: restore talks to nuget.org and
+    # nothing pushes.
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Setup .NET SDKs
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
