@@ -33,7 +33,7 @@ namespace SecretSharingDotNet.Cryptography;
 
 using Extension;
 using Math;
-using SecureArray;
+using SecureMemory;
 using System;
 using System.Diagnostics;
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)

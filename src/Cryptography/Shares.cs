@@ -32,7 +32,7 @@
 namespace SecretSharingDotNet.Cryptography;
 
 using Extension;
-using SecureArray;
+using SecureMemory;
 using System;
 using System.Collections;
 using System.Collections.Generic;

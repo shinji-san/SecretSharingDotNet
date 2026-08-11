@@ -31,7 +31,7 @@
 
 namespace SecretSharingDotNet.Math.Numerics;
 
-using Cryptography.SecureArray;
+using SecureMemory;
 #if (!NET8_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER)
 using Extension;
 #endif

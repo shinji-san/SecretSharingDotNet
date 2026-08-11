@@ -463,7 +463,7 @@ using System.Numerics;
 using System.Text;
 
 using SecretSharingDotNet.Cryptography;
-using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Cryptography.SecureInput;
 
 namespace Example5a;
@@ -727,7 +727,7 @@ using System;
 using System.Numerics;
 
 using SecretSharingDotNet.Cryptography;
-using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math;
 
@@ -877,7 +877,7 @@ using System;
 using System.Numerics;
 
 using SecretSharingDotNet.Cryptography;
-using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;

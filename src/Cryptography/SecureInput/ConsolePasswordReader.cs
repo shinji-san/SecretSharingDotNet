@@ -32,7 +32,7 @@
 namespace SecretSharingDotNet.Cryptography.SecureInput;
 
 using System;
-using SecureArray;
+using SecureMemory;
 
 /// <summary>
 /// Provides interactive console-based password input that lands directly in pinned,

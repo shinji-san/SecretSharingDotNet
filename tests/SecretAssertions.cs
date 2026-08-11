@@ -51,7 +51,7 @@ internal static class SecretAssertions
     /// Replaces the <c>Assert.Equal(string, Secret&lt;TNumber&gt;)</c> idiom that previously
     /// relied on the implicit <see cref="string"/>-to-<see cref="Secret{TNumber}"/> conversion.
     /// The expected string is copied into a pinned buffer and converted via
-    /// <see cref="Secret{TNumber}.FromText(SecretSharingDotNet.Cryptography.SecureArray.PinnedPoolArray{char})"/>,
+    /// <see cref="Secret{TNumber}.FromText(SecretSharingDotNet.SecureMemory.PinnedPoolArray{char})"/>,
     /// preserving the historical UTF-8 default.
     /// </remarks>
     /// <exception cref="ArgumentNullException">

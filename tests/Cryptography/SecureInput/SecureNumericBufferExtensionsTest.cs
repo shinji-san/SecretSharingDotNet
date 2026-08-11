@@ -34,7 +34,7 @@ namespace SecretSharingDotNetTest.Cryptography.SecureInput;
 using System;
 using System.Linq;
 using System.Numerics;
-using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 
