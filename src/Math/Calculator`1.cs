@@ -33,7 +33,6 @@ namespace SecretSharingDotNet.Math;
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 /// <summary>
 /// Generic strategy-pattern base that decouples Shamir's Secret Sharing from the concrete
@@ -82,13 +81,6 @@ public abstract class Calculator<TNumber> :
     /// Indicates whether the resources used by the current instance have been released.
     /// </summary>
     private bool disposed;
-
-    /// <summary>
-    /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
-    /// </summary>
-    private static readonly ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>> ChildCtors =
-        new ReadOnlyDictionary<Type, Func<TNumber, Calculator<TNumber>>>(
-            GetDerivedCtors<Func<TNumber, Calculator<TNumber>>>());
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Calculator{TNumber}"/> class.
@@ -393,7 +385,7 @@ public abstract class Calculator<TNumber> :
     {
         try
         {
-            return ChildCtors[typeof(TNumber)](number);
+            return Calculator.FromValue(number);
         }
         catch (KeyNotFoundException)
         {
