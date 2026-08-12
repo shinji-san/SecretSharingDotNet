@@ -6,14 +6,27 @@ on:
     - '**'
     tags-ignore:
     - '**'
-    paths-ignore:
-    - '**.md'
+    # `paths` with negations instead of `paths-ignore`, because only `paths`
+    # can re-include README.md: it is pack input (PackageReadmeFile), and the
+    # "Prepare README.md" guard below must turn red on the README-only push
+    # that introduces heading drift. All other Markdown plus .gitignore and
+    # .gitattributes cannot affect build, test, or pack. Last match wins.
+    paths:
+    - '**'
+    - '!**.md'
+    - 'README.md'
+    - '!.gitignore'
+    - '!.gitattributes'
   pull_request:
     branches:
     - develop
     - main
-    paths-ignore:
-    - '**.md'
+    paths:
+    - '**'
+    - '!**.md'
+    - 'README.md'
+    - '!.gitignore'
+    - '!.gitattributes'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
