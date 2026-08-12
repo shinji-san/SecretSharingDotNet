@@ -41,7 +41,7 @@ using System.Collections.ObjectModel;
 /// </summary>
 /// <typeparam name="TNumber">The type of integer that is used by the <see cref="Share{TNumber}"/> items of the
 /// <see cref="Shares{TNumber}"/> collection.</typeparam>
-public sealed class SharesEnumerator<TNumber> : IEnumerator<Share<TNumber>>
+internal sealed class SharesEnumerator<TNumber> : IEnumerator<Share<TNumber>>
 {
     /// <summary>
     /// Saves a list of <see cref="Share{TNumber}"/>.
@@ -58,7 +58,7 @@ public sealed class SharesEnumerator<TNumber> : IEnumerator<Share<TNumber>>
     /// </summary>
     /// <param name="shares">A collection of <see cref="Share{TNumber}"/> items representing the shares.</param>
     /// <exception cref="T:System.ArgumentNullException"><paramref name="shares"/> is <see langword="null"/></exception>
-    public SharesEnumerator(Collection<Share<TNumber>> shares)
+    internal SharesEnumerator(Collection<Share<TNumber>> shares)
     {
         _ = shares ?? throw new ArgumentNullException(nameof(shares));
         this.shareList = new ReadOnlyCollection<Share<TNumber>>(shares);
