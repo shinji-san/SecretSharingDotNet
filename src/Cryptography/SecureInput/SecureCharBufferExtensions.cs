@@ -33,7 +33,7 @@ namespace SecretSharingDotNet.Cryptography.SecureInput;
 
 using Extension;
 using System;
-using SecureArray;
+using SecureMemory;
 
 /// <summary>
 /// Provides extension methods that copy character data into pinned, securely cleared

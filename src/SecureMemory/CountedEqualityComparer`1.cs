@@ -31,7 +31,7 @@
 
 #endregion
 
-namespace SecretSharingDotNet.Cryptography.SecureArray;
+namespace SecretSharingDotNet.SecureMemory;
 
 using System;
 using System.Collections;

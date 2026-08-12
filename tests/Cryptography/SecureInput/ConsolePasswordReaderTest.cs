@@ -35,7 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 

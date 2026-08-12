@@ -1,6 +1,6 @@
-namespace SecretSharingDotNetTest.Cryptography.SecureArray;
+namespace SecretSharingDotNetTest.SecureMemory;
 
-using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.SecureMemory;
 using Xunit;
 using System;
 using System.Collections;

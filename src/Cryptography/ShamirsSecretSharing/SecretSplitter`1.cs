@@ -33,7 +33,7 @@ namespace SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 
 using Extension;
 using Math;
-using SecureArray;
+using SecureMemory;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;

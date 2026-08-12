@@ -32,7 +32,7 @@
 namespace SecretSharingDotNetTest.Cryptography.BigInteger;
 
 using SecretSharingDotNet.Cryptography;
-using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Extension;
 using SecretSharingDotNet.Math.Numerics;

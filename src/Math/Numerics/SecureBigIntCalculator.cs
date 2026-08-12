@@ -31,7 +31,7 @@
 
 namespace SecretSharingDotNet.Math.Numerics;
 
-using Cryptography.SecureArray;
+using SecureMemory;
 using System;
 using System.Threading;
 
