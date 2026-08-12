@@ -2,8 +2,20 @@ name: SecretSharingDotNet - NuGet Publishing
 
 on:
   push:
+    # Only well-formed SemVer release tags publish: vMAJOR.MINOR.PATCH plus an
+    # optional pre-release suffix (v1.0.1, v1.0.2-rc01, v2.0.0-beta1). Filter
+    # glob semantics: `+` = one-or-more of the preceding character, the class
+    # after '-' demands at least one alphanumeric character (so a bare
+    # 'v1.0.1-' stays out), and a pattern must match the whole tag name. The
+    # suffix is otherwise deliberately open -- a stricter -rc[0-9]+ would
+    # silently skip a future -beta tag. Near-misses a glob cannot reject
+    # (v01.0.1, v1.0.1-rc.) still start a run and die red in the
+    # version-lockstep check below. Trade-off: a malformed tag (v1.0, vNext)
+    # no longer starts a run at all, where the old catch-all 'v*' at least
+    # died red in that check.
     tags:
-    - 'v*'
+    - 'v[0-9]+.[0-9]+.[0-9]+'
+    - 'v[0-9]+.[0-9]+.[0-9]+-[0-9A-Za-z]*'
 
 # Keep a tag from racing itself: a re-pushed tag or a re-run queues behind the run
 # already publishing that version instead of pushing it twice at once. Never cancel in
