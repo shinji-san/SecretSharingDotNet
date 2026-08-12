@@ -2,6 +2,10 @@
 **/[Bb]in
 **/[Oo]bj
 
+# Ignore test-run output — `dotnet test` with a trx logger or coverage
+# collector writes TestResults/ next to the test project, not under bin/.
+**/TestResults/
+
 # Ignore Visual Studio Code
 **/.vscode
 
@@ -21,6 +25,11 @@
 
 # Ignore JetBrains Rider / IntelliJ IDEA meta info
 .idea
+
+# Ignore Claude Code local state — machine-local permission settings and
+# temporary worktrees created by background sessions.
+.claude/settings.local.json
+.claude/worktrees/
 
 # Ignore swap files
 *.swp
