@@ -33,7 +33,7 @@
 
 namespace SecretSharingDotNet.Extension;
 
-using Cryptography.SecureArray;
+using SecureMemory;
 using System;
 using System.Runtime.CompilerServices;
 

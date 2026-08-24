@@ -4,7 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.1] - 2026-08-24
+
+### Added
+- Added a domain exception hierarchy rooted at `SecretSharingException` (derives from `Exception`): `InvalidShareException` for a malformed share and `ReconstructionException` for a set of individually valid shares that cannot be reconstructed. Catching `SecretSharingException` handles any Shamir-domain failure uniformly.
+
+### Changed
+- Moved the secure-memory primitives (`PinnedPoolArray<T>`, `PinnedPoolArrayList`, `CountedEqualityComparer<T>`, `ICountedEqualityComparer<T>`) from `SecretSharingDotNet.Cryptography.SecureArray` to a new top-level `SecretSharingDotNet.SecureMemory` namespace — they are foundational primitives shared by the math and cryptography layers, not cryptography-specific types. Replace `using SecretSharingDotNet.Cryptography.SecureArray;` with `using SecretSharingDotNet.SecureMemory;`.
+- Parsing or constructing a `Share<TNumber>` from its serialized form (the pinned-char constructor and the byte-array constructor) now throws `InvalidShareException` for a malformed share, instead of a mix of `ArgumentException`, `FormatException`, and `ArgumentOutOfRangeException`. `InvalidShareException` derives from `SecretSharingException` (not from the former BCL types), so `catch` clauses targeting `FormatException` / `ArgumentException` for parse failures must be updated. Passing an already-decoded, non-positive index through the `(index, value)` calculator constructor still throws `ArgumentOutOfRangeException`.
+- `SecretReconstructor<TNumber>.Reconstruction` now throws `ReconstructionException` (duplicate share indices, no maximum y-value, or a zero / non-invertible denominator during interpolation) instead of `ArgumentException`. `ReconstructionException` derives from `SecretSharingException` (not from `ArgumentException`), so `catch (ArgumentException)` around reconstruction must be updated.
+- Updated `Microsoft.SourceLink.GitHub` from `10.0.300` to `10.0.301` (build-time dependency; moves the transitive `System.IO.Hashing` from `10.0.8` to `10.0.10`).
+- Updated `Microsoft.NET.Test.Sdk` and `Microsoft.TestPlatform.ObjectModel` from `18.7.0` to `18.8.1`, and `Microsoft.Extensions.DependencyInjection` from `10.0.9` to `10.0.10` (test and sample dependencies).
+- `Shares<TNumber>.GetEnumerator()` now returns `IEnumerator<Share<TNumber>>` instead of the concrete `SharesEnumerator<TNumber>`. `foreach` and LINQ over a `Shares<TNumber>` are unaffected; only code that captured the result in a `SharesEnumerator<TNumber>`-typed variable must switch to `var` or `IEnumerator<Share<TNumber>>`.
+
+### Removed
+- `SharesEnumerator<TNumber>` is no longer public; it is now an `internal` implementation detail of `Shares<TNumber>.GetEnumerator()`. Iterate a `Shares<TNumber>` with `foreach` or through its `IEnumerator<Share<TNumber>>`. This also removes the public `SharesEnumerator<TNumber>(Collection<Share<TNumber>>)` constructor.
+
+### Fixed
+- Share-index de-duplication in `SecretReconstructor` is O(n) again on the `SecureBigInteger` backend. After the `GetHashCode` metadata hardening every small positive one-limb index hashed identically, collapsing the distinctness `HashSet` into one bucket (O(n²)); an internal public-value comparer restores O(n). No public API change; the secret-hash hardening is unchanged.
 
 ## [1.0.1-rc02] - 2026-07-12
 
@@ -331,7 +348,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `LICENSE.md`
 - Added `README.md`
 
-[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc02...develop
+[1.0.1]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc02...v1.0.1
 [1.0.1-rc02]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc01...v1.0.1-rc02
 [1.0.1-rc01]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.14.0...v1.0.1-rc01
 [0.14.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.13.0...v0.14.0

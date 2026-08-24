@@ -147,7 +147,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="shares"/> contains fewer than two entries.
     /// </exception>
-    /// <exception cref="ArgumentException">
+    /// <exception cref="ReconstructionException">
     /// Two or more entries in <paramref name="shares"/> share the same <see cref="Share{TNumber}.Index"/>.
     /// </exception>
     /// <remarks>
@@ -175,16 +175,23 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         // unpinned managed heap. Throws on first-duplicate detection instead of after full
         // enumeration; eager-vs-lazy throw on the public x-coordinates yields the same
         // exception type and message, no observable difference on the success path.
+        //
+        // Indices are hashed through PublicValueEqualityComparer: Calculator.GetHashCode delegates
+        // to TNumber.GetHashCode, and the SecureBigInteger backend deliberately hashes only public
+        // metadata (sign + limb count) so a value-derived hash of secret material cannot be observed.
+        // That makes every small positive one-limb index hash identically, which would collapse this
+        // check into one bucket (O(n²)). Indices are public (the X coordinate on the "INDEX-VALUE"
+        // wire), so a value-based hash of them is safe and restores O(n).
 #if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-        var seenIndices = new HashSet<Calculator<TNumber>>(numberOfPoints);
+        var seenIndices = new HashSet<Calculator<TNumber>>(numberOfPoints, PublicValueEqualityComparer<TNumber>.Instance);
 #else
-        var seenIndices = new HashSet<Calculator<TNumber>>();
+        var seenIndices = new HashSet<Calculator<TNumber>>(PublicValueEqualityComparer<TNumber>.Instance);
 #endif
         for (int i = 0; i < numberOfPoints; i++)
         {
             if (!seenIndices.Add(shares[i].Index))
             {
-                throw new ArgumentException(ErrorMessages.ShareIndicesNotDistinct, nameof(shares));
+                throw new ReconstructionException(ErrorMessages.ShareIndicesNotDistinct);
             }
         }
 
@@ -276,7 +283,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="shares"/> contains fewer than two entries.
     /// </exception>
-    /// <exception cref="ArgumentException">
+    /// <exception cref="ReconstructionException">
     /// <paramref name="shares"/> has no maximum y-value, or contains entries with duplicate
     /// <see cref="Share{TNumber}.Index"/> values.
     /// </exception>
@@ -316,7 +323,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
 
         if (maximumY is null)
         {
-            throw new ArgumentException(ErrorMessages.NoMaximumY, nameof(shares));
+            throw new ReconstructionException(ErrorMessages.NoMaximumY);
         }
 
         this.securityLevelManager.AdjustSecurityLevel(maximumY);
@@ -337,7 +344,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <exception cref="System.ArgumentNullException">
     /// Thrown when the <paramref name="numerator"/> or <paramref name="denominator"/> parameter is null.
     /// </exception>
-    /// <exception cref="System.ArgumentException">
+    /// <exception cref="ReconstructionException">
     /// Thrown when the <paramref name="denominator"/> is zero (its modular inverse does not exist) or
     /// when the denominator is not invertible modulo the prime (gcd does not equal 1).
     /// </exception>
@@ -364,7 +371,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         using var normalizedDenominator = denominator.MersenneModulo(mersenneExponent);
         if (normalizedDenominator.IsZero)
         {
-            throw new ArgumentException(ErrorMessages.InverseOfZeroDoesNotExist, nameof(denominator));
+            throw new ReconstructionException(ErrorMessages.InverseOfZeroDoesNotExist);
         }
 
         // The extended GCD still operates on the prime VALUE: the algorithm is
@@ -374,7 +381,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         // Check whether the denominator is invertible modulo the prime
         if (!result.GreatestCommonDivisor.IsOne)
         {
-            throw new ArgumentException(ErrorMessages.DenominatorIsNotInvertibleModuloPrime, nameof(denominator));
+            throw new ReconstructionException(ErrorMessages.DenominatorIsNotInvertibleModuloPrime);
         }
 
         // Normalize inverse: x mod M_p (Bezout coefficient may be negative)

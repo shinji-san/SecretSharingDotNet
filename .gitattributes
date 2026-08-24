@@ -1,0 +1,22 @@
+* text=auto
+
+# C# sources — normalized to LF in repo, working tree left untouched
+*.cs         text diff=csharp
+
+# MSBuild / solution XML
+*.slnx       text
+*.csproj     text
+*.props      text
+*.resx       text
+
+# Scripts & CI definitions — LF required at execution time
+*.sh         text eol=lf
+*.yml        text eol=lf
+
+# Docs & JSON
+*.md         text
+*.json       text
+
+# Binary artefacts
+*.snk        binary
+*.gpg        binary

@@ -2,31 +2,143 @@ name: SecretSharingDotNet - NuGet Publishing
 
 on:
   push:
+    # Coarse gate: only tags shaped like a SemVer release (vMAJOR.MINOR.PATCH
+    # with anything after) start a run; v1, v1.0, or vNext never do. In this
+    # filter `+` means one-or-more of the preceding character and the pattern
+    # must match the whole tag name. Exact SemVer validation deliberately does
+    # NOT live here, because GitHub's filter globs cannot express it: a
+    # literal '-' inside a character class is impossible in any spelling
+    # (trailing, leading, or escaped -- each renders the whole workflow file
+    # invalid, surfacing as jobless startup-failure runs on every push), and
+    # near-misses like v01.0.1 or v1.0.1-rc. pass any glob. The authoritative
+    # check is the "Require a SemVer release tag" step below, which fails
+    # loud instead of silently skipping the release.
     tags:
-    - 'v*'
-    paths-ignore:
-    - '**.md'
+    - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+# Keep a tag from racing itself: a re-pushed tag or a re-run queues behind the run
+# already publishing that version instead of pushing it twice at once. Never cancel in
+# progress, because a publish interrupted between pack and push leaves the release
+# half-done -- this is where the CI workflows differ, they do cancel.
+# Grouped per ref on purpose. A workflow-level group holds only one pending run, so a
+# third tag arriving while one publishes and another waits would cancel the waiting
+# one and that version would never be published.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
   id-token: write   # OIDC token for NuGet Trusted Publishing
 
 jobs:
-  build:
+  # The ubuntu-24.04 image ships without Mono, so the .NET Framework suites
+  # cannot run in the publishing job below. They gate it from here instead:
+  # 'needs' keeps a release from publishing unless net472/net48/net481 pass
+  # on the real .NET Framework, mirroring the job split in dotnetall.yml.
+  # contents: read only -- the OIDC id-token stays confined to the publish job.
+  test-windows:
 
-    runs-on: ubuntu-22.04
+    runs-on: windows-2025
+    timeout-minutes: 30
+    permissions:
+      contents: read
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    # The trigger glob above only gates coarsely; this is the exact SemVer
+    # check (official semver.org grammar as ERE; build metadata '+' rejected
+    # on purpose -- NuGet versions cannot carry it). Runs before checkout so
+    # a malformed tag fails within seconds. shell: bash resolves to Git for
+    # Windows' bash on the hosted Windows image.
+    - name: Require a SemVer release tag
+      shell: bash
+      run: |
+        semver_ere='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?$'
+        if [[ ! "$GITHUB_REF_NAME" =~ $semver_ere ]]; then
+          echo "::error::Tag ${GITHUB_REF_NAME} is not a well-formed SemVer release tag (vMAJOR.MINOR.PATCH plus optional -prerelease); refusing to publish."
+          exit 1
+        fi
+        echo "Tag ${GITHUB_REF_NAME} is a well-formed SemVer release tag."
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup .NET SDKs
-      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         dotnet-version: |
-          8.0.416
-          9.0.307
-          10.0.100
+          8.0.423
+          9.0.316
+          10.0.302
+
+    - name: Restore
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
+
+    - name: Test (net472)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net472 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net48)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net48 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net481)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net481 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+  build:
+
+    needs: test-windows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Setup .NET SDKs
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: |
+          8.0.423
+          9.0.316
+          10.0.302
+
+    # Guard against a tag that does not match the version being packed. Without it a
+    # tag pushed without bumping the version builds the previous release, and the push
+    # below hits --skip-duplicate, which reports success without publishing anything.
+    # Runs before the signing key is decrypted, so a mismatched tag never touches it.
+    - name: Verify tag matches package version
+      run: |
+        set -euo pipefail
+        tag_version="${GITHUB_REF_NAME#v}"
+        csproj_version="$(dotnet msbuild src/SecretSharingDotNet.csproj -getProperty:Version)"
+        release_notes="$(dotnet msbuild src/SecretSharingDotNet.csproj -getProperty:PackageReleaseNotes)"
+        informational_version="$(sed -n 's/.*AssemblyInformationalVersion("\([^"]*\)").*/\1/p' src/Properties/AssemblyInfo.cs)"
+
+        mismatch=0
+        if [ "$csproj_version" != "$tag_version" ]; then
+          echo "::error file=src/SecretSharingDotNet.csproj::<Version> is '$csproj_version', but tag ${GITHUB_REF_NAME} implies '$tag_version'"
+          mismatch=1
+        fi
+        if [ "$informational_version" != "$tag_version" ]; then
+          echo "::error file=src/Properties/AssemblyInfo.cs::AssemblyInformationalVersion is '$informational_version', but tag ${GITHUB_REF_NAME} implies '$tag_version'"
+          mismatch=1
+        fi
+        case "$release_notes" in
+          *"/blob/${GITHUB_REF_NAME}/"*) ;;
+          *)
+            echo "::error file=src/SecretSharingDotNet.csproj::PackageReleaseNotes does not link to tag ${GITHUB_REF_NAME}: ${release_notes}"
+            mismatch=1
+            ;;
+        esac
+
+        if [ "$mismatch" -ne 0 ]; then
+          echo "Refusing to publish: the release version is not in lockstep with the tag ${GITHUB_REF_NAME}."
+          echo "Publishing anyway would push an already-released version, which --skip-duplicate reports as success without publishing anything."
+          exit 1
+        fi
+        echo "Tag ${GITHUB_REF_NAME} matches version ${csproj_version}."
 
     - name: Decrypt large secret
       run: ./.github/secrets/decrypt_publisher_snk.sh
@@ -35,20 +147,43 @@ jobs:
         PUBLISHER_PUB_KEY: ${{ secrets.PUBLISHER_PUB_KEY }}
 
     - name: Restore
-      run: dotnet restore SecretSharingDotNet.slnx
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
 
     - name: Build
       run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
 
-    - name: Test
-      run: dotnet test --no-restore --no-build --configuration Release SecretSharingDotNet.slnx -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+    # The ubuntu-24.04 image ships without Mono, so only the modern TFMs run
+    # here. The .NET Framework suites already ran in the test-windows job,
+    # which gates this job through 'needs'.
+    - name: Test (net8.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net8.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net9.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net9.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net10.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net10.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 
     - name: Remove obsolete NuGet packages
       run: rm -f src/bin/Release/SecretSharingDotNet*.nupkg
 
+    # The extraction below is driven entirely by these two headings. If one stops
+    # matching, the pipeline yields an empty README and pack fails with a NU5040 that
+    # names the empty file rather than the renamed heading; if one matches twice, the
+    # extraction duplicates content and ships a wrong README without any error at all.
+    # Check both up front so the real cause is named. The install heading is matched
+    # without its trailing emoji, so it stays in step with dotnetall.yml.
     - name: Prepare README.md for NuGet package
       run: |
-           grep -n "## Install SecretSharingDotNet package 📥" README.md | cut -d: -f 1| xargs -i tail -n +{} README.md > TMP.md && sed -i '1s/^/# Setup\r\n/' TMP.md && mv -f TMP.md README.md
+           set -euo pipefail
+           for heading in "## Install SecretSharingDotNet package" "# CLI building instructions"; do
+             matches="$(grep -cF "$heading" README.md || true)"
+             if [ "$matches" -ne 1 ]; then
+               echo "::error file=README.md::Expected exactly one line containing '$heading', found ${matches}. The packaged README is built by extracting between these headings."
+               exit 1
+             fi
+           done
+           grep -n "## Install SecretSharingDotNet package" README.md | cut -d: -f 1| xargs -i tail -n +{} README.md > TMP.md && sed -i '1s/^/# Setup\r\n/' TMP.md && mv -f TMP.md README.md
            grep -n "# CLI building instructions" README.md | cut -d: -f 1| xargs -i head -n {} README.md | head -n -1 > TMP.md && mv -f TMP.md README.md
 
     - name: Create package

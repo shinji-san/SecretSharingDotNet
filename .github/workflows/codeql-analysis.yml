@@ -15,7 +15,7 @@ concurrency:
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       actions: read
       contents: read
@@ -28,31 +28,31 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     # The .NET build steps apply only to the C# analysis; 'actions' is a no-build
     # CodeQL language, so its matrix leg skips setup / restore / build.
     - name: Setup .NET SDKs
       if: matrix.language == 'csharp'
-      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         dotnet-version: |
-          8.0.416
-          9.0.307
-          10.0.100
+          8.0.423
+          9.0.316
+          10.0.302
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
+      uses: github/codeql-action/init@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
       with:
         languages: ${{ matrix.language }}
 
     - name: Restore
       if: matrix.language == 'csharp'
-      run: dotnet restore SecretSharingDotNet.slnx
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
 
     - name: Build
       if: matrix.language == 'csharp'
-      run: dotnet build --configuration Release SecretSharingDotNet.slnx
+      run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
+      uses: github/codeql-action/analyze@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4

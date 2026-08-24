@@ -35,7 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cryptography;
-using Cryptography.SecureArray;
+using SecureMemory;
 using Cryptography.SecureInput;
 using Math.Numerics;
 

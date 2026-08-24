@@ -31,13 +31,11 @@
 
 namespace SecretSharingDotNet.Math;
 
-using Cryptography.SecureArray;
+using SecureMemory;
+using Numerics;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
+using System.Numerics;
 
 /// <summary>
 /// Non-generic base of the calculator strategy pattern that decouples Shamir's Secret
@@ -60,17 +58,23 @@ public abstract class Calculator : IDisposable
     private bool disposed;
 
     /// <summary>
-    /// Saves a dictionary of number data types derived from the <see cref="Calculator{TNumber}"/> class.
+    /// Explicit registry of the in-tree numeric backends, keyed by their numeric data type.
+    /// Replaces the former reflection-based subtype discovery: it carries no
+    /// <c>System.Reflection</c> or <c>System.Linq.Expressions</c> dependency, so it is
+    /// trimming- and NativeAOT-safe and free of static-initialisation-order fragility.
+    /// New in-tree backends are added here; the registry is intentionally closed to
+    /// external types.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2104:DoNotDeclareReadOnlyMutableReferenceTypes")]
-    private static readonly ReadOnlyDictionary<Type, Type> ChildTypes =
-        new ReadOnlyDictionary<Type, Type>(GetDerivedNumberTypes());
-
-    /// <summary>
-    /// Saves a dictionary of constructors of number data types derived from the <see cref="Calculator{TNumber}"/> class.
-    /// </summary>
-    private static readonly IReadOnlyDictionary<Type, Func<byte[], int, Calculator>> ChildBaseCtors =
-        new ReadOnlyDictionary<Type, Func<byte[], int, Calculator>>(GetDerivedCtors<Func<byte[], int, Calculator>>());
+    private static readonly IReadOnlyDictionary<Type, BackendRegistration> Backends =
+        new Dictionary<Type, BackendRegistration>
+        {
+            [typeof(BigInteger)] = new BackendRegistration(
+                (data, length) => new BigIntCalculator(data, length),
+                (Func<BigInteger, Calculator<BigInteger>>)(value => new BigIntCalculator(value))),
+            [typeof(SecureBigInteger)] = new BackendRegistration(
+                (data, length) => new SecureBigIntCalculator(data, length),
+                (Func<SecureBigInteger, Calculator<SecureBigInteger>>)(value => new SecureBigIntCalculator(value))),
+        };
 
     /// <summary>
     /// Gets the length, in bytes, of the canonical two's-complement byte representation
@@ -139,9 +143,9 @@ public abstract class Calculator : IDisposable
     /// <paramref name="numberType"/> is not a registered backend in this assembly. The generic
     /// <see cref="Create{TNumber}(byte[], int)"/> overload translates this to
     /// <see cref="NotSupportedException"/>; this base-class entry point intentionally surfaces
-    /// the raw lookup failure for plugin diagnostics.
+    /// the raw lookup failure for backend-lookup diagnostics.
     /// </exception>
-    public static Calculator Create(byte[] data, int length, Type numberType) => ChildBaseCtors[numberType](data, length);
+    public static Calculator Create(byte[] data, int length, Type numberType) => Backends[numberType].FromBytes(data, length);
 
     /// <summary>
     /// Strongly-typed counterpart to <see cref="Create(byte[], int, Type)"/>. Resolves the backend
@@ -155,7 +159,7 @@ public abstract class Calculator : IDisposable
     /// <returns>A <see cref="Calculator{TNumber}"/> instance bound to <typeparamref name="TNumber"/>.</returns>
     /// <remarks>
     /// Closes the leak-on-type-mismatch window of the
-    /// <c>Calculator.Create(...) as Calculator&lt;TNumber&gt;</c> idiom: if a third-party plugin
+    /// <c>Calculator.Create(...) as Calculator&lt;TNumber&gt;</c> idiom: if a misregistered
     /// backend produces a <see cref="Calculator"/> subtype that is not assignable to
     /// <see cref="Calculator{TNumber}"/>, the original instance — which may hold pinned, security-
     /// sensitive buffers on the <see cref="Numerics.SecureBigInteger"/> backend — is disposed
@@ -163,8 +167,8 @@ public abstract class Calculator : IDisposable
     /// </remarks>
     /// <exception cref="NotSupportedException">
     /// The registered backend for <typeparamref name="TNumber"/> is not assignable to
-    /// <see cref="Calculator{TNumber}"/> — a configuration error in a third-party plugin
-    /// backend rather than invalid user input.
+    /// <see cref="Calculator{TNumber}"/> — a backend-registration error rather than invalid
+    /// user input.
     /// </exception>
     /// <exception cref="System.Collections.Generic.KeyNotFoundException">
     /// No backend is registered for <typeparamref name="TNumber"/>.
@@ -183,76 +187,25 @@ public abstract class Calculator : IDisposable
     }
 
     /// <summary>
+    /// Builds a <see cref="Calculator{TNumber}"/> from a strongly-typed <typeparamref name="TNumber"/>
+    /// value using the registered backend factory. Backs the implicit
+    /// <c>TNumber</c> → <see cref="Calculator{TNumber}"/> conversion.
+    /// </summary>
+    /// <typeparam name="TNumber">Numeric backend type.</typeparam>
+    /// <param name="value">The numeric value to wrap.</param>
+    /// <returns>A <see cref="Calculator{TNumber}"/> bound to <typeparamref name="TNumber"/>.</returns>
+    /// <exception cref="System.Collections.Generic.KeyNotFoundException">
+    /// No backend is registered for <typeparamref name="TNumber"/>. The calling conversion
+    /// operator translates this to <see cref="NotSupportedException"/>.
+    /// </exception>
+    internal static Calculator<TNumber> FromValue<TNumber>(TNumber value) =>
+        ((Func<TNumber, Calculator<TNumber>>)Backends[typeof(TNumber)].FromValue)(value);
+
+    /// <summary>
     /// Returns a <see cref="System.String"/> that represents the current <see cref="Calculator"/>.
     /// </summary>
     /// <returns>The <see cref="System.String"/> representation of this <see cref="Calculator"/> object</returns>
     public abstract override string ToString();
-
-    /// <summary>
-    /// Returns a dictionary of constructors of number data types derived from the <see cref="Calculator"/> class.
-    /// </summary>
-    /// <returns>A dictionary of constructors of number data types derived from the <see cref="Calculator"/> class.</returns>
-    protected static Dictionary<Type, TDelegate> GetDerivedCtors<TDelegate>() where TDelegate : Delegate
-    {
-        var delegateType = typeof(TDelegate);
-        var methodInfo = delegateType.GetMethod(nameof(Func<>.Invoke)) ??
-                         throw new InvalidOperationException(
-                             $"Delegate type '{delegateType.Name}' does not have an '{nameof(Func<>.Invoke)}' method.");
-        var parameterTypes = methodInfo.GetParameters().Select(x => x.ParameterType).ToArray();
-        var parameterExpressions = parameterTypes.Select(Expression.Parameter).ToArray();
-        var expressions = parameterExpressions.OfType<Expression>().ToArray();
-
-        var res = new Dictionary<Type, TDelegate>(ChildTypes.Count);
-        foreach (var childType in ChildTypes)
-        {
-            var constructorInfos = childType.Value.GetConstructors();
-            foreach (var constructorInfo in constructorInfos)
-            {
-                var ctorParams = constructorInfo.GetParameters();
-                if (ctorParams.Length != parameterTypes.Length)
-                {
-                    continue;
-                }
-
-                var matches = true;
-                for (int i = 0; i < ctorParams.Length; i++)
-                {
-                    if (ctorParams[i].ParameterType == parameterTypes[i])
-                    {
-                        continue;
-                    }
-
-                    matches = false;
-                    break;
-                }
-
-                if (!matches)
-                {
-                    continue;
-                }
-
-                var ctor = Expression
-                    .Lambda<TDelegate>(Expression.New(constructorInfo, expressions), parameterExpressions)
-                    .Compile();
-                res.Add(childType.Key, ctor);
-            }
-        }
-
-        return res;
-    }
-
-    /// <summary>
-    /// Returns a dictionary of number data types derived from the <see cref="Calculator"/> class.
-    /// </summary>
-    /// <returns></returns>
-    /// <remarks>The key represents the integer data type of the derived calculator. The value represents the type of derived calculator.</remarks>
-    private static Dictionary<Type, Type> GetDerivedNumberTypes()
-    {
-        var asm = Assembly.GetAssembly(typeof(Calculator));
-        var listOfClasses = asm?.GetTypes()
-            .Where(x => x.IsSubclassOf(typeof(Calculator)) && !x.IsGenericType);
-        return listOfClasses?.ToDictionary(type => type.BaseType?.GetGenericArguments()[0]) ?? [];
-    }
 
     /// <summary>
     /// Releases the resources used by the current instance of the <see cref="Calculator"/> class.
@@ -280,5 +233,41 @@ public abstract class Calculator : IDisposable
 
         // Release unmanaged resources here
         this.disposed = true;
+    }
+
+    /// <summary>
+    /// Bundles the two construction entry points of a registered backend: the
+    /// <c>(byte[], length)</c> factory used by <see cref="Create(byte[], int, Type)"/> and the
+    /// strongly-typed <c>(TNumber)</c> factory used by the <c>TNumber</c> →
+    /// <see cref="Calculator{TNumber}"/> conversion. The latter is stored as a
+    /// <see cref="System.Delegate"/> because its type (<c>Func&lt;TNumber, Calculator&lt;TNumber&gt;&gt;</c>)
+    /// is generic per backend and cannot be expressed in this non-generic dictionary.
+    /// </summary>
+    private sealed class BackendRegistration
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BackendRegistration"/> class.
+        /// </summary>
+        /// <param name="fromBytes">Factory building a <see cref="Calculator"/> from a byte array and a length.</param>
+        /// <param name="fromValue">
+        /// Factory building a <c>Calculator&lt;TNumber&gt;</c> from a <c>TNumber</c> value, held as a
+        /// <see cref="System.Delegate"/> (a <c>Func&lt;TNumber, Calculator&lt;TNumber&gt;&gt;</c>).
+        /// </param>
+        internal BackendRegistration(Func<byte[], int, Calculator> fromBytes, Delegate fromValue)
+        {
+            this.FromBytes = fromBytes;
+            this.FromValue = fromValue;
+        }
+
+        /// <summary>
+        /// Gets the factory that builds a <see cref="Calculator"/> from a byte-array representation and a length.
+        /// </summary>
+        internal Func<byte[], int, Calculator> FromBytes { get; }
+
+        /// <summary>
+        /// Gets the strongly-typed <c>Func&lt;TNumber, Calculator&lt;TNumber&gt;&gt;</c> factory, held as a
+        /// <see cref="System.Delegate"/> and cast back by <see cref="FromValue{TNumber}"/>.
+        /// </summary>
+        internal Delegate FromValue { get; }
     }
 }

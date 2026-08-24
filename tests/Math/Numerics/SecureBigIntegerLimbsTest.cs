@@ -31,7 +31,7 @@
 namespace SecretSharingDotNetTest.Math.Numerics;
 
 using System;
-using SecretSharingDotNet.Cryptography.SecureArray;
+using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Math.Numerics;
 using Xunit;
 

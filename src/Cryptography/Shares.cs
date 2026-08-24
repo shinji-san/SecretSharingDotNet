@@ -32,7 +32,7 @@
 namespace SecretSharingDotNet.Cryptography;
 
 using Extension;
-using SecureArray;
+using SecureMemory;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -382,17 +382,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <summary>
     /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
     /// </summary>
-    /// <returns>An enumerator that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
-    /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
-    IEnumerator<Share<TNumber>> IEnumerable<Share<TNumber>>.GetEnumerator()
-    {
-        this.ThrowIfDisposed();
-        return this.GetEnumerator();
-    }
-
-    /// <summary>
-    /// Returns an enumerator that iterates through a <see cref="Shares{TNumber}"/> collection.
-    /// </summary>
     /// <returns>An <see cref="IEnumerator"/> object that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
     /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
     IEnumerator IEnumerable.GetEnumerator()
@@ -402,11 +391,12 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     }
 
     /// <summary>
-    /// Returns an <see cref="SharesEnumerator{TNumber}"/> that iterates through the <see cref="Shares{TNumber}"/> collection.
+    /// Returns an <see cref="IEnumerator{T}"/> of <see cref="Share{TNumber}"/> that iterates through the <see cref="Shares{TNumber}"/> collection.
     /// </summary>
-    /// <returns>An <see cref="SharesEnumerator{TNumber}"/> that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
+    /// <returns>An <see cref="IEnumerator{T}"/> of <see cref="Share{TNumber}"/> that can be used to iterate through the <see cref="Shares{TNumber}"/> collection.</returns>
+    /// <remarks>This method also provides the <see cref="IEnumerable{T}"/> implementation of <see cref="Share{TNumber}"/> for the collection.</remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
-    public SharesEnumerator<TNumber> GetEnumerator()
+    public IEnumerator<Share<TNumber>> GetEnumerator()
     {
         this.ThrowIfDisposed();
         return new SharesEnumerator<TNumber>(this.shareList);

@@ -6,14 +6,27 @@ on:
     - '**'
     tags-ignore:
     - '**'
-    paths-ignore:
-    - '**.md'
+    # `paths` with negations instead of `paths-ignore`, because only `paths`
+    # can re-include README.md: it is pack input (PackageReadmeFile), and the
+    # "Prepare README.md" guard below must turn red on the README-only push
+    # that introduces heading drift. Other Markdown and .gitignore cannot
+    # affect build, test, or pack; .gitattributes can (checkout applies its
+    # eol / working-tree-encoding / filter rules while materializing the
+    # sources), so it stays a trigger. Last match wins.
+    paths:
+    - '**'
+    - '!**.md'
+    - 'README.md'
+    - '!.gitignore'
   pull_request:
     branches:
     - develop
     - main
-    paths-ignore:
-    - '**.md'
+    paths:
+    - '**'
+    - '!**.md'
+    - 'README.md'
+    - '!.gitignore'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,33 +38,103 @@ permissions:
 jobs:
   build:
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    # No later step needs the git token: restore talks to nuget.org and
+    # nothing pushes.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Setup .NET SDKs
-      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         dotnet-version: |
-          8.0.416
-          9.0.307
-          10.0.100
+          8.0.423
+          9.0.316
+          10.0.302
 
     - name: Restore
-      run: dotnet restore SecretSharingDotNet.slnx
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
 
     - name: Build
       run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
 
-    - name: Test
-      run: dotnet test --no-restore --no-build --configuration Release SecretSharingDotNet.slnx -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+    # The ubuntu-24.04 image ships without Mono, so the .NET Framework suites
+    # cannot run here; the build-windows job covers them on the real .NET
+    # Framework instead. Each modern TFM is invoked with an explicit
+    # --framework against the test project so the runner never tries to
+    # launch a net4x executable.
+    - name: Test (net8.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net8.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
 
+    - name: Test (net9.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net9.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net10.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net10.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    # The extraction below is driven entirely by these two headings. If one stops
+    # matching, the pipeline yields an empty README and pack fails with a NU5040 that
+    # names the empty file rather than the renamed heading; if one matches twice, the
+    # extraction duplicates content and ships a wrong README without any error at all.
+    # Check both up front so the real cause is named and heading drift turns red on
+    # every push instead of first failing in the release workflow. The install
+    # heading is matched without its trailing emoji, so it stays in step with
+    # publishing.yml.
     - name: Prepare README.md for NuGet package
       run: |
+           set -euo pipefail
+           for heading in "## Install SecretSharingDotNet package" "# CLI building instructions"; do
+             matches="$(grep -cF "$heading" README.md || true)"
+             if [ "$matches" -ne 1 ]; then
+               echo "::error file=README.md::Expected exactly one line containing '$heading', found ${matches}. The packaged README is built by extracting between these headings."
+               exit 1
+             fi
+           done
            grep -n "## Install SecretSharingDotNet package" README.md | cut -d: -f 1| xargs -i tail -n +{} README.md > TMP.md && sed -i '1s/^/# Setup\r\n/' TMP.md && mv -f TMP.md README.md
            grep -n "# CLI building instructions" README.md | cut -d: -f 1| xargs -i head -n {} README.md | head -n -1 > TMP.md && mv -f TMP.md README.md
 
     - name: Create Package
       run: dotnet pack --no-restore --no-build --configuration Release SecretSharingDotNet.slnx
+
+  build-windows:
+
+    runs-on: windows-2025
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+    # No later step needs the git token: restore talks to nuget.org and
+    # nothing pushes.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup .NET SDKs
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: |
+          8.0.423
+          9.0.316
+          10.0.302
+
+    - name: Restore
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
+
+    # The net472/net48/net481 suites run here on the real .NET Framework the
+    # assemblies target; the ubuntu-24.04 image of the build job has no Mono.
+    - name: Test (net472)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net472 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net48)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net48 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+
+    - name: Test (net481)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net481 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false

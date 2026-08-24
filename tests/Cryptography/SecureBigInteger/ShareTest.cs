@@ -145,18 +145,18 @@ public class ShareTest
 
     /// <summary>
     /// Tests that the byte-array constructor rejects index bytes that decode to zero with
-    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// <see cref="InvalidShareException"/> — surfaced as a malformed-share error on the byte-decode path.
     /// </summary>
     [Fact]
-    public void Constructor_ByteArrays_ZeroIndex_ThrowsArgumentOutOfRangeException()
+    public void Constructor_ByteArrays_ZeroIndex_ThrowsInvalidShareException()
     {
         // Arrange
         var indexBytes = new byte[] { 0 };
         var valueBytes = new byte[] { 10 };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Share<SecureBigInteger>(indexBytes, valueBytes));
-        Assert.Equal("indexBytes", ex.ParamName);
+        var ex = Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(indexBytes, valueBytes));
+        Assert.IsAssignableFrom<SecretSharingException>(ex);
     }
 
     /// <summary>
@@ -293,16 +293,16 @@ public class ShareTest
 
     /// <summary>
     /// Tests that the pinned-char constructor rejects malformed inputs (here a hyphen-only
-    /// separator without valid hex on either side) with <see cref="ArgumentException"/>.
+    /// separator without valid hex on either side) with <see cref="InvalidShareException"/>.
     /// </summary>
     [Fact]
-    public void Constructor_InvalidPinnedInput_ShouldThrowArgumentException()
+    public void Constructor_InvalidPinnedInput_ShouldThrowInvalidShareException()
     {
         // Arrange
         using var pinned = "invalid-input".ToPinnedSecure();
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new Share<SecureBigInteger>(pinned));
+        Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(pinned));
     }
 
     /// <summary>
@@ -407,7 +407,7 @@ public class ShareTest
 
     /// <summary>
     /// Tests that the pinned-char constructor rejects an uppercase <c>0X</c> prefix on
-    /// either coordinate with <see cref="ArgumentException"/> — only the lowercase
+    /// either coordinate with <see cref="InvalidShareException"/> — only the lowercase
     /// <c>0x</c> form is accepted.
     /// </summary>
     /// <param name="shareString">Share text with an uppercase prefix variant.</param>
@@ -421,12 +421,12 @@ public class ShareTest
         using var pinned = shareString.ToPinnedSecure();
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new Share<SecureBigInteger>(pinned));
+        Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(pinned));
     }
 
     /// <summary>
     /// Tests that the pinned-char constructor rejects non-hex characters after a valid
-    /// <c>0x</c> prefix with <see cref="ArgumentException"/>.
+    /// <c>0x</c> prefix with <see cref="InvalidShareException"/>.
     /// </summary>
     /// <param name="shareString">Share text containing non-hex characters after the prefix.</param>
     [Theory]
@@ -438,11 +438,11 @@ public class ShareTest
         using var pinned = shareString.ToPinnedSecure();
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new Share<SecureBigInteger>(pinned));
+        Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(pinned));
     }
 
     /// <summary>
-    /// Tests that the pinned-char constructor's <see cref="ArgumentException"/> for invalid
+    /// Tests that the pinned-char constructor's <see cref="InvalidShareException"/> for invalid
     /// hex includes the offending character's position in the message.
     /// </summary>
     [Fact]
@@ -453,7 +453,7 @@ public class ShareTest
         using var pinned = "01-ZX".ToPinnedSecure();
 
         // Act
-        var ex = Assert.Throws<ArgumentException>(() => new Share<SecureBigInteger>(pinned));
+        var ex = Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(pinned));
 
         // Assert
         Assert.Contains("3", ex.Message);
@@ -461,10 +461,10 @@ public class ShareTest
 
     /// <summary>
     /// Tests the odd-length branch in the hex-to-calculator decoder: a single-character
-    /// coordinate with a non-hex character must throw <see cref="ArgumentException"/>.
+    /// coordinate with a non-hex character must throw <see cref="InvalidShareException"/>.
     /// </summary>
     [Fact]
-    public void Constructor_OddLengthWithInvalidChar_ThrowsArgumentException()
+    public void Constructor_OddLengthWithInvalidChar_ThrowsInvalidShareException()
     {
         // Arrange
         // Single-char (odd-length) index with a non-hex character exercises the
@@ -472,7 +472,7 @@ public class ShareTest
         using var pinned = "Z-01".ToPinnedSecure();
 
         // Act
-        var ex = Assert.Throws<ArgumentException>(() => new Share<SecureBigInteger>(pinned));
+        var ex = Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(pinned));
 
         // Assert
         Assert.Contains("0", ex.Message);
@@ -480,7 +480,7 @@ public class ShareTest
 
     /// <summary>
     /// Tests that the pinned-char constructor rejects a <c>0x</c> prefix followed by no
-    /// hex digits at all with <see cref="FormatException"/>.
+    /// hex digits at all with <see cref="InvalidShareException"/>.
     /// </summary>
     /// <param name="shareString">Share text where the prefix is not followed by digits.</param>
     [Theory]
@@ -493,7 +493,7 @@ public class ShareTest
         using var pinned = shareString.ToPinnedSecure();
 
         // Act & Assert
-        Assert.Throws<FormatException>(() => new Share<SecureBigInteger>(pinned));
+        Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(pinned));
     }
 
     /// <summary>
