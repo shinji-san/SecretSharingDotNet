@@ -264,7 +264,7 @@ public class SecretTest
         };
 
     /// <summary>
-    /// Tests the lower or equal than operator with lower or equal than secrets. 
+    /// Tests the lower or equal than operator with lower or equal than secrets.
     /// </summary>
     /// <param name="left">left secret</param>
     /// <param name="right">right secret</param>
@@ -456,7 +456,7 @@ public class SecretTest
     }
 
     /// <summary>
-    /// Tests the greater or equal than operator with lower than secrets. 
+    /// Tests the greater or equal than operator with lower than secrets.
     /// </summary>
     /// <param name="left">left secret</param>
     /// <param name="right">right secret</param>

@@ -32,13 +32,13 @@
 
 namespace SecretSharingDotNetTest.Cryptography.ShamirsSecretSharing.BigInteger;
 
+using Moq;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
+using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Numerics;
 using Xunit;
-using Moq;
-using SecretSharingDotNet.Math.Numerics;
 
 /// <summary>
 /// Tests for <see cref="SecurityLevelManager{TNumber}"/> on the <see cref="BigInteger"/>
@@ -129,7 +129,7 @@ public class SecurityLevelManagerTest
         const int initialSecurityLevel = 10;
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => 
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
             securityLevelManager.SecurityLevel = initialSecurityLevel);
         Assert.Equal("value", exception.ParamName);
         Assert.Equal(initialSecurityLevel, exception.ActualValue);
@@ -147,7 +147,7 @@ public class SecurityLevelManagerTest
         const int initialSecurityLevel = 50000000;
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => 
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
             securityLevelManager.SecurityLevel = initialSecurityLevel);
         Assert.Equal("value", exception.ParamName);
         Assert.Equal(initialSecurityLevel, exception.ActualValue);
@@ -190,7 +190,7 @@ public class SecurityLevelManagerTest
         // Arrange
         using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 17;
-        
+
         // Act
         securityLevelManager.SecurityLevel = initialSecurityLevel;
 

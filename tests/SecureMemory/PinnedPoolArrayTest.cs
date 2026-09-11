@@ -1,13 +1,13 @@
 namespace SecretSharingDotNetTest.SecureMemory;
 
 using SecretSharingDotNet.SecureMemory;
-using Xunit;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Xunit;
 
 /// <summary>
 /// Unit tests for <see cref="PinnedPoolArray{T}"/>: GC-pinned ArrayPool wrapper with secure

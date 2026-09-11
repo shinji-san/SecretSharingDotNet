@@ -31,13 +31,13 @@
 
 namespace SecretSharingDotNet.Demo.Console;
 
+using Cryptography;
+using Cryptography.SecureInput;
+using Math.Numerics;
+using SecureMemory;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cryptography;
-using SecureMemory;
-using Cryptography.SecureInput;
-using Math.Numerics;
 
 /// <summary>
 /// Interactive demonstration of Shamir's Secret Sharing with the
