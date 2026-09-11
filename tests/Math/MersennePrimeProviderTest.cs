@@ -51,7 +51,7 @@ public class MersennePrimeProviderTest
         // Act & Assert
         Assert.NotNull(MersennePrimeProvider.Instance);
     }
-    
+
     /// <summary>
     /// Tests that repeated reads of <see cref="MersennePrimeProvider.Instance"/> return the
     /// same singleton reference (proper singleton contract).

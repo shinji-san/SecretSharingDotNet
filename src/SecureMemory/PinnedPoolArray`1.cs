@@ -119,7 +119,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         Array.Clear(this.poolArray, 0, this.poolArray.Length);
         this.Length = length;
     }
-    
+
     /// <summary>
     /// Finalizes an instance of the <see cref="PinnedPoolArray{T}"/> class.
     /// </summary>
@@ -222,7 +222,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <summary>
     /// Gets the pinned byte array.
     /// </summary>
-    public T[] PoolArray 
+    public T[] PoolArray
     {
         get
         {
@@ -561,7 +561,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         LegacySecureClear(this.poolArrayHandle.AddrOfPinnedObject(), this.poolArray.Length * SizeOf());
 #endif
     }
-    
+
     /// <summary>
     /// Releases all resources used by the current instance of the <see cref="PinnedPoolArray{T}"/> class.
     /// </summary>

@@ -31,12 +31,12 @@
 
 namespace SecretSharingDotNetTest.Math.Numerics;
 
-using System;
-using System.Linq;
-using System.Numerics;
 using SecretSharingDotNet;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
+using System;
+using System.Linq;
+using System.Numerics;
 using Xunit;
 
 /// <summary>

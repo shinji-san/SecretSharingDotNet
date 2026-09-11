@@ -30,9 +30,9 @@
 
 namespace SecretSharingDotNetTest.Math.Numerics;
 
-using System;
-using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Math.Numerics;
+using SecretSharingDotNet.SecureMemory;
+using System;
 using Xunit;
 
 /// <summary>

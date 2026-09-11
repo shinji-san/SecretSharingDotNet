@@ -31,10 +31,10 @@
 
 namespace SecretSharingDotNet.Demo.Console;
 
-using Microsoft.Extensions.DependencyInjection;
 using Cryptography;
 using Cryptography.ShamirsSecretSharing;
 using Math.Numerics;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Composition root and entry point of the SecretSharingDotNet demo. Builds the

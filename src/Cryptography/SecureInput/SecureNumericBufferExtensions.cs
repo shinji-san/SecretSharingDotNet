@@ -31,10 +31,10 @@
 
 namespace SecretSharingDotNet.Cryptography.SecureInput;
 
+using SecureMemory;
 using System;
 using System.Buffers.Binary;
 using System.Numerics;
-using SecureMemory;
 
 /// <summary>
 /// Provides extension methods that copy integer data into pinned, securely cleared

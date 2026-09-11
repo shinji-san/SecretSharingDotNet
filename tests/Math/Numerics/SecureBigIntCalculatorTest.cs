@@ -31,10 +31,10 @@
 
 namespace SecretSharingDotNetTest.Math.Numerics;
 
-using System;
 using SecretSharingDotNet;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
+using System;
 using System.Linq;
 using System.Threading;
 using Xunit;

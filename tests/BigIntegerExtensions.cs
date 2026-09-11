@@ -30,9 +30,9 @@
 
 namespace SecretSharingDotNetTest;
 
-using System.Numerics;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math.Numerics;
+using System.Numerics;
 
 /// <summary>
 /// Test-only bridge helpers between <see cref="BigInteger"/> and

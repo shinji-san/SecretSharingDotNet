@@ -108,7 +108,7 @@ public class ShamirsSecretSharingTest
         Assert.Equal(s, recoveredSecret2);
         Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
     }
-    
+
     /// <summary>
     /// Tests <see cref="SecretSplitter{TNumber}"/> with <see cref="string"/> as secret.
     /// </summary>
@@ -195,7 +195,7 @@ public class ShamirsSecretSharingTest
             Assert.Equal(expectedSecurityLevel, secretSplitter.SecurityLevel);
         }
     }
-    
+
     /// <summary>
     /// Tests the MakeShares method with a minimum shares number of 1 to be sure that an error occurs.
     /// Only a minimum shares number of greater or equal to 2 is valid.
@@ -206,11 +206,11 @@ public class ShamirsSecretSharingTest
     {
         // Arrange
         using var secretSplitter = new SecretSplitter<SecureBigInteger>();
-    
+
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => secretSplitter.MakeShares(1, 7, 5, out _));
     }
-    
+
     /// <summary>
     /// Tests
     /// </summary>
@@ -254,7 +254,7 @@ public class ShamirsSecretSharingTest
             Assert.NotEqual(originalSecret, secret);
         }
     }
-    
+
     /// <summary>
     /// Tests whether or not bug #40 occurs [Maximum exceeded! (Parameter 'value') Actual value was 10912." #40].
     /// </summary>
@@ -281,7 +281,7 @@ public class ShamirsSecretSharingTest
         SecretAssertions.AssertSecretEqualsString(longSecret, recoveredSecret1);
         SecretAssertions.AssertSecretEqualsString(longSecret, recoveredSecret2);
     }
-    
+
     /// <summary>
     /// Tests the secret reconstruction from an array of shares represented by strings
     /// </summary>
