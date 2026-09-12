@@ -19,6 +19,8 @@
     and 11; the evidence column now names the code location or the public PR/issue number.
   · 2026-09-12 — chapter 2 extended with `.editorconfig` and `.gitattributes`, chapter 7 with the
     handling of the signing key in the release path.
+  · 2026-09-12 — review follow-up on PR #399: secrecy claim in 1.1 qualified, Q1 scoped to the
+    library-owned buffer, Q6 split into algorithm guarantee versus test coverage.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -31,7 +33,13 @@ blocks naming the missing information.
 
 SecretSharingDotNet is a C# class library implementing *Shamir's Secret Sharing*: a secret (text,
 number, or byte sequence) is split into **N** shares, any **K** of which suffice to recover the
-original — while **K−1** shares mathematically reveal nothing about the secret. It targets .NET
+original — while **K−1** shares reveal practically nothing about the secret. *Practically*, not
+*perfectly*: this implementation rerolls the leading polynomial coefficient on a zero draw so the
+degree stays exactly `K−1` and the effective threshold cannot silently drop to `K−1`. That leaves
+the coefficient uniform over `[1, p−1]` rather than `[0, p−1]`, so `K−1` shares rule out exactly
+one candidate value — a residual leak of `log₂(p / (p−1))` bits. At `p = 2¹²⁷ − 1` that is far
+beyond measurable, but it is not zero; the trade is deliberate (see
+`SecretSplitter.CreatePolynomial`). It targets .NET
 developers who want to distribute keys, passwords, or recovery codes across several custodians
 without trusting any single one.
 
@@ -834,18 +842,23 @@ Quality of SecretSharingDotNet
 
 | # | Scenario | Measure / evidence |
 |---|---|---|
-| **Q1** | An attacker obtains a heap dump or the process swap file after a `Secret` has been disposed. | The secret bytes are no longer findable: the buffer was overwritten three times and zeroed with `CryptographicOperations.ZeroMemory` **before** it went back to the `ArrayPool`. Evidence: `PinnedPoolArrayTest`, dispose ordering in `PinnedPoolArray.DisposeCore`. |
+| **Q1** | An attacker obtains a heap dump or the process swap file after a `Secret` has been disposed. | Within the **library-owned** buffer the secret bytes are no longer findable: it was overwritten three times and zeroed with `CryptographicOperations.ZeroMemory` **before** it went back to the `ArrayPool`. Evidence: `PinnedPoolArrayTest`, dispose ordering in `PinnedPoolArray.DisposeCore`. The guarantee stops at the ownership boundary: a caller-retained `byte[]` the `Secret` was constructed from is a foreign allocation and is never overwritten — the constructor copies. In DEBUG builds `ToString()` additionally materialises a plaintext `string` on the GC heap that no `Dispose` can reach (Release redacts). |
 | **Q2** | The GC performs a compacting collection during a split operation. | No secret byte is copied and no plaintext is left at the old address, because every buffer is immobile via `GCHandle.Alloc(Pinned)`. |
 | **Q3** | An auditor asks for proof that no weak random source is involved. | There is exactly one random source: `RandomNumberGenerator` behind `SecureRandom`/`IRandomSource`. A `grep` for `System.Random` in `src/` returns zero hits. |
 | **Q4** | A passive observer times `SecureBigInteger.Equals` for two secrets with a long common prefix against two that differ in the first byte. | No measurable difference: pre-padding to `max(l, r)` plus an XOR-OR fold without short-circuiting, uniform across all six TFMs. |
 | **Q5** | The same observer times `SecureBigInteger.Multiply` with small versus 512-bit operands. | The timing harness **must** report a difference here (`HarnessSelfTest`, Welch's t at p < 0.001). If this negative control fails, the harness is measuring nothing real and is invalid as a tool. |
-| **Q6** | A secret is split with an arbitrary `2 ≤ k ≤ n`; then an **arbitrary** k-element subset of the n shares is used for reconstruction. | The reconstructed secret is bit-identical to the original. Evidence: property-based tests with CsCheck (250 iterations for `BigInteger`, 50 for `SecureBigInteger`), mirrored across both backends. |
+| **Q6** | A secret is split with an arbitrary `2 ≤ k ≤ n`; then an **arbitrary** k-element subset of the n shares is used for reconstruction. | The reconstructed secret is bit-identical to the original — Lagrange interpolation guarantees that for *every* qualifying subset. The tests evidence a slice of it: the property-based CsCheck tests (250 iterations for `BigInteger`, 50 for `SecureBigInteger`, mirrored across both backends) draw the subset as a cyclic window over the index-sorted shares, that is `n` of the `C(n, k)` possible combinations. |
 | **Q7** | Two shares with an identical index are handed to reconstruction. | `ReconstructionException` on the first duplicate — not after full enumeration, and not as a generic `ArgumentException`. |
 | **Q8** | A behaviour is changed in the `BigInteger` test hierarchy but not in the `SecureBigInteger` one. | The mirrored test turns red. The mirroring is the brake against drift between the backends. |
 | **Q9** | A commit reaches `develop`. | Build and tests pass on **all** six test TFMs: `net8.0`/`net9.0`/`net10.0` on `ubuntu-24.04`, `net472`/`net48`/`net481` on `windows-2025`. A red TFM blocks the merge. |
 | **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 817 test methods (638 `[Fact]`, 179 `[Theory]`) across 44 test classes. |
 | **Q11** | A release is built twice from the same tag. | Identical artefacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (8.0.423 / 9.0.316 / 10.0.302). |
 | **Q12** | A consumer accidentally combines the `SecureBigInteger` backend with the variable-time `ExtendedEuclideanAlgorithm`. | If they use `FixedIterationSecretReconstructor<TNumber>`: a **compile error** (the constructor takes only `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Through the base type `SecretReconstructor<TNumber>` the combination stays possible — that is a documented opt-out, not an accident. |
+
+> **Open:** The subset coverage behind Q6 is cyclic, not combinatorial. A defect that only shows
+> up on non-contiguous index combinations would therefore stay green. Needed: either a generator
+> drawing genuine `k`-combinations (exhaustively for small `n`), or the deliberate decision that
+> the cyclic sample is coverage enough.
 
 > **Open:** There is no non-functional *performance* target — no throughput or latency budget, no
 > benchmark suite, no measurements. The timing harness measures uniformity, not speed. Needed: if
