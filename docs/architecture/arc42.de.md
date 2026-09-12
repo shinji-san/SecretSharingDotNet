@@ -4,16 +4,19 @@
 - Quellen: Codebasis auf `develop` (Commit `d920257`, 47 `.cs`-Dateien / 13.702 LOC in `src/`),
   `README.md` (inkl. Abschnitt *Security & Threat Model*), `CHANGELOG.md` (bis `[1.0.1]`,
   2026-08-24), die Testsuite unter `tests/` (56 `.cs`-Dateien, inklusive `tests/Timing/`),
-  `.github/workflows/*.yml`, `samples/SecretSharingDotNet.Demo.Console/`, sowie die internen
-  Review-Protokolle *Open architecture review issues (A1–A20)* und
-  *Open security review issues* (Kapitel 11). Alle Dateiverweise in diesem Dokument zeigen auf
-  **versionierte** Repository-Inhalte; nicht versionierte lokale Arbeitsdateien sind bewusst
-  keine Quelle — was ein Leser nach `git clone` nicht vorfindet, trägt hier auch keine Aussage.
+  `.github/workflows/*.yml`, `samples/SecretSharingDotNet.Demo.Console/` sowie die öffentliche
+  GitHub-Historie (Pull Requests und Issues, in den Kapiteln 9 und 11 mit Nummer zitiert). Jeder
+  Verweis in diesem Dokument zeigt auf **versionierte oder öffentlich abrufbare** Inhalte; nicht
+  versionierte lokale Arbeitsdateien und interne Arbeitsnotizen sind bewusst keine Quelle — was
+  ein Leser nach `git clone` nicht vorfindet, trägt hier auch keine Aussage.
 - Änderungen: 2026-09-12 — Erstfassung, alle Kapitel.
   · 2026-09-12 — Kapitel 5.2 und 11 gegen den Codestand nachgezogen.
   · 2026-09-12 — Verweise auf nicht versionierte Arbeitsdateien entfernt; die davon getragenen
     Aussagen in den Kapiteln 1.2, 5.2, 8.2, 8.11, 10.2 und 11 auf versionierte Quellen
     (Testcode, CI-Workflows, `README.md`) umgehängt.
+  · 2026-09-12 — interne Review-Kennungen (A…, SB/SEC/CR/PPA/SH…) aus den Kapiteln 5.2, 9 und 11
+    entfernt; die Belegspalte nennt jetzt die Fundstelle im Code bzw. die öffentliche PR-/Issue-
+    Nummer.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -245,7 +248,7 @@ C4Component
 
 Die frühere Aufwärtskante `Math → Cryptography.SecureArray` wurde in v1.0.1 aufgelöst, indem die
 Speicherprimitive in den neutralen Top-Level-Namespace `SecureMemory` verschoben wurden
-(`CHANGELOG.md` `[1.0.1] → Changed`; Review-Item A2).
+(`CHANGELOG.md` `[1.0.1] → Changed`; PR #375).
 
 ### 5.3 Whitebox `Cryptography.ShamirsSecretSharing` (Ebene 3)
 
@@ -801,14 +804,14 @@ am Codestand `d920257` über die 56 versionierten Testdateien gemessen:
 
 | # | Entscheidung | Beleg | Warum ADR-würdig |
 |---|---|---|---|
-| 1 | Geschlossene Backend-Registry statt reflexionsbasierter Entdeckung in `Calculator.Create` | `src/Math/Calculator.cs`, Review-Item A1 (PR #374) | Verworfene Alternative (öffentliche `Register`-API) war ein bewusster Trade-off zwischen Erweiterbarkeit und Fußangel-Vermeidung. |
-| 2 | Speicherprimitive nach `SecretSharingDotNet.SecureMemory` verschoben statt Interface-Abstraktion | `CHANGELOG.md` `[1.0.1]`, Review-Item A2 (PR #375) | Öffentlicher Namespace-Bruch; die Alternative (`IByteRepresentation`) wurde geprüft und verworfen. |
-| 3 | Exception-Hierarchie mit `SecretSharingException` als Wurzel, **ohne** `SecurityLevelException` | `CHANGELOG.md` `[1.0.1]`, Review-Item A8 (PR #371) | Die Auslassung ist eine Entscheidung *gegen* etwas und wäre nachträglich breaking. |
+| 1 | Geschlossene Backend-Registry statt reflexionsbasierter Entdeckung in `Calculator.Create` | `src/Math/Calculator.cs`, PR #374 | Verworfene Alternative (öffentliche `Register`-API) war ein bewusster Trade-off zwischen Erweiterbarkeit und Fußangel-Vermeidung. |
+| 2 | Speicherprimitive nach `SecretSharingDotNet.SecureMemory` verschoben statt Interface-Abstraktion | `CHANGELOG.md` `[1.0.1]`, PR #375 | Öffentlicher Namespace-Bruch; die Alternative (`IByteRepresentation`) wurde geprüft und verworfen. |
+| 3 | Exception-Hierarchie mit `SecretSharingException` als Wurzel, **ohne** `SecurityLevelException` | `CHANGELOG.md` `[1.0.1]`, PR #371 | Die Auslassung ist eine Entscheidung *gegen* etwas und wäre nachträglich breaking. |
 | 4 | `FixedIterationSecretReconstructor` als Typ statt als Konfigurationsschalter | `CHANGELOG.md` `[1.0.1-rc02]`, `README.md` | Macht eine Sicherheitseigenschaft compile-time-prüfbar; erklärungsbedürftig gegenüber der naheliegenden Boolean-Option. |
 | 5 | UTF-8 statt UTF-16 als Textkodierung (Breaking Change v0.14.0) | `CHANGELOG.md` `[0.14.0]`, `README.md` | Bricht alle mit älteren Versionen erzeugten Text-Shares. |
-| 6 | `IRandomSource` bleibt `internal` statt öffentlich injizierbar | `src/Cryptography/IRandomSource.cs`, Review-Item A10 (PR #334) | Bewusster Verzicht auf Testbarkeitskomfort nach außen aus Sicherheitsgründen. |
-| 7 | Mutationstests (Stryker.NET) geparkt statt repariert | GitHub-Issue #343, Review-Item A14c | Eine Qualitätsmaßnahme wurde aktiv zurückgebaut — der Grund (Stryker misst xUnit v3 nicht) gehört festgehalten. |
-| 8 | Acht Ziel-Frameworks beibehalten trotz `#if`-Aufwand | `src/SecretSharingDotNet.csproj`, Review-Item A3 | Die Gegenposition (nur netstandard2.0 + net8/9/10) steht bereits im Raum; die Beibehaltung ist die aktive Entscheidung. |
+| 6 | `IRandomSource` bleibt `internal` statt öffentlich injizierbar | `src/Cryptography/IRandomSource.cs`, PR #334 | Bewusster Verzicht auf Testbarkeitskomfort nach außen aus Sicherheitsgründen. |
+| 7 | Mutationstests (Stryker.NET) geparkt statt repariert | GitHub-Issue #343 | Eine Qualitätsmaßnahme wurde aktiv zurückgebaut — der Grund (Stryker misst xUnit v3 nicht) gehört festgehalten. |
+| 8 | Acht Ziel-Frameworks beibehalten trotz `#if`-Aufwand | `src/SecretSharingDotNet.csproj:8` | Die Gegenposition (nur netstandard2.0 + net8/9/10) steht bereits im Raum; die Beibehaltung ist die aktive Entscheidung. |
 
 ---
 
@@ -861,32 +864,33 @@ Qualität von SecretSharingDotNet
 
 ## 11. Risiken und technische Schulden
 
-Die Tabelle führt die Befunde der internen Architektur- und Sicherheitsreviews zusammen. Die
-Kennungen in der Spalte *Quelle* verweisen auf die Review-Protokolle (A… = Architekturreview,
-SB/SEC/CR/PPA/SH = klassenweises Sicherheitsreview). **Kein offener Befund hat den Schweregrad
-Hoch im Sinne einer aktiven Sicherheitslücke** — der systematische Sicherheitsdurchgang vom
-2026-06-10 hat alle geheimnistragenden Klassen abgenommen, und die beiden einzigen
-Medium-Befunde (`GetHashCode`-Cluster) sind mit PR #327 geschlossen.
+Die Tabelle führt die Architektur- und Sicherheitsbefunde zusammen. Die Spalte *Beleg* nennt
+jeweils die Fundstelle, an der sich der Befund nachprüfen lässt — eine Datei-/Zeilenangabe im
+Repository, ein Abschnitt der `README.md` oder eine öffentliche PR-/Issue-Nummer. **Kein offener
+Befund hat den Schweregrad Hoch im Sinne einer aktiven Sicherheitslücke**: Die beiden einzigen
+Medium-Befunde am Geheimnispfad (`GetHashCode` hashte Inhalte statt Metadaten, und
+`Equals`/`GetHashCode` waren vertragswidrig) sind mit PR #327 geschlossen. Die verbliebenen
+Einträge sind Wartungslast, Fehlbedienungsrisiken und dokumentierte Trade-offs.
 
-| # | Risiko / Schuld | Schweregrad | Auswirkung | Gegenmaßnahme | Quelle |
+| # | Risiko / Schuld | Schweregrad | Auswirkung | Gegenmaßnahme | Beleg |
 |---|---|---|---|---|---|
-| **R1** | **Acht-TFM-Spreizung.** `net472`/`net48`/`net481` sind außerhalb des Mainstream-Supports und erzwingen `#if`-Zweige in fast jeder Datei. | Hoch (Wartung) | Jede neue Funktion kostet doppelte Implementierung und doppelte Verifikation; Mono ist als zusätzliche Testlaufzeit nötig. | Legacy-TFMs im nächsten Major entfernen; nur `netstandard2.0` als Brücke plus `net8/9/10`. | A3 |
-| **R2** | **`SecureBigInteger.cs` mit 2.753 LOC** in einer einzigen, nicht partiellen Klasse mit sechs vermischten Verantwortlichkeiten. | Hoch (Wartung) | Blockiert die geplante Migration der Kernarithmetik auf Limb-Ebene; Reviews sind teuer. | Zweistufig: zuerst rein mechanischer `partial class`-Split entlang der sechs Cluster (öffentliche API-Delta null), danach optional echte interne Hilfstypen. Abgesichert durch die bestehende Testsuite × 6 TFMs. | A4 |
-| **R3** | **Gemischte Thread-Sicherheit ohne Vertrag am Typ.** Splitter und Reconstructor mutieren ihre Sicherheitsstufe; die Einzelthread-Testausführung verbirgt Races. | Hoch (Korrektheit bei Fehlbedienung) | Ein als Singleton registrierter Splitter liefert unter Last falsche Shares — ohne Fehlermeldung. | Warnung in README und Demo vorhanden; Stress-Tests decken das *unterstützte* Muster ab. Offen: `<remarks>`-Thread-Safety-Vertrag an jeder Klasse. | A7 |
-| **R4** | **Keine Generic-Constraint auf `TNumber`.** `Calculator<string>` übersetzt. | Mittel (geringe Praxiswirkung) | Fehlbedienung fällt erst zur Laufzeit auf (`NotSupportedException` aus `Calculator.Create`). | Kein sauberer gemeinsamer Constraint verfügbar: `INumber<T>` ist net7+ und `SecureBigInteger` implementiert es nicht. Bewusst belassen und dokumentiert. | A9 |
-| **R5** | **Keine DI-Registrierungserweiterung.** Consumer verdrahten von Hand; die Lebensdauer-Falle (Transient/Scoped statt Singleton) ist nur in der README erklärt. | Mittel | Erhöht die Wahrscheinlichkeit, in R3 zu laufen. | `AddShamirsSecretSharing()`-Erweiterung; hängt an A1 und A10 (beide erledigt). | A11 |
+| **R1** | **Acht-TFM-Spreizung.** `net472`/`net48`/`net481` sind außerhalb des Mainstream-Supports und erzwingen `#if`-Zweige in fast jeder Datei. | Hoch (Wartung) | Jede neue Funktion kostet doppelte Implementierung und doppelte Verifikation; Mono ist als zusätzliche Testlaufzeit nötig. | Legacy-TFMs im nächsten Major entfernen; nur `netstandard2.0` als Brücke plus `net8/9/10`. | `SecretSharingDotNet.csproj:8`; 51 `#if`-Zweige in `src/` |
+| **R2** | **`SecureBigInteger.cs` mit 2.753 LOC** in einer einzigen, nicht partiellen Klasse mit sechs vermischten Verantwortlichkeiten. | Hoch (Wartung) | Blockiert die geplante Migration der Kernarithmetik auf Limb-Ebene; Reviews sind teuer. | Zweistufig: zuerst rein mechanischer `partial class`-Split entlang der sechs Cluster (öffentliche API-Delta null), danach optional echte interne Hilfstypen. Abgesichert durch die bestehende Testsuite × 6 TFMs. | `src/Math/Numerics/SecureBigInteger.cs`, 2.753 Zeilen |
+| **R3** | **Gemischte Thread-Sicherheit ohne Vertrag am Typ.** Splitter und Reconstructor mutieren ihre Sicherheitsstufe; die Einzelthread-Testausführung verbirgt Races. | Hoch (Korrektheit bei Fehlbedienung) | Ein als Singleton registrierter Splitter liefert unter Last falsche Shares — ohne Fehlermeldung. | Warnung in README und Demo vorhanden; Stress-Tests decken das *unterstützte* Muster ab. Offen: `<remarks>`-Thread-Safety-Vertrag an jeder Klasse. | `SecretSplitter<TNumber>`, Zeile 166; Warnung in `README.md` |
+| **R4** | **Keine Generic-Constraint auf `TNumber`.** `Calculator<string>` übersetzt. | Mittel (geringe Praxiswirkung) | Fehlbedienung fällt erst zur Laufzeit auf (`NotSupportedException` aus `Calculator.Create`). | Kein sauberer gemeinsamer Constraint verfügbar: `INumber<T>` ist net7+ und `SecureBigInteger` implementiert es nicht. Bewusst belassen und dokumentiert. | `src/Math/Calculator.cs:74` — keine Constraint-Klausel |
+| **R5** | **Keine DI-Registrierungserweiterung.** Consumer verdrahten von Hand; die Lebensdauer-Falle (Transient/Scoped statt Singleton) ist nur in der README erklärt. | Mittel | Erhöht die Wahrscheinlichkeit, in R3 zu laufen. | `AddShamirsSecretSharing()`-Erweiterung; setzt die geschlossene Backend-Registry (PR #374) und die interne RNG-Fassade (PR #334) voraus — beide vorhanden. | `src/` enthält keine `IServiceCollection`-Erweiterung |
 | **R6** | **Namespace-Zyklus `SecureMemory ↔ Extension`** und die Doku-Aufwärtskante `Math → Cryptography.ShamirsSecretSharing`. | Niedrig | Keine Laufzeitwirkung (ein Assembly, beide Seiten `internal` bzw. kommentar-only), aber die Schichtung ist nicht mehr azyklisch beweisbar. | `PinnedPoolArrayList.DisposeAll` lokal auflösen; den doc-only `using` durch einen voll qualifizierten `cref` ersetzen. | Kapitel 5.2 (diese Doku) |
-| **R7** | **`Secret<TNumber>` ist ein `readonly struct` über gemeinsamem Puffer.** Eine Wertkopie aliast den Speicher; `Dispose` auf einer Kopie entwertet alle. | Mittel | Klassischer Fußangel-Fall für Consumer; heute nur per XML-Kommentar abgesichert. | Migration zu `sealed class` — vorgemerkt für den nächsten Breaking-Change-Zyklus. | DOC-1 |
-| **R8** | **Kein `IAsyncDisposable`; `ConsolePasswordReader.ReadPassword` blockiert.** | Mittel | In ASP.NET- oder Worker-Hosts werden Threads blockiert. | `IAsyncDisposable` auf den großen Disposables; `ReadPasswordAsync(CancellationToken)`. | A12 |
-| **R9** | **Keine Integritätsprüfung pro Share.** Ein manipuliertes Share führt zu einem stillen, falschen Ergebnis (siehe Ablauf 6.3). | Mittel (bewusst, dokumentiert) | Consumer, die Share-Manipulation im Bedrohungsmodell haben, sind ohne eigene Maßnahme ungeschützt. | Im Threat Model offen benannt; Consumer müssen signierte Shares, HMAC-Umschläge oder VSS darüberlegen. Eine VSS-Implementierung steht nicht auf der Roadmap. | Security-L1 |
-| **R10** | **Kein Build-Check auf Schlüsselgleichheit der beiden `.resx`.** | Niedrig | Ein fehlender de-DE-Schlüssel fällt erst zur Laufzeit auf (Fallback auf Englisch). | Build-Target oder Analyzer, der beide Schlüsselmengen diffed — oder die de-DE-Ressource fallen lassen. | A18 |
-| **R11** | **Textkodierung wird nicht im Share persistiert.** Split mit `Encoding` A und Rekonstruktion mit `Encoding` B liefert stillen Datenmüll. | Niedrig | Betrifft nur, wer die `Encoding`-Überladungen bewusst nutzt; der Default UTF-8 ist auf beiden Seiten gleich. | Als Aufrufer-Verantwortung an den `Encoding`-Überladungen dokumentieren (offener Doku-Fix). | A5 |
-| **R13** | **Mutationstests messen nichts.** Stryker.NET 4.16.0 kann die xUnit-v3/MTP-Suite nicht instrumentieren; der erste grüne CI-Lauf war ein **False Green** (0,00 %, 1248/1248 überlebt). | Niedrig (blockiert extern) | Es gibt keine belastbare Aussage zur Testschärfe jenseits der Abdeckung. | Workflow geparkt, Konfiguration als Wiederbelebungshilfe behalten; getrackt in GitHub-Issue #343. Blockiert durch stryker-net #3117/#3094. | A14c |
-| **R14** | **Deferred: konstante Laufzeit für Hex-/Base64-Dekoder und `Secret.CompareTo`.** Erstere sind verzweigende Randparser, letzteres bricht beim ersten abweichenden Byte ab und verrät die gemeinsame Präfixlänge. | Niedrig (im Threat Model benannt) | Sortieren oder Vergleichen von Geheimmaterial ist zeitlich beobachtbar; nur Gleichheit ist CT. | Verzweigungsfreie Varianten sind entworfen und für einen eigenen PR-Zyklus geparkt; `[Obsolete]`-Markierungen auf den Relationaloperatoren sind eine Option. | CT-Deferred |
-| **R15** | **`Secret.CreateRandom` ist für kleine Sicherheitsstufen entropie-suboptimal** (Stufe 13/17 ≈ 8 Bit, Stufe 31 ≈ 24 Bit; empirisch über 3000 Ziehungen). | Niedrig | Betrifft nur die ohnehin abgeratenen kleinen Stufen; ab Stufe 127 bleiben ≈ p−8 Bit. | Ein lokaler Fix (uniformes Rejection Sampling) wurde implementiert und **verworfen**: Er bricht den Round-Trip, weil das Markierungsbyte repräsentationsseitig an die Primzahl gekoppelt ist. Echter Fix ist architektonisch. | CR-2 |
-| **R16** | **Weitere Low/Info-Fußangeln:** `PinnedPoolArray.PoolArray` gibt den rohen Puffer heraus (PPA-1); `Secret` hat implizite Reveal-Konvertierungen nach `byte[]`/`ReadOnlySpan` (SEC-2); `Shares` übernimmt stillschweigend den Besitz übergebener Share-Arrays (SH-1); `(length + 7) / 8` kann bei ~2 GB Eingabe überlaufen (SB-2); die Reduktionsschleife in `Secret.CreateRandom` ist datenabhängig (CR-1). | Niedrig | Jeweils Fehlbedienungsrisiko, keine aktive Lücke. | Dokumentierte Trade-offs; Härtung einzeln möglich. | PPA-1, SEC-2, SH-1, SB-2, CR-1 |
-| **R17** | **Kein `MIGRATION.md`, keine öffentliche v1.0-Roadmap.** Die API-Freeze-Kriterien existieren nur als interne Notiz. | Niedrig | Consumer können den Reifegrad nicht einschätzen. | `MIGRATION.md` und eine öffentliche Roadmap ergänzen. | A13 |
-| **R18** | **Breite `InternalsVisibleTo`-Kopplung.** Die Testsuite erreicht alle `internal`-Typen; Refactoring-Widerstand steigt. | Niedrig | Interne Umbauten brechen Tests, obwohl die öffentliche API unverändert bleibt. | Testoberfläche minimieren, wo öffentliche API-Tests reichen; verbleibende `internal`-Bedarfe dokumentieren. | A19 |
+| **R7** | **`Secret<TNumber>` ist ein `readonly struct` über gemeinsamem Puffer.** Eine Wertkopie aliast den Speicher; `Dispose` auf einer Kopie entwertet alle. | Mittel | Klassischer Fußangel-Fall für Consumer; heute nur per XML-Kommentar abgesichert. | Migration zu `sealed class` — vorgemerkt für den nächsten Breaking-Change-Zyklus. | XDoc an `Secret<TNumber>`, ab Zeile 50 |
+| **R8** | **Kein `IAsyncDisposable`; `ConsolePasswordReader.ReadPassword` blockiert.** | Mittel | In ASP.NET- oder Worker-Hosts werden Threads blockiert. | `IAsyncDisposable` auf den großen Disposables; `ReadPasswordAsync(CancellationToken)`. | kein `IAsyncDisposable` in `src/`; `ConsolePasswordReader.cs:86` |
+| **R9** | **Keine Integritätsprüfung pro Share.** Ein manipuliertes Share führt zu einem stillen, falschen Ergebnis (siehe Ablauf 6.3). | Mittel (bewusst, dokumentiert) | Consumer, die Share-Manipulation im Bedrohungsmodell haben, sind ohne eigene Maßnahme ungeschützt. | Im Threat Model offen benannt; Consumer müssen signierte Shares, HMAC-Umschläge oder VSS darüberlegen. Eine VSS-Implementierung steht nicht auf der Roadmap. | `README.md`, *Security & Threat Model* |
+| **R10** | **Kein Build-Check auf Schlüsselgleichheit der beiden `.resx`.** | Niedrig | Ein fehlender de-DE-Schlüssel fällt erst zur Laufzeit auf (Fallback auf Englisch). | Build-Target oder Analyzer, der beide Schlüsselmengen diffed — oder die de-DE-Ressource fallen lassen. | `src/Resources/ErrorMessages.resx` und `…de-DE.resx`, je 55 Schlüssel |
+| **R11** | **Textkodierung wird nicht im Share persistiert.** Split mit `Encoding` A und Rekonstruktion mit `Encoding` B liefert stillen Datenmüll. | Niedrig | Betrifft nur, wer die `Encoding`-Überladungen bewusst nutzt; der Default UTF-8 ist auf beiden Seiten gleich. | Als Aufrufer-Verantwortung an den `Encoding`-Überladungen dokumentieren (offener Doku-Fix). | `CHANGELOG.md` `[0.14.0]`; `README.md` |
+| **R13** | **Mutationstests messen nichts.** Stryker.NET 4.16.0 kann die xUnit-v3/MTP-Suite nicht instrumentieren; der erste grüne CI-Lauf war ein **False Green** (0,00 %, 1248/1248 überlebt). | Niedrig (blockiert extern) | Es gibt keine belastbare Aussage zur Testschärfe jenseits der Abdeckung. | Workflow geparkt, Konfiguration als Wiederbelebungshilfe behalten; getrackt in GitHub-Issue #343. Blockiert durch stryker-net #3117/#3094. | GitHub-Issue #343 |
+| **R14** | **Deferred: konstante Laufzeit für Hex-/Base64-Dekoder und `Secret.CompareTo`.** Erstere sind verzweigende Randparser, letzteres bricht beim ersten abweichenden Byte ab und verrät die gemeinsame Präfixlänge. | Niedrig (im Threat Model benannt) | Sortieren oder Vergleichen von Geheimmaterial ist zeitlich beobachtbar; nur Gleichheit ist CT. | Verzweigungsfreie Varianten sind entworfen und für einen eigenen PR-Zyklus geparkt; `[Obsolete]`-Markierungen auf den Relationaloperatoren sind eine Option. | `README.md`, *Security & Threat Model* |
+| **R15** | **`Secret.CreateRandom` ist für kleine Sicherheitsstufen entropie-suboptimal** (Stufe 13/17 ≈ 8 Bit, Stufe 31 ≈ 24 Bit; empirisch über 3000 Ziehungen). | Niedrig | Betrifft nur die ohnehin abgeratenen kleinen Stufen; ab Stufe 127 bleiben ≈ p−8 Bit. | Ein lokaler Fix (uniformes Rejection Sampling) wurde implementiert und **verworfen**: Er bricht den Round-Trip, weil das Markierungsbyte repräsentationsseitig an die Primzahl gekoppelt ist. Echter Fix ist architektonisch. | `Secret<TNumber>.CreateRandom`, ab Zeile 1128 |
+| **R16** | **Weitere Low/Info-Fußangeln:** `PinnedPoolArray.PoolArray` gibt den rohen Puffer heraus; `Secret` hat implizite Reveal-Konvertierungen nach `byte[]`/`ReadOnlySpan`; `Shares` übernimmt stillschweigend den Besitz übergebener Share-Arrays; `(length + 7) / 8` kann bei ~2 GB Eingabe überlaufen; die Reduktionsschleife in `Secret.CreateRandom` ist datenabhängig. | Niedrig | Jeweils Fehlbedienungsrisiko, keine aktive Lücke. | Dokumentierte Trade-offs; Härtung einzeln möglich. | `PinnedPoolArray<T>.PoolArray` (Z. 225), `Secret<TNumber>` (Z. 577), `Shares<TNumber>` (Z. 82), `SecureBigInteger` (Z. 268), `Secret<TNumber>.CreateRandom` |
+| **R17** | **Kein `MIGRATION.md`, keine öffentliche v1.0-Roadmap.** Die API-Freeze-Kriterien existieren nur als interne Notiz. | Niedrig | Consumer können den Reifegrad nicht einschätzen. | `MIGRATION.md` und eine öffentliche Roadmap ergänzen. | Repository enthält kein `MIGRATION.md` |
+| **R18** | **Breite `InternalsVisibleTo`-Kopplung.** Die Testsuite erreicht alle `internal`-Typen; Refactoring-Widerstand steigt. | Niedrig | Interne Umbauten brechen Tests, obwohl die öffentliche API unverändert bleibt. | Testoberfläche minimieren, wo öffentliche API-Tests reichen; verbleibende `internal`-Bedarfe dokumentieren. | `src/Properties/AssemblyInfo.cs:25` |
 | **R19** | **Einzelmaintainer (Bus-Faktor 1).** | Mittel (organisatorisch) | Eine Auszeit stoppt Sicherheitsfixes und Release-Fähigkeit. | Diese Dokumentation ist ein Teilbeitrag: Sie macht Architektur und offene Punkte ohne Personenwissen zugänglich. | Kapitel 2 (diese Doku) |
 
 Die Nummerierung R1–R19 bleibt über Aktualisierungen hinweg stabil. Die Kennung **R12 ist nicht
@@ -894,10 +898,10 @@ vergeben**: Sie beschrieb den Pflegestand einer lokalen, nicht versionierten Arb
 damit kein Risiko des Repositorys.
 
 **Erledigt und darum nicht mehr Risiko** (zum Nachvollziehen der Historie): reflexionsbasierte
-Backend-Entdeckung (A1, PR #374), Aufwärtskante Math→Crypto (A2, PR #375), Exception-Hierarchie
-(A8, PR #371), injizierbare RNG-Quelle für Tests (A10, PR #334), Property- und Stress-Tests
-(A14a/b, PR #335/#336), Demo-Projekt (A15) sowie `GetHashCode`-Leck und
-`Equals`/`GetHashCode`-Vertrag (SB-1/SEC-1, PR #327).
+Backend-Entdeckung (PR #374), Aufwärtskante Math→Crypto (PR #375), Exception-Hierarchie
+(PR #371), injizierbare RNG-Quelle für Tests (PR #334), Property- und Stress-Tests
+(PR #335/#336), `GetHashCode`-Leck und `Equals`/`GetHashCode`-Vertrag (PR #327) sowie das
+Demo-Projekt (`samples/SecretSharingDotNet.Demo.Console/`).
 
 ---
 
