@@ -9,25 +9,26 @@
   Verweis in diesem Dokument zeigt auf **versionierte oder öffentlich abrufbare** Inhalte; nicht
   versionierte lokale Arbeitsdateien und interne Arbeitsnotizen sind bewusst keine Quelle — was
   ein Leser nach `git clone` nicht vorfindet, trägt hier auch keine Aussage.
-- Änderungen: 2026-09-12 — Erstfassung, alle Kapitel.
-  · 2026-09-12 — Kapitel 5.2 und 11 gegen den Codestand nachgezogen.
-  · 2026-09-12 — Verweise auf nicht versionierte Arbeitsdateien entfernt; die davon getragenen
-    Aussagen in den Kapiteln 1.2, 5.2, 8.2, 8.11, 10.2 und 11 auf versionierte Quellen
-    (Testcode, CI-Workflows, `README.md`) umgehängt.
-  · 2026-09-12 — interne Review-Kennungen (A…, SB/SEC/CR/PPA/SH…) aus den Kapiteln 5.2, 9 und 11
-    entfernt; die Belegspalte nennt jetzt die Fundstelle im Code bzw. die öffentliche PR-/Issue-
-    Nummer.
-  · 2026-09-12 — Kapitel 2 um `.editorconfig` und `.gitattributes` ergänzt, Kapitel 7 um die
-    Behandlung des Signaturschlüssels im Release-Pfad.
-  · 2026-09-12 — Review-Nachlauf zu PR #399: Geheimhaltungsanspruch in 1.1 qualifiziert,
-    Q1 auf den bibliothekseigenen Puffer eingegrenzt, Q6 nach Algorithmusgarantie und
-    Testabdeckung getrennt.
-  · 2026-09-13 — zweiter Review-Nachlauf zu PR #399: Pinned-Memory-Anspruch in 8.1 und Q2 auf
-    das `SecureBigInteger`-Backend eingegrenzt, RNG-Inventar in 8.3 auf drei Ziehstellen
-    vervollständigt, Validierungsreihenfolge in 6.1 korrigiert, Risiko R20 aufgenommen.
-  · 2026-09-13 — dritter Review-Nachlauf zu PR #399: Löschpfad der vier Alt-TFMs
-    (`LegacySecureClear`) an allen vier Fundstellen ergänzt, `main`-Herkunft im Release-Pfad als
-    Konvention statt als Gate ausgewiesen.
+- Änderungen:
+    - 2026-09-12 — Erstfassung, alle Kapitel.
+    - 2026-09-12 — Kapitel 5.2 und 11 gegen den Codestand nachgezogen.
+    - 2026-09-12 — Verweise auf nicht versionierte Arbeitsdateien entfernt; die davon getragenen
+      Aussagen in den Kapiteln 1.2, 5.2, 8.2, 8.11, 10.2 und 11 auf versionierte Quellen
+      (Testcode, CI-Workflows, `README.md`) umgehängt.
+    - 2026-09-12 — interne Review-Kennungen (A…, SB/SEC/CR/PPA/SH…) aus den Kapiteln 5.2, 9 und 11
+      entfernt; die Belegspalte nennt jetzt die Fundstelle im Code bzw. die öffentliche
+      PR-/Issue-Nummer.
+    - 2026-09-12 — Kapitel 2 um `.editorconfig` und `.gitattributes` ergänzt, Kapitel 7 um die
+      Behandlung des Signaturschlüssels im Release-Pfad.
+    - 2026-09-12 — Review-Nachlauf zu PR #399: Geheimhaltungsanspruch in 1.1 qualifiziert,
+      Q1 auf den bibliothekseigenen Puffer eingegrenzt, Q6 nach Algorithmusgarantie und
+      Testabdeckung getrennt.
+    - 2026-09-13 — zweiter Review-Nachlauf zu PR #399: Pinned-Memory-Anspruch in 8.1 und Q2 auf
+      das `SecureBigInteger`-Backend eingegrenzt, RNG-Inventar in 8.3 auf drei Ziehstellen
+      vervollständigt, Validierungsreihenfolge in 6.1 korrigiert, Risiko R20 aufgenommen.
+    - 2026-09-13 — dritter Review-Nachlauf zu PR #399: Löschpfad der vier Alt-TFMs
+      (`LegacySecureClear`) an allen vier Fundstellen ergänzt, `main`-Herkunft im Release-Pfad als
+      Konvention statt als Gate ausgewiesen.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.

@@ -10,23 +10,24 @@
   local working files that are not under version control, and internal working notes, are
   deliberately not used as sources — what a reader does not find after `git clone` carries no
   statement here.
-- Changes: 2026-09-12 — initial version, all chapters.
-  · 2026-09-12 — chapters 5.2 and 11 followed up against the code.
-  · 2026-09-12 — references to unversioned working files removed; the statements they carried in
-    chapters 1.2, 5.2, 8.2, 8.11, 10.2, and 11 re-anchored onto versioned sources (test code, CI
-    workflows, `README.md`).
-  · 2026-09-12 — internal review identifiers (A…, SB/SEC/CR/PPA/SH…) removed from chapters 5.2, 9,
-    and 11; the evidence column now names the code location or the public PR/issue number.
-  · 2026-09-12 — chapter 2 extended with `.editorconfig` and `.gitattributes`, chapter 7 with the
-    handling of the signing key in the release path.
-  · 2026-09-12 — review follow-up on PR #399: secrecy claim in 1.1 qualified, Q1 scoped to the
-    library-owned buffer, Q6 split into algorithm guarantee versus test coverage.
-  · 2026-09-13 — second review follow-up on PR #399: pinned-memory claim in 8.1 and Q2 scoped to
-    the `SecureBigInteger` backend, RNG inventory in 8.3 completed to three draw sites, validation
-    ordering in 6.1 corrected, risk R20 recorded.
-  · 2026-09-13 — third review follow-up on PR #399: the legacy-TFM wipe path
-    (`LegacySecureClear`) added at all four places that claimed otherwise, and `main` ancestry in
-    the release path marked as a convention rather than a gate.
+- Changes:
+    - 2026-09-12 — initial version, all chapters.
+    - 2026-09-12 — chapters 5.2 and 11 followed up against the code.
+    - 2026-09-12 — references to unversioned working files removed; the statements they carried in
+      chapters 1.2, 5.2, 8.2, 8.11, 10.2, and 11 re-anchored onto versioned sources (test code, CI
+      workflows, `README.md`).
+    - 2026-09-12 — internal review identifiers (A…, SB/SEC/CR/PPA/SH…) removed from chapters 5.2, 9,
+      and 11; the evidence column now names the code location or the public PR/issue number.
+    - 2026-09-12 — chapter 2 extended with `.editorconfig` and `.gitattributes`, chapter 7 with the
+      handling of the signing key in the release path.
+    - 2026-09-12 — review follow-up on PR #399: secrecy claim in 1.1 qualified, Q1 scoped to the
+      library-owned buffer, Q6 split into algorithm guarantee versus test coverage.
+    - 2026-09-13 — second review follow-up on PR #399: pinned-memory claim in 8.1 and Q2 scoped to
+      the `SecureBigInteger` backend, RNG inventory in 8.3 completed to three draw sites, validation
+      ordering in 6.1 corrected, risk R20 recorded.
+    - 2026-09-13 — third review follow-up on PR #399: the legacy-TFM wipe path
+      (`LegacySecureClear`) added at all four places that claimed otherwise, and `main` ancestry in
+      the release path marked as a convention rather than a gate.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -957,7 +958,7 @@ backend discovery (PR #374), the Math→Crypto upward edge (PR #375), the except
 | Gepinnter Pool-Puffer | Pinned pool array | `PinnedPoolArray<T>`: rented from `ArrayPool`, immobile via `GCHandle`, overwritten three times on dispose. |
 | Konstante Laufzeit | Constant time (CT) | Runtime depends only on public quantities (bit length, security level), not on secret values. Explicitly *best effort* here. |
 | Verzweigungsfrei | Branchless | An implementation without data-dependent jumps — a prerequisite for constant time. |
-| Erweiterter euklidischer Algorithmus | Extended Euclidean algorithm | Computes the gcd plus Bézout coefficients; its iteration count depends on the operand values. |
+| Erweiterter euklidischer Algorithmus | Extended Euclidean algorithm | Computes `gcd` plus Bézout coefficients; its iteration count depends on the operand values. |
 | Divstep / safegcd | Divstep / safegcd | The Bernstein–Yang recurrence with a **fixed** iteration count; the basis of `MersenneSafeGcdAlgorithm`. |
 | Modulares Inverses | Modular inverse | The `x` with `a·x ≡ 1 (mod M_p)`; required in the reconstructor for division in the finite field. |
 | Lagrange-Interpolation | Lagrange interpolation | The reconstruction method: determine the polynomial from `k` points and evaluate it at `x = 0`. |
