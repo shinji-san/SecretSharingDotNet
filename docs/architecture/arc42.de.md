@@ -17,6 +17,8 @@
   · 2026-09-12 — interne Review-Kennungen (A…, SB/SEC/CR/PPA/SH…) aus den Kapiteln 5.2, 9 und 11
     entfernt; die Belegspalte nennt jetzt die Fundstelle im Code bzw. die öffentliche PR-/Issue-
     Nummer.
+  · 2026-09-12 — Kapitel 2 um `.editorconfig` und `.gitattributes` ergänzt, Kapitel 7 um die
+    Behandlung des Signaturschlüssels im Release-Pfad.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -76,6 +78,8 @@ Priorität 1–3 steuern Kapitel 8 (Querschnittliche Konzepte) und Kapitel 10
 | Strong-Name-Signierung (`SecretSharingDotNet.snk`), `ComVisible(false)`, `CLSCompliant(true)` | Öffentliche Signaturen müssen CLS-konform bleiben; Tests erreichen `internal`-Typen nur über `InternalsVisibleTo` mit Public Key. |
 | Zentrale Paketversionierung (`Directory.Packages.props`) mit `packages.lock.json` und `--locked-mode` in CI | Jedes Dependency-Update muss die Lock-Dateien über die volle TFM-Matrix regenerieren. |
 | Einzelnes Assembly (`SecretSharingDotNet.dll`) | Schichtgrenzen sind eine *Konvention* über Namespaces, nicht durch den Compiler erzwungen (siehe Kapitel 5.2 und Risiko R6). |
+| Code-Stil maschinenlesbar in `.editorconfig` (359 Zeilen, 161 `dotnet_`/`csharp_`-Regeln), aus der bestehenden Codebasis abgeleitet statt aus einer Vorlage | Severity durchgehend `suggestion`: Die IDE weist hin, der Build bleibt grün. Weder `EnforceCodeStyleInBuild` noch ein `dotnet format`-Schritt in der CI — der Stil ist per Review verbindlich, nicht per Werkzeug. |
+| Zeilenenden normalisiert per `.gitattributes` (`* text=auto`; `.sh` und `.yml` fest auf `eol=lf`, `.snk`/`.gpg` als `binary`) | Das Repository speichert LF, der Arbeitsbaum bleibt plattformüblich. Skripte und Workflow-Dateien brauchen LF zur Ausführungszeit und sind darum explizit gepinnt. |
 
 **Organisatorisch**
 
@@ -600,6 +604,15 @@ flowchart TD
 | `publishing.yml` | Release | Startet nur bei Tags der Form `v[0-9]+.[0-9]+.[0-9]+*`; die eigentliche SemVer-Validierung erfolgt in einem eigenen Schritt, weil GitHubs Filter-Globs SemVer nicht ausdrücken können. Push an nuget.org über OIDC statt langlebigem API-Key. Nebenläufigkeit pro Ref, **ohne** `cancel-in-progress` — ein zwischen Pack und Push abgebrochener Release wäre halb veröffentlicht. |
 | `dependabot-autoheal.yml` | Reparatur | Dependabots NuGet-Updater schreibt eine `packages.lock.json` mit nur einem Framework-Abschnitt zurück, was den `--locked-mode`-Restore mit NU1004 brechen lässt. Der Workflow regeneriert die Lock-Dateien über die volle TFM-Matrix und pusht sie in den PR. |
 
+**Der Release-Pfad behandelt seine beiden Geheimnisse unterschiedlich.** Der Push an nuget.org
+läuft über OIDC und braucht darum gar kein langlebiges Token. Der Strong-Name-Schlüssel dagegen
+liegt GPG-verschlüsselt im Repository (`.github/secrets/SecretSharingDotNetPublisher.snk.gpg`) und
+wird zur Laufzeit über `decrypt_publisher_snk.sh` entschlüsselt. Die Reihenfolge ist bewusst
+gewählt: Der Schritt *Verify tag matches package version* — er prüft `<Version>`,
+`AssemblyInformationalVersion` und den Tag-Link in `PackageReleaseNotes` gegen den Tag — läuft
+**vor** der Entschlüsselung. Ein Tag, der nicht zum gepackten Stand passt, bricht den Lauf ab,
+bevor der Signaturschlüssel überhaupt im Klartext existiert.
+
 **Lokale Entwicklung** weicht in einem Punkt ab: Auf Linux/macOS brauchen die
 Framework-TFMs `mono-complete`. Mono 6.8 schreibt dabei gelegentlich
 `mono_crash.*.json`-Dateien nach `tests/` — Artefakte des Runner-Shutdowns *nach* der
@@ -885,7 +898,7 @@ Einträge sind Wartungslast, Fehlbedienungsrisiken und dokumentierte Trade-offs.
 | **R9** | **Keine Integritätsprüfung pro Share.** Ein manipuliertes Share führt zu einem stillen, falschen Ergebnis (siehe Ablauf 6.3). | Mittel (bewusst, dokumentiert) | Consumer, die Share-Manipulation im Bedrohungsmodell haben, sind ohne eigene Maßnahme ungeschützt. | Im Threat Model offen benannt; Consumer müssen signierte Shares, HMAC-Umschläge oder VSS darüberlegen. Eine VSS-Implementierung steht nicht auf der Roadmap. | `README.md`, *Security & Threat Model* |
 | **R10** | **Kein Build-Check auf Schlüsselgleichheit der beiden `.resx`.** | Niedrig | Ein fehlender de-DE-Schlüssel fällt erst zur Laufzeit auf (Fallback auf Englisch). | Build-Target oder Analyzer, der beide Schlüsselmengen diffed — oder die de-DE-Ressource fallen lassen. | `src/Resources/ErrorMessages.resx` und `…de-DE.resx`, je 55 Schlüssel |
 | **R11** | **Textkodierung wird nicht im Share persistiert.** Split mit `Encoding` A und Rekonstruktion mit `Encoding` B liefert stillen Datenmüll. | Niedrig | Betrifft nur, wer die `Encoding`-Überladungen bewusst nutzt; der Default UTF-8 ist auf beiden Seiten gleich. | Als Aufrufer-Verantwortung an den `Encoding`-Überladungen dokumentieren (offener Doku-Fix). | `CHANGELOG.md` `[0.14.0]`; `README.md` |
-| **R13** | **Mutationstests messen nichts.** Stryker.NET 4.16.0 kann die xUnit-v3/MTP-Suite nicht instrumentieren; der erste grüne CI-Lauf war ein **False Green** (0,00 %, 1248/1248 überlebt). | Niedrig (blockiert extern) | Es gibt keine belastbare Aussage zur Testschärfe jenseits der Abdeckung. | Workflow geparkt, Konfiguration als Wiederbelebungshilfe behalten; getrackt in GitHub-Issue #343. Blockiert durch stryker-net #3117/#3094. | GitHub-Issue #343 |
+| **R13** | **Mutationstests messen nichts.** Stryker.NET 4.16.0 kann die xUnit-v3/MTP-Suite nicht instrumentieren; der erste grüne CI-Lauf war ein **False Green** (0,00 %, 1248/1248 überlebt). | Niedrig (blockiert extern) | Es gibt keine belastbare Aussage zur Testschärfe jenseits der Abdeckung. | Workflow geparkt, Konfiguration als Wiederbelebungshilfe behalten; getrackt in GitHub-Issue #343. Blockiert durch stryker-net #3117/#3094. | `.config/dotnet-tools.json` (Stryker 4.16.0); GitHub-Issue #343 |
 | **R14** | **Deferred: konstante Laufzeit für Hex-/Base64-Dekoder und `Secret.CompareTo`.** Erstere sind verzweigende Randparser, letzteres bricht beim ersten abweichenden Byte ab und verrät die gemeinsame Präfixlänge. | Niedrig (im Threat Model benannt) | Sortieren oder Vergleichen von Geheimmaterial ist zeitlich beobachtbar; nur Gleichheit ist CT. | Verzweigungsfreie Varianten sind entworfen und für einen eigenen PR-Zyklus geparkt; `[Obsolete]`-Markierungen auf den Relationaloperatoren sind eine Option. | `README.md`, *Security & Threat Model* |
 | **R15** | **`Secret.CreateRandom` ist für kleine Sicherheitsstufen entropie-suboptimal** (Stufe 13/17 ≈ 8 Bit, Stufe 31 ≈ 24 Bit; empirisch über 3000 Ziehungen). | Niedrig | Betrifft nur die ohnehin abgeratenen kleinen Stufen; ab Stufe 127 bleiben ≈ p−8 Bit. | Ein lokaler Fix (uniformes Rejection Sampling) wurde implementiert und **verworfen**: Er bricht den Round-Trip, weil das Markierungsbyte repräsentationsseitig an die Primzahl gekoppelt ist. Echter Fix ist architektonisch. | `Secret<TNumber>.CreateRandom`, ab Zeile 1128 |
 | **R16** | **Weitere Low/Info-Fußangeln:** `PinnedPoolArray.PoolArray` gibt den rohen Puffer heraus; `Secret` hat implizite Reveal-Konvertierungen nach `byte[]`/`ReadOnlySpan`; `Shares` übernimmt stillschweigend den Besitz übergebener Share-Arrays; `(length + 7) / 8` kann bei ~2 GB Eingabe überlaufen; die Reduktionsschleife in `Secret.CreateRandom` ist datenabhängig. | Niedrig | Jeweils Fehlbedienungsrisiko, keine aktive Lücke. | Dokumentierte Trade-offs; Härtung einzeln möglich. | `PinnedPoolArray<T>.PoolArray` (Z. 225), `Secret<TNumber>` (Z. 577), `Shares<TNumber>` (Z. 82), `SecureBigInteger` (Z. 268), `Secret<TNumber>.CreateRandom` |

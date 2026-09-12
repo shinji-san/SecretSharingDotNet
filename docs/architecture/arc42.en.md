@@ -17,6 +17,8 @@
     workflows, `README.md`).
   · 2026-09-12 — internal review identifiers (A…, SB/SEC/CR/PPA/SH…) removed from chapters 5.2, 9,
     and 11; the evidence column now names the code location or the public PR/issue number.
+  · 2026-09-12 — chapter 2 extended with `.editorconfig` and `.gitattributes`, chapter 7 with the
+    handling of the signing key in the release path.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -75,6 +77,8 @@ priorities 4–5 drive chapters 2 and 7.
 | Strong-name signing (`SecretSharingDotNet.snk`), `ComVisible(false)`, `CLSCompliant(true)` | Public signatures must stay CLS-compliant; tests reach `internal` types only via `InternalsVisibleTo` with public key. |
 | Central package management (`Directory.Packages.props`) with `packages.lock.json` and `--locked-mode` in CI | Every dependency update must regenerate the lock files across the full TFM matrix. |
 | Single assembly (`SecretSharingDotNet.dll`) | Layer boundaries are a *convention* over namespaces, not compiler-enforced (see chapter 5.2 and risk R6). |
+| Code style machine-readable in `.editorconfig` (359 lines, 161 `dotnet_`/`csharp_` rules), derived from the existing code base rather than from a template | Severity is `suggestion` throughout: the IDE hints, the build stays green. Neither `EnforceCodeStyleInBuild` nor a `dotnet format` step in CI — the style is binding by review, not by tooling. |
+| Line endings normalised via `.gitattributes` (`* text=auto`; `.sh` and `.yml` pinned to `eol=lf`, `.snk`/`.gpg` as `binary`) | The repository stores LF while the working tree stays platform-native. Scripts and workflow files need LF at execution time and are therefore pinned explicitly. |
 
 **Organizational**
 
@@ -589,6 +593,14 @@ flowchart TD
 | `publishing.yml` | Release | Starts only on tags shaped `v[0-9]+.[0-9]+.[0-9]+*`; the actual SemVer validation happens in a dedicated step, because GitHub's filter globs cannot express SemVer. Pushes to nuget.org via OIDC instead of a long-lived API key. Concurrency is per ref and deliberately **without** `cancel-in-progress` — a release interrupted between pack and push would be half published. |
 | `dependabot-autoheal.yml` | Repair | Dependabot's NuGet updater writes back a `packages.lock.json` containing only one framework section, which breaks the `--locked-mode` restore with NU1004. The workflow regenerates the lock files across the full TFM matrix and pushes them into the PR. |
 
+**The release path treats its two secrets differently.** The push to nuget.org goes through OIDC
+and therefore needs no long-lived token at all. The strong-name key, by contrast, sits GPG-encrypted
+in the repository (`.github/secrets/SecretSharingDotNetPublisher.snk.gpg`) and is decrypted at run
+time by `decrypt_publisher_snk.sh`. The ordering is deliberate: the *Verify tag matches package
+version* step — which checks `<Version>`, `AssemblyInformationalVersion`, and the tag link in
+`PackageReleaseNotes` against the tag — runs **before** the decryption. A tag that does not match
+the packed state aborts the run before the signing key exists in plaintext at all.
+
 **Local development** differs in one point: on Linux/macOS the Framework TFMs need
 `mono-complete`. Mono 6.8 occasionally writes `mono_crash.*.json` files into `tests/` — artefacts
 of the runner shutdown *after* assertion reporting, not library defects; masked via `.gitignore`
@@ -864,7 +876,7 @@ PR #327. What remains is maintenance load, misuse risk, and documented trade-off
 | **R9** | **No per-share integrity check.** A tampered share yields a silent, wrong result (see flow 6.3). | Medium (deliberate, documented) | Consumers with share manipulation in their threat model are unprotected without their own measure. | Stated openly in the threat model; consumers must layer signed shares, HMAC envelopes, or VSS on top. A VSS implementation is not on the roadmap. | `README.md`, *Security & Threat Model* |
 | **R10** | **No build-time check that the two `.resx` key sets match.** | Low | A missing de-DE key only surfaces at runtime (fallback to English). | A build target or analyzer diffing both key sets — or drop the de-DE resource. | `src/Resources/ErrorMessages.resx` and `…de-DE.resx`, 55 keys each |
 | **R11** | **The text encoding is not persisted in the share.** Splitting with `Encoding` A and reconstructing with `Encoding` B yields silent garbage. | Low | Affects only those who deliberately use the `Encoding` overloads; the UTF-8 default is identical on both sides. | Document it as a caller responsibility on the `Encoding` overloads (open doc fix). | `CHANGELOG.md` `[0.14.0]`; `README.md` |
-| **R13** | **Mutation testing measures nothing.** Stryker.NET 4.16.0 cannot instrument the xUnit v3/MTP suite; the first green CI run was a **false green** (0.00 %, 1248/1248 survived). | Low (externally blocked) | There is no solid statement about test sharpness beyond coverage. | Workflow parked, configuration kept as a revival aid; tracked in GitHub issue #343. Blocked by stryker-net #3117/#3094. | GitHub issue #343 |
+| **R13** | **Mutation testing measures nothing.** Stryker.NET 4.16.0 cannot instrument the xUnit v3/MTP suite; the first green CI run was a **false green** (0.00 %, 1248/1248 survived). | Low (externally blocked) | There is no solid statement about test sharpness beyond coverage. | Workflow parked, configuration kept as a revival aid; tracked in GitHub issue #343. Blocked by stryker-net #3117/#3094. | `.config/dotnet-tools.json` (Stryker 4.16.0); GitHub issue #343 |
 | **R14** | **Deferred: constant time for the hex/Base64 decoders and `Secret.CompareTo`.** The former are branchy boundary parsers; the latter short-circuits at the first differing byte and leaks the common prefix length. | Low (named in the threat model) | Sorting or comparing secret material is observable in time; only equality is CT. | Branchless variants are designed and parked for a dedicated PR cycle; `[Obsolete]` markers on the relational operators are an option. | `README.md`, *Security & Threat Model* |
 | **R15** | **`Secret.CreateRandom` is entropy-suboptimal for small security levels** (level 13/17 ≈ 8 bits, level 31 ≈ 24 bits; measured over 3000 draws). | Low | Affects only the small levels that are discouraged anyway; from level 127 upwards ≈ p−8 bits remain. | A localized fix (uniform rejection sampling) was implemented and **rejected**: it breaks the round trip, because the mark byte is coupled to the prime at the representation level. A real fix is architectural. | `Secret<TNumber>.CreateRandom`, from line 1128 |
 | **R16** | **Further low/info footguns:** `PinnedPoolArray.PoolArray` hands out the raw buffer; `Secret` has implicit reveal conversions to `byte[]`/`ReadOnlySpan`; `Shares` silently takes ownership of a supplied share array; `(length + 7) / 8` can overflow on ~2 GB input; the reduction loop in `Secret.CreateRandom` is data-dependent. | Low | Each is a misuse risk, not an active hole. | Documented trade-offs; each can be hardened individually. | `PinnedPoolArray<T>.PoolArray` (l. 225), `Secret<TNumber>` (l. 577), `Shares<TNumber>` (l. 82), `SecureBigInteger` (l. 268), `Secret<TNumber>.CreateRandom` |
