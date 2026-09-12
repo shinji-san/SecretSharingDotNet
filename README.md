@@ -152,9 +152,9 @@ The library is generic in the numeric backend: `BigInteger` (used in the example
 | Backend | Reconstructor + GCD strategy | Pinned memory | Constant-time arithmetic † | Fixed-iteration inverse † | Choose when |
 |---|---|:---:|:---:|:---:|---|
 | `BigInteger` | `SecretReconstructor` + `ExtendedEuclideanAlgorithm` | no | no | no | performance matters and timing side channels are out of scope |
-| `SecureBigInteger` | `FixedIterationSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | yes | yes | secrets where passive timing analysis is in scope |
+| `SecureBigInteger` | `FixedIterationSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | partial † | yes | secrets where passive timing analysis is in scope |
 
-† Both constant-time properties are best-effort against passive timing analysis — managed .NET cannot guarantee constant time (see the Security & Threat Model section). *Constant-time arithmetic* covers the core primitives (add / subtract / multiply / square / divide / remainder) on the public bit length; it does not cover `Pow` (variable-time on its exponent), ordering (`CompareTo`), or the hex / Base64 decoders. *Fixed-iteration inverse* means that at a fixed security level the GCD iteration count depends only on that (public) level, not on the secret operand values — removing the iteration-count side channel of a plain extended-Euclidean GCD. Reconstruction auto-selects the level from the shares' maximum value, so the iteration count still reflects the selected level (which the share sizes already reveal); it is not per-operation constant-time (`MersenneSafeGcdAlgorithm`'s per-iteration timing is not uniform). Together these two properties **reduce but do not eliminate** reconstruction timing side channels — they do not make the whole reconstruction constant-time.
+† Both constant-time properties are best-effort against passive timing analysis — managed .NET cannot guarantee constant time (see the Security & Threat Model section). *Constant-time arithmetic* is **partial**: the per-limb work of the core primitives is fixed by the operand limb counts and branchless — by `max(l, r)` for subtraction, `max(l, r) + 1` for addition, `left × right` for multiplication and squaring, and `dividend × 64` outer iterations for division and remainder — but every result is normalised by a leading-zero trim whose iteration count depends on the result's magnitude, and that trimmed length then sizes the next operation — so the limb count of an intermediate value is itself secret-derived rather than public. It covers the core primitives (add / subtract / multiply / square / divide / remainder) on the public bit length; it does not cover `Pow` (variable-time on its exponent), ordering (`CompareTo`), or the hex / Base64 decoders. *Fixed-iteration inverse* means that at a fixed security level the GCD iteration count depends only on that (public) level, not on the secret operand values — removing the iteration-count side channel of a plain extended-Euclidean GCD. Reconstruction auto-selects the level from the shares' maximum value, so the iteration count still reflects the selected level (which the share sizes already reveal); it is not per-operation constant-time (`MersenneSafeGcdAlgorithm`'s per-iteration timing is not uniform). Together these two properties **reduce but do not eliminate** reconstruction timing side channels — they do not make the whole reconstruction constant-time.
 
 > [!WARNING]
 > Do not pair `SecureBigInteger` with `ExtendedEuclideanAlgorithm`: you keep the pinned memory but reintroduce an operand-value-dependent iteration count — the side channel `FixedIterationSecretReconstructor` removes. `FixedIterationSecretReconstructor<SecureBigInteger>` accepts only fixed-iteration GCD strategies, so this mispairing is a compile-time error rather than a silent side channel. See the Security & Threat Model section for the exact scope.
@@ -947,12 +947,22 @@ for hardened native crypto stacks.
 - **Insecure RNG.** Every random draw goes through
   `System.Security.Cryptography.RandomNumberGenerator` via the internal
   `Cryptography.SecureRandom` helper. No `System.Random`, no PRNG seeds.
-- **Operand-value timing leaks in core arithmetic.** `Add`, `Subtract`, `Multiply`,
-  `Square`, `Divide`, and `Remainder` iterate a fixed number of limbs equal to the public
-  `max(left.LimbCount, right.LimbCount)` and use branchless carry/borrow propagation;
-  their timing depends only on the public operand bit length, not on operand values.
-  `MersenneModulo` is constant-time on the public Mersenne exponent and operand limb
-  count.
+- **Digit-value timing leaks in the per-limb arithmetic.** `Add`, `Subtract`,
+  `Multiply`, `Square`, `Divide`, and `Remainder` iterate a number of limbs fixed by the
+  operand limb counts and use branchless carry/borrow propagation, so the arithmetic
+  proper does not branch on the digit values. The bound differs per operation and is not
+  the same one for all six: `Subtract` iterates `max(left.LimbCount, right.LimbCount)`,
+  `Add` that plus one for the carry limb, `Multiply` and `Square` run nested loops of
+  `left.LimbCount × right.LimbCount`, and `Divide` and `Remainder` run
+  `dividend.LimbCount × 64` outer iterations whose inner work spans the remainder and
+  divisor limbs. Each bound is derived from the limb counts alone, not from the digit
+  values.
+
+  `MersenneModulo` folds branchlessly and finishes with a mask-driven conditional
+  subtract; its iteration count is derived from the public Mersenne exponent and the
+  operand limb count — which, per the normalisation note below, is itself secret-derived
+  for intermediate values. This is a guarantee about the **per-limb loop only** — see *result normalisation* and the sign
+  of `Add` / `Subtract` operands below, both of which remain value-dependent.
 - **No variable-time number-theoretic surface.** The legacy `Gcd`, `ModPow`, `Log`,
   `Log10`, and `Log2` static methods — whose implementations branched on operand values
   or invoked `Math.Log` on operand-derived doubles — were removed from
@@ -966,7 +976,9 @@ for hardened native crypto stacks.
   Mersenne exponent, independent of operand values; that is the only timing guarantee
   the algorithm gives out of the box. **Per-iteration wall-clock time is not uniform**
   on the SecureBigInteger backend — the three divstep branches dispatch a different
-  number of fresh `Calculator` allocations (six / six / four) and funnel `g` (or
+  number of fresh `Calculator` allocations — seven for each of the two odd-`g`
+  branches (six arithmetic results plus one `Clone`) against six for the even-`g`
+  branch (three arithmetic results plus three `Clone`s) — and funnel `g` (or
   `g − f`) through `SecureBigInteger.Divide`, whose bit-loop count tracks the limb
   count of the shrinking intermediate working values. The branch selector itself reads
   the LSB of secret `g` plus the public sign of `delta`. See the class XDoc for the
@@ -1002,7 +1014,72 @@ for hardened native crypto stacks.
   constant-time-on-bit-length `Multiply`. Callers must not pass secret-derived
   exponents through this method.
 
+- **The sign of `Add` / `Subtract` operands, and the magnitude ordering of `Subtract`.**
+  Both branch on whether the operand signs match, and the routing differs between them:
+  `Add` runs `AddUnsigned` on equal signs and `CompareUnsigned` followed by
+  `SubtractUnsigned` on mixed ones, `Subtract` the other way round. For `Add` the two
+  paths cost one operation against two, so wall-clock time distinguishes a same-sign
+  addition from a mixed-sign one. For `Subtract` with equal signs — the ordinary case for
+  Shamir values, which the mark byte keeps positive — the compare path is the one taken,
+  and `comparison >= 0` selects which operand becomes the minuend. Both selections call
+  the same `SubtractUnsigned` over the same limb count, so magnitude ordering steers the
+  branch without changing the amount of work; treat the ordering of two secret operands
+  as observable rather than assuming the positive-value invariant removes the branch. Within this library the
+  branch is not taken on the Shamir values themselves — the mark byte keeps secrets,
+  coefficients and share values positive and `MersenneModulo` reduces into `[0, M_p)`.
+  It **is** taken inside the modular inverse:
+  `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` operates on the signed Bézout
+  coefficients, and `newUG = uG - uF` is negative from the first divstep iteration on,
+  so reconstruction with the safegcd exercises the mixed-sign path on secret-derived
+  values. `MersenneModulo` carries its own sign branch, whose negative path runs three
+  additional limb loops, a `SubtractInPlace` and one more pinned allocation that the
+  positive path skips entirely. That branch is reached inside
+  `MersenneSafeGcdAlgorithm.Compute`, which reduces the signed intermediate
+  `beta * inv2n` — `beta` being a sign-corrected Bézout coefficient — once per call.
+  It is **not** reached from `SecretReconstructor.DivMod`: `Compute` returns the
+  coefficient already reduced into `[0, M_p)`, so the reduction that follows there sees a
+  non-negative value. `IsOne` likewise returns early on a negative sign, ahead of its
+  fold. Callers using `SecureBigInteger`
+  directly on signed secret values must treat the sign as public, or normalise to
+  magnitudes before the operation.
+
 **`SecureBigInteger` does *not* protect against:**
+
+- **`ByteCount` leaking the value's byte length.** The property returns early when the
+  high limb is zero and otherwise calls `BytesInLimb`, which counts significant bytes by
+  shifting until the limb reaches zero — one to eight iterations depending on the value.
+  This is finer than the limb granularity of the normalisation note below, and it sits on
+  the secret path: `SecurityLevelManager.AdjustSecurityLevel` evaluates
+  `maximumY.ByteCount` on a share value, and `Secret<TNumber>` uses it on the secret and
+  on polynomial coefficients.
+
+- **Ordering and serialisation of `SecureBigInteger`.** `CompareTo` returns early when the
+  operand signs differ, before the fixed-count `CompareUnsigned` runs. `ToByteArray` and
+  its `IsExactByteBoundaryPowerOfTwo` helper take several value-dependent early returns.
+  Both are treated as boundary operations, like the hex and Base64 decoders below; only
+  equality is constant-time.
+
+- **Post-arithmetic zero branches.** `Multiply`, `Divide`, and `Remainder` branch on
+  `IsZeroInternal()` after the limb work, before assigning the result sign. The guarded
+  work is a single field write, so the timing difference is minimal, but the predicate is
+  the secret-derived zero status of the result. None of them takes a zero short-circuit
+  *before* the arithmetic — `Multiply` carries a source comment explaining that branching
+  there would leak — and the remaining zero check is the divide-by-zero contract,
+  evaluated on the divisor.
+
+- **Result normalisation leaking the result's magnitude.** Every unsigned helper returns
+  through `new SecureBigInteger(limbs, count, isNegative)`, whose constructor calls
+  `TrimLeadingZerosInPlace`. That trim scans the limbs downward and stops at the first
+  non-zero one, so its iteration count depends on how many leading zero limbs the result
+  has — a value-dependent quantity, even when both operands had the same limb count. The
+  trimmed length is then stored and sizes the next operation, so the limb count of an
+  intermediate value is itself secret-derived rather than public. The absolute cost is
+  small — at most one `ulong` comparison per limb of the **result**, which is wider than
+  the operands: with two-limb operands at security level 127 a sum is three limbs, a
+  product four, and a division remainder three — but it is a data-dependent branch present
+  in every core operation, so the arithmetic as a whole is not constant-time on the result
+  magnitude. Removing this would require a
+  fixed-width representation that never trims.
 
 - **Variable-time modular inverse when a variable-time GCD is chosen.** The base
   `SecretReconstructor<TNumber>` requires an explicit GCD strategy; pairing it with
@@ -1051,6 +1128,13 @@ for hardened native crypto stacks.
   (VSS — e.g. Feldman or Pedersen) or per-share MACs. Consumers whose threat
   model includes share manipulation must layer an integrity scheme (signed
   shares, HMAC-keyed envelopes, VSS) on top.
+
+**Not classified.** The three groups above list what was examined. Absence from all of them
+is not a guarantee — it means the surface was not walked against the code. That currently
+covers, among others, `ToPinnedCharArray` and the decimal conversion behind it,
+`ToHexadecimal` and `FromHexadecimal`, `Abs` and `Negate`, the conversion operators, and the
+limb/byte marshalling helpers. Several are reveal paths by design, where constant time is not
+a goal; the point of saying so is that you can tell an unexamined surface from an examined one.
 
 Constant-time big-integer arithmetic in pure managed .NET is non-trivial; canonical
 implementations (libsodium, BoringSSL) rely on fixed-width representation, branchless
