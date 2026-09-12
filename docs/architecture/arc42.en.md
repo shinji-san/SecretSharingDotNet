@@ -21,6 +21,12 @@
     handling of the signing key in the release path.
   · 2026-09-12 — review follow-up on PR #399: secrecy claim in 1.1 qualified, Q1 scoped to the
     library-owned buffer, Q6 split into algorithm guarantee versus test coverage.
+  · 2026-09-13 — second review follow-up on PR #399: pinned-memory claim in 8.1 and Q2 scoped to
+    the `SecureBigInteger` backend, RNG inventory in 8.3 completed to three draw sites, validation
+    ordering in 6.1 corrected, risk R20 recorded.
+  · 2026-09-13 — third review follow-up on PR #399: the legacy-TFM wipe path
+    (`LegacySecureClear`) added at all four places that claimed otherwise, and `main` ancestry in
+    the release path marked as a convention rather than a gate.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -237,7 +243,7 @@ C4Component
 | `Cryptography.SecureInput` | Input without `string` materialisation: `ConsolePasswordReader`, `SecureCharBufferExtensions`, `SecureNumericBufferExtensions`. | yes |
 | `Math` | `Calculator`/`Calculator<TNumber>` (strategy + closed backend registry), `Polynomial.EvaluateAt` (Horner's method), `ExtendedEuclideanAlgorithm<TNumber>`, `MersenneSafeGcdAlgorithm<TNumber>`, `MersennePrimeProvider`. | yes (`Polynomial` is `internal`) |
 | `Math.Numerics` | `SecureBigInteger` (2,753 LOC, pinned `ulong` limbs, constant-time core operations) and the two `Calculator` implementations. | `SecureBigInteger` yes, the calculators `internal` |
-| `SecureMemory` | `PinnedPoolArray<T>`: `ArrayPool` rent + `GCHandle.Alloc(Pinned)` + 3-pass overwrite + `CryptographicOperations.ZeroMemory` on dispose, with a concurrency counter. | yes |
+| `SecureMemory` | `PinnedPoolArray<T>`: `ArrayPool` rent + `GCHandle.Alloc(Pinned)` + 3-pass overwrite + `CryptographicOperations.ZeroMemory` on dispose (on `netstandard2.0`/`net472`/`net48`/`net481` instead `LegacySecureClear` with `Volatile.Write` and a memory barrier), with a concurrency counter. | yes |
 | `Extension` | Exclusively `internal`: `DisposeAll`, `Subset<T>`, `FixedTimeEquals`, structural comparison helpers. | no |
 | `Resources` | `ErrorMessages.resx` (neutral/en) and `ErrorMessages.de-DE.resx`, 55 keys each. All exception texts come from here, never inline. | `internal` |
 
@@ -422,7 +428,8 @@ sequenceDiagram
     participant Calc as Calculator backend
 
     App->>Split: MakeShares(k, n, secret)
-    Split->>Split: validate arguments (k at least 2, k at most n, n at most 1,000,000)
+    Split->>Split: validate k at least 2 and k at most n
+    Note over Split: The n at most 1,000,000 cap is NOT checked here - see CreateShares below
     Split->>SLM: raise the level if the secret is wider than the current level
     Note over Split,SLM: The level is only ever raised, never lowered
     SLM-->>Split: MersennePrime M_p
@@ -434,6 +441,8 @@ sequenceDiagram
         Note over Split: Rejection sampling against modulo bias, reject rate below 0.013 percent
         Split->>Split: the leading coefficient must not be zero
     end
+    Split->>Split: CreateShares now checks n at most 1,000,000 and the Mersenne bound
+    Note over Split: Late check - the coefficient array above is already allocated and filled (risk R20)
     loop for x = 1 .. n
         Split->>Poly: EvaluateAt(x, coefficients, exponent)
         Poly->>Calc: Horner's method with MersenneModulo at every step
@@ -540,7 +549,11 @@ sequenceDiagram
     Caller->>PPA: read and write through PoolArray
     Caller->>PPA: Dispose()
     PPA->>PPA: drain in-flight SecureClear calls (SpinWait)
-    PPA->>PPA: 3-pass overwrite and CryptographicOperations.ZeroMemory
+    alt net8+ / netstandard2.1
+        PPA->>PPA: 3-pass overwrite and CryptographicOperations.ZeroMemory
+    else netstandard2.0, net472, net48, net481
+        PPA->>PPA: LegacySecureClear - Volatile.Write per byte plus memory barrier
+    end
     PPA->>GC: Free()
     PPA->>Pool: Return(array)
 ```
@@ -584,7 +597,7 @@ flowchart TD
 
     repo -->|push to any branch| ci
     repo -->|push / PR| codeql
-    repo -->|v tag on main| publish
+    repo -->|v tag, any branch| publish
     ubuntu --> publish
     windows --> publish
     publish --> nuget
@@ -598,7 +611,7 @@ flowchart TD
 |---|---|---|
 | `ubuntu-24.04` | Build, tests of the CoreCLR TFMs, packaging | No Mono — the .NET Framework suites cannot run here. Additionally verifies that the two README headings used to extract the package README occur exactly once. |
 | `windows-2025` | Tests for `net472`, `net48`, `net481` | Runs against the real .NET Framework, not Mono. |
-| `publishing.yml` | Release | Starts only on tags shaped `v[0-9]+.[0-9]+.[0-9]+*`; the actual SemVer validation happens in a dedicated step, because GitHub's filter globs cannot express SemVer. Pushes to nuget.org via OIDC instead of a long-lived API key. Concurrency is per ref and deliberately **without** `cancel-in-progress` — a release interrupted between pack and push would be half published. |
+| `publishing.yml` | Release | Starts on tags shaped `v[0-9]+.[0-9]+.[0-9]+*` — **regardless of which branch contains the tagged commit**. There is neither a branch filter nor an ancestry check against `main`; releases coming from `main` is a maintainer convention, not an enforced gate. What actually protects the release is the lockstep between tag and version metadata (see below); the actual SemVer validation happens in a dedicated step, because GitHub's filter globs cannot express SemVer. Pushes to nuget.org via OIDC instead of a long-lived API key. Concurrency is per ref and deliberately **without** `cancel-in-progress` — a release interrupted between pack and push would be half published. |
 | `dependabot-autoheal.yml` | Repair | Dependabot's NuGet updater writes back a `packages.lock.json` containing only one framework section, which breaks the `--locked-mode` restore with NU1004. The workflow regenerates the lock files across the full TFM matrix and pushes them into the PR. |
 
 **The release path treats its two secrets differently.** The push to nuget.org goes through OIDC
@@ -625,9 +638,22 @@ of the runner shutdown *after* assertion reporting, not library defects; masked 
 
 ### 8.1 Secure memory and ownership
 
-Every secret-bearing byte lives in a `PinnedPoolArray<T>`: rented from `ArrayPool<T>.Shared`,
+Secret-bearing bytes live in a `PinnedPoolArray<T>`: rented from `ArrayPool<T>.Shared`,
 pinned via `GCHandle` (so the GC cannot relocate it and leave copies behind), overwritten three
-times on dispose and zeroed with `CryptographicOperations.ZeroMemory`. The wipe routine carries
+times on dispose and zeroed with `CryptographicOperations.ZeroMemory`. On the four legacy
+targets `netstandard2.0`, `net472`, `net48` and `net481` there is no `ZeroMemory`; there
+`LegacySecureClear` takes over with a `Volatile.Write` per byte and a closing memory barrier
+(`SecureClearCore`, switched by `#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER`).
+
+**This claim holds in full only for the `SecureBigInteger` backend.** Choosing `BigInteger` does
+not buy it: `BigIntCalculator.ByteRepresentation` (`BigIntCalculator.cs:318`) calls
+`Value.ToByteArray()` and only then copies the result into a pinned buffer. That intermediate
+array is an ordinary, movable managed allocation holding secret-derived content which nothing
+pins and nothing wipes — as is the internal magnitude buffer of `System.Numerics.BigInteger`
+itself. This is not an oversight but the consequence of offering a BCL value type as a backend;
+the backend table in `README.md` accordingly lists `BigInteger` with *Pinned memory: no*. For
+secrets whose threat model includes passive memory disclosure, `BigInteger` is the wrong
+choice. The wipe routine carries
 `[MethodImpl(NoInlining | NoOptimization)]` so the JIT cannot optimise it away — the same pattern
 the BCL uses for `FixedTimeEquals`.
 
@@ -670,9 +696,17 @@ the internal `SecureRandom` facade behind the `IRandomSource` interface (default
 home-grown PRNG. The interface is **deliberately `internal`** — a publicly injectable RNG source
 in a secret-sharing library would be a footgun design; tests reach it via `InternalsVisibleTo`.
 
-Two places draw randomness: the polynomial coefficients `a₁…a_{k−1}` (with rejection sampling
-against modulo bias) and the mark byte at the end of every secret, which prevents negative values
-under the two's-complement interpretation.
+Three places draw randomness:
+
+1. The **polynomial coefficients** `a₁…a_{k−1}` (`SecretSplitter<TNumber>.CreatePolynomial`, line 387), with rejection
+   sampling against modulo bias and a redraw should the leading coefficient come out zero.
+2. The **mark byte** at the end of every secret (`Secret<TNumber>` constructor, line 193), which prevents negative
+   values under the two's-complement interpretation.
+3. The **secret itself**, where the library generates it (`Secret<TNumber>.CreateRandom`, line 1131): the
+   `MakeShares(k, n, securityLevel, out generatedSecret)` overload fills a full `prime.ByteCount`
+   bytes through `CreateRandom` before the constructor independently draws the mark byte. This is
+   the most security-critical of the three — it is where the secret comes into being, not merely
+   where it is masked.
 
 ### 8.4 Error handling
 
@@ -842,8 +876,8 @@ Quality of SecretSharingDotNet
 
 | # | Scenario | Measure / evidence |
 |---|---|---|
-| **Q1** | An attacker obtains a heap dump or the process swap file after a `Secret` has been disposed. | Within the **library-owned** buffer the secret bytes are no longer findable: it was overwritten three times and zeroed with `CryptographicOperations.ZeroMemory` **before** it went back to the `ArrayPool`. Evidence: `PinnedPoolArrayTest`, dispose ordering in `PinnedPoolArray.DisposeCore`. The guarantee stops at the ownership boundary: a caller-retained `byte[]` the `Secret` was constructed from is a foreign allocation and is never overwritten — the constructor copies. In DEBUG builds `ToString()` additionally materialises a plaintext `string` on the GC heap that no `Dispose` can reach (Release redacts). |
-| **Q2** | The GC performs a compacting collection during a split operation. | No secret byte is copied and no plaintext is left at the old address, because every buffer is immobile via `GCHandle.Alloc(Pinned)`. |
+| **Q1** | An attacker obtains a heap dump or the process swap file after a `Secret` has been disposed. | Within the **library-owned** buffer the secret bytes are no longer findable: it was overwritten three times and zeroed **before** it went back to the `ArrayPool` — through `CryptographicOperations.ZeroMemory` on net8+/netstandard2.1, through `LegacySecureClear` on the four legacy targets. Evidence: `PinnedPoolArrayTest`, dispose ordering in `PinnedPoolArray.DisposeCore`. The guarantee stops at the ownership boundary: a caller-retained `byte[]` the `Secret` was constructed from is a foreign allocation and is never overwritten — the constructor copies. In DEBUG builds `ToString()` additionally materialises a plaintext `string` on the GC heap that no `Dispose` can reach (Release redacts). |
+| **Q2** | The GC performs a compacting collection during a split operation. | With the `SecureBigInteger` backend no secret byte is copied and no plaintext is left at the old address, because every buffer involved is immobile via `GCHandle.Alloc(Pinned)`. With the `BigInteger` backend this does **not** hold: its internal magnitude and the intermediate array from `Value.ToByteArray()` are movable (see chapter 8.1). |
 | **Q3** | An auditor asks for proof that no weak random source is involved. | There is exactly one random source: `RandomNumberGenerator` behind `SecureRandom`/`IRandomSource`. A `grep` for `System.Random` in `src/` returns zero hits. |
 | **Q4** | A passive observer times `SecureBigInteger.Equals` for two secrets with a long common prefix against two that differ in the first byte. | No measurable difference: pre-padding to `max(l, r)` plus an XOR-OR fold without short-circuiting, uniform across all six TFMs. |
 | **Q5** | The same observer times `SecureBigInteger.Multiply` with small versus 512-bit operands. | The timing harness **must** report a difference here (`HarnessSelfTest`, Welch's t at p < 0.001). If this negative control fails, the harness is measuring nothing real and is invalid as a tool. |
@@ -896,8 +930,10 @@ PR #327. What remains is maintenance load, misuse risk, and documented trade-off
 | **R17** | **No `MIGRATION.md`, no public v1.0 roadmap.** The API-freeze criteria exist only as an internal note. | Low | Consumers cannot judge the maturity level. | Add `MIGRATION.md` and a public roadmap. | repository contains no `MIGRATION.md` |
 | **R18** | **Broad `InternalsVisibleTo` coupling.** The test suite reaches every `internal` type; refactoring resistance grows. | Low | Internal restructuring breaks tests even when the public API is unchanged. | Minimise the test surface where public-API tests suffice; document the remaining `internal` needs. | `src/Properties/AssemblyInfo.cs:25` |
 | **R19** | **Single maintainer (bus factor 1).** | Medium (organizational) | A break stops security fixes and release capability. | This documentation is one contribution: it makes the architecture and the open items accessible without person-bound knowledge. | Chapter 2 (this document) |
+| **R20** | **The share-count cap is validated too late.** `MakeShares` checks only `k ≥ 2` and `k ≤ n`; `MaxAllowedNumberOfShares` is checked by `CreateShares` — after `CreatePolynomial`. | Low | A call with `k = n = 2_000_000` allocates and rejection-samples two million coefficients before `n` is rejected. Only reachable where the caller controls the share count. | Move the check ahead of `CreatePolynomial`; purely additive, no API change. | `SecretSplitter<TNumber>`: `CreatePolynomial` at line 341, the cap checked only in `CreateShares` at line 458 |
+| **R21** | **The release workflow does not check branch ancestry.** `publishing.yml` triggers on `on.push.tags` with no branch filter, and no job verifies ancestry from `main`. | Low | An accidental `v*` tag on a feature or `develop` commit publishes to nuget.org as long as the version metadata agrees with the tag. The push is irreversible — nuget.org has no delete, only unlisting. | Add a `git merge-base --is-ancestor` step against `main` ahead of decrypting the signing key; on failure the run aborts before the key exists in plaintext. | `.github/workflows/publishing.yml`, `on.push.tags` (line 3 `on:`, tag pattern on line 17; no `branches:` key) |
 
-The numbering R1–R19 stays stable across updates. The identifier **R12 is unassigned**: it
+The numbering R1–R21 stays stable across updates. The identifier **R12 is unassigned**: it
 described the maintenance state of a local, unversioned working file and was therefore not a risk
 of the repository.
 
