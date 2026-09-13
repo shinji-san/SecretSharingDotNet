@@ -28,6 +28,11 @@
     - 2026-09-13 — third review follow-up on PR #399: the legacy-TFM wipe path
       (`LegacySecureClear`) added at all four places that claimed otherwise, and `main` ancestry in
       the release path marked as a convention rather than a gate.
+    - 2026-09-13 — sixth review follow-up on PR #399: `MersenneModulo` removed from the
+      protected column (its result also runs through the trimming constructor), the refuted claim
+      that the sign branch is inert inside the library corrected — the modular inverse operates on
+      signed Bézout coefficients (risk R26) —, the six `Extension` edges added to the component
+      diagram, and the exception-text rule narrowed to explicitly supplied messages.
     - 2026-09-13 — self-audit of `SecureBigInteger` (every method the document claims as
       protected, checked against the code): `ByteCount`, `SecureBigInteger.CompareTo` and
       `ToByteArray` added as value-dependent (risk R25), and the `GetHashCode` and
@@ -246,6 +251,11 @@ C4Component
   Rel(mathNs, shamir, "DOCUMENTATION ONLY: using for see-cref, no code", "doc-only")
   Rel(numerics, secureMemory, "Stores limbs pinned")
   Rel(secureMemory, extension, "Uses DisposeAll in PinnedPoolArrayList", "cycle")
+  Rel(shamir, extension, "DisposeAll in splitter and reconstructor")
+  Rel(crypto, extension, "DisposeAll and structural helpers in Secret and Shares")
+  Rel(secureInput, extension, "Pinned-buffer helpers in SecureCharBufferExtensions")
+  Rel(mathNs, extension, "Structural comparisons in ExtendedGcdResult")
+  Rel(numerics, extension, "Helper methods in BigIntCalculator")
   Rel(extension, secureMemory, "Extends PinnedPoolArray with Subset and FixedTimeEquals", "cycle")
   UpdateLayoutConfig($c4ShapeInRow="3")
 ```
@@ -693,10 +703,11 @@ section of `README.md` and in the XML comments on `MersenneSafeGcdAlgorithm` and
 | Protected | Not protected |
 |---|---|
 | Core arithmetic of `SecureBigInteger` (`Add`, `Subtract`, `Multiply`, `Square`, `Divide`, `Remainder`) — fixed limb count `max(l, r)`, branchless carry/borrow formulas. The guarantee covers the **per-limb loop**: its iteration count follows from `max(l, r)`, not from the digit values. It does **not** extend to the result normalisation that follows (own row below). | `Pow(int)` — variable on the *exponent* (which is treated as public) |
-| `MersenneModulo` — branchless folding with a mask-driven final subtract; iteration count `(srcLimbCount·64)/p + 2` from the public exponent **and** the limb count, which is value-dependent per R24. The source comment calls the count “public” — true only for public operands. | Hex and Base64 decoders (`Share.GetHexValue`, `Secret.DecodeBase64Char`) — branchy range switches, classified as boundary parsers |
+| The folding and the final subtract inside `MersenneModulo` — branchless, mask-driven, no operand-content branch | Hex and Base64 decoders (`Share.GetHexValue`, `Secret.DecodeBase64Char`) — branchy range switches, classified as boundary parsers |
+| The trim loop and the folding are bounded by the limb count | **`MersenneModulo` as a whole is not constant-time.** Its iteration count `(srcLimbCount·64)/p + 2` rests on the trimmed limb count, and its result is built through the same trimming constructor as the six core operations (R24). The source comment calls the count “public”, which holds only for public operands. |
 | `Equals` on `SecureBigInteger` and `Secret` — pre-padding to equal length, XOR-OR fold, uniform across all six TFMs | `Secret.CompareTo` and the `<`, `>`, `<=`, `>=` operators — short-circuit at the first differing byte and leak the common prefix length |
 | `GetHashCode` — **never hashes content**, only the sign and the limb count resp. payload length. Note that the trimmed limb count is itself value-dependent per R24, so the hash separates size classes (at security level 127: below or above 2⁶⁴). Far weaker than a content hash, but not “public” in the strict sense. | The outer iteration count of the modular inverse depends on the *selected security level*, which the share sizes reveal anyway |
-| The magnitude routines `AddUnsigned`, `SubtractUnsigned` and `CompareUnsigned` themselves — fixed limb count, branchless formulas | `Add` and `Subtract` branch on the operands' **sign**: equal signs run `AddUnsigned`, mixed signs run `CompareUnsigned` plus `SubtractUnsigned` — structurally different work. Inside the library this is inert, because the mark byte keeps every secret positive and `MersenneModulo` reduces into `[0, M_p)`; anyone using `SecureBigInteger` directly on signed secret values needs to know. (`Multiply`, `Square`, `Divide` and `Remainder` are **not** affected: their zero checks are the divide-by-zero contract on the divisor, or an O(1) sign normalisation after the computation.) |
+| The magnitude routines `AddUnsigned`, `SubtractUnsigned` and `CompareUnsigned` themselves — fixed limb count, branchless formulas | `Add` and `Subtract` branch on the operands' **sign**: equal signs run `AddUnsigned`, mixed signs run `CompareUnsigned` plus `SubtractUnsigned` — structurally different work. For the Shamir values themselves (secret, coefficients, share y-values) the branch is not taken, because the mark byte keeps them positive and `MersenneModulo` reduces into `[0, M_p)`. **Inside the modular inverse it is taken:** `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` computes `newUG = uG - uF` on the Bézout coefficients, which from `uG = 0`, `uF = 1` yields `−1` already on the first divstep iteration. The mixed-sign path therefore runs on every reconstruction using the safegcd, on secret-derived values (risk R26). (`Multiply`, `Square`, `Divide` and `Remainder` are **not** affected: their zero checks are the divide-by-zero contract on the divisor, or an O(1) sign normalisation after the computation.) |
 | Equality (`Equals`) is the only constant-time comparison path | **`ByteCount`, `CompareTo` and `ToByteArray` are value-dependent.** `ByteCount` returns early on a zero high limb and otherwise calls `BytesInLimb`, which counts significant bytes by shifting — one to eight iterations depending on the value. That is finer than R24's limb granularity and sits on the secret path: `AdjustSecurityLevel` evaluates `maximumY.ByteCount` on a share value, and `Secret<TNumber>` uses it on the secret and on polynomial coefficients (risk R25). `SecureBigInteger.CompareTo` returns early when the signs differ, before the fixed-count `CompareUnsigned` runs. `ToByteArray` and `IsExactByteBoundaryPowerOfTwo` carry several value-dependent early returns. |
 | The trim loop is bounded by the limb count — two limbs at security level 127, so at most two `ulong` comparisons | **Result normalisation is value-dependent.** Every unsigned helper returns through `new SecureBigInteger(limbs, count, isNegative)`, whose constructor calls `TrimLeadingZerosInPlace`, and that scan stops at the first non-zero limb. Its iteration count therefore depends on the number of leading zero limbs in the result — even when the operands had equal limb counts. The trimmed length is stored and sizes the **next** operation, which makes the limb count of an intermediate value secret-derived rather than public. Affects all six core operations (risk R24). |
 | The outer iteration count of `MersenneSafeGcdAlgorithm` — fixed at the public Mersenne exponent | Per-iteration time of the same algorithm is **not** uniform (differing allocation counts per divstep branch) |
@@ -741,8 +752,12 @@ the caller (negative index, fewer than two shares, invalid security level). Thos
 `ArgumentException` family. A `SecurityLevelException` was considered and rejected — its candidate
 sites are genuine argument guards.
 
-All exception texts come from `Resources/ErrorMessages.resx`; a hard-coded message inside `src/`
-counts as a rule violation.
+Every **explicitly supplied** exception text comes from `Resources/ErrorMessages.resx`; a
+hard-coded message inside `src/` counts as a rule violation. The rule does not reach the places
+that deliberately pass no message at all, leaving the text to the framework:
+`Calculator<TNumber>.CompareTo` throws a parameterless `ArgumentException` for an unsupported
+object type (`Calculator`1.cs:443`), and `SharesEnumerator.Current` a parameterless
+`InvalidOperationException` (`SharesEnumerator.cs:115`). Neither text is localized.
 
 ### 8.5 Localization
 
@@ -952,8 +967,9 @@ PR #327. What remains is maintenance load, misuse risk, and documented trade-off
 | **R23** | **`SecurityLevelManager` is thread-safe for the swap, not for reads.** The `MersennePrime` getter runs without the lock; the setter disposes the old prime outside it. | Low | A concurrent reader holding the reference across a level change reaches a disposed `Calculator`. Only reachable where a manager is shared between use cases. | The interface XDoc already documents the invalidation; chapter 8.9 now advises against sharing. Hardening would pull the getter under the same lock and settle ownership of the handed-out reference. | `SecurityLevelManager.MersennePrime` (getter without `lock`) against `oldPrime?.Dispose()` after the lock |
 | **R24** | **Result normalisation is not constant-time.** `TrimLeadingZerosInPlace` stops at the first non-zero limb, and the trimmed length sizes the next operation. | Low | The runtime of every core operation depends on the magnitude of its result, and the limb count of intermediate values is secret-derived rather than public. Small in absolute terms (at most one `ulong` comparison per limb) but structurally present in all six operations. | Solvable only with a fixed-width representation that never trims — a change to `SecureBigInteger`'s representation with consequences for memory use and `Equals`. Named openly for now rather than promised. | `SecureBigInteger.GetActualLength` (downward scan with early return), called from the limb constructor |
 | **R25** | **`ByteCount` is value-dependent and sits on the secret path.** An early return on a zero high limb, otherwise `BytesInLimb` — a loop over the significant bytes of the top limb. | Low | Its runtime reveals the value's byte length, finer than R24's limb granularity. Evaluated on share values (`AdjustSecurityLevel`), on the secret itself, and on polynomial coefficients. | A constant-time variant would iterate all eight byte positions and mask-select rather than break — locally feasible, but `ByteCount` is called often. | `SecureBigInteger.ByteCount` and `BytesInLimb` (line 442) |
+| **R26** | **The `Add`/`Subtract` sign path is exercised inside the modular inverse.** `ApplyExtendedDivstep` operates on the signed Bézout coefficients; `newUG = uG - uF` is negative from the first iteration on. | Low | Timing separates equal-sign from mixed-sign operands on secret-derived values, on every reconstruction using the safegcd. It adds to the per-divstep non-uniformity already documented. | Split the signed coefficients into a magnitude plus a separate sign bit and drive the arithmetic by mask — the same direction as the parked branchless divstep variant. | `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` (lines 497-511) |
 
-The numbering R1–R25 stays stable across updates. The identifier **R12 is unassigned**: it
+The numbering R1–R26 stays stable across updates. The identifier **R12 is unassigned**: it
 described the maintenance state of a local, unversioned working file and was therefore not a risk
 of the repository.
 
