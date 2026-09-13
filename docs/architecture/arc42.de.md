@@ -90,6 +90,15 @@
       oder `MersenneSafeGcdAlgorithm` direkt mit vorzeichenbehafteten Operanden aufrufen. Zudem
       präzisiert, wann der Koeffizient erstmals negativ wird: bei der ersten Branch-1-Iteration,
       die ungerades `g` voraussetzt, nicht zwingend beim ersten Divstep.
+    - 2026-09-13 — dreizehnter Review-Nachlauf zu PR #399, vier Aussagen, die mehr versprachen als
+      Code oder Tests hergeben. Q6 getrennt in die gewünschte Eigenschaft und das, was die
+      Implementierung heute liefert, mit dem Refit-Fehler als Issue #403 benannt und als Risiko R27
+      erfasst; Q4 meldet nicht mehr „kein messbarer Unterschied", weil laut 8.11 kein positiver
+      Timing-Test existiert — stattdessen steht dort jetzt die strukturelle Begründung. Die
+      Redaction-Entscheidung und 8.6 auf `ToString()` eingegrenzt: Die öffentlichen impliziten
+      Konvertierungen von `Secret` und `Shares` geben ebenfalls echten Inhalt heraus. Und die
+      Share-Obergrenze heißt nicht mehr Vorab-Prüfung — sie sitzt in `CreateShares`, nachdem
+      `CreatePolynomial` alle `k` Koeffizienten alloziert und befüllt hat.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -124,7 +133,7 @@ Konsumenten (Quelle: `README.md`, `src/SecretSharingDotNet.csproj`).
 |---|---|---|
 | 1 | **Vertraulichkeit des Geheimnisses im Prozessspeicher** | Der gesamte Nutzen der Bibliothek entfällt, wenn das Geheimnis aus Heap-Snapshots, Swap-Dateien oder wiederverwendeten Pool-Puffern rekonstruierbar bleibt. Umgesetzt über GC-gepinnte, dreifach überschriebene Puffer (`PinnedPoolArray<T>`) und eine durchgehende `IDisposable`-Disziplin. |
 | 2 | **Funktionale Korrektheit des Schemas** | Ein falsch rekonstruiertes Geheimnis ist unbemerkt fatal: plain Shamir hat keine Integritätsprüfung (`README.md`, Threat Model). Abgesichert über 816 Testmethoden, property-basierte Round-Trip-Tests (CsCheck) und zwei parallele Testhierarchien für beide numerischen Backends. |
-| 3 | **Resistenz gegen passive Timing-Analyse (best effort)** | Zweites, bewusst nachrangiges Sicherheitsziel: Das `SecureBigInteger`-Backend liefert konstantzeitige Kernarithmetik und einen Fixed-Iteration-Modularinversen. Der Anspruch ist explizit *best effort in managed .NET*, nicht auditierte Härtung (`README.md`, Abschnitt *Security & Threat Model*). |
+| 3 | **Resistenz gegen passive Timing-Analyse (best effort)** | Zweites, bewusst nachrangiges Sicherheitsziel: Das `SecureBigInteger`-Backend liefert Kernarithmetik, deren Limb-Schleifen konstantzeitig über die Limb-Anzahl laufen, plus einen Fixed-Iteration-Modularinversen. Die Zusage endet bei diesen Schleifen — Ergebnisnormalisierung, `ByteCount`, Ordnung und die übrigen Flächen aus 8.2 sind wertabhängig. Der Anspruch ist explizit *best effort in managed .NET*, nicht auditierte Härtung (`README.md`, Abschnitt *Security & Threat Model*). |
 | 4 | **Portabilität über acht Ziel-Frameworks** | Die Bibliothek soll in Legacy-.NET-Framework-Anwendungen ebenso einsetzbar sein wie in .NET 10. Kosten: umfangreiche `#if`-Konditionalisierung (siehe Risiko R1). |
 | 5 | **Stabilität der öffentlichen API** | Nach dem v1.0-GA sollen Consumer nicht bei jedem internen Refactoring brechen. Umgesetzt über bewusste `internal`-Grenzen und SemVer-Disziplin im `CHANGELOG.md`. |
 
@@ -226,11 +235,11 @@ Schlüsselverwaltung.
 | # | Grundsatzentscheidung | Begründung und Wirkung |
 |---|---|---|
 | 1 | **Endliche Körper über Mersenne-Primzahlen** statt beliebiger Primzahlen | `MersennePrimeProvider` hält 43 bekannte Mersenne-Exponenten (13 bis 43.112.609). `M_p = 2^p − 1` erlaubt die Reduktion als Falten-und-Addieren (`MersenneModulo`) statt einer Division und macht die `2^{-n}`-Korrektur des safegcd-Inversen überhaupt erst möglich. Prägt Kapitel 5.4 und 6. |
-| 2 | **Strategie-Muster für den numerischen Backend-Typ** (`Calculator<TNumber>`) | Entkoppelt den Shamir-Algorithmus vollständig vom Zahlentyp. Zwei Implementierungen: `BigIntCalculator` (BCL-`BigInteger`, schnell, variable Laufzeit) und `SecureBigIntCalculator` über das eigene `SecureBigInteger` (gepinnt, konstantzeitige Kernarithmetik). Der Consumer wählt über den Typparameter. |
+| 2 | **Strategie-Muster für den numerischen Backend-Typ** (`Calculator<TNumber>`) | Entkoppelt den Shamir-Algorithmus vollständig vom Zahlentyp. Zwei Implementierungen: `BigIntCalculator` (BCL-`BigInteger`, schnell, variable Laufzeit) und `SecureBigIntCalculator` über das eigene `SecureBigInteger` (gepinnt, Limb-Schleifen konstantzeitig über die Limb-Anzahl — was außerhalb liegt, steht in 8.2). Der Consumer wählt über den Typparameter. |
 | 3 | **Gepinnter, sicher gelöschter Speicher als Default-Träger jedes Geheimnisses** | `PinnedPoolArray<T>` ist die einzige Ablage für Secret-Bytes, Share-Zeichen, Konsoleneingaben und `SecureBigInteger`-Limbs. Erzwingt die `IDisposable`-Disziplin quer durch die gesamte API (Qualitätsziel 1). |
 | 4 | **Zwei Rekonstruktor-Varianten statt eines Schalters** | `SecretReconstructor<TNumber>` nimmt jede GCD-Strategie (auch die variabelzeitige `ExtendedEuclideanAlgorithm`). `FixedIterationSecretReconstructor<TNumber>` akzeptiert nur `IFixedIterationExtendedGcdAlgorithm<TNumber>` — die gefährliche Paarung „SecureBigInteger + Euklid“ ist damit ein **Compile-Fehler**, keine stille Schwäche. |
 | 5 | **Use-Case-Interfaces als öffentliche Einstiegspunkte** | `IMakeSharesUseCase<TNumber>` und `IReconstructionUseCase<TNumber>` erben `IDisposable` und sind DI-fähig. Komposition statt Vererbung ist die vorgesehene Erweiterungsrichtung, aber nur teilweise durchgesetzt: `SecretSplitter<TNumber>` und `FixedIterationSecretReconstructor<TNumber>` sind `sealed`, `SecretReconstructor<TNumber>`, dessen 3-generische Basis und `SecurityLevelManager<TNumber>` dagegen nicht — `FixedIterationSecretReconstructor` erbt selbst von `SecretReconstructor<TNumber>`. Vererbung ist an diesen Stellen also möglich und wird intern genutzt. |
-| 6 | **Redaction by default** | `ToString()` auf `Secret`, `Share` und `Shares` liefert im Release-Build die Sentinel-Zeichenkette `"*** Secured Value ***"`; nur die expliziten `ToCharArray()`-Pfade geben echten Inhalt heraus. Verhindert Leaks über Logs, Exception-Texte und Debugger-Anzeigen. |
+| 6 | **Redaction by default** | `ToString()` auf `Secret`, `Share` und `Shares` liefert im Release-Build die Sentinel-Zeichenkette `"*** Secured Value ***"`. Verhindert Leaks über Logs, Exception-Texte und Debugger-Anzeigen. **Die Zusage gilt nur für `ToString()`.** Echter Inhalt verlässt den Typ außerdem über die expliziten `ToCharArray()`- / `ToBase64CharArray()`-Pfade *und* über öffentliche implizite Konvertierungen, denen man das nicht ansieht: `Secret<TNumber>` nach `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` und, ab net8, `ReadOnlySpan<byte>`; `Shares<TNumber>` nach `PinnedPoolArray<char>`, was hinter dem Operator `ToCharArray()` aufruft. |
 | 7 | **UTF-8 als Textkodierung** (seit v0.14.0, Breaking Change) | Plattformneutraler Standard; das frühere UTF-16 war ein .NET-Artefakt. Überladungen mit explizitem `Encoding` existieren, die Kodierung wird aber **nicht** im Share persistiert (siehe Risiko R11). |
 | 8 | **Geschlossene Backend-Registry statt Reflexion** | `Calculator.Create<TNumber>()` löst über ein explizites `IReadOnlyDictionary<Type, BackendRegistration>` auf. Trimming- und NativeAOT-tauglich, frei von statischer Initialisierungsreihenfolge (ADR-Kandidat 1 in Kapitel 9). |
 
@@ -542,9 +551,13 @@ Zwei nicht offensichtliche Details:
   `Calculator`-Backends — die Bytes als vorzeichenbehaftetes Zweierkomplement in Little-Endian
   lesen — unabhängig von der Host-Endianness dieselbe Zahl sehen.
 - `numberOfShares` muss **kleiner als die Mersenne-Primzahl** sein, sonst kollidieren
-  Share-Indizes modulo `M_p` und die Lagrange-Division würde durch null teilen. Der Splitter
-  prüft das vorab und wirft eine `ArgumentOutOfRangeException`, die das tatsächlich falsche
-  Argument benennt.
+  Share-Indizes modulo `M_p` und die Lagrange-Division würde durch null teilen. Der Splitter wirft
+  eine `ArgumentOutOfRangeException`, die das tatsächlich falsche Argument benennt — die Prüfung
+  sitzt aber in `CreateShares` und läuft damit *nach* `CreatePolynomial`, das bereits alle `k`
+  Koeffizienten alloziert und zufällig befüllt hat (`SecretSplitter<TNumber>`, Zeilen 341 und 344;
+  die Prüfung selbst in 474). Die Ablehnung kommt also spät, nicht vorab, und die vergebliche
+  Allokation ist dasselbe Resource-Exhaustion-Verhalten, das für die Share-Obergrenze dokumentiert
+  ist.
 
 ### 6.2 Geheimnis rekonstruieren (`Reconstruction`)
 
@@ -585,6 +598,12 @@ sequenceDiagram
 Die Rekonstruktion wertet das Lagrange-Interpolationspolynom an `x = 0` aus; das Ergebnis ist
 genau der konstante Term `a₀` — das Geheimnis. Alle Zwischenwerte sind `Calculator`-Instanzen
 und werden auf jedem Pfad (auch dem Fehlerpfad) über `try/finally` entsorgt.
+
+Der Schritt `AdjustSecurityLevel(maximumY)` am Anfang dieses Ablaufs ist die Stelle, an der der
+Korrektheitsfehler aus Risiko R27 und Issue #403 sitzt. Er wählt den Körper anhand des größten
+Share-Werts, weil die Shares keinen Vermerk über den Modulus tragen, mit dem sie erzeugt wurden —
+und trifft diese Schätzung eine kleinere Primzahl als der Split verwendet hat, läuft die
+Interpolation darunter im falschen Körper. Still, wenn der konstante Term dort einen Rest hat.
 
 ### 6.3 Kritischer Fehlerfall: manipuliertes Share
 
@@ -878,9 +897,17 @@ erfolgt **von Hand**; ein Build-Check existiert nicht (Risiko R10).
 
 `ToString()` auf `Secret`, `Share` und `Shares` ist build-modus-abhängig: Im DEBUG-Build liefert
 es den echten Inhalt (für Debugger und `[DebuggerDisplay]`), im Release-Build die Zeichenkette
-`"*** Secured Value ***"`. Wer Inhalt braucht, muss den expliziten Pfad
+`"*** Secured Value ***"`. Wer Inhalt braucht, kann den expliziten Pfad
 `ToCharArray()` / `ToBase64CharArray()` wählen — der gibt in beiden Build-Modi echten Inhalt
 zurück, dafür in gepinntem Speicher, den der Aufrufer entsorgt.
+
+Redaction ist eine Eigenschaft von `ToString()`, nicht der Typen. Öffentliche **implizite
+Konvertierungen** liefern in beiden Build-Modi echten Inhalt, und zwar ohne jeden syntaktischen
+Aufwand für den Aufrufer: `Secret<TNumber>` nach `TNumber` (Zeile 599), `Calculator<TNumber>`
+(614), `PinnedPoolArray<byte>` (686) und, ab net8, `ReadOnlySpan<byte>` (692); `Shares<TNumber>`
+nach `PinnedPoolArray<char>` (`Shares.cs:122`), was über `ToCharArray()` läuft. Eine Zuweisung
+oder eine Überladungsauflösung genügt, um eine davon auszulösen — „nur die expliziten Pfade geben
+Inhalt heraus" wäre also falsch: Die expliziten Pfade sind die, die man *sieht*.
 
 ### 8.7 Serialisierungsformat
 
@@ -889,7 +916,9 @@ Shares werden zeilenweise aneinandergereiht. Das Format enthält **keine** Metad
 Sicherheitsstufe noch Schwellwert `k`, noch die Textkodierung des ursprünglichen Geheimnisses.
 Die Sicherheitsstufe wird bei der Rekonstruktion aus dem größten y-Wert zurückgerechnet; `k`
 ergibt sich implizit daraus, wie viele Shares der Aufrufer beibringt; die Kodierung ist
-Aufrufer-Verantwortung (Risiko R11).
+Aufrufer-Verantwortung (Risiko R11). Dass die Stufe zurückgerechnet und nicht mitgeführt wird,
+spart nicht nur Platz — es ist die unmittelbare Ursache des Korrektheitsfehlers in Risiko R27 und
+Issue #403, und der Fix erweitert genau dieses Format um den Exponenten.
 
 ### 8.8 Mehrfachziel-Kompilierung
 
@@ -1024,9 +1053,9 @@ Qualität von SecretSharingDotNet
 | **Q1** | Ein Angreifer erlangt nach dem `Dispose` eines `Secret` einen Heap-Dump des Prozesses. | Im **bibliothekseigenen** Puffer sind die Secret-Bytes nicht mehr auffindbar: Er wurde dreifach überschrieben und genullt, **bevor** er an den `ArrayPool` zurückging — über `CryptographicOperations.ZeroMemory` auf net8+/netstandard2.1, über `LegacySecureClear` auf den vier Alt-Zielen. Nachweis: `PinnedPoolArrayTest`, Dispose-Reihenfolge in `PinnedPoolArray.DisposeCore`. Die Garantie endet an der Besitzgrenze: Ein vom Aufrufer behaltenes `byte[]`, aus dem das `Secret` konstruiert wurde, ist eine fremde Allokation und wird nie überschrieben — der Konstruktor kopiert. In DEBUG-Builds erzeugt `ToString()` zusätzlich einen Klartext-`string` auf dem GC-Heap, den kein `Dispose` erreicht (Release redigiert). **Die Swap-Datei ist ausdrücklich nicht abgedeckt** (Risiko R22). |
 | **Q2** | Der GC führt während einer Split-Operation eine kompaktierende Sammlung durch. | Mit dem `SecureBigInteger`-Backend wird kein Secret-Byte kopiert und bleibt kein Klartext an der alten Adresse zurück, weil jeder beteiligte Puffer über `GCHandle.Alloc(Pinned)` unbeweglich ist. Mit dem `BigInteger`-Backend gilt das **nicht**: Dessen interne Magnitude und das Zwischenarray aus `Value.ToByteArray()` sind verschiebbar (siehe Kapitel 8.1). |
 | **Q3** | Ein Prüfer verlangt den Nachweis, dass keine schwache Zufallsquelle im Spiel ist. | Es gibt genau eine Zufallsquelle: `RandomNumberGenerator` hinter `SecureRandom`/`IRandomSource`. Ein `grep` nach `System.Random` in `src/` liefert null Treffer. |
-| **Q4** | Ein passiver Beobachter misst die Laufzeit von `SecureBigInteger.Equals` für zwei Geheimnisse mit langem gemeinsamem Präfix gegen zwei mit sofort abweichendem Byte. | Kein messbarer Unterschied: Vorab-Auffüllen auf `max(l, r)` plus XOR-OR-Fold ohne Kurzschluss, einheitlich über alle sechs TFMs. |
+| **Q4** | Ein passiver Beobachter misst die Laufzeit von `SecureBigInteger.Equals` für zwei Geheimnisse mit langem gemeinsamem Präfix gegen zwei mit sofort abweichendem Byte. | **Nicht gemessen** — die Suite enthält keinen positiven Timing-Test (8.11), also darf hier kein empirisches Ergebnis stehen. Strukturell begründet: `Equals` füllt vorab auf `max(l, r)` auf und faltet die volle Länge per XOR-OR ohne Kurzschluss, einheitlich über alle sechs TFMs — es gibt also keinen eingabeabhängigen Ausstieg, den ein Beobachter finden könnte. |
 | **Q5** | Derselbe Beobachter misst `SecureBigInteger.Multiply` mit kleinen gegen 512-Bit-Operanden. | Der Timing-Harness **muss** hier einen Unterschied melden (`HarnessSelfTest`, Welch-t bei p < 0,001). Schlägt diese Negativkontrolle fehl, misst der Harness nichts Reales und ist als Werkzeug ungültig. |
-| **Q6** | Ein Geheimnis wird mit beliebigem `2 ≤ k ≤ n` aufgeteilt; anschließend wird eine **beliebige** k-elementige Teilmenge der n Shares zur Rekonstruktion verwendet. | Das rekonstruierte Geheimnis ist bitgleich zum Original — das garantiert die Lagrange-Interpolation für *jede* qualifizierende Teilmenge. Die Tests belegen davon einen Ausschnitt: Die property-basierten CsCheck-Tests (250 Iterationen für `BigInteger`, 50 für `SecureBigInteger`, über beide Backends gespiegelt) ziehen die Teilmenge als zyklisches Fenster über die indexsortierten Shares, also `n` der `C(n, k)` möglichen Kombinationen. |
+| **Q6** | Ein Geheimnis wird mit beliebigem `2 ≤ k ≤ n` aufgeteilt; anschließend wird eine **beliebige** k-elementige Teilmenge der n Shares zur Rekonstruktion verwendet. | **Gewünscht:** Das rekonstruierte Geheimnis ist bitgleich zum Original; das leistet die Lagrange-Interpolation für *jede* qualifizierende Teilmenge. **Heute geliefert: nicht immer.** `Reconstruction` passt das Sicherheitslevel an den größten Share-Wert an, und wenn der konstante Term die neu gewählte Primzahl erreicht, läuft die Interpolation in einem kleineren Körper — mit dem Ergebnis, dass entweder kein dekodierbares Geheimnis herauskommt (Exception) oder ein anderes Geheimnis ohne jede Exception. Beide Ausgänge sind mit `Reconstruction_WhenConstantTermReachesTheRefittedPrime_LosesTheSecret` in beiden Backend-Testhierarchien deterministisch festgenagelt. Erfasst als **Issue #403** und als Risiko R27. Nicht die Teilmengen-Eigenschaft versagt, sondern die Körperwahl. Die Tests belegen von der gewünschten Eigenschaft einen Ausschnitt: Die property-basierten CsCheck-Tests (250 Iterationen für `BigInteger`, 50 für `SecureBigInteger`, über beide Backends gespiegelt) ziehen die Teilmenge als zyklisches Fenster über die indexsortierten Shares, also `n` der `C(n, k)` möglichen Kombinationen. |
 | **Q7** | Zwei Shares mit identischem Index werden zur Rekonstruktion gereicht. | `ReconstructionException` statt einer generischen `ArgumentException`. Sie fällt beim ersten Duplikat, das die Prüfung findet — aber nicht vor der übrigen Arbeit: `Reconstruction` materialisiert erst die Sammlung, sucht über alle Shares das `maximumY` und ruft `AdjustSecurityLevel`, der Manager ist also bereits mutiert, wenn `LagrangeInterpolate` die Distinktheitsprüfung beginnt. |
 | **Q8** | Ein Verhalten wird in der `BigInteger`-Testhierarchie geändert, in der `SecureBigInteger`-Hierarchie aber nicht. | Die Abweichung fällt **im Review** auf, weil die gespiegelte Datei der naheliegende Ort zum Nachsehen ist — nicht durch einen fehlschlagenden Test. Die beiden Suiten sind unabhängig, und die Spiegelung wird nirgends erzwungen (siehe den offenen Punkt in 8.11). Rot wird ein Test nur, wenn die zugrunde liegende Produktivänderung auch das andere Backend bricht. |
 | **Q9** | Ein Commit erreicht `develop` **und passt auf die Pfadfilter von `dotnetall.yml`** (also alles außer reinen Markdown-Änderungen; `README.md` ist wieder eingeschlossen, weil sie Pack-Eingabe ist). | Build und Tests laufen über **alle** sechs Test-TFMs grün: `net8.0`/`net9.0`/`net10.0` auf `ubuntu-24.04`, `net472`/`net48`/`net481` auf `windows-2025`. Ein roter TFM blockiert den Merge. Für ausgeschlossene Änderungen — etwa diese Architekturdateien — läuft **keine** Testmatrix; dort trägt das Szenario nichts bei. |
@@ -1084,6 +1113,7 @@ Einträge sind Wartungslast, Fehlbedienungsrisiken und dokumentierte Trade-offs.
 | **R24** | **Ergebnisnormalisierung ist nicht konstantzeitig.** `TrimLeadingZerosInPlace` bricht beim ersten Nicht-Null-Limb ab; die getrimmte Länge dimensioniert die Folgeoperation. | Niedrig | Die Laufzeit jeder Kernoperation hängt an der Größe des Ergebnisses, und die Limb-Anzahl von Zwischenwerten ist geheimnisabgeleitet statt öffentlich. Absolut klein (höchstens ein `ulong`-Vergleich je Limb), strukturell aber in allen sechs Operationen vorhanden. | Nur mit fester Ergebnisbreite lösbar, die nie trimmt — ein Eingriff in die Darstellung von `SecureBigInteger` samt Folgen für Speicherbedarf und `Equals`. Vorerst offen benannt statt zugesagt. | `SecureBigInteger.GetActualLength` (Abwärts-Scan mit Early Return), aufgerufen aus dem Limb-Ctor |
 | **R25** | **`ByteCount` ist wertabhängig und liegt auf dem Geheimnispfad.** Early Return bei Null-High-Limb, sonst `BytesInLimb` — eine Schleife über die signifikanten Bytes des obersten Limbs. | Niedrig | Die Laufzeit verrät die Byte-Länge des Werts, feiner als die Limb-Granularität aus R24. Ausgewertet über Share-Werte (`AdjustSecurityLevel`), das Geheimnis selbst und Polynomkoeffizienten. | Eine konstantzeitige Variante müsste über alle acht Byte-Positionen laufen und per Maske auswählen statt abzubrechen — lokal machbar, aber `ByteCount` wird häufig aufgerufen. | `SecureBigInteger.ByteCount` und `BytesInLimb` (Zeile 442) |
 | **R26** | **Vorzeichenzweige laufen auf den Zwischenwerten des Modularinversen — aber nicht auf dem Geheimnis.** `ApplyExtendedDivstep` rechnet auf den vorzeichenbehafteten Bézout-Koeffizienten (`newUG = uG - uF` wird bei der ersten Branch-1-Iteration negativ: beim ersten Divstep, wenn der normalisierte Nenner ungerade ist, sonst später, weil der Zweig für gerades `g` das `uG` unverändert durchreicht); `MersenneModulo` und `IsOne` tragen eigene Vorzeichenzweige; der von `MersenneModulo` wird in `Compute` selbst erreicht, das pro Aufruf zwei vorzeichenbehaftete Zwischenwerte reduziert (`beta * inv2n` und `alpha * inv2n`) und den Negativpfad für den jeweils negativen nimmt, nicht von `DivMod` aus. Innerhalb dieser Bibliothek sieht keiner davon geheime Daten: Die einzige Aufrufstelle von `Compute` übergibt den normalisierten *Nenner* und die Primzahl, und beide `DivMod`-Aufrufstellen bilden diesen Nenner aus Differenzen der öffentlichen Share-Indizes — die Share-Werte gehen in den *Zähler*, der `Compute` nie erreicht. | Niedrig | Bei festem Level ist die Divstep-Historie eine Funktion der öffentlichen Indizes; die Rekonstruktion verrät hier also nichts über die bereits dokumentierte Level-Auswahl hinaus (der Exponent wird aus den Share-Werten bestimmt und damit von den Share-Größen verraten). Betroffen sind Anwender, die `SecureBigInteger` oder `MersenneSafeGcdAlgorithm` direkt mit vorzeichenbehafteten geheimen Operanden aufrufen: Die Laufzeit unterscheidet gleich- von gemischtvorzeichigen Operanden, und `MersenneModulo`s Negativpfad kostet drei zusätzliche Limb-Schleifen, ein `SubtractInPlace` und eine weitere Allokation. | Vorzeichenbehaftete Koeffizienten in Betrag plus separates Vorzeichenbit zerlegen und maskengesteuert rechnen — dieselbe Richtung wie die geparkte verzweigungsfreie Divstep-Variante. | `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` (Zeilen 497–511); `SecureBigInteger.MersenneModulo` (Negativzweig) und `IsOne`; `SecretReconstructor.LagrangeInterpolate` (Zeilen 254, 262) und `DivMod` (Zeile 380) |
+| **R27** | **Die Level-Anpassung kann das falsche Geheimnis liefern (Issue #403).** `Reconstruction` bestimmt den Körper über `AdjustSecurityLevel` aus dem größten y-Wert der Shares und läuft dabei zur kleinsten Mersenne-Primzahl hinunter, die noch darüber liegt. Ein Share trägt keinen Vermerk über den Modulus, mit dem es erzeugt wurde — fallen also alle Share-Werte zufällig unter eine kleinere Primzahl, läuft die Interpolation in diesem kleineren Körper. Solange der konstante Term darunter bleibt, ist die Reduktion wirkungslos; erreicht er sie, ist das Ergebnis `a₀ mod P_small`. | **Hoch** (Korrektheit, nicht Vertraulichkeit) | Zwei Ausgänge, und der zweite ist der gefährliche: Der interpolierte Koeffizient dekodiert zu keinem Geheimnis und es fliegt eine Exception — oder er dekodiert zu einem **anderen** Geheimnis, und es passiert gar nichts. Die Shares sind dabei durchweg einzeln gültig und unmanipuliert, keine Integritätsprüfung würde anschlagen. Zufallsläufe finden das nicht: Der Grenzfall verlangt den konstanten Term auf oder über der neu gewählten Primzahl, was zufällige Geheimnisse praktisch nie erzeugen — ein Lauf über 180.000 Splits fand keinen einzigen. | Das Sicherheitslevel am Share mitführen und bei der Rekonstruktion verwenden statt zu raten, mit einer Überladung für explizite Level als Ausweg für Alt-Shares. Stufenplan und offene API-Entscheidungen in Issue #403. | `SecurityLevelManager.AdjustSecurityLevel`; `SecretReconstructor.Reconstruction`; `Reconstruction_WhenConstantTermReachesTheRefittedPrime_LosesTheSecret` in beiden Backend-Testhierarchien |
 
 Die Nummerierung R1–R26 bleibt über Aktualisierungen hinweg stabil. Die Kennung **R12 ist nicht
 vergeben**: Sie beschrieb den Pflegestand einer lokalen, nicht versionierten Arbeitsdatei und war
