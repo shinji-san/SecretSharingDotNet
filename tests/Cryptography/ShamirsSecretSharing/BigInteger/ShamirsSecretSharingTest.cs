@@ -520,10 +520,18 @@ public class ShamirsSecretSharingTest
     /// and throws.
     /// </para>
     /// <para>
-    /// The silent variant needs a coefficient strictly between the refitted prime and twice it,
-    /// which a one-byte secret cannot reach: seed 16 encodes <c>0xFF 0xFF</c> as 786431, and at
+    /// The silent variant shown here has its coefficient between the refitted prime and twice it:
+    /// seed 16 encodes <c>0xFF 0xFF</c> as 786431, and at
     /// level 31 splitter seed 3544 yields 504116 and 221801, both below <c>M19</c>. Reconstruction
     /// refits to 19 and returns 786431 mod 524287 = 262144 — a different secret, with no exception.
+    /// </para>
+    /// <para>
+    /// An earlier version of this text added that a one-byte secret cannot reach the silent
+    /// variant. That was wrong, and so was the condition it rested on: the trigger is not the
+    /// constant term reaching the refitted prime, it is a share value having wrapped modulo the
+    /// <em>original</em> prime. See
+    /// <c>Reconstruction_WhenAShareValueWrappedInTheOriginalField_LosesTheSecret</c>, where a
+    /// one-byte secret with <c>a₀ = 511</c> is lost at a refit to <c>M13 = 8191</c>.
     /// </para>
     /// <para>
     /// <b>These assertions pin current behaviour, not desired behaviour.</b> When the refit is
@@ -557,4 +565,45 @@ public class ShamirsSecretSharingTest
         Assert.Equal(19, reconstructor.SecurityLevel);
         Assert.NotEqual(secretAbovePrime, reconstructed);
     }
+
+    /// <summary>
+    /// The second way the downward refit loses the secret, and the one that refutes the condition
+    /// the fact above was first written around. The trigger is not the constant term reaching the
+    /// refitted prime — it is a share value having wrapped modulo the <em>original</em> prime. Such
+    /// a point no longer lies on the polynomial in the smaller field, so interpolating it returns
+    /// an unrelated residue even when the constant term fits both fields with room to spare.
+    /// <para>
+    /// Seed 35 encodes the one-byte secret <c>0xFF</c> with mark byte <c>0x01</c>, giving
+    /// <c>a₀ = 511</c>. Splitter seed 270 at level 17 draws <c>a₁ = 2822</c>, so
+    /// <c>f(280) = 511 + 280·2822 = 790671</c> wraps six times modulo <c>M17 = 131071</c> down to
+    /// 4245. The shares at index 1 and 280 carry 3333 and 4245, both below <c>M13 = 8191</c>, so
+    /// reconstruction refits to level 13 and interpolates 1304 — payload byte <c>0x18</c> instead
+    /// of <c>0xFF</c>, and no exception, although <c>511 &lt; 8191</c> throughout.
+    /// </para>
+    /// <para>
+    /// <b>These assertions pin current behaviour, not desired behaviour.</b> When the refit is
+    /// fixed, this vector must round-trip and the test has to be inverted.
+    /// </para>
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WhenAShareValueWrappedInTheOriginalField_LosesTheSecret()
+    {
+        // Arrange — a0 = 511, far below the prime the refit lands on.
+        using var secret = new Secret<BigInteger>(new byte[] { 0xFF }, 1, new DeterministicRandomSource(35));
+        using var secretSplitter = new SecretSplitter<BigInteger>(new DeterministicRandomSource(270));
+        secretSplitter.SecurityLevel = 17;
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+
+        // Act — reconstruct from the two shares whose values both fall below M13.
+        using var shares = secretSplitter.MakeShares(2, 280, secret);
+        var sharesByIndex = shares.ToArray();
+        var subSet = new[] { sharesByIndex[0], sharesByIndex[279] };
+        using var reconstructed = secretReconstructor.Reconstruction(subSet);
+
+        // Assert — the level refitted downward and the secret did not survive it.
+        Assert.Equal(13, secretReconstructor.SecurityLevel);
+        Assert.NotEqual(secret, reconstructed);
+    }
+
 }
