@@ -110,6 +110,14 @@
       result is still correct, which is why the defect hides. And the publishing diagram placed
       both the tag-syntax gate and the version match before `test-windows`; the syntax check lives
       in `test-windows` and the version match in `build`.
+    - 2026-09-13 — sixteenth review follow-up on PR #399: 8.7 said `k` follows implicitly from how
+      many shares the caller supplies. It does not — `Reconstruction` checks only the lower bound
+      of two, so a sub-threshold set interpolates a wrong secret without complaint, with the field
+      unchanged and independent of R27. The chapter now states that `k` is neither in the format
+      nor derivable, and that the library cannot detect a shortfall. Flow 6.3 presented the silent
+      wrong secret as *the* consequence of tampering; a worked example shows another tampering
+      raising `ArgumentException` through a zero coefficient, so neither outcome substitutes for an
+      integrity check.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -627,6 +635,14 @@ sequenceDiagram
     Note over App,Rec: No exception, no warning, no signal
 ```
 
+The flow above is *one* outcome of tampering, not the only one. Tampering that drives the
+interpolated coefficient to zero raises an exception instead: over `M17`, the clean points
+`(1, 10000)` and `(2, 19489)` reconstruct `a₀ = 511`; changing the second value to `20000`
+yields `a₀ = 0`, which `Secret.FromCoefficient` hands to the `Secret` constructor as a payload
+length of zero — an `ArgumentException`. Neither result is a verdict on authenticity: a
+successful return can be wrong, and a failure says nothing about which share was altered or
+whether one was altered at all.
+
 Plain Shamir carries no per-share integrity check. The library implements neither verifiable
 secret sharing (Feldman, Pedersen) nor per-share MACs. Consumers whose threat model includes
 share manipulation must layer their own integrity scheme on top — signed shares, HMAC-keyed
@@ -908,8 +924,15 @@ reader can *see*.
 A share serialises as `INDEX-VALUE`, both parts hexadecimal, separated by `-`. Multiple shares are
 concatenated line by line. The format carries **no** metadata: no security level, no threshold `k`,
 no text encoding of the original secret. The security level is recomputed from the largest y value
-during reconstruction; `k` follows implicitly from how many shares the caller supplies; the
-encoding is the caller's responsibility (risk R11). Recomputing the level rather than carrying it
+during reconstruction; the encoding is the caller's responsibility (risk R11).
+
+**The original threshold `k` is not in the format, and it cannot be derived from the number of
+shares supplied.** `Reconstruction` checks only the general lower bound of two
+(`SecretReconstructor`, lines 299 and 170), so two shares of a 3-of-5 split pass without
+complaint and interpolate a wrong secret. Callers must keep `k` themselves and ensure at least
+`k` distinct shares of the *same* split are present; the library cannot detect a shortfall
+against the original threshold. This is independent of the field-selection defect in R27 — it
+happens with the field unchanged. Recomputing the level rather than carrying it
 is not merely a size saving — it is the direct cause of the correctness defect in risk R27 and
 issue #403, and the fix extends this format to carry the exponent.
 

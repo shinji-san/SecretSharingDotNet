@@ -118,6 +118,15 @@
       Überläufe auf, stimmt es weiterhin — deshalb versteckt sich der Fehler so gut. Und im
       Publishing-Diagramm lagen Tag-Syntaxprüfung und Versionsabgleich beide vor `test-windows`;
       die Syntaxprüfung sitzt in `test-windows`, der Abgleich in `build`.
+    - 2026-09-13 — sechzehnter Review-Nachlauf zu PR #399: 8.7 behauptete, `k` ergebe sich implizit
+      aus der Anzahl übergebener Shares. Tut es nicht — `Reconstruction` prüft nur die Untergrenze
+      von zwei, eine Menge unterhalb des Schwellwerts interpoliert also anstandslos ein falsches
+      Geheimnis, bei unverändertem Körper und unabhängig von R27. Das Kapitel sagt jetzt, dass `k`
+      weder im Format steht noch ableitbar ist und die Bibliothek eine Unterschreitung nicht
+      erkennen kann. Ablauf 6.3 stellte das stille falsche Geheimnis als *die* Folge einer
+      Manipulation dar; ein durchgerechnetes Beispiel zeigt eine andere Manipulation, die über
+      einen Null-Koeffizienten eine `ArgumentException` auslöst — keiner der beiden Ausgänge
+      ersetzt eine Integritätsprüfung.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -644,6 +653,14 @@ sequenceDiagram
     Note over App,Rec: Keine Exception, keine Warnung, kein Signal
 ```
 
+Der Ablauf oben ist *ein* Ausgang einer Manipulation, nicht der einzige. Manipulationen, die den
+interpolierten Koeffizienten auf null treiben, lösen stattdessen eine Exception aus: Über `M17`
+rekonstruieren die sauberen Punkte `(1, 10000)` und `(2, 19489)` den Wert `a₀ = 511`; ändert man
+den zweiten Wert auf `20000`, ergibt sich `a₀ = 0`, was `Secret.FromCoefficient` als Nutzdatenlänge
+null an den `Secret`-Konstruktor weiterreicht — eine `ArgumentException`. Keines der beiden
+Ergebnisse ist ein Urteil über Echtheit: Eine erfolgreiche Rückgabe kann falsch sein, und ein
+Fehlschlag sagt nichts darüber, welches Share verändert wurde — oder ob überhaupt eines.
+
 Plain Shamir trägt keine Integritätsprüfung pro Share. Die Bibliothek implementiert weder
 Verifiable Secret Sharing (Feldman, Pedersen) noch Per-Share-MACs. Consumer, deren
 Bedrohungsmodell Share-Manipulation einschließt, müssen ein eigenes Integritätsverfahren
@@ -936,8 +953,15 @@ Ein Share serialisiert als `INDEX-VALUE`, beide Teile hexadezimal, Trennzeichen 
 Shares werden zeilenweise aneinandergereiht. Das Format enthält **keine** Metadaten: weder
 Sicherheitsstufe noch Schwellwert `k`, noch die Textkodierung des ursprünglichen Geheimnisses.
 Die Sicherheitsstufe wird bei der Rekonstruktion aus dem größten y-Wert zurückgerechnet; `k`
-ergibt sich implizit daraus, wie viele Shares der Aufrufer beibringt; die Kodierung ist
-Aufrufer-Verantwortung (Risiko R11). Dass die Stufe zurückgerechnet und nicht mitgeführt wird,
+die Kodierung ist Aufrufer-Verantwortung (Risiko R11).
+
+**Der ursprüngliche Schwellwert `k` steht nicht im Format und lässt sich nicht aus der Anzahl
+übergebener Shares ableiten.** `Reconstruction` prüft nur die allgemeine Untergrenze von zwei
+(`SecretReconstructor`, Zeilen 299 und 170) — zwei Shares eines 3-aus-5-Splits laufen also
+anstandslos durch und interpolieren ein falsches Geheimnis. Aufrufer müssen `k` selbst vorhalten
+und sicherstellen, dass mindestens `k` unterschiedliche Shares *derselben* Aufteilung vorliegen;
+die Bibliothek kann eine Unterschreitung des ursprünglichen Schwellwerts nicht erkennen. Das ist
+unabhängig vom Körperwahl-Fehler aus R27 — es passiert auch bei unverändertem Körper. Dass die Stufe zurückgerechnet und nicht mitgeführt wird,
 spart nicht nur Platz — es ist die unmittelbare Ursache des Korrektheitsfehlers in Risiko R27 und
 Issue #403, und der Fix erweitert genau dieses Format um den Exponenten.
 
