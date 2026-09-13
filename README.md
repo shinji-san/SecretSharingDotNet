@@ -1029,23 +1029,31 @@ for hardened native crypto stacks.
   themselves — the mark byte keeps secrets, coefficients and share values positive and
   `MersenneModulo` reduces into `[0, M_p)` — so `Subtract` on them always takes the
   equal-sign compare path above, ordering branch included. The mixed-sign path **is**
-  taken inside the modular inverse:
-  `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` operates on the signed Bézout
-  coefficients, and `newUG = uG - uF` is negative from the first divstep iteration on,
-  so reconstruction with the safegcd exercises the mixed-sign path on secret-derived
-  values. `MersenneModulo` carries its own sign branch, whose negative path runs three
+  taken inside the modular inverse. `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep`
+  operates on the signed Bézout coefficients: `newUG = uG - uF` turns negative at the
+  first branch-1 iteration, which is the first divstep when the normalised denominator is
+  odd and a later one when it is even, since the even-`g` branch carries `uG` through
+  unchanged. `MersenneModulo` carries its own sign branch, whose negative path runs three
   additional limb loops, a `SubtractInPlace` and one more pinned allocation that the
   positive path skips entirely. `MersenneSafeGcdAlgorithm.Compute` reduces two signed
   intermediates per call — `beta * inv2n` and `alpha * inv2n`, both sign-corrected Bézout
-  coefficients — and the negative path runs for whichever of them is negative. That it
-  runs *conditionally* is the point: a path taken every time would reveal nothing, and
-  the sign it depends on follows from the secret-driven divstep history.
-  It is **not** reached from `SecretReconstructor.DivMod`: `Compute` returns the
-  coefficient already reduced into `[0, M_p)`, so the reduction that follows there sees a
+  coefficients — and the negative path runs for whichever of them is negative. It is
+  **not** reached from `SecretReconstructor.DivMod`: `Compute` returns the coefficient
+  already reduced into `[0, M_p)`, so the reduction that follows there sees a
   non-negative value. `IsOne` likewise returns early on a negative sign, ahead of its
-  fold. Callers using `SecureBigInteger`
-  directly on signed secret values must treat the sign as public, or normalise to
-  magnitudes before the operation.
+  fold.
+
+  **What this does and does not say about reconstruction.** These branches are real, but
+  inside this library they do not run on the secret. `Compute` has exactly one call site,
+  `SecretReconstructor.DivMod`, which passes the normalised *denominator* and the field
+  prime. Both `DivMod` call sites in `LagrangeInterpolate` build that denominator purely
+  from differences of share indices, `x_i - x_j`; the secret share values enter the
+  *numerator*, which never reaches `Compute`. At a fixed security level the divstep
+  history, and therefore every sign it produces, is a function of the public share
+  indices. What remains share-dependent is the level selection itself, already documented
+  above as revealed by the share sizes. The warning binds callers who use
+  `SecureBigInteger` or `MersenneSafeGcdAlgorithm` directly on signed secret operands:
+  they must treat the sign as public, or normalise to magnitudes before the operation.
 
 **`SecureBigInteger` does *not* protect against:**
 
