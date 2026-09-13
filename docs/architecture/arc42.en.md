@@ -60,6 +60,10 @@
       naming what the reading rests on), verified value-dependent (with the observable and its
       cost), and explicitly not classified. The pairing had demanded a claim on the opposite side
       for every gap, which is where the overstatements came from.
+    - 2026-09-13 — eighth review follow-up on PR #399/#401: loop bounds broken out per
+      operation instead of lumped together — `AddUnsigned` runs `max(l, r) + 1`,
+      `MultiplyUnsigned` nests `leftCount × rightCount`, `DivideUnsigned` runs
+      `dividendLimbCount × 64`; `Square` and `Remainder` inherit those shapes.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -727,8 +731,10 @@ the digit values at a given size — not an absolute one.
 
 | Surface | What the classification rests on |
 |---|---|
-| `AddUnsigned`, `SubtractUnsigned`, `MultiplyUnsigned` | Loops bounded by `max(l, r)` resp. `leftCount × rightCount`; no `break`, `continue` or `return` in the body; branchless carry/borrow formulas |
-| `DivideUnsigned` | Fixed bit loop of `dividendLimbCount × 64`; trial subtract with a borrow mask and a mask-driven undo through `SubtractInPlace` / `AddMaskedInPlace` |
+| `SubtractUnsigned` | Loop bounded by `max(l, r)`; no `break`, `continue` or `return` in the body; branchless borrow propagation |
+| `AddUnsigned` | Loop bounded by `max(l, r) + 1` — one limb more than `SubtractUnsigned`, for the carry; otherwise the same shape |
+| `MultiplyUnsigned`, and `Square` through it | Nested loops of `leftCount × rightCount`, both counts fixed before the loops; no early exit |
+| `DivideUnsigned`, and `Remainder` through it | Fixed outer bit loop of `dividendLimbCount × 64`, inner work over the remainder and divisor limb counts; trial subtract with a borrow mask and a mask-driven undo through `SubtractInPlace` / `AddMaskedInPlace` |
 | `CompareUnsigned` | Fold over `max(l, r)` with mask-select instead of short-circuit; uses `<` / `>` on `ulong` rather than the `(r − l) >> 63` bit-fold, which is wrong when bit 63 is set |
 | `Equals`, `FixedTimeLimbsEqual` | Pre-padding to `max(l, r)`, XOR-OR fold with no early exit, sign combined via `&` rather than `&&` |
 | `IsZeroInternal` | OR-fold across all limbs, no early exit |
