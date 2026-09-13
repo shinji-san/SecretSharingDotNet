@@ -1024,10 +1024,12 @@ for hardened native crypto stacks.
   and `comparison >= 0` selects which operand becomes the minuend. Both selections call
   the same `SubtractUnsigned` over the same limb count, so magnitude ordering steers the
   branch without changing the amount of work; treat the ordering of two secret operands
-  as observable rather than assuming the positive-value invariant removes the branch. Within this library the
-  branch is not taken on the Shamir values themselves — the mark byte keeps secrets,
-  coefficients and share values positive and `MersenneModulo` reduces into `[0, M_p)`.
-  It **is** taken inside the modular inverse:
+  as observable rather than assuming the positive-value invariant removes the branch.
+  Within this library the *mixed-sign* path is not reached on the Shamir values
+  themselves — the mark byte keeps secrets, coefficients and share values positive and
+  `MersenneModulo` reduces into `[0, M_p)` — so `Subtract` on them always takes the
+  equal-sign compare path above, ordering branch included. The mixed-sign path **is**
+  taken inside the modular inverse:
   `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` operates on the signed Bézout
   coefficients, and `newUG = uG - uF` is negative from the first divstep iteration on,
   so reconstruction with the safegcd exercises the mixed-sign path on secret-derived
