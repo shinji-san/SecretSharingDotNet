@@ -971,7 +971,7 @@ for hardened native crypto stacks.
   operand method by accident.
 - **Timing leaks in modular inversion** (when the consumer opts in).
   `MersenneSafeGcdAlgorithm<TNumber>` implements the Bernstein–Yang "safegcd" / divstep
-  recurrence and provides a constant-time modular inverse for use inside
+  recurrence and provides a **fixed-iteration** modular inverse for use inside
   `SecretReconstructor.DivMod`. The **outer iteration count** is fixed at the public
   Mersenne exponent, independent of operand values; that is the only timing guarantee
   the algorithm gives out of the box. **Per-iteration wall-clock time is not uniform**
@@ -980,8 +980,11 @@ for hardened native crypto stacks.
   branches (six arithmetic results plus one `Clone`) against six for the even-`g`
   branch (three arithmetic results plus three `Clone`s) — and funnel `g` (or
   `g − f`) through `SecureBigInteger.Divide`, whose bit-loop count tracks the limb
-  count of the shrinking intermediate working values. The branch selector itself reads
-  the LSB of secret `g` plus the public sign of `delta`. See the class XDoc for the
+  count of the shrinking intermediate working values. The branch selector reads the
+  parity of `g` and the sign of `delta`, both derived from the denominator handed to
+  `Compute`; in reconstruction that denominator is built from the public share indices,
+  so at a fixed field the branch sequence is public. It is secret-dependent only for a
+  caller passing a secret operand to `Compute` directly. See the class XDoc for the
   full breakdown. Strict branchless mask-select (all three branches run; result
   chosen via constant-time mask) is future work to lift this from
   "outer-iteration-count constant-time" to "per-iteration uniform". The exponent is
