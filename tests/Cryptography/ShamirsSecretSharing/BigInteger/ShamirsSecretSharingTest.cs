@@ -443,39 +443,58 @@ public class ShamirsSecretSharingTest
     }
 
     /// <summary>
-    /// Tier-2 sweep for the same concern: across a range of security levels and share
-    /// configurations, a split followed by a reconstruction always restores the original secret —
-    /// whether or not the level is refitted downward on the way back. Tier-1 above pins the refit
-    /// path deterministically; this theory covers breadth, so a regression that only shows up at a
-    /// level or share shape not enumerated above still turns the suite red.
+    /// Tier-2 breadth for the same concern: across a range of requested security levels and share
+    /// configurations, a split followed by a reconstruction restores the original secret. Tier-1
+    /// above pins the refit path deterministically; this theory covers shapes the six pinned
+    /// vectors do not enumerate.
+    /// <para>
+    /// <b>Every input is pinned, deliberately.</b> The message stream, the secret's mark byte and
+    /// the polynomial coefficients all derive from <paramref name="requestedSecurityLevel"/>
+    /// through <c>DeterministicRandomSource</c>. The round trip does <b>not</b> hold for every
+    /// input today — see <c>Reconstruction_WhenConstantTermReachesTheRefittedPrime_LosesTheSecret</c>
+    /// — so a loop drawing its mark byte and coefficients from <c>CryptoRandomSource</c> would
+    /// assert a property that is false in general and go red at random. These vectors are a fixed,
+    /// reproducible sample; the assertion is about them, not about all inputs.
+    /// </para>
+    /// <para>
+    /// <paramref name="requestedSecurityLevel"/> is a floor, not the level used. <c>MakeShares</c>
+    /// raises the level to the next Mersenne exponent that fits the secret including its mark byte
+    /// and never lowers it, so a one-byte message already lifts a requested 13 to 17.
+    /// <paramref name="expectedEffectiveLevels"/> records the levels the sweep genuinely exercises,
+    /// so the coverage claim is checked rather than assumed.
+    /// </para>
     /// Mirror of the SecureBigInteger-side theory of the same name.
     /// </summary>
-    /// <param name="securityLevel">Mersenne exponent the secrets are split with.</param>
+    /// <param name="requestedSecurityLevel">Mersenne exponent requested before splitting; a lower bound on the level actually used.</param>
     /// <param name="k">Reconstruction threshold.</param>
     /// <param name="n">Number of shares created.</param>
+    /// <param name="expectedEffectiveLevels">Ascending, comma-separated set of the levels the sweep actually splits with.</param>
     [Theory]
-    [InlineData(13, 2, 2)]
-    [InlineData(17, 2, 2)]
-    [InlineData(19, 2, 3)]
-    [InlineData(31, 3, 5)]
-    public void ReconstructionRoundTrip_AcrossSecurityLevels_AlwaysRestoresOriginal(int securityLevel, int k, int n)
+    [InlineData(13, 2, 2, "17,31,61")]
+    [InlineData(17, 2, 2, "17,31,61")]
+    [InlineData(19, 2, 3, "19,31,61")]
+    [InlineData(31, 3, 5, "31,61")]
+    public void ReconstructionRoundTrip_AcrossPinnedVectorsAndSecurityLevels_RestoresOriginal(
+        int requestedSecurityLevel, int k, int n, string expectedEffectiveLevels)
     {
         // Arrange
         const int total = 1000;
         int ok = 0;
-        var rng = new Random(securityLevel);
+        var effectiveLevels = new int[total];
+        var vectorSource = new Random(requestedSecurityLevel);
         using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act
         for (int i = 0; i < total; i++)
         {
-            var message = new byte[rng.Next(1, 5)];
-            rng.NextBytes(message);
-            using var secret = new Secret<BigInteger>(message);
-            using var secretSplitter = new SecretSplitter<BigInteger>();
-            secretSplitter.SecurityLevel = securityLevel;
+            var message = new byte[vectorSource.Next(1, 5)];
+            vectorSource.NextBytes(message);
+            using var secret = new Secret<BigInteger>(message, message.Length, new DeterministicRandomSource(vectorSource.Next()));
+            using var secretSplitter = new SecretSplitter<BigInteger>(new DeterministicRandomSource(vectorSource.Next()));
+            secretSplitter.SecurityLevel = requestedSecurityLevel;
             using var shares = secretSplitter.MakeShares(k, n, secret);
             using var reconstructedSecret = secretReconstructor.Reconstruction(shares);
+            effectiveLevels[i] = secretSplitter.SecurityLevel;
             if (secret.Equals(reconstructedSecret))
             {
                 ok++;
@@ -484,6 +503,7 @@ public class ShamirsSecretSharingTest
 
         // Assert
         Assert.Equal(total, ok);
+        Assert.Equal(expectedEffectiveLevels, string.Join(",", effectiveLevels.Distinct().OrderBy(level => level)));
     }
 
     /// <summary>
