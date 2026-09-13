@@ -67,6 +67,11 @@
     - 2026-09-13 — ninth review follow-up on PR #399/#401: the sign leak re-attributed —
       `Compute` reduces the Bézout coefficient itself, so the branch is reached there rather than
       from `DivMod`; the trim cost stated against the result width rather than the operand width.
+    - 2026-09-13 — tenth review follow-up on PR #399: six localization edges added to the
+      component diagram and `Resources` marked as a resource block rather than a namespace
+      (`ErrorMessages` lives in the root namespace); Q7 rewritten to the actual ordering; Q8
+      changed to review detection, consistent with 8.11; test totals corrected to 816
+      (637 `[Fact]` + 179 `[Theory]`).
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -99,7 +104,7 @@ package and runs in-process inside the consumer's application (source: `README.m
 | Priority | Quality goal | Motivation |
 |---|---|---|
 | 1 | **Confidentiality of the secret in process memory** | The library's whole value collapses if the secret stays recoverable from heap snapshots, swap files, or reused pool buffers. Realised via GC-pinned, triple-overwritten buffers (`PinnedPoolArray<T>`) and a pervasive `IDisposable` discipline. |
-| 2 | **Functional correctness of the scheme** | A wrongly reconstructed secret is silently fatal: plain Shamir carries no integrity check (`README.md`, threat model). Backed by 817 test methods, property-based round-trip tests (CsCheck), and two parallel test hierarchies — one per numeric backend. |
+| 2 | **Functional correctness of the scheme** | A wrongly reconstructed secret is silently fatal: plain Shamir carries no integrity check (`README.md`, threat model). Backed by 816 test methods, property-based round-trip tests (CsCheck), and two parallel test hierarchies — one per numeric backend. |
 | 3 | **Resistance to passive timing analysis (best effort)** | A deliberate second-rank security goal: the `SecureBigInteger` backend provides constant-time core arithmetic and a fixed-iteration modular inverse. The claim is explicitly *best effort in managed .NET*, not audited hardening (`README.md`, *Security & Threat Model* section). |
 | 4 | **Portability across eight target frameworks** | The library should be usable in legacy .NET Framework applications as well as on .NET 10. Cost: extensive `#if` conditionalisation (see risk R1). |
 | 5 | **Public API stability** | After the v1.0 GA, consumers should not break on every internal refactoring. Realised through deliberate `internal` boundaries and SemVer discipline in `CHANGELOG.md`. |
@@ -222,7 +227,7 @@ C4Container
   Person(appDev, "Application developer", "Programs against the library API")
   System_Boundary(sln, "SecretSharingDotNet.slnx") {
     Container(lib, "SecretSharingDotNet", "C# class library, 8 TFMs, strong-named", "The shipped library: Shamir algorithm, numeric backends, pinned memory")
-    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "817 test methods across 6 TFMs, including the timing harness and stress traits")
+    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "816 test methods across 6 TFMs, including the timing harness and stress traits")
     Container(demo, "SecretSharingDotNet.Demo.Console", ".NET 10 console app, Microsoft.Extensions.DependencyInjection", "Runnable end-to-end example with DI composition and console input")
   }
   System_Ext(nuget, "nuget.org", "Distribution channel")
@@ -258,7 +263,7 @@ C4Component
     Component(numerics, "Math.Numerics", "Numeric backends", "BigIntCalculator, SecureBigIntCalculator, SecureBigInteger")
     Component(secureMemory, "SecureMemory", "Memory primitives", "PinnedPoolArray, PinnedPoolArrayList, CountedEqualityComparer")
     Component(extension, "Extension", "internal helpers", "DisposeAll, Subset, FixedTimeEquals, structural comparisons")
-    Component(resources, "Resources", "Localization", "ErrorMessages.resx in en and de-DE")
+    Component(resources, "Resources (not a namespace)", "Localization", "ErrorMessages.resx in en and de-DE; the generated ErrorMessages type lives in the root namespace SecretSharingDotNet")
   }
 
   Rel(shamir, crypto, "Creates and consumes Secret and Share")
@@ -272,6 +277,12 @@ C4Component
   Rel(mathNs, shamir, "DOCUMENTATION ONLY: using for see-cref, no code", "doc-only")
   Rel(numerics, secureMemory, "Stores limbs pinned")
   Rel(secureMemory, extension, "Uses DisposeAll in PinnedPoolArrayList", "cycle")
+  Rel(shamir, resources, "Exception texts")
+  Rel(crypto, resources, "Exception texts")
+  Rel(secureInput, resources, "Exception texts")
+  Rel(mathNs, resources, "Exception texts")
+  Rel(numerics, resources, "Exception texts")
+  Rel(secureMemory, resources, "Exception texts")
   Rel(shamir, extension, "DisposeAll in splitter and reconstructor")
   Rel(crypto, extension, "DisposeAll and structural helpers in Secret and Shares")
   Rel(secureInput, extension, "Pinned-buffer helpers in SecureCharBufferExtensions")
@@ -884,7 +895,7 @@ code state `d920257` across the 56 versioned test files:
   `// Act & Assert` marker stands in.
 - **Every allocation binds with `using`** — including operator results (`+`, `-`, `*`, `/`, `%`),
   `Calculator<T>.Zero/One/Two`, inline expected values, and loop intermediates; 1,209 `using var`
-  declarations across 817 test methods. A forgotten `using` keeps a pinned buffer alive until
+  declarations across 816 test methods. A forgotten `using` keeps a pinned buffer alive until
   AppDomain shutdown.
 - **Two mirrored test hierarchies**, one for `BigInteger` and one for `SecureBigInteger` — visible
   in the sibling directories `tests/Cryptography/{BigInteger,SecureBigInteger}/`,
@@ -974,10 +985,10 @@ Quality of SecretSharingDotNet
 | **Q4** | A passive observer times `SecureBigInteger.Equals` for two secrets with a long common prefix against two that differ in the first byte. | No measurable difference: pre-padding to `max(l, r)` plus an XOR-OR fold without short-circuiting, uniform across all six TFMs. |
 | **Q5** | The same observer times `SecureBigInteger.Multiply` with small versus 512-bit operands. | The timing harness **must** report a difference here (`HarnessSelfTest`, Welch's t at p < 0.001). If this negative control fails, the harness is measuring nothing real and is invalid as a tool. |
 | **Q6** | A secret is split with an arbitrary `2 ≤ k ≤ n`; then an **arbitrary** k-element subset of the n shares is used for reconstruction. | The reconstructed secret is bit-identical to the original — Lagrange interpolation guarantees that for *every* qualifying subset. The tests evidence a slice of it: the property-based CsCheck tests (250 iterations for `BigInteger`, 50 for `SecureBigInteger`, mirrored across both backends) draw the subset as a cyclic window over the index-sorted shares, that is `n` of the `C(n, k)` possible combinations. |
-| **Q7** | Two shares with an identical index are handed to reconstruction. | `ReconstructionException` on the first duplicate — not after full enumeration, and not as a generic `ArgumentException`. |
-| **Q8** | A behaviour is changed in the `BigInteger` test hierarchy but not in the `SecureBigInteger` one. | The mirrored test turns red. The mirroring is the brake against drift between the backends. |
+| **Q7** | Two shares with an identical index are handed to reconstruction. | `ReconstructionException` rather than a generic `ArgumentException`. It is raised on the first duplicate the check encounters, but not before the rest of the work: `Reconstruction` materialises the collection, scans every share for `maximumY` and calls `AdjustSecurityLevel` first, so the manager has already been mutated by the time `LagrangeInterpolate` starts the distinctness check. |
+| **Q8** | A behaviour is changed in the `BigInteger` test hierarchy but not in the `SecureBigInteger` one. | The divergence is caught **in review**, by the mirrored file being the obvious place to look — not by a failing test. The two suites are independent, and nothing enforces the mirroring (see the open item in 8.11). A red test follows only where the underlying production change also breaks the other backend. |
 | **Q9** | A commit reaches `develop` **and matches the path filters of `dotnetall.yml`** (that is, anything but pure Markdown changes; `README.md` is re-included because it is pack input). | Build and tests pass on **all** six test TFMs: `net8.0`/`net9.0`/`net10.0` on `ubuntu-24.04`, `net472`/`net48`/`net481` on `windows-2025`. A red TFM blocks the merge. For excluded changes — these architecture files among them — **no** test matrix runs at all, and the scenario contributes nothing there. |
-| **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 817 test methods (638 `[Fact]`, 179 `[Theory]`) across 44 test classes. |
+| **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 816 test methods (637 `[Fact]`, 179 `[Theory]`) across 44 test classes. |
 | **Q11** | A release is built twice from the same tag. | Identical artefacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (8.0.423 / 9.0.316 / 10.0.302). |
 | **Q12** | A consumer accidentally combines the `SecureBigInteger` backend with the variable-time `ExtendedEuclideanAlgorithm`. | If they use `FixedIterationSecretReconstructor<TNumber>`: a **compile error** (the constructor takes only `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Through the base type `SecretReconstructor<TNumber>` the combination stays possible — that is a documented opt-out, not an accident. |
 
