@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `SecureBigInteger.CompareUnsigned` now carries `MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization`, the guard every other branchless helper in that type already had (`FixedTimeLimbsEqual`, `SubtractInPlace`, `AddMaskedInPlace`, `ShiftLeftByOneBitInPlace`, `ShiftRightByPLimbs`). The omission mattered most on that method: it deliberately avoids the `(b - a) >> 63` bit-fold, which is wrong for limbs with bit 63 set, and relies instead on the C# `<` and `>` operators on `ulong` lowering to branchless comparisons — an assumption about code generation, which is what the attribute pins down. No public API change and no behavioural change; the attribute constrains the JIT only. Found by an audit of every method the documentation lists as constant-time.
+
 ## [1.0.1] - 2026-08-24
 
 ### Added
