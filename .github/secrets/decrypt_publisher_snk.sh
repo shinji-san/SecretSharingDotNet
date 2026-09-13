@@ -6,8 +6,12 @@
 set -euo pipefail
 CDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-# Fail loudly on a missing or empty secret. An empty PUBLISHER_PUB_KEY would otherwise
-# rewrite AssemblyInfo.cs with an empty public key rather than stopping the run.
+# Fail loudly on a missing or empty secret. PUBLISHER_PUB_KEY is not used by this script;
+# the build reads it as the MSBuild property SecretSharingDotNetPublicKey, which
+# Directory.Build.props leaves overridable from the environment. It is still checked here
+# so that a missing secret stops the run before the publisher key is in place, instead of
+# producing a package whose InternalsVisibleTo entry names the repository key while the
+# assembly itself is signed with the publisher key.
 : "${PUBLISHER_SNK:?PUBLISHER_SNK is unset or empty}"
 : "${PUBLISHER_PUB_KEY:?PUBLISHER_PUB_KEY is unset or empty}"
 
@@ -15,4 +19,3 @@ rm -f "${CDIR}/../../src/SecretSharingDotNet.snk"
 # Decrypt the file
 # --batch to prevent interactive command --yes to assume "yes" for questions
 gpg --quiet --batch --yes --decrypt --passphrase="$PUBLISHER_SNK" --output "${CDIR}/../../src/SecretSharingDotNet.snk" "${CDIR}/SecretSharingDotNetPublisher.snk.gpg"
-sed -i -r "s/(InternalsVisibleTo.*PublicKey=)([0-9a-f]+)(.*)/\1$PUBLISHER_PUB_KEY\3/g" "${CDIR}/../../src/Properties/AssemblyInfo.cs"

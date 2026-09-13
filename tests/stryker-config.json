@@ -24,7 +24,7 @@
       "!**/SecureRandom.cs",
       "!**/CryptoRandomSource.cs",
       "!**/ErrorMessages.Designer.cs",
-      "!**/AssemblyInfo.cs"
+      "!**/AssemblyAttributes.cs"
     ]
   }
 }
