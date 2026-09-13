@@ -63,6 +63,10 @@
       Spalte, worauf die Lesung beruht), verifiziert wertabhängig (mit Beobachtbarem und Kosten)
       und ausdrücklich nicht klassifiziert. Die Paarung hatte für jede Lücke eine Zusage auf der
       Gegenseite verlangt; genau dort waren die Überzeichnungen entstanden.
+    - 2026-09-13 — achter Review-Nachlauf zu PR #399/#401: Schleifenschranken je Operation
+      aufgeschlüsselt statt zusammengefasst — `AddUnsigned` läuft `max(l, r) + 1`,
+      `MultiplyUnsigned` verschachtelt `leftCount × rightCount`, `DivideUnsigned`
+      `dividendLimbCount × 64`; `Square` und `Remainder` erben diese Formen.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -747,8 +751,10 @@ Verzweigung auf die Ziffernwerte bei gegebener Größe —, keine absolute.
 
 | Oberfläche | Worauf die Einordnung beruht |
 |---|---|
-| `AddUnsigned`, `SubtractUnsigned`, `MultiplyUnsigned` | Schleifen begrenzt durch `max(l, r)` bzw. `leftCount × rightCount`; kein `break`, `continue` oder `return` im Rumpf; verzweigungsfreie Übertragsformeln |
-| `DivideUnsigned` | Feste Bit-Schleife über `dividendLimbCount × 64`; Trial-Subtract mit Borrow-Maske und maskengesteuertem Undo über `SubtractInPlace` / `AddMaskedInPlace` |
+| `SubtractUnsigned` | Schleife begrenzt durch `max(l, r)`; kein `break`, `continue` oder `return` im Rumpf; verzweigungsfreie Borrow-Fortpflanzung |
+| `AddUnsigned` | Schleife begrenzt durch `max(l, r) + 1` — ein Limb mehr als `SubtractUnsigned`, für den Übertrag; sonst dieselbe Form |
+| `MultiplyUnsigned`, und `Square` darüber | Verschachtelte Schleifen über `leftCount × rightCount`, beide Zahlen vor den Schleifen festgelegt; kein vorzeitiger Ausstieg |
+| `DivideUnsigned`, und `Remainder` darüber | Feste äußere Bit-Schleife über `dividendLimbCount × 64`, innere Arbeit über die Limb-Anzahlen von Rest und Divisor; Trial-Subtract mit Borrow-Maske und maskengesteuertem Undo über `SubtractInPlace` / `AddMaskedInPlace` |
 | `CompareUnsigned` | Fold über `max(l, r)` mit Mask-Select statt Kurzschluss; nutzt `<` / `>` auf `ulong` statt des Bit-Folds `(r − l) >> 63`, der bei gesetztem Bit 63 falsch ist |
 | `Equals`, `FixedTimeLimbsEqual` | Vorab-Auffüllen auf `max(l, r)`, XOR-OR-Fold ohne vorzeitigen Ausstieg, Vorzeichen per `&` statt `&&` verknüpft |
 | `IsZeroInternal` | OR-Fold über alle Limbs, kein vorzeitiger Ausstieg |
