@@ -1035,9 +1035,11 @@ for hardened native crypto stacks.
   so reconstruction with the safegcd exercises the mixed-sign path on secret-derived
   values. `MersenneModulo` carries its own sign branch, whose negative path runs three
   additional limb loops, a `SubtractInPlace` and one more pinned allocation that the
-  positive path skips entirely. That branch is reached inside
-  `MersenneSafeGcdAlgorithm.Compute`, which reduces the signed intermediate
-  `beta * inv2n` — `beta` being a sign-corrected Bézout coefficient — once per call.
+  positive path skips entirely. `MersenneSafeGcdAlgorithm.Compute` reduces two signed
+  intermediates per call — `beta * inv2n` and `alpha * inv2n`, both sign-corrected Bézout
+  coefficients — and the negative path runs for whichever of them is negative. That it
+  runs *conditionally* is the point: a path taken every time would reveal nothing, and
+  the sign it depends on follows from the secret-driven divstep history.
   It is **not** reached from `SecretReconstructor.DivMod`: `Compute` returns the
   coefficient already reduced into `[0, M_p)`, so the reduction that follows there sees a
   non-negative value. `IsOne` likewise returns early on a negative sign, ahead of its
@@ -1061,13 +1063,17 @@ for hardened native crypto stacks.
   Both are treated as boundary operations, like the hex and Base64 decoders below; only
   equality is constant-time.
 
-- **Post-arithmetic zero branches.** `Multiply`, `Divide`, and `Remainder` branch on
-  `IsZeroInternal()` after the limb work, before assigning the result sign. The guarded
-  work is a single field write, so the timing difference is minimal, but the predicate is
-  the secret-derived zero status of the result. None of them takes a zero short-circuit
-  *before* the arithmetic — `Multiply` carries a source comment explaining that branching
-  there would leak — and the remaining zero check is the divide-by-zero contract,
-  evaluated on the divisor.
+- **Post-arithmetic zero branches.** `Add`, `Subtract`, `Multiply`, `Divide`, and
+  `Remainder` branch on `IsZeroInternal()` after the limb work, before assigning the
+  result sign. The guarded work is a single field write, so the timing difference is
+  minimal, but the predicate is the secret-derived zero status of the result. In `Add`
+  and `Subtract` that branch also undoes a leak the code closes deliberately a few lines
+  earlier: `Subtract` folds the `comparison == 0` case into the `>= 0` branch so timing
+  cannot separate `|minuend| == |subtrahend|` from `|minuend| ≠ |subtrahend|`, and the
+  zero normalisation then branches on exactly that case. None of the five takes a zero
+  short-circuit *before* the arithmetic — `Multiply` carries a source comment explaining
+  that branching there would leak — and the remaining zero check is the divide-by-zero
+  contract, evaluated on the divisor.
 
 - **Result normalisation leaking the result's magnitude.** Every unsigned helper returns
   through `new SecureBigInteger(limbs, count, isNegative)`, whose constructor calls
