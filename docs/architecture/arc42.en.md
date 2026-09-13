@@ -28,38 +28,38 @@
     - 2026-09-13 — third review follow-up on PR #399: the legacy-TFM wipe path
       (`LegacySecureClear`) added at all four places that claimed otherwise, and `main` ancestry in
       the release path marked as a convention rather than a gate.
-    - 2026-09-13 — chapter 8.2 restructured around evidence: instead of a protected /
-      not-protected pairing there are now three classes — verified constant-time (with a column
-      naming what the reading rests on), verified value-dependent (with the observable and its
-      cost), and explicitly not classified. The pairing had demanded a claim on the opposite side
-      for every gap, which is where the overstatements came from.
-    - 2026-09-13 — seventh review follow-up on PR #399/#401: the `Add` and `Subtract` routing
-      corrected (`Subtract` is the other way round), magnitude ordering classified as a
-      value-dependent branch selection with equal work on both paths, and the zero branches of
-      `Multiply`, `Divide` and `Remainder` moved from a dismissal into the classification.
-    - 2026-09-13 — self-audit of `MersenneSafeGcdAlgorithm` and `SecretReconstructor`: R26
-      extended with the sign branches of `MersenneModulo` and `IsOne`, which `DivMod` reaches on
-      every Lagrange division. The safegcd's fixed outer iteration count confirmed (no early exit,
-      bound derived from the public modulus), and `LagrangeInterpolate` confirmed structurally
-      value-independent.
-    - 2026-09-13 — sixth review follow-up on PR #399: `MersenneModulo` removed from the
-      protected column (its result also runs through the trimming constructor), the refuted claim
-      that the sign branch is inert inside the library corrected — the modular inverse operates on
-      signed Bézout coefficients (risk R26) —, the six `Extension` edges added to the component
-      diagram, and the exception-text rule narrowed to explicitly supplied messages.
-    - 2026-09-13 — self-audit of `SecureBigInteger` (every method the document claims as
-      protected, checked against the code): `ByteCount`, `SecureBigInteger.CompareTo` and
-      `ToByteArray` added as value-dependent (risk R25), and the `GetHashCode` and
-      `MersenneModulo` wording aligned with R24. Core loops confirmed clean.
-    - 2026-09-13 — fifth review follow-up on PR #399: the constant-time claim in 8.2 narrowed
-      further to the per-limb loop — result normalisation (`TrimLeadingZerosInPlace`) is
-      value-dependent and its trimmed length sizes the next operation; risk R24 recorded. This
-      corrects the fourth follow-up's wording, which still presented the magnitudes as protected.
     - 2026-09-13 — fourth review follow-up on PR #399: the constant-time claim in 8.2 narrowed to
       the magnitudes (naming the sign branch in `Add`/`Subtract`), the swap-file promise removed
       from Q1, `SecurityLevelManager` thread safety qualified in 8.9, Q9 bound to the path
       filters, the `sealed` statement in chapter 4 narrowed to the types that actually are, the
       mark-byte range corrected in the glossary, and risks R22 and R23 recorded.
+    - 2026-09-13 — fifth review follow-up on PR #399: the constant-time claim in 8.2 narrowed
+      further to the per-limb loop — result normalisation (`TrimLeadingZerosInPlace`) is
+      value-dependent and its trimmed length sizes the next operation; risk R24 recorded. This
+      corrects the fourth follow-up's wording, which still presented the magnitudes as protected.
+    - 2026-09-13 — self-audit of `SecureBigInteger` (every method the document claims as
+      protected, checked against the code): `ByteCount`, `SecureBigInteger.CompareTo` and
+      `ToByteArray` added as value-dependent (risk R25), and the `GetHashCode` and
+      `MersenneModulo` wording aligned with R24. Core loops confirmed clean.
+    - 2026-09-13 — sixth review follow-up on PR #399: `MersenneModulo` removed from the
+      protected column (its result also runs through the trimming constructor), the refuted claim
+      that the sign branch is inert inside the library corrected — the modular inverse operates on
+      signed Bézout coefficients (risk R26) —, the six `Extension` edges added to the component
+      diagram, and the exception-text rule narrowed to explicitly supplied messages.
+    - 2026-09-13 — self-audit of `MersenneSafeGcdAlgorithm` and `SecretReconstructor`: R26
+      extended with the sign branches of `MersenneModulo` and `IsOne`, which `DivMod` reaches on
+      every Lagrange division. The safegcd's fixed outer iteration count confirmed (no early exit,
+      bound derived from the public modulus), and `LagrangeInterpolate` confirmed structurally
+      value-independent.
+    - 2026-09-13 — seventh review follow-up on PR #399/#401: the `Add` and `Subtract` routing
+      corrected (`Subtract` is the other way round), magnitude ordering classified as a
+      value-dependent branch selection with equal work on both paths, and the zero branches of
+      `Multiply`, `Divide` and `Remainder` moved from a dismissal into the classification.
+    - 2026-09-13 — chapter 8.2 restructured around evidence: instead of a protected /
+      not-protected pairing there are now three classes — verified constant-time (with a column
+      naming what the reading rests on), verified value-dependent (with the observable and its
+      cost), and explicitly not classified. The pairing had demanded a claim on the opposite side
+      for every gap, which is where the overstatements came from.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.

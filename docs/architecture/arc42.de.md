@@ -29,40 +29,40 @@
     - 2026-09-13 — dritter Review-Nachlauf zu PR #399: Löschpfad der vier Alt-TFMs
       (`LegacySecureClear`) an allen vier Fundstellen ergänzt, `main`-Herkunft im Release-Pfad als
       Konvention statt als Gate ausgewiesen.
-    - 2026-09-13 — Kapitel 8.2 auf eine Belegsystematik umgestellt: statt einer
-      Geschützt/Nicht-geschützt-Paarung jetzt drei Klassen — verifiziert konstantzeitig (mit
-      Spalte, worauf die Lesung beruht), verifiziert wertabhängig (mit Beobachtbarem und Kosten)
-      und ausdrücklich nicht klassifiziert. Die Paarung hatte für jede Lücke eine Zusage auf der
-      Gegenseite verlangt; genau dort waren die Überzeichnungen entstanden.
-    - 2026-09-13 — siebter Review-Nachlauf zu PR #399/#401: Routing von `Add` und `Subtract`
-      richtiggestellt (bei `Subtract` ist es umgekehrt), Magnitudenordnung als wertabhängige
-      Zweigwahl mit gleichem Arbeitsumfang klassifiziert, die Null-Zweige von `Multiply`,
-      `Divide` und `Remainder` aus der Abtun-Formulierung in die Klassifikation geholt.
-    - 2026-09-13 — eigener Durchgang durch `MersenneSafeGcdAlgorithm` und `SecretReconstructor`:
-      R26 um die Vorzeichenzweige von `MersenneModulo` und `IsOne` erweitert, die `DivMod` bei
-      jeder Lagrange-Division trifft. Feste äußere Iterationszahl des Safegcd bestätigt
-      (kein Early Exit, Schranke aus dem öffentlichen Modulus), `LagrangeInterpolate` bestätigt
-      strukturell wertunabhängig.
+    - 2026-09-13 — vierter Review-Nachlauf zu PR #399: CT-Anspruch in 8.2 auf die Beträge
+      eingegrenzt (Vorzeichen-Zweig von `Add`/`Subtract` benannt), Swap-Zusage aus Q1 entfernt,
+      Thread-Sicherheit des `SecurityLevelManager` in 8.9 qualifiziert, Q9 an die Pfadfilter
+      gebunden, `sealed`-Aussage in Kapitel 4 auf die tatsächlich versiegelten Typen eingegrenzt,
+      Markierungsbyte-Bereich im Glossar korrigiert, Risiken R22 und R23 aufgenommen.
+    - 2026-09-13 — fünfter Review-Nachlauf zu PR #399: CT-Anspruch in 8.2 weiter auf die
+      Per-Limb-Schleife eingegrenzt — die Ergebnisnormalisierung (`TrimLeadingZerosInPlace`) ist
+      wertabhängig und dimensioniert über die getrimmte Länge die Folgeoperation; Risiko R24
+      aufgenommen. Korrigiert die Formulierung des vierten Nachlaufs, die die Beträge noch als
+      geschützt auswies.
+    - 2026-09-13 — eigener Durchgang durch `SecureBigInteger` (alle als geschützt geführten
+      Methoden gegen den Code): `ByteCount`, `SecureBigInteger.CompareTo` und `ToByteArray` als
+      wertabhängig ergänzt (Risiko R25), `GetHashCode`- und `MersenneModulo`-Formulierung an R24
+      angeglichen. Kernschleifen bestätigt sauber.
     - 2026-09-13 — sechster Review-Nachlauf zu PR #399: `MersenneModulo` aus der geschützten
       Spalte genommen (auch sein Ergebnis läuft durch den trimmenden Ctor), die widerlegte
       Behauptung „Vorzeichenzweig im Bibliothekspfad folgenlos“ korrigiert — der Modularinverse
       rechnet auf vorzeichenbehafteten Bézout-Koeffizienten (Risiko R26) —, die sechs
       `Extension`-Kanten ins Komponentendiagramm ergänzt und die Regel zu Ausnahmetexten auf
       explizit gesetzte Nachrichten eingegrenzt.
-    - 2026-09-13 — eigener Durchgang durch `SecureBigInteger` (alle als geschützt geführten
-      Methoden gegen den Code): `ByteCount`, `SecureBigInteger.CompareTo` und `ToByteArray` als
-      wertabhängig ergänzt (Risiko R25), `GetHashCode`- und `MersenneModulo`-Formulierung an R24
-      angeglichen. Kernschleifen bestätigt sauber.
-    - 2026-09-13 — fünfter Review-Nachlauf zu PR #399: CT-Anspruch in 8.2 weiter auf die
-      Per-Limb-Schleife eingegrenzt — die Ergebnisnormalisierung (`TrimLeadingZerosInPlace`) ist
-      wertabhängig und dimensioniert über die getrimmte Länge die Folgeoperation; Risiko R24
-      aufgenommen. Korrigiert die Formulierung des vierten Nachlaufs, die die Beträge noch als
-      geschützt auswies.
-    - 2026-09-13 — vierter Review-Nachlauf zu PR #399: CT-Anspruch in 8.2 auf die Beträge
-      eingegrenzt (Vorzeichen-Zweig von `Add`/`Subtract` benannt), Swap-Zusage aus Q1 entfernt,
-      Thread-Sicherheit des `SecurityLevelManager` in 8.9 qualifiziert, Q9 an die Pfadfilter
-      gebunden, `sealed`-Aussage in Kapitel 4 auf die tatsächlich versiegelten Typen eingegrenzt,
-      Markierungsbyte-Bereich im Glossar korrigiert, Risiken R22 und R23 aufgenommen.
+    - 2026-09-13 — eigener Durchgang durch `MersenneSafeGcdAlgorithm` und `SecretReconstructor`:
+      R26 um die Vorzeichenzweige von `MersenneModulo` und `IsOne` erweitert, die `DivMod` bei
+      jeder Lagrange-Division trifft. Feste äußere Iterationszahl des Safegcd bestätigt
+      (kein Early Exit, Schranke aus dem öffentlichen Modulus), `LagrangeInterpolate` bestätigt
+      strukturell wertunabhängig.
+    - 2026-09-13 — siebter Review-Nachlauf zu PR #399/#401: Routing von `Add` und `Subtract`
+      richtiggestellt (bei `Subtract` ist es umgekehrt), Magnitudenordnung als wertabhängige
+      Zweigwahl mit gleichem Arbeitsumfang klassifiziert, die Null-Zweige von `Multiply`,
+      `Divide` und `Remainder` aus der Abtun-Formulierung in die Klassifikation geholt.
+    - 2026-09-13 — Kapitel 8.2 auf eine Belegsystematik umgestellt: statt einer
+      Geschützt/Nicht-geschützt-Paarung jetzt drei Klassen — verifiziert konstantzeitig (mit
+      Spalte, worauf die Lesung beruht), verifiziert wertabhängig (mit Beobachtbarem und Kosten)
+      und ausdrücklich nicht klassifiziert. Die Paarung hatte für jede Lücke eine Zusage auf der
+      Gegenseite verlangt; genau dort waren die Überzeichnungen entstanden.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
