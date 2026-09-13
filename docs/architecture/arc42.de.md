@@ -127,6 +127,16 @@
       Manipulation dar; ein durchgerechnetes Beispiel zeigt eine andere Manipulation, die über
       einen Null-Koeffizienten eine `ArgumentException` auslöst — keiner der beiden Ausgänge
       ersetzt eine Integritätsprüfung.
+    - 2026-09-13 — siebzehnter Review-Nachlauf zu PR #399: Die K-aus-N-Zusage in 1.1 stand
+      uneingeschränkt da, während R27 im selben Dokument ein Gegenbeispiel dagegen trägt — die
+      Einschränkung steht jetzt dort, wo der Leser die Zusage antrifft. Im Komponentendiagramm
+      fehlten zwei Kanten: `Numerics → Math`, für eine aus Imports abgeleitete Sicht unsichtbar,
+      weil beide Calculator `Calculator<TNumber>` über den Elternnamensraum ohne `using` erreichen,
+      und `Extension → Resources`, das `PinnedPoolArrayExtensions` für drei Nachrichtenschlüssel
+      nutzt. Und R16 führte eine implizite Reveal-Konvertierung nach `byte[]` auf, die es nicht
+      gibt — der `byte[]`-Operator konvertiert *in* ein `Secret`; die tatsächlichen
+      Ausgabekonvertierungen sind `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` und
+      `ReadOnlySpan<byte>`.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -140,7 +150,11 @@ sie benennen die fehlende Information.
 SecretSharingDotNet ist eine C#-Klassenbibliothek, die *Shamir's Secret Sharing* implementiert:
 Ein Geheimnis (Text, Zahl oder Byte-Folge) wird in **N** Anteile (*Shares*) zerlegt, von denen
 beliebige **K** Anteile genügen, um das Original wiederherzustellen — während **K−1** Anteile
-praktisch keine Information über das Geheimnis preisgeben. *Praktisch*, nicht *perfekt*: Diese
+praktisch keine Information über das Geheimnis preisgeben. Diese Wiederherstellungszusage gehört
+dem Verfahren, und diese Implementierung hält sie derzeit nicht in jedem Fall ein: Fallen alle
+übergebenen Share-Werte unter eine kleinere unterstützte Mersenne-Primzahl, wechselt die
+Rekonstruktion in diesen kleineren Körper und kann ohne jede Fehlermeldung ein anderes Geheimnis
+liefern (Risiko R27, Issue #403). *Praktisch*, nicht *perfekt*: Diese
 Implementierung würfelt den führenden Polynomkoeffizienten bei einer Null neu, damit der Grad
 exakt `K−1` bleibt und die effektive Schwelle nicht stillschweigend auf `K−1` fällt. Dadurch ist
 dieser Koeffizient auf `[1, p−1]` statt auf `[0, p−1]` gleichverteilt, und `K−1` Anteile schließen
@@ -333,6 +347,7 @@ C4Component
   Rel(crypto, secureMemory, "Legt Secret-Bytes gepinnt ab")
   Rel(secureInput, secureMemory, "Schreibt Eingaben direkt in gepinnte Puffer")
   Rel(mathNs, numerics, "Waehlt das Backend ueber die geschlossene Registry")
+  Rel(numerics, mathNs, "Beide Calculator erben von Calculator<TNumber>", "kein using: Elternnamensraum")
   Rel(mathNs, secureMemory, "Gibt ByteRepresentation als gepinnten Puffer zurueck")
   Rel(mathNs, shamir, "NUR Dokumentation: using fuer see-cref, kein Code", "doc-only")
   Rel(numerics, secureMemory, "Speichert Limbs gepinnt")
@@ -342,6 +357,7 @@ C4Component
   Rel(secureInput, resources, "Ausnahmetexte")
   Rel(mathNs, resources, "Ausnahmetexte")
   Rel(numerics, resources, "Ausnahmetexte")
+  Rel(extension, resources, "Ausnahmetexte")
   Rel(secureMemory, resources, "Ausnahmetexte")
   Rel(shamir, extension, "DisposeAll in Splitter und Reconstructor")
   Rel(crypto, extension, "DisposeAll und Strukturhelfer in Secret und Shares")
@@ -1147,7 +1163,7 @@ Einträge sind Wartungslast, Fehlbedienungsrisiken und dokumentierte Trade-offs.
 | **R13** | **Mutationstests messen nichts.** Stryker.NET 4.16.0 kann die xUnit-v3/MTP-Suite nicht instrumentieren; der erste grüne CI-Lauf war ein **False Green** (0,00 %, 1248/1248 überlebt). | Niedrig (blockiert extern) | Es gibt keine belastbare Aussage zur Testschärfe jenseits der Abdeckung. | Workflow geparkt, Konfiguration als Wiederbelebungshilfe behalten; getrackt in GitHub-Issue #343. Blockiert durch stryker-net #3117/#3094. | `.config/dotnet-tools.json` (Stryker 4.16.0); GitHub-Issue #343 |
 | **R14** | **Deferred: konstante Laufzeit für Hex-/Base64-Dekoder und `Secret.CompareTo`.** Erstere sind verzweigende Randparser, letzteres bricht beim ersten abweichenden Byte ab und verrät die gemeinsame Präfixlänge. | Niedrig (im Threat Model benannt) | Sortieren oder Vergleichen von Geheimmaterial ist zeitlich beobachtbar; nur Gleichheit ist CT. | Verzweigungsfreie Varianten sind entworfen und für einen eigenen PR-Zyklus geparkt; `[Obsolete]`-Markierungen auf den Relationaloperatoren sind eine Option. | `README.md`, *Security & Threat Model* |
 | **R15** | **`Secret.CreateRandom` ist für kleine Sicherheitsstufen entropie-suboptimal** (Stufe 13/17 ≈ 8 Bit, Stufe 31 ≈ 24 Bit; empirisch über 3000 Ziehungen). | Niedrig | Betrifft nur die ohnehin abgeratenen kleinen Stufen; ab Stufe 127 bleiben ≈ p−8 Bit. | Ein lokaler Fix (uniformes Rejection Sampling) wurde implementiert und **verworfen**: Er bricht den Round-Trip, weil das Markierungsbyte repräsentationsseitig an die Primzahl gekoppelt ist. Echter Fix ist architektonisch. | `Secret<TNumber>.CreateRandom`, ab Zeile 1128 |
-| **R16** | **Weitere Low/Info-Fußangeln:** `PinnedPoolArray.PoolArray` gibt den rohen Puffer heraus; `Secret` hat implizite Reveal-Konvertierungen nach `byte[]`/`ReadOnlySpan`; `Shares` übernimmt stillschweigend den Besitz übergebener Share-Arrays; `(length + 7) / 8` kann bei ~2 GB Eingabe überlaufen; die Reduktionsschleife in `Secret.CreateRandom` ist datenabhängig. | Niedrig | Jeweils Fehlbedienungsrisiko, keine aktive Lücke. | Dokumentierte Trade-offs; Härtung einzeln möglich. | `PinnedPoolArray<T>.PoolArray` (Z. 225), `Secret<TNumber>` (Z. 577), `Shares<TNumber>` (Z. 82), `SecureBigInteger` (Z. 268), `Secret<TNumber>.CreateRandom` |
+| **R16** | **Weitere Low/Info-Fußangeln:** `PinnedPoolArray.PoolArray` gibt den rohen Puffer heraus; `Secret` hat implizite Reveal-Konvertierungen nach `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` und, ab net8, `ReadOnlySpan<byte>` — der `byte[]`-Operator läuft in die andere Richtung, in ein `Secret` hinein; `Shares` übernimmt stillschweigend den Besitz übergebener Share-Arrays; `(length + 7) / 8` kann bei ~2 GB Eingabe überlaufen; die Reduktionsschleife in `Secret.CreateRandom` ist datenabhängig. | Niedrig | Jeweils Fehlbedienungsrisiko, keine aktive Lücke. | Dokumentierte Trade-offs; Härtung einzeln möglich. | `PinnedPoolArray<T>.PoolArray` (Z. 225), `Secret<TNumber>` (Z. 599, 614, 686, 692), `Shares<TNumber>` (Z. 82), `SecureBigInteger` (Z. 268), `Secret<TNumber>.CreateRandom` |
 | **R17** | **Kein `MIGRATION.md`, keine öffentliche v1.0-Roadmap.** Die API-Freeze-Kriterien existieren nur als interne Notiz. | Niedrig | Consumer können den Reifegrad nicht einschätzen. | `MIGRATION.md` und eine öffentliche Roadmap ergänzen. | Repository enthält kein `MIGRATION.md` |
 | **R18** | **Breite `InternalsVisibleTo`-Kopplung.** Die Testsuite erreicht alle `internal`-Typen; Refactoring-Widerstand steigt. | Niedrig | Interne Umbauten brechen Tests, obwohl die öffentliche API unverändert bleibt. | Testoberfläche minimieren, wo öffentliche API-Tests reichen; verbleibende `internal`-Bedarfe dokumentieren. | `src/Properties/AssemblyInfo.cs:25` |
 | **R19** | **Einzelmaintainer (Bus-Faktor 1).** | Mittel (organisatorisch) | Eine Auszeit stoppt Sicherheitsfixes und Release-Fähigkeit. | Diese Dokumentation ist ein Teilbeitrag: Sie macht Architektur und offene Punkte ohne Personenwissen zugänglich. | Kapitel 2 (diese Doku) |

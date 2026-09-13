@@ -118,6 +118,15 @@
       wrong secret as *the* consequence of tampering; a worked example shows another tampering
       raising `ArgumentException` through a zero coefficient, so neither outcome substitutes for an
       integrity check.
+    - 2026-09-13 — seventeenth review follow-up on PR #399: the any-K promise in 1.1 stood
+      unqualified while R27 in the same document carries a counterexample against it — it now names
+      the limitation at the point a reader meets the promise. The component diagram gained two
+      missing edges: `Numerics → Math`, invisible to an import-derived view because both
+      calculators reach `Calculator<TNumber>` through the parent namespace without a `using`, and
+      `Extension → Resources`, which `PinnedPoolArrayExtensions` uses for three message keys. And
+      R16 listed an implicit reveal conversion to `byte[]` that does not exist — the `byte[]`
+      operator converts *into* a `Secret`; the real output conversions are `TNumber`,
+      `Calculator<TNumber>`, `PinnedPoolArray<byte>` and `ReadOnlySpan<byte>`.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -130,7 +139,10 @@ blocks naming the missing information.
 
 SecretSharingDotNet is a C# class library implementing *Shamir's Secret Sharing*: a secret (text,
 number, or byte sequence) is split into **N** shares, any **K** of which suffice to recover the
-original — while **K−1** shares reveal practically nothing about the secret. *Practically*, not
+original — while **K−1** shares reveal practically nothing about the secret. That recovery promise
+is the scheme's, and this implementation does not currently keep it in every case: when all
+supplied share values fall below a smaller supported Mersenne prime, reconstruction refits to that
+smaller field and can return a different secret without any error (risk R27, issue #403). *Practically*, not
 *perfectly*: this implementation rerolls the leading polynomial coefficient on a zero draw so the
 degree stays exactly `K−1` and the effective threshold cannot silently drop to `K−1`. That leaves
 the coefficient uniform over `[1, p−1]` rather than `[0, p−1]`, so `K−1` shares rule out exactly
@@ -319,6 +331,7 @@ C4Component
   Rel(crypto, secureMemory, "Stores secret bytes pinned")
   Rel(secureInput, secureMemory, "Writes input straight into pinned buffers")
   Rel(mathNs, numerics, "Selects the backend via the closed registry")
+  Rel(numerics, mathNs, "Both calculators derive from Calculator<TNumber>", "no using: parent namespace")
   Rel(mathNs, secureMemory, "Returns ByteRepresentation as a pinned buffer")
   Rel(mathNs, shamir, "DOCUMENTATION ONLY: using for see-cref, no code", "doc-only")
   Rel(numerics, secureMemory, "Stores limbs pinned")
@@ -328,6 +341,7 @@ C4Component
   Rel(secureInput, resources, "Exception texts")
   Rel(mathNs, resources, "Exception texts")
   Rel(numerics, resources, "Exception texts")
+  Rel(extension, resources, "Exception texts")
   Rel(secureMemory, resources, "Exception texts")
   Rel(shamir, extension, "DisposeAll in splitter and reconstructor")
   Rel(crypto, extension, "DisposeAll and structural helpers in Secret and Shares")
@@ -1112,7 +1126,7 @@ PR #327. What remains is maintenance load, misuse risk, and documented trade-off
 | **R13** | **Mutation testing measures nothing.** Stryker.NET 4.16.0 cannot instrument the xUnit v3/MTP suite; the first green CI run was a **false green** (0.00 %, 1248/1248 survived). | Low (externally blocked) | There is no solid statement about test sharpness beyond coverage. | Workflow parked, configuration kept as a revival aid; tracked in GitHub issue #343. Blocked by stryker-net #3117/#3094. | `.config/dotnet-tools.json` (Stryker 4.16.0); GitHub issue #343 |
 | **R14** | **Deferred: constant time for the hex/Base64 decoders and `Secret.CompareTo`.** The former are branchy boundary parsers; the latter short-circuits at the first differing byte and leaks the common prefix length. | Low (named in the threat model) | Sorting or comparing secret material is observable in time; only equality is CT. | Branchless variants are designed and parked for a dedicated PR cycle; `[Obsolete]` markers on the relational operators are an option. | `README.md`, *Security & Threat Model* |
 | **R15** | **`Secret.CreateRandom` is entropy-suboptimal for small security levels** (level 13/17 ≈ 8 bits, level 31 ≈ 24 bits; measured over 3000 draws). | Low | Affects only the small levels that are discouraged anyway; from level 127 upwards ≈ p−8 bits remain. | A localized fix (uniform rejection sampling) was implemented and **rejected**: it breaks the round trip, because the mark byte is coupled to the prime at the representation level. A real fix is architectural. | `Secret<TNumber>.CreateRandom`, from line 1128 |
-| **R16** | **Further low/info footguns:** `PinnedPoolArray.PoolArray` hands out the raw buffer; `Secret` has implicit reveal conversions to `byte[]`/`ReadOnlySpan`; `Shares` silently takes ownership of a supplied share array; `(length + 7) / 8` can overflow on ~2 GB input; the reduction loop in `Secret.CreateRandom` is data-dependent. | Low | Each is a misuse risk, not an active hole. | Documented trade-offs; each can be hardened individually. | `PinnedPoolArray<T>.PoolArray` (l. 225), `Secret<TNumber>` (l. 577), `Shares<TNumber>` (l. 82), `SecureBigInteger` (l. 268), `Secret<TNumber>.CreateRandom` |
+| **R16** | **Further low/info footguns:** `PinnedPoolArray.PoolArray` hands out the raw buffer; `Secret` has implicit reveal conversions to `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` and, on net8+, `ReadOnlySpan<byte>` — the `byte[]` operator goes the other way, into a `Secret`; `Shares` silently takes ownership of a supplied share array; `(length + 7) / 8` can overflow on ~2 GB input; the reduction loop in `Secret.CreateRandom` is data-dependent. | Low | Each is a misuse risk, not an active hole. | Documented trade-offs; each can be hardened individually. | `PinnedPoolArray<T>.PoolArray` (l. 225), `Secret<TNumber>` (ll. 599, 614, 686, 692), `Shares<TNumber>` (l. 82), `SecureBigInteger` (l. 268), `Secret<TNumber>.CreateRandom` |
 | **R17** | **No `MIGRATION.md`, no public v1.0 roadmap.** The API-freeze criteria exist only as an internal note. | Low | Consumers cannot judge the maturity level. | Add `MIGRATION.md` and a public roadmap. | repository contains no `MIGRATION.md` |
 | **R18** | **Broad `InternalsVisibleTo` coupling.** The test suite reaches every `internal` type; refactoring resistance grows. | Low | Internal restructuring breaks tests even when the public API is unchanged. | Minimise the test surface where public-API tests suffice; document the remaining `internal` needs. | `src/Properties/AssemblyInfo.cs:25` |
 | **R19** | **Single maintainer (bus factor 1).** | Medium (organizational) | A break stops security fixes and release capability. | This documentation is one contribution: it makes the architecture and the open items accessible without person-bound knowledge. | Chapter 2 (this document) |
