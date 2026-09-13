@@ -396,4 +396,145 @@ public class ShamirsSecretSharingTest
         // Assert
         Assert.Equal(1.0, (double)ok / total);
     }
+
+    /// <summary>
+    /// Deterministic Tier-1 regression for the reconstruction path on which
+    /// <see cref="SecurityLevelManager{TNumber}.AdjustSecurityLevel"/> refits the level to a
+    /// <em>smaller</em> Mersenne prime than the one the secret was split with. A share carries no
+    /// record of the splitting modulus, so <see cref="IReconstructionUseCase{TNumber}.Reconstruction"/>
+    /// derives the level from the maximum share value alone; whenever every share value happens to
+    /// fall below a smaller prime, interpolation runs in that smaller field. The integer Lagrange
+    /// combination is bounded by the small share values and pinned to the constant term exactly,
+    /// so the reduction modulo the smaller prime is a no-op <em>as long as the constant term is
+    /// itself below that prime</em> — which is the case for the vectors below, and is why they
+    /// round-trip. It does <b>not</b> hold in general: see
+    /// <c>Reconstruction_WhenConstantTermReachesTheRefittedPrime_LosesTheSecret</c> for the
+    /// boundary where it fails. The seeds are pinned because reaching this path at all is a
+    /// low-probability event a Monte Carlo run may miss entirely.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="seed">Seed driving both the secret's mark byte and the polynomial coefficients.</param>
+    /// <param name="securityLevel">Mersenne exponent the secret is split with.</param>
+    /// <param name="expectedAdjustedLevel">Smaller exponent the reconstruction is expected to refit to.</param>
+    [Theory]
+    [InlineData(28, 17, 13)]
+    [InlineData(45, 17, 13)]
+    [InlineData(62, 17, 13)]
+    [InlineData(15, 19, 17)]
+    [InlineData(42, 19, 17)]
+    [InlineData(152, 31, 19)]
+    public void ReconstructionRoundTrip_WhenSecurityLevelRefitsToSmallerPrime_RestoresOriginal(
+        int seed, int securityLevel, int expectedAdjustedLevel)
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>([0x2A], 1, new DeterministicRandomSource(seed));
+        using var secretSplitter = new SecretSplitter<BigInteger>(new DeterministicRandomSource(seed));
+        secretSplitter.SecurityLevel = securityLevel;
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+
+        // Act
+        using var shares = secretSplitter.MakeShares(2, 2, secret);
+        using var reconstructedSecret = secretReconstructor.Reconstruction(shares);
+
+        // Assert
+        Assert.Equal(securityLevel, secretSplitter.SecurityLevel);
+        Assert.Equal(expectedAdjustedLevel, secretReconstructor.SecurityLevel);
+        Assert.Equal(secret, reconstructedSecret);
+    }
+
+    /// <summary>
+    /// Tier-2 sweep for the same concern: across a range of security levels and share
+    /// configurations, a split followed by a reconstruction always restores the original secret —
+    /// whether or not the level is refitted downward on the way back. Tier-1 above pins the refit
+    /// path deterministically; this theory covers breadth, so a regression that only shows up at a
+    /// level or share shape not enumerated above still turns the suite red.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="securityLevel">Mersenne exponent the secrets are split with.</param>
+    /// <param name="k">Reconstruction threshold.</param>
+    /// <param name="n">Number of shares created.</param>
+    [Theory]
+    [InlineData(13, 2, 2)]
+    [InlineData(17, 2, 2)]
+    [InlineData(19, 2, 3)]
+    [InlineData(31, 3, 5)]
+    public void ReconstructionRoundTrip_AcrossSecurityLevels_AlwaysRestoresOriginal(int securityLevel, int k, int n)
+    {
+        // Arrange
+        const int total = 1000;
+        int ok = 0;
+        var rng = new Random(securityLevel);
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+
+        // Act
+        for (int i = 0; i < total; i++)
+        {
+            var message = new byte[rng.Next(1, 5)];
+            rng.NextBytes(message);
+            using var secret = new Secret<BigInteger>(message);
+            using var secretSplitter = new SecretSplitter<BigInteger>();
+            secretSplitter.SecurityLevel = securityLevel;
+            using var shares = secretSplitter.MakeShares(k, n, secret);
+            using var reconstructedSecret = secretReconstructor.Reconstruction(shares);
+            if (secret.Equals(reconstructedSecret))
+            {
+                ok++;
+            }
+        }
+
+        // Assert
+        Assert.Equal(total, ok);
+    }
+
+    /// <summary>
+    /// Boundary case for the downward security-level refit, and a characterisation of a known
+    /// defect rather than of intended behaviour. Reconstruction derives the level from the maximum
+    /// share value, which cannot reveal whether the constant term exceeded the smaller prime. When
+    /// it did, interpolation in the refitted field returns <c>a₀ mod P_small</c> instead of
+    /// <c>a₀</c>, and the shares are untampered and individually valid throughout.
+    /// <para>
+    /// Seed 12 encodes the one-byte secret <c>0xFF</c> with mark byte <c>0x1F</c>, giving the
+    /// coefficient 8191 — exactly <c>M13</c>. Splitter seed 171 at level 17 yields the shares
+    /// 7476 and 6761, both below 8191, so the level refits to 13. The integer combination
+    /// <c>2·7476 − 6761</c> is 8191, and 8191 mod 8191 is zero, which decodes to an empty secret
+    /// and throws.
+    /// </para>
+    /// <para>
+    /// The silent variant needs a coefficient strictly between the refitted prime and twice it,
+    /// which a one-byte secret cannot reach: seed 16 encodes <c>0xFF 0xFF</c> as 786431, and at
+    /// level 31 splitter seed 3544 yields 504116 and 221801, both below <c>M19</c>. Reconstruction
+    /// refits to 19 and returns 786431 mod 524287 = 262144 — a different secret, with no exception.
+    /// </para>
+    /// <para>
+    /// <b>These assertions pin current behaviour, not desired behaviour.</b> When the refit is
+    /// fixed, both cases must round-trip and this test has to be inverted.
+    /// </para>
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WhenConstantTermReachesTheRefittedPrime_LosesTheSecret()
+    {
+        // Arrange — coefficient exactly M13; every share below it.
+        using var secretAtPrime = new Secret<BigInteger>(new byte[] { 0xFF }, 1, new DeterministicRandomSource(12));
+        using var splitterAtPrime = new SecretSplitter<BigInteger>(new DeterministicRandomSource(171));
+        splitterAtPrime.SecurityLevel = 17;
+        using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+
+        // Act & Assert — the refitted field maps the coefficient to zero, so no secret survives.
+        using var sharesAtPrime = splitterAtPrime.MakeShares(2, 2, secretAtPrime);
+        Assert.Throws<ArgumentException>(() => reconstructor.Reconstruction(sharesAtPrime));
+
+        // Arrange — coefficient above the refitted prime but below twice it.
+        using var secretAbovePrime = new Secret<BigInteger>(new byte[] { 0xFF, 0xFF }, 2, new DeterministicRandomSource(16));
+        using var splitterAbovePrime = new SecretSplitter<BigInteger>(new DeterministicRandomSource(3544));
+        splitterAbovePrime.SecurityLevel = 31;
+
+        // Act
+        using var sharesAbovePrime = splitterAbovePrime.MakeShares(2, 2, secretAbovePrime);
+        using var reconstructed = reconstructor.Reconstruction(sharesAbovePrime);
+
+        // Assert — reconstruction succeeds and returns the wrong secret.
+        Assert.Equal(19, reconstructor.SecurityLevel);
+        Assert.NotEqual(secretAbovePrime, reconstructed);
+    }
 }
