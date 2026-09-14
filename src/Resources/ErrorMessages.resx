@@ -185,6 +185,6 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
         <value>Expected a pinned buffer of length {0}, but was {1}.</value>
     </data>
     <data name="ReconstructionYieldedNoDecodableSecret" xml:space="preserve">
-        <value>Reconstruction produced no decodable secret. Mersenne exponent used: {0}. The original exponent is not carried in these shares.</value>
+        <value>Reconstruction produced no decodable secret. Mersenne exponent used: {0}.</value>
     </data>
 </root>
