@@ -60,8 +60,9 @@ using System.Threading;
 /// </para>
 /// <para>
 /// The type supports parsing from and formatting to the standard share format <c>"INDEX-VALUE"</c>
-/// where <c>INDEX</c> and <c>VALUE</c> are hexadecimal. Value-based equality (via record semantics)
-/// is derived from <see cref="Index"/> and <see cref="Value"/>.
+/// where <c>INDEX</c> and <c>VALUE</c> are hexadecimal. Value-based equality is derived from
+/// <see cref="Index"/>, <see cref="Value"/> and <see cref="SecurityLevel"/> — so a share that
+/// records no level is <em>not</em> equal to one carrying the same coordinates and a level.
 /// </para>
 /// </remarks>
 #if DEBUG
@@ -348,7 +349,8 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
     /// <summary>
     /// Determines whether this share is equal to <paramref name="other"/>. Value-based
-    /// equality derived from <see cref="Index"/> and <see cref="Value"/>; the per-Calculator
+    /// equality derived from <see cref="Index"/>, <see cref="Value"/> and
+    /// <see cref="SecurityLevel"/>; the per-Calculator
     /// comparisons delegate to the underlying <typeparamref name="TNumber"/> backend
     /// (constant-time on operand value for the
     /// <see cref="SecretSharingDotNet.Math.Numerics.SecureBigInteger"/> backend via its
@@ -356,10 +358,18 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </summary>
     /// <param name="other">The other share to compare to. May be <see langword="null"/>.</param>
     /// <returns>
-    /// <see langword="true"/> when both shares carry the same <see cref="Index"/> and
-    /// <see cref="Value"/>; otherwise <see langword="false"/>. Returns <see langword="false"/>
-    /// when <paramref name="other"/> is <see langword="null"/>.
+    /// <see langword="true"/> when both shares carry the same <see cref="Index"/>,
+    /// <see cref="Value"/> and <see cref="SecurityLevel"/>; otherwise <see langword="false"/>.
+    /// Returns <see langword="false"/> when <paramref name="other"/> is <see langword="null"/>.
     /// </returns>
+    /// <remarks>
+    /// <see cref="SecurityLevel"/> is compared as a nullable value, not as a wildcard: two shares
+    /// that both record no level are equal, and a share recording none differs from one recording
+    /// any. Treating <see langword="null"/> as "matches any level" would break transitivity. The
+    /// practical consequence is that a share parsed from the legacy two-segment text form is not
+    /// equal to its migrated counterpart, which is observable through
+    /// <see cref="Shares{TNumber}.Contains"/> and through <c>HashSet</c> membership.
+    /// </remarks>
     /// <remarks>
     /// Replaces the compiler-synthesised record equality, which would (a) compare the internal
     /// <c>disposed</c> flag and therefore disagree on equality between a live and a just-disposed
@@ -405,7 +415,9 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
     /// <summary>
     /// Returns a hash code consistent with <see cref="Equals(Share{TNumber})"/>, derived from
-    /// <see cref="Index"/> and <see cref="Value"/>. The internal <c>disposed</c> flag is
+    /// <see cref="Index"/>, <see cref="Value"/> and <see cref="SecurityLevel"/>. Equal shares
+    /// therefore hash equally; the converse is not promised, and the contract does not ask for
+    /// it. The internal <c>disposed</c> flag is
     /// intentionally excluded from the hash so that an otherwise-identical live and disposed
     /// share would produce the same hash — matching the equality contract.
     /// </summary>

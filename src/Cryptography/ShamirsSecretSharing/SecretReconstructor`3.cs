@@ -267,11 +267,13 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             // occupies no more than that byte leaves nothing behind and the Secret constructor
             // rejects it with ArgumentException from two layers down -- an error naming neither
             // the cause nor the operation. Reject it here instead, on the reconstruction
-            // contract. The message states only what is provable: the exponent the
-            // interpolation ran under. It does not claim a level refit, because the shares
-            // carry no record of the exponent they were split with and this instance's prior
-            // state proves nothing about it; and it does not name a cause, because a tampered
-            // share produces exactly the same picture.
+            // contract. The message states only what is provable here: the exponent the
+            // interpolation ran under. It does not name a cause, because a tampered share
+            // produces exactly the same picture. It also no longer says anything about what
+            // the shares do or do not record -- since step 1 they may carry a level, and this
+            // method does not yet consult it, so any claim about their metadata would be a
+            // claim this code has not checked. Step 2 is where the level is read and where a
+            // sharper diagnosis becomes possible.
             if (a0.ByteCount <= Secret<TNumber>.MarkByteCount)
             {
                 throw new ReconstructionException(
