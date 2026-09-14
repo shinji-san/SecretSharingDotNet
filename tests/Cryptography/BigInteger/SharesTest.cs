@@ -734,4 +734,29 @@ public class SharesTest
         Assert.Equal(expectedIndex0, shares[0].Index);
         Assert.Equal(expectedIndex1, shares[1].Index);
     }
+    /// <summary>
+    /// <see cref="Shares{TNumber}.Contains"/> runs on <see cref="Share{TNumber}.Equals"/>, so a
+    /// legacy share is not found in a collection of levelled ones even with identical coordinates.
+    /// This is the concrete place a consumer meets the consequence of letting the level into
+    /// equality, which is why it is pinned here rather than left to be discovered.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Contains_LegacyShareAgainstLevelledCollection_ReturnsFalse()
+    {
+        // Arrange
+        using var levelled = new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 17);
+        using var other = new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20), 17);
+        using var shares = new Shares<BigInteger>(new[] { levelled, other });
+        using var legacy = new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10));
+        using var sameLevel = new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 17);
+
+        // Act
+        bool findsLegacy = shares.Contains(legacy);
+        bool findsLevelled = shares.Contains(sameLevel);
+
+        // Assert
+        Assert.False(findsLegacy);
+        Assert.True(findsLevelled);
+    }
 }
