@@ -187,4 +187,22 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="ReconstructionYieldedNoDecodableSecret" xml:space="preserve">
         <value>Reconstruction produced no decodable secret. Mersenne exponent used: {0}.</value>
     </data>
+    <data name="SecurityLevelNotSupported" xml:space="preserve">
+        <value>Security level {0} is not a supported Mersenne prime exponent. It is used as given and never rounded up.</value>
+    </data>
+    <data name="ExplicitSecurityLevelContradictsShares" xml:space="preserve">
+        <value>The supplied security level {0} contradicts the level recorded on at least one share.</value>
+    </data>
+    <data name="SharesCarryDifferentSecurityLevels" xml:space="preserve">
+        <value>The shares record different security levels. Supply the level explicitly to say which field applies.</value>
+    </data>
+    <data name="SharesCarryMixedSecurityLevelMetadata" xml:space="preserve">
+        <value>Some shares record a security level and others do not. Supply the level explicitly to say which field applies.</value>
+    </data>
+    <data name="ShareCoordinateOutsideField" xml:space="preserve">
+        <value>A share coordinate does not fit the field of Mersenne exponent {0}.</value>
+    </data>
+    <data name="SecurityLevelNotAppliedByManager" xml:space="preserve">
+        <value>The security level manager did not apply security level {0}; it reports {1}.</value>
+    </data>
 </root>

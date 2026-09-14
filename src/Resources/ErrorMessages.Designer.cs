@@ -383,5 +383,41 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("ReconstructionYieldedNoDecodableSecret", resourceCulture);
             }
         }
+        
+        internal static string SecurityLevelNotSupported {
+            get {
+                return ResourceManager.GetString("SecurityLevelNotSupported", resourceCulture);
+            }
+        }
+        
+        internal static string ExplicitSecurityLevelContradictsShares {
+            get {
+                return ResourceManager.GetString("ExplicitSecurityLevelContradictsShares", resourceCulture);
+            }
+        }
+        
+        internal static string SharesCarryDifferentSecurityLevels {
+            get {
+                return ResourceManager.GetString("SharesCarryDifferentSecurityLevels", resourceCulture);
+            }
+        }
+        
+        internal static string SharesCarryMixedSecurityLevelMetadata {
+            get {
+                return ResourceManager.GetString("SharesCarryMixedSecurityLevelMetadata", resourceCulture);
+            }
+        }
+        
+        internal static string ShareCoordinateOutsideField {
+            get {
+                return ResourceManager.GetString("ShareCoordinateOutsideField", resourceCulture);
+            }
+        }
+        
+        internal static string SecurityLevelNotAppliedByManager {
+            get {
+                return ResourceManager.GetString("SecurityLevelNotAppliedByManager", resourceCulture);
+            }
+        }
     }
 }
