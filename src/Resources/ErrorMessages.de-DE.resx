@@ -187,7 +187,7 @@
         <value>Die übergebene Sicherheitsstufe {0} widerspricht der Stufe, die mindestens ein Share festhält.</value>
     </data>
     <data name="SharesCarryDifferentSecurityLevels" xml:space="preserve">
-        <value>Die Shares halten unterschiedliche Sicherheitsstufen fest. Übergeben Sie die Stufe explizit, um den Körper zu benennen.</value>
+        <value>Die Shares halten unterschiedliche Sicherheitsstufen fest. Sie können nicht aus derselben Aufteilung stammen; eine explizit übergebene Stufe löst das nicht, da sie mindestens einer davon widerspräche.</value>
     </data>
     <data name="SharesCarryMixedSecurityLevelMetadata" xml:space="preserve">
         <value>Ein Teil der Shares hält eine Sicherheitsstufe fest, der andere nicht. Übergeben Sie die Stufe explizit, um den Körper zu benennen.</value>

@@ -194,7 +194,7 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
         <value>The supplied security level {0} contradicts the level recorded on at least one share.</value>
     </data>
     <data name="SharesCarryDifferentSecurityLevels" xml:space="preserve">
-        <value>The shares record different security levels. Supply the level explicitly to say which field applies.</value>
+        <value>The shares record different security levels. They cannot all come from the same split; supplying a level explicitly does not resolve this, because it would contradict at least one of them.</value>
     </data>
     <data name="SharesCarryMixedSecurityLevelMetadata" xml:space="preserve">
         <value>Some shares record a security level and others do not. Supply the level explicitly to say which field applies.</value>
