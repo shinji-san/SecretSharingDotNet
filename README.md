@@ -188,6 +188,22 @@ The output sites below use the pinned `ToCharArray()` accessors on `Shares<TNumb
 > interfaces (each call resolves its own instance) and `AddSingleton` only for
 > the stateless GCD algorithm.
 
+> [!NOTE]
+> `Reconstruction(shares, securityLevel)` — the overload that names the finite field instead of
+> taking it from the shares — lives on `IReconstructionWithSecurityLevelUseCase<TNumber>`, which
+> inherits `IReconstructionUseCase<TNumber>`. **Interface inheritance does not create a second
+> registration:** registering only `IReconstructionUseCase<TNumber>` leaves the derived interface
+> unresolvable. Consumers who need to name the field register it as well, alongside the existing
+> line and pointing at the same implementation:
+>
+> ```csharp
+> serviceCollection.AddTransient<IReconstructionWithSecurityLevelUseCase<BigInteger>, SecretReconstructor<BigInteger>>();
+> ```
+>
+> You need this only for shares that carry no record of their field — anything split before the
+> level became part of the share, or built from raw coordinates. Shares that do carry a level are
+> reconstructed correctly through the existing interface without any change.
+
 ### Variant 1 — BigInteger + ExtendedEuclideanAlgorithm
 
 ```csharp

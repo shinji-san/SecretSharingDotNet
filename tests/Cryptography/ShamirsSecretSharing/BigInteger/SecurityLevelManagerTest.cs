@@ -370,4 +370,79 @@ public class SecurityLevelManagerTest
         Assert.NotNull(mersennePrime);
         Assert.Equal(BigInteger.Pow(2, initialSecurityLevel) - 1, mersennePrime.Value);
     }
+    /// <summary>
+    /// <see cref="SecurityLevelManager{TNumber}.IsValidSecurityLevel"/> answers exactly, without
+    /// the upward normalisation the <see cref="SecurityLevelManager{TNumber}.SecurityLevel"/>
+    /// setter performs. That difference is the point: rounding is right for splitting, where the
+    /// level is derived from the secret's size, and wrong for a level a caller named or a share
+    /// recorded, where quietly using a different field is the defect being prevented.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="securityLevel">The exponent to test.</param>
+    /// <param name="expectedValid">Whether the exponent is a supported Mersenne prime exponent.</param>
+    [Theory]
+    [InlineData(13, true)]
+    [InlineData(17, true)]
+    [InlineData(19, true)]
+    [InlineData(31, true)]
+    [InlineData(12, false)]
+    [InlineData(18, false)]
+    [InlineData(0, false)]
+    [InlineData(-1, false)]
+    [InlineData(int.MaxValue, false)]
+    public void IsValidSecurityLevel_AnswersExactlyWithoutRounding(int securityLevel, bool expectedValid)
+    {
+        // Arrange
+        using var manager = new SecurityLevelManager<BigInteger>();
+
+        // Act
+        bool actualValid = manager.IsValidSecurityLevel(securityLevel);
+
+        // Assert
+        Assert.Equal(expectedValid, actualValid);
+    }
+
+    /// <summary>
+    /// <see cref="SecurityLevelManager{TNumber}.DetermineSecurityLevel"/> returns the exponent
+    /// <see cref="SecurityLevelManager{TNumber}.AdjustSecurityLevel"/> would commit, and commits
+    /// nothing itself. Returning the answer instead of applying it is what lets a caller validate
+    /// its inputs against the resulting field before anything moves.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void DetermineSecurityLevel_ReturnsTheSelectionWithoutCommittingIt()
+    {
+        // Arrange
+        using var manager = new SecurityLevelManager<BigInteger>();
+        manager.SecurityLevel = 31;
+        // Two bytes: the selection starts from ByteCount * 8, and a single-byte value would land
+        // below the smallest supported exponent and be rejected before any walk begins.
+        using var maximumY = new BigIntCalculator(300);
+
+        // Act
+        int determined = manager.DetermineSecurityLevel(maximumY);
+
+        // Assert — the answer is the one AdjustSecurityLevel would apply, and nothing moved.
+        Assert.Equal(13, determined);
+        Assert.Equal(31, manager.SecurityLevel);
+        manager.AdjustSecurityLevel(maximumY);
+        Assert.Equal(determined, manager.SecurityLevel);
+    }
+
+    /// <summary>
+    /// The capability members reject use after disposal like the rest of the type.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void PostDispose_CapabilityMembers_ThrowObjectDisposedException()
+    {
+        // Arrange
+        var manager = new SecurityLevelManager<BigInteger>();
+        using var maximumY = new BigIntCalculator(100);
+        manager.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => manager.IsValidSecurityLevel(17));
+        Assert.Throws<ObjectDisposedException>(() => manager.DetermineSecurityLevel(maximumY));
+    }
 }

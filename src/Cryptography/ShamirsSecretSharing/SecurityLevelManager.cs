@@ -39,7 +39,7 @@ using System.Threading;
 /// Default implementation of <see cref="ISecurityLevelManager{TNumber}"/>.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type</typeparam>
-public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
+public class SecurityLevelManager<TNumber> : IInspectableSecurityLevelManager<TNumber>
 {
     /// <summary>
     /// Provides access to a Mersenne prime provider implementation, enabling retrieval and validation
@@ -151,7 +151,19 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     private Calculator<TNumber> mersennePrime;
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Determination and commitment are split: the selection lives in
+    /// <see cref="DetermineSecurityLevel"/>, which touches no state, and this method is the one
+    /// line that commits its answer. Callers that need to validate their inputs against the
+    /// resulting field <em>before</em> anything moves use the determination directly.
+    /// </remarks>
     public void AdjustSecurityLevel(Calculator<TNumber> maximumY)
+    {
+        this.SecurityLevel = this.DetermineSecurityLevel(maximumY);
+    }
+
+    /// <inheritdoc/>
+    public int DetermineSecurityLevel(Calculator<TNumber> maximumY)
     {
         this.ThrowIfDisposed();
         if (maximumY is null)
@@ -174,7 +186,14 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
 
         // index is now either -1 (maximumY fits even the smallest prime) or the highest
         // exponent for which maximumY does NOT fit. The smallest fitting exponent is at index+1.
-        this.SecurityLevel = this.mersennePrimeProvider.GetMersennePrimeExponentByIndex(index + 1);
+        return this.mersennePrimeProvider.GetMersennePrimeExponentByIndex(index + 1);
+    }
+
+    /// <inheritdoc/>
+    public bool IsValidSecurityLevel(int securityLevel)
+    {
+        this.ThrowIfDisposed();
+        return this.mersennePrimeProvider.IsValidMersennePrimeExponent(securityLevel);
     }
 
     /// <summary>
