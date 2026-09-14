@@ -87,6 +87,12 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     private readonly Calculator<TNumber> value;
 
     /// <summary>
+    /// Backing field for <see cref="SecurityLevel"/>. <see langword="null"/> when this share
+    /// carries no record of the field it was created in.
+    /// </summary>
+    private readonly int? securityLevel;
+
+    /// <summary>
     /// Indicates whether the share has been disposed (<c>0</c> = live, <c>1</c> = disposed).
     /// Updated atomically via <see cref="Interlocked.Exchange(ref int, int)"/> so that
     /// concurrent <see cref="Dispose"/> calls cannot both reach the
@@ -118,6 +124,33 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         {
             this.ThrowIfDisposed();
             return this.value;
+        }
+    }
+
+    /// <summary>
+    /// The Mersenne exponent of the finite field this share was created in, or
+    /// <see langword="null"/> when the share carries no record of it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null"/> means exactly one thing: <em>no exponent is present</em>. It does
+    /// <b>not</b> establish that the share came from the legacy text format — the public
+    /// <see cref="Share{TNumber}(Calculator{TNumber}, Calculator{TNumber})"/> and
+    /// <see cref="Share{TNumber}(byte[], byte[])"/> constructors produce the same state, because
+    /// a caller supplying coordinates cannot know which field they came from.
+    /// </para>
+    /// <para>
+    /// A share created by <c>MakeShares</c> carries the exponent that actually governed the
+    /// polynomial — the value after any auto-raise, not the one the caller requested.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public int? SecurityLevel
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.securityLevel;
         }
     }
 
@@ -181,6 +214,33 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
         this.index = index;
         this.value = value;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Share{TNumber}"/> record that records the
+    /// finite field it was created in.
+    /// </summary>
+    /// <param name="index">The index (X coordinate). Ownership transfers to this instance.</param>
+    /// <param name="value">The value (Y coordinate). Ownership transfers to this instance.</param>
+    /// <param name="securityLevel">
+    /// The Mersenne exponent governing the polynomial this share lies on.
+    /// </param>
+    /// <remarks>
+    /// <see langword="internal"/> on purpose: the exponent is not validated here, because the only
+    /// caller is <c>SecretSplitter.CreateShares</c> and it passes the value its
+    /// <c>ISecurityLevelManager</c> has already normalised. Every path that takes an exponent from
+    /// outside the library validates it at that boundary instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="index"/> or <paramref name="value"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="index"/> is less than one.
+    /// </exception>
+    internal Share(Calculator<TNumber> index, Calculator<TNumber> value, int securityLevel)
+        : this(index, value)
+    {
+        this.securityLevel = securityLevel;
     }
 
     /// <summary>
@@ -337,7 +397,10 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
         bool indexEqual = this.index.Equals(other.index);
         bool valueEqual = this.value.Equals(other.value);
-        return indexEqual & valueEqual;
+        // Nullable int equality, not a wildcard: null equals null and differs from every
+        // exponent. Treating null as "matches any level" would break transitivity.
+        bool levelEqual = this.securityLevel == other.securityLevel;
+        return indexEqual & valueEqual & levelEqual;
     }
 
     /// <summary>
@@ -359,6 +422,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         var hash = new HashCode();
         hash.Add(this.index);
         hash.Add(this.value);
+        hash.Add(this.securityLevel);
         return hash.ToHashCode();
 #else
         unchecked
@@ -366,6 +430,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             int h = 17;
             h = h * 31 + this.index.GetHashCode();
             h = h * 31 + this.value.GetHashCode();
+            h = h * 31 + this.securityLevel.GetHashCode();
             return h;
         }
 #endif

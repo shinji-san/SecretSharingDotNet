@@ -5,6 +5,7 @@ using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
+using System.Collections.Generic;
 using Xunit;
 
 /// <summary>
@@ -1036,5 +1037,138 @@ public class ShareTest
 
         // Act & Assert — empty `with { }` triggers the protected copy ctor.
         Assert.Throws<NotSupportedException>(() => _ = share with { });
+    }
+    /// <summary>
+    /// The coordinate constructor records no level. A caller handing over two coordinates cannot
+    /// know which field they came from, so there is nothing to record — and <see langword="null"/>
+    /// here means exactly that and nothing more. In particular it does not mark the share as
+    /// coming from the legacy text format; this constructor produces the same state.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void SecurityLevel_FromCoordinateConstructor_IsNull()
+    {
+        // Arrange & Act
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+
+        // Assert
+        Assert.Null(share.SecurityLevel);
+    }
+
+    /// <summary>
+    /// The byte-array constructor records no level, for the same reason as the coordinate one.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void SecurityLevel_FromByteArrayConstructor_IsNull()
+    {
+        // Arrange & Act
+        using var share = new Share<SecureBigInteger>(new byte[] { 5 }, new byte[] { 10 });
+
+        // Assert
+        Assert.Null(share.SecurityLevel);
+    }
+
+    /// <summary>
+    /// A share parsed from the two-segment text form records no level, because that form carries
+    /// none. Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void SecurityLevel_FromLegacyTextConstructor_IsNull()
+    {
+        // Arrange
+        using var pinned = "B-AA".ToPinnedSecure();
+
+        // Act
+        using var share = new Share<SecureBigInteger>(pinned);
+
+        // Assert
+        Assert.Null(share.SecurityLevel);
+    }
+
+    /// <summary>
+    /// Reading the level after disposal throws, like the other public properties of this type.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void PostDispose_SecurityLevel_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), 17);
+        share.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => _ = share.SecurityLevel);
+    }
+
+    /// <summary>
+    /// Equality over the level, for identical coordinates. <see langword="null"/> is a state of its
+    /// own, never a wildcard that matches any exponent — a wildcard would break transitivity.
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="leftLevel">Level recorded on the left share, or <c>0</c> for none.</param>
+    /// <param name="rightLevel">Level recorded on the right share, or <c>0</c> for none.</param>
+    /// <param name="expectedEqual">Whether the two shares are expected to compare equal.</param>
+    [Theory]
+    [InlineData(0, 0, true)]
+    [InlineData(17, 17, true)]
+    [InlineData(0, 17, false)]
+    [InlineData(17, 0, false)]
+    [InlineData(17, 19, false)]
+    public void Equals_BothLive_SameCoordinates_FollowsTheLevel(int leftLevel, int rightLevel, bool expectedEqual)
+    {
+        // Arrange
+        using var left = leftLevel == 0
+            ? new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10))
+            : new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), leftLevel);
+        using var right = rightLevel == 0
+            ? new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10))
+            : new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), rightLevel);
+
+        // Act
+        bool areEqual = left.Equals(right);
+
+        // Assert
+        Assert.Equal(expectedEqual, areEqual);
+    }
+
+    /// <summary>
+    /// Shares that compare equal hash equally, with the level present and with it absent. The
+    /// converse is deliberately not asserted: including the level in the hash guarantees nothing
+    /// about unequal shares, and the contract requires nothing of them either.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void GetHashCode_BothLive_EqualShares_ProduceSameHash()
+    {
+        // Arrange
+        using var levelledLeft = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), 17);
+        using var levelledRight = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), 17);
+        using var legacyLeft = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        using var legacyRight = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+
+        // Act & Assert
+        Assert.Equal(levelledLeft.GetHashCode(), levelledRight.GetHashCode());
+        Assert.Equal(legacyLeft.GetHashCode(), legacyRight.GetHashCode());
+    }
+
+    /// <summary>
+    /// A legacy share and its levelled counterpart are distinct entries in a <see cref="HashSet{T}"/>.
+    /// This is the consequence of letting the level into equality, and it is intended: a set that
+    /// collapsed them would keep whichever arrived first and silently drop the field information.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void HashSet_LegacyAndLevelledShare_AreDistinctEntries()
+    {
+        // Arrange
+        using var legacy = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        using var levelled = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), 17);
+
+        // Act
+        var set = new HashSet<Share<SecureBigInteger>> { legacy, levelled };
+
+        // Assert
+        Assert.Equal(2, set.Count);
     }
 }
