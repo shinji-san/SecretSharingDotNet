@@ -148,7 +148,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <paramref name="shares"/> contains fewer than two entries.
     /// </exception>
     /// <exception cref="ReconstructionException">
-    /// Two or more entries in <paramref name="shares"/> share the same <see cref="Share{TNumber}.Index"/>.
+    /// Two or more entries in <paramref name="shares"/> share the same <see cref="Share{TNumber}.Index"/>,
+    /// or the interpolated coefficient carries no payload beyond its mark byte and therefore decodes
+    /// to no secret at all.
     /// </exception>
     /// <remarks>
     /// The <paramref name="shares"/> are borrowed — this method reads <see cref="Share{TNumber}.Index"/>
@@ -261,6 +263,21 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             // normalised secret coefficient a0 directly.
             using var a0 = this.DivMod(numerator, denominator);
 
+            // Secret.FromCoefficient strips the trailing mark byte, so a coefficient that
+            // occupies no more than that byte leaves nothing behind and the Secret constructor
+            // rejects it with ArgumentException from two layers down -- an error naming neither
+            // the cause nor the operation. Reject it here instead, on the reconstruction
+            // contract. The message states only what is provable: the exponent the
+            // interpolation ran under. It does not claim a level refit, because the shares
+            // carry no record of the exponent they were split with and this instance's prior
+            // state proves nothing about it; and it does not name a cause, because a tampered
+            // share produces exactly the same picture.
+            if (a0.ByteCount <= Secret<TNumber>.MarkByteCount)
+            {
+                throw new ReconstructionException(
+                    string.Format(ErrorMessages.ReconstructionYieldedNoDecodableSecret, mersenneExponent));
+            }
+
             return Secret<TNumber>.FromCoefficient(a0);
         }
         finally
@@ -284,8 +301,11 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <paramref name="shares"/> contains fewer than two entries.
     /// </exception>
     /// <exception cref="ReconstructionException">
-    /// <paramref name="shares"/> has no maximum y-value, or contains entries with duplicate
-    /// <see cref="Share{TNumber}.Index"/> values.
+    /// <paramref name="shares"/> has no maximum y-value, contains entries with duplicate
+    /// <see cref="Share{TNumber}.Index"/> values, or interpolates to a coefficient that decodes
+    /// to no secret. The last case carries the Mersenne exponent the interpolation ran under; it
+    /// does not identify a cause, because shares record no exponent and a tampered share is
+    /// indistinguishable from an ill-fitting field here.
     /// </exception>
     /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public Secret<TNumber> Reconstruction(Shares<TNumber> shares)

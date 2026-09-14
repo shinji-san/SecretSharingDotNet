@@ -377,5 +377,11 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("PinnedBufferLengthMismatch", resourceCulture);
             }
         }
+        
+        internal static string ReconstructionYieldedNoDecodableSecret {
+            get {
+                return ResourceManager.GetString("ReconstructionYieldedNoDecodableSecret", resourceCulture);
+            }
+        }
     }
 }

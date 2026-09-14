@@ -177,4 +177,7 @@
     <data name="PinnedBufferLengthMismatch" xml:space="preserve">
         <value>Erwartet wurde ein pinned Buffer mit Länge {0}, war jedoch {1}.</value>
     </data>
+    <data name="ReconstructionYieldedNoDecodableSecret" xml:space="preserve">
+        <value>Die Rekonstruktion hat kein dekodierbares Geheimnis ergeben. Verwendeter Mersenne-Exponent: {0}. Der ursprüngliche Exponent ist in diesen Shares nicht enthalten.</value>
+    </data>
 </root>

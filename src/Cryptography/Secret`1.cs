@@ -98,7 +98,12 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <summary>
     /// The maximum mark byte count.
     /// </summary>
-    private const int MarkByteCount = 1;
+    /// <remarks>
+    /// <see langword="internal"/> rather than <see langword="private"/> so the reconstruction
+    /// layer can express "a coefficient this small leaves no payload" without restating the
+    /// constant. See <c>SecretReconstructor.LagrangeInterpolate</c>.
+    /// </remarks>
+    internal const int MarkByteCount = 1;
 
     /// <summary>
     /// Saves the secret
