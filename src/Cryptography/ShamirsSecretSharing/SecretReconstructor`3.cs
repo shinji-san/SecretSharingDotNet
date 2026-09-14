@@ -150,9 +150,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <paramref name="shares"/> contains fewer than two entries.
     /// </exception>
     /// <exception cref="ReconstructionException">
-    /// Two or more entries in <paramref name="shares"/> share the same <see cref="Share{TNumber}.Index"/>,
-    /// or the interpolated coefficient carries no payload beyond its mark byte and therefore decodes
-    /// to no secret at all.
+    /// The interpolated coefficient carries no payload beyond its mark byte and therefore decodes
+    /// to no secret at all. Index distinctness is <em>not</em> checked here — see
+    /// <see cref="EnsureDistinctIndices"/>, which runs before the security level is committed.
     /// </exception>
     /// <remarks>
     /// The <paramref name="shares"/> are borrowed — this method reads <see cref="Share{TNumber}.Index"/>
@@ -174,31 +174,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentOutOfRangeException(nameof(shares), numberOfPoints, ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
 
-        // Explicit HashSet loop instead of shares.Select(s => s.Index).Distinct().Count()
-        // — avoids the SelectIterator + DistinctIterator + enumerator allocations on the
-        // unpinned managed heap. Throws on first-duplicate detection instead of after full
-        // enumeration; eager-vs-lazy throw on the public x-coordinates yields the same
-        // exception type and message, no observable difference on the success path.
-        //
-        // Indices are hashed through PublicValueEqualityComparer: Calculator.GetHashCode delegates
-        // to TNumber.GetHashCode, and the SecureBigInteger backend deliberately hashes only public
-        // metadata (sign + limb count) so a value-derived hash of secret material cannot be observed.
-        // That makes every small positive one-limb index hash identically, which would collapse this
-        // check into one bucket (O(n²)). Indices are public (the X coordinate on the "INDEX-VALUE"
-        // wire), so a value-based hash of them is safe and restores O(n).
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-        var seenIndices = new HashSet<Calculator<TNumber>>(numberOfPoints, PublicValueEqualityComparer<TNumber>.Instance);
-#else
-        var seenIndices = new HashSet<Calculator<TNumber>>(PublicValueEqualityComparer<TNumber>.Instance);
-#endif
-        for (int i = 0; i < numberOfPoints; i++)
-        {
-            if (!seenIndices.Add(shares[i].Index))
-            {
-                throw new ReconstructionException(ErrorMessages.ShareIndicesNotDistinct);
-            }
-        }
-
+        // Index distinctness is checked by ReconstructionCore before it moves the security level
+        // manager: rejecting a duplicate here would mean rejecting it after the state had already
+        // changed, which is the one thing input validation is supposed to avoid.
         using var zero = Calculator<TNumber>.Zero;
         var numeratorProducts = new Calculator<TNumber>[numberOfPoints];
         var denominatorProducts = new Calculator<TNumber>[numberOfPoints];
@@ -312,9 +290,10 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// interpolation produces a coefficient that decodes to no secret.
     /// <para>
     /// The last case carries the Mersenne exponent the interpolation ran under and identifies no
-    /// cause, because a tampered share is indistinguishable from an ill-fitting field here. It is
-    /// reachable only for shares that record no level — where one is recorded, it is used, and the
-    /// mismatch that produced this failure does not arise.
+    /// cause, because a tampered share is indistinguishable from an ill-fitting field here. Using
+    /// the recorded level removes the ill-fitting field as a cause, not the failure: a tampered
+    /// share whose value drives the interpolated coefficient to zero produces it just the same,
+    /// and the shares may record a level throughout.
     /// </para>
     /// <para>
     /// Where the shares disagree or say nothing, naming the field through
@@ -448,21 +427,74 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             }
         }
 
-        // Phase 2 — validate against the candidate. Skipped where the candidate was derived from
-        // the coordinates: that field admits them by construction, and running the check there
-        // would change the legacy path this fix leaves alone.
-        if (!derivedFromValues)
+        // Phase 2 — validate. Distinctness first: it needs no field, and a duplicate index makes
+        // the Lagrange denominator zero whatever the level is.
+        EnsureDistinctIndices(shareList);
+
+        // The coordinate check and the commit swap places depending on what the manager can
+        // answer. With the exact check the exponent is already known to be supported, so the
+        // coordinates are validated first and the state moves last. Without it, nothing has
+        // vetted the exponent yet — so the manager is asked to accept it first, which keeps an
+        // unsupported value out of the big-integer arithmetic below and gives a single, uniform
+        // rejection instead of whatever `2^exponent` happens to do with it.
+        if (alreadyCommitted)
         {
             ValidateCoordinatesFit(shareList, securityLevel);
         }
-
-        // Phase 3 — commit.
-        if (!alreadyCommitted)
+        else if (this.securityLevelManager is IInspectableSecurityLevelManager<TNumber>)
+        {
+            ValidateCoordinatesFit(shareList, securityLevel);
+            this.CommitSecurityLevel(securityLevel, explicitLevel.HasValue);
+        }
+        else
         {
             this.CommitSecurityLevel(securityLevel, explicitLevel.HasValue);
+            ValidateCoordinatesFit(shareList, securityLevel);
         }
 
         return this.LagrangeInterpolate(shareList);
+    }
+
+    /// <summary>
+    /// Rejects a set containing two shares with the same index.
+    /// </summary>
+    /// <param name="shareList">The shares to check.</param>
+    /// <remarks>
+    /// <para>
+    /// Runs before the security level is committed. Duplicate indices make the Lagrange
+    /// denominator zero, so this has to be caught either way; catching it after the manager had
+    /// moved would break the promise that input validation leaves the state alone.
+    /// </para>
+    /// <para>
+    /// Explicit <see cref="HashSet{T}"/> loop instead of <c>Select(...).Distinct().Count()</c> —
+    /// avoids the iterator and enumerator allocations on the unpinned managed heap, and throws on
+    /// the first duplicate rather than after a full enumeration.
+    /// </para>
+    /// <para>
+    /// Indices are hashed through <c>PublicValueEqualityComparer</c>:
+    /// <c>Calculator.GetHashCode</c> delegates to <typeparamref name="TNumber"/>, and the
+    /// <c>SecureBigInteger</c> backend deliberately hashes only public metadata (sign and limb
+    /// count) so a value-derived hash of secret material cannot be observed. That makes every
+    /// small positive one-limb index hash identically, which would collapse this check into a
+    /// single bucket and make it quadratic. Indices are public — they travel as the X coordinate
+    /// of every serialised share — so hashing them by value is safe and restores the linear cost.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ReconstructionException">Two entries share the same index.</exception>
+    private static void EnsureDistinctIndices(IReadOnlyList<Share<TNumber>> shareList)
+    {
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+        var seenIndices = new HashSet<Calculator<TNumber>>(shareList.Count, PublicValueEqualityComparer<TNumber>.Instance);
+#else
+        var seenIndices = new HashSet<Calculator<TNumber>>(PublicValueEqualityComparer<TNumber>.Instance);
+#endif
+        for (int i = 0; i < shareList.Count; i++)
+        {
+            if (!seenIndices.Add(shareList[i].Index))
+            {
+                throw new ReconstructionException(ErrorMessages.ShareIndicesNotDistinct);
+            }
+        }
     }
 
     /// <summary>
@@ -526,27 +558,35 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             return;
         }
 
-        string message = string.Format(ErrorMessages.SecurityLevelNotSupported, securityLevel);
-        if (explicitlySupplied)
-        {
-            throw new ArgumentOutOfRangeException(nameof(securityLevel), securityLevel, message);
-        }
-
-        throw new ReconstructionException(message);
+        throw RejectSecurityLevel(
+            securityLevel,
+            explicitlySupplied,
+            string.Format(ErrorMessages.SecurityLevelNotSupported, securityLevel));
     }
 
     /// <summary>
-    /// Rejects share coordinates that do not fit the field of the given exponent.
+    /// Rejects share coordinates that do not lie in the field of the given exponent:
+    /// <c>0 &lt; x &lt; p</c> and <c>0 &lt;= y &lt; p</c>.
     /// </summary>
     /// <param name="shareList">The shares to check.</param>
     /// <param name="securityLevel">The exponent naming the field.</param>
     /// <remarks>
+    /// <para>
+    /// Runs on every path, including the one where the exponent was derived from the share values.
+    /// That derivation looks at the <em>maximum</em> y only, so it establishes an upper bound on
+    /// one coordinate and nothing else: it says nothing about a negative y, and nothing at all
+    /// about the indices. An index at or above the prime collides modulo <c>p</c> with another and
+    /// makes the Lagrange denominator zero.
+    /// </para>
+    /// <para>
     /// The prime is computed here rather than read from the manager: the manager's
-    /// <c>MersennePrime</c> belongs to the level it currently holds, and asking it for this one
-    /// would mean moving it first — which is precisely what this check runs before.
+    /// <c>MersennePrime</c> belongs to the level it currently holds, which on the pre-commit paths
+    /// is not yet this one.
+    /// </para>
     /// </remarks>
     private static void ValidateCoordinatesFit(IReadOnlyList<Share<TNumber>> shareList, int securityLevel)
     {
+        using var zero = Calculator<TNumber>.Zero;
         using var one = Calculator<TNumber>.One;
         using var two = Calculator<TNumber>.Two;
         using var power = two.Pow(securityLevel);
@@ -554,7 +594,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
 
         for (int i = 0; i < shareList.Count; i++)
         {
-            if (shareList[i].Index >= prime || shareList[i].Value >= prime)
+            var index = shareList[i].Index;
+            var value = shareList[i].Value;
+            if (index < one || index >= prime || value < zero || value >= prime)
             {
                 throw new ReconstructionException(
                     string.Format(ErrorMessages.ShareCoordinateOutsideField, securityLevel));
@@ -579,21 +621,53 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </remarks>
     private void CommitSecurityLevel(int securityLevel, bool explicitlySupplied)
     {
-        this.securityLevelManager.SecurityLevel = securityLevel;
+        try
+        {
+            this.securityLevelManager.SecurityLevel = securityLevel;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // Targeted, not blanket. This assignment takes exactly one argument, so an
+            // out-of-range rejection from it is about that exponent and nothing else. It is
+            // re-typed to this boundary's contract because the manager names its own parameter,
+            // which the caller has never seen and cannot act on.
+            throw RejectSecurityLevel(
+                securityLevel,
+                explicitlySupplied,
+                string.Format(ErrorMessages.SecurityLevelNotSupported, securityLevel));
+        }
+
         int applied = this.securityLevelManager.SecurityLevel;
         if (applied == securityLevel)
         {
             return;
         }
 
-        string message = string.Format(ErrorMessages.SecurityLevelNotAppliedByManager, securityLevel, applied);
-        if (explicitlySupplied)
-        {
-            throw new ArgumentOutOfRangeException(nameof(securityLevel), securityLevel, message);
-        }
-
-        throw new ReconstructionException(message);
+        throw RejectSecurityLevel(
+            securityLevel,
+            explicitlySupplied,
+            string.Format(ErrorMessages.SecurityLevelNotAppliedByManager, securityLevel, applied));
     }
+
+    /// <summary>
+    /// Builds the rejection for an unusable security level, typed by where the level came from.
+    /// </summary>
+    /// <param name="securityLevel">The exponent that was refused.</param>
+    /// <param name="explicitlySupplied">
+    /// <see langword="true"/> when the caller handed the exponent in, <see langword="false"/> when
+    /// it was read off the shares.
+    /// </param>
+    /// <param name="message">The message describing the refusal.</param>
+    /// <returns>The exception to throw.</returns>
+    /// <remarks>
+    /// One rule in one place: an exponent the caller passed is an argument error naming the
+    /// parameter; the same exponent read off a share is a reconstruction failure, because the
+    /// caller supplied no such argument to be told about.
+    /// </remarks>
+    private static Exception RejectSecurityLevel(int securityLevel, bool explicitlySupplied, string message) =>
+        explicitlySupplied
+            ? new ArgumentOutOfRangeException("securityLevel", securityLevel, message)
+            : (Exception)new ReconstructionException(message);
 
     /// <summary>
     /// Performs division in the finite field defined by the configured Mersenne

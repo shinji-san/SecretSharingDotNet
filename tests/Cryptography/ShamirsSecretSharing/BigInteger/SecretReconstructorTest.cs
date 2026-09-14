@@ -506,4 +506,101 @@ public class SecretReconstructorTest
         var error = Assert.Throws<ArgumentOutOfRangeException>(() => reconstructor.Reconstruction(shares, 18));
         Assert.Equal("securityLevel", error.ParamName);
     }
+    /// <summary>
+    /// Without the exact check the exponent is vetted by the manager, before any of it reaches the
+    /// big-integer arithmetic. Every rejection comes back as the same argument error naming the
+    /// same parameter, whatever the manager's own setter would have called it — a caller cannot act
+    /// on a parameter name it never supplied.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="securityLevel">An exponent that is not a supported Mersenne prime exponent.</param>
+    [Theory]
+    [InlineData(18)]
+    [InlineData(12)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MaxValue)]
+    public void Reconstruction_WithAManagerLackingTheCapability_RejectsEveryUnsupportedLevelAlike(int securityLevel)
+    {
+        // Arrange
+        using var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+        using var plainManager = new PlainSecurityLevelManager();
+        using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), plainManager);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => reconstructor.Reconstruction(shares, securityLevel));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// A negative y-coordinate is outside the field even though it is below the prime. Comparing
+    /// only against the upper bound would let it through, and the interpolation would run on a
+    /// point that is not in the field it claims to be in.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithANegativeCoordinate_Throws()
+    {
+        // Arrange
+        using var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(-489)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(-1489)),
+        });
+        using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares, 13));
+    }
+
+    /// <summary>
+    /// The legacy path checks coordinates too. Deriving the field from the maximum y bounds one
+    /// coordinate and says nothing about the indices: an index at or above the prime collides
+    /// modulo <c>p</c> with another and drives the Lagrange denominator to zero.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WhenAnIndexExceedsTheDerivedField_Throws()
+    {
+        // Arrange — maximumY 2511 derives M13 = 8191, which index 8192 does not fit.
+        using var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(8192), new BigIntCalculator(1511)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(2511)),
+        });
+        using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+    }
+
+    /// <summary>
+    /// Duplicate indices are refused before the security level moves. The check has to happen
+    /// either way — a repeated index makes the Lagrange denominator zero — but running it after the
+    /// commit would leave the manager on a level the caller never asked for, and its previous prime
+    /// instance disposed, on an input that was never usable.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithDuplicateIndices_LeavesTheManagerUntouched()
+    {
+        // Arrange
+        using var manager = new SecurityLevelManager<BigInteger>();
+        manager.SecurityLevel = 31;
+        using var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 17),
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(20), 17),
+        });
+        using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), manager);
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+        Assert.Equal(31, manager.SecurityLevel);
+    }
 }
