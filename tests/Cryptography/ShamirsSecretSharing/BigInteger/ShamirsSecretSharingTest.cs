@@ -537,6 +537,14 @@ public class ShamirsSecretSharingTest
     /// <b>These assertions pin current behaviour, not desired behaviour.</b> When the refit is
     /// fixed, both cases must round-trip and this test has to be inverted.
     /// </para>
+    /// <para>
+    /// One assertion here is <em>not</em> part of that inversion. That case A raises
+    /// <see cref="ReconstructionException"/> naming the exponent, rather than an
+    /// <c>ArgumentException</c> from inside the <c>Secret</c> constructor, is permanent
+    /// behaviour: shares carrying no level keep reaching this path after the fix, and the
+    /// diagnosis is the whole point of it. Whoever inverts this test must keep a legacy-path
+    /// case that still asserts it.
+    /// </para>
     /// Mirror of the SecureBigInteger-side fact of the same name.
     /// </summary>
     [Fact]
@@ -549,8 +557,11 @@ public class ShamirsSecretSharingTest
         using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
 
         // Act & Assert — the refitted field maps the coefficient to zero, so no secret survives.
+        // The reconstruction layer rejects that itself rather than letting the Secret constructor
+        // raise ArgumentException from two layers down, and names the exponent it ran under.
         using var sharesAtPrime = splitterAtPrime.MakeShares(2, 2, secretAtPrime);
-        Assert.Throws<ArgumentException>(() => reconstructor.Reconstruction(sharesAtPrime));
+        var noSecret = Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(sharesAtPrime));
+        Assert.Contains("13", noSecret.Message);
 
         // Arrange — coefficient above the refitted prime but below twice it.
         using var secretAbovePrime = new Secret<BigInteger>(new byte[] { 0xFF, 0xFF }, 2, new DeterministicRandomSource(16));
