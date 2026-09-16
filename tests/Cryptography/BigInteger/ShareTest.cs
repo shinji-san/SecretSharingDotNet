@@ -1405,11 +1405,13 @@ public class ShareTest
     /// so handing it the original's instances would leave two shares owning one pair of buffers and
     /// disposing either would invalidate the other — a use-after-dispose surfacing far from here.
     /// <para>
-    /// <b>Only the SecureBigInteger side can actually catch a missing clone.</b> Dropping the
-    /// <c>Clone</c> calls turns this test red there, because a disposed <c>SecureBigInteger</c>
-    /// refuses further use; on the BigInteger backend a disposed calculator has no observable
-    /// state, so the shared-buffer mistake reads as success. The assertion is kept on both sides
-    /// for symmetry and to state the contract, but the mirror is what enforces it.
+    /// The two halves of this test carry different weight. <see cref="Assert.NotSame"/> on the
+    /// coordinates catches a missing clone on <em>both</em> backends, because reference identity is
+    /// observable everywhere — that is the assertion enforcing the contract. The post-dispose half
+    /// adds the consequence a caller would actually meet, and only bites on the SecureBigInteger
+    /// side: a disposed <c>SecureBigInteger</c> refuses further use, while a disposed
+    /// <c>BigIntCalculator</c> has no observable state, so the shared-buffer mistake would read as
+    /// success there on its own.
     /// </para>
     /// Mirror of the SecureBigInteger-side fact of the same name.
     /// </summary>
