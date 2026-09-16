@@ -348,6 +348,11 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix, ShareFormat format)
     {
         this.ThrowIfDisposed();
+
+        // Before the emptiness short-circuit, not after: an argument the method cannot honour is
+        // wrong whether or not there is anything to write, and an empty collection quietly
+        // accepting a cast integer would make the contract depend on the data.
+        ShareFormatValidation.EnsureDefined(format, nameof(format));
         if (this.shareList.Count == 0)
         {
             return new PinnedPoolArray<char>(0);

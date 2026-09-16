@@ -828,4 +828,29 @@ public class SharesTest
         Assert.Throws<InvalidOperationException>(
             () => shares.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended));
     }
+    /// <summary>
+    /// An undefined format is refused whether or not there is anything to write. Validating after
+    /// the emptiness short-circuit made the contract depend on the data: a populated collection
+    /// refused a cast integer and an empty one handed back a buffer.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="shareCount">How many shares the collection holds.</param>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void ToCharArray_WithAnUndefinedFormat_ThrowsRegardlessOfCount(int shareCount)
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<BigInteger>();
+        splitter.SecurityLevel = 17;
+        using var populated = splitter.MakeShares(2, 2, secret);
+        using var empty = new Shares<BigInteger>(Array.Empty<Share<BigInteger>>());
+        var shares = shareCount == 0 ? empty : populated;
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => shares.ToCharArray(uppercase: true, withPrefix: false, (ShareFormat)42));
+        Assert.Equal("format", error.ParamName);
+    }
 }

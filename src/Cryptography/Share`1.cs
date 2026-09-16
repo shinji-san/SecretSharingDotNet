@@ -594,20 +594,18 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </exception>
     private int SecurityLevelDigits(ShareFormat format)
     {
-        switch (format)
+        ShareFormatValidation.EnsureDefined(format, nameof(format));
+        if (format == ShareFormat.Legacy)
         {
-            case ShareFormat.Legacy:
-                return 0;
-            case ShareFormat.Extended:
-                if (this.securityLevel is null)
-                {
-                    throw new InvalidOperationException(ErrorMessages.ShareHasNoSecurityLevelToSerialize);
-                }
-
-                return HexDigitCount(this.securityLevel.Value);
-            default:
-                throw new ArgumentOutOfRangeException(nameof(format), format, null);
+            return 0;
         }
+
+        if (this.securityLevel is null)
+        {
+            throw new InvalidOperationException(ErrorMessages.ShareHasNoSecurityLevelToSerialize);
+        }
+
+        return HexDigitCount(this.securityLevel.Value);
     }
 
     /// <summary>
@@ -964,20 +962,6 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     }
 
     /// <summary>
-    /// Decodes a hex substring at <c>buf[offset..offset+length]</c> into a <see cref="Calculator{TNumber}"/>.
-    /// Validates and decodes in a single pass — the first non-hexadecimal character triggers an
-    /// <see cref="ArgumentException"/> whose message contains the offending character's position.
-    /// </summary>
-    /// <remarks>
-    /// Intermediate byte material is held in a <see cref="PinnedPoolArray{T}"/>, which is securely
-    /// cleared on dispose. Odd-length input is left-padded by writing the single high nibble into the
-    /// first output byte.
-    /// </remarks>
-    /// <exception cref="InvalidShareException">
-    /// Thrown when a non-hexadecimal character is encountered. The message identifies the zero-based
-    /// position of the invalid character within <paramref name="buf"/>.
-    /// </exception>
-    /// <summary>
     /// Decodes the security level segment: hexadecimal characters to a positive <see cref="int"/>.
     /// </summary>
     /// <param name="buf">The character buffer.</param>
@@ -1023,6 +1007,20 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         return decoded;
     }
 
+    /// <summary>
+    /// Decodes a hex substring at <c>buf[offset..offset+length]</c> into a <see cref="Calculator{TNumber}"/>.
+    /// Validates and decodes in a single pass — the first non-hexadecimal character triggers an
+    /// <see cref="ArgumentException"/> whose message contains the offending character's position.
+    /// </summary>
+    /// <remarks>
+    /// Intermediate byte material is held in a <see cref="PinnedPoolArray{T}"/>, which is securely
+    /// cleared on dispose. Odd-length input is left-padded by writing the single high nibble into the
+    /// first output byte.
+    /// </remarks>
+    /// <exception cref="InvalidShareException">
+    /// Thrown when a non-hexadecimal character is encountered. The message identifies the zero-based
+    /// position of the invalid character within <paramref name="buf"/>.
+    /// </exception>
     private static Calculator<TNumber> DecodeHexToCalculator(char[] buf, int offset, int length)
     {
         var byteCount = (length + 1) >> 1;

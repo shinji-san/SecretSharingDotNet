@@ -35,7 +35,9 @@ using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
+using SecretSharingDotNet.SecureMemory;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -659,4 +661,123 @@ public class ShamirsSecretSharingTest
         Assert.Contains("13", noSecret.Message);
     }
 
+    /// <summary>
+    /// The serialized extended form carries a split all the way back: text out, text in,
+    /// reconstruction, original secret. Both reading entry points are exercised, because both build
+    /// their shares through the same constructor and either could drift away from it.
+    /// <para>
+    /// The vectors are A and B from issue #403 — the two that used to lose the secret at the refit
+    /// boundary. Round-tripping them through text is the property that matters for a consumer who
+    /// persists shares rather than holding them in memory: step 2 fixed the in-process path, and
+    /// without this the fix would stop at the file.
+    /// </para>
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="secretSeed">Seed fixing the secret's mark byte.</param>
+    /// <param name="splitterSeed">Seed fixing the polynomial coefficients.</param>
+    /// <param name="securityLevel">Mersenne exponent the secret is split with.</param>
+    /// <param name="secretByteCount">Length of the all-<c>0xFF</c> secret.</param>
+    /// <param name="viaLines">
+    /// <see langword="true"/> to read back through <c>FromTextLines</c>, <see langword="false"/>
+    /// through <c>FromText</c>.
+    /// </param>
+    [Theory]
+    [InlineData(12, 171, 17, 1, false)]
+    [InlineData(12, 171, 17, 1, true)]
+    [InlineData(16, 3544, 31, 2, false)]
+    [InlineData(16, 3544, 31, 2, true)]
+    public void ExtendedFormat_SurvivesTextRoundTripAndReconstruction(
+        int secretSeed, int splitterSeed, int securityLevel, int secretByteCount, bool viaLines)
+    {
+        // Arrange
+        var message = new byte[secretByteCount];
+        for (int i = 0; i < message.Length; i++)
+        {
+            message[i] = 0xFF;
+        }
+
+        using var secret = new Secret<BigInteger>(message, message.Length, new DeterministicRandomSource(secretSeed));
+        using var secretSplitter = new SecretSplitter<BigInteger>(new DeterministicRandomSource(splitterSeed));
+        secretSplitter.SecurityLevel = securityLevel;
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var shares = secretSplitter.MakeShares(2, 2, secret);
+
+        // Act
+        using var parsed = ReadBackAsExtended(shares, viaLines);
+        using var reconstructedSecret = secretReconstructor.Reconstruction(parsed);
+
+        // Assert
+        Assert.All(parsed, share => Assert.Equal(securityLevel, share.SecurityLevel));
+        Assert.Equal(securityLevel, secretReconstructor.SecurityLevel);
+        Assert.Equal(secret, reconstructedSecret);
+    }
+
+    /// <summary>
+    /// Vector C over the text round trip. It needs a subset of a 2-of-280 split, so it cannot ride
+    /// the theory above, and it is the vector that refuted the original theory of the defect — a
+    /// one-byte secret whose constant term sits far below the prime the old derivation would have
+    /// chosen.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ExtendedFormat_SurvivesTextRoundTrip_ForTheWrappedShareVector()
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>(new byte[] { 0xFF }, 1, new DeterministicRandomSource(35));
+        using var secretSplitter = new SecretSplitter<BigInteger>(new DeterministicRandomSource(270));
+        secretSplitter.SecurityLevel = 17;
+        using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+        using var shares = secretSplitter.MakeShares(2, 280, secret);
+        var sharesByIndex = shares.ToArray();
+        using var subSet = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(sharesByIndex[0].Index.Clone(), sharesByIndex[0].Value.Clone(), 17),
+            new Share<BigInteger>(sharesByIndex[279].Index.Clone(), sharesByIndex[279].Value.Clone(), 17),
+        });
+
+        // Act
+        using var parsed = ReadBackAsExtended(subSet, viaLines: true);
+        using var reconstructedSecret = secretReconstructor.Reconstruction(parsed);
+
+        // Assert
+        Assert.Equal(17, secretReconstructor.SecurityLevel);
+        Assert.Equal(secret, reconstructedSecret);
+    }
+
+    /// <summary>
+    /// Writes a collection in the extended form and reads it back through one of the two text
+    /// entry points.
+    /// </summary>
+    /// <param name="shares">The shares to serialise. Borrowed; not disposed here.</param>
+    /// <param name="viaLines">
+    /// <see langword="true"/> for <c>FromTextLines</c> over one buffer per share,
+    /// <see langword="false"/> for <c>FromText</c> over one buffer for the whole collection.
+    /// </param>
+    /// <returns>The reparsed collection. The caller disposes it.</returns>
+    private static Shares<BigInteger> ReadBackAsExtended(Shares<BigInteger> shares, bool viaLines)
+    {
+        if (!viaLines)
+        {
+            using var text = shares.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended);
+            return Shares<BigInteger>.FromText(text);
+        }
+
+        var lines = new List<PinnedPoolArray<char>>();
+        try
+        {
+            foreach (var share in shares)
+            {
+                lines.Add(share.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended));
+            }
+
+            return Shares<BigInteger>.FromTextLines(lines);
+        }
+        finally
+        {
+            for (int i = 0; i < lines.Count; i++)
+            {
+                lines[i].Dispose();
+            }
+        }
+    }
 }

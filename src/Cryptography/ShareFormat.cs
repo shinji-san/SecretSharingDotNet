@@ -79,3 +79,29 @@ public enum ShareFormat
     /// </remarks>
     Extended = 1,
 }
+
+/// <summary>
+/// Guards the one rule about which <see cref="ShareFormat"/> values exist.
+/// </summary>
+/// <remarks>
+/// A single place on purpose. Every entry point that takes a format has to reject an undefined
+/// one, and restating the comparison at each of them is the shape that lets one entry point drift
+/// — which is exactly how an empty collection came to accept a cast integer while a populated one
+/// refused it.
+/// </remarks>
+internal static class ShareFormatValidation
+{
+    /// <summary>
+    /// Throws when <paramref name="format"/> is not a defined <see cref="ShareFormat"/> value.
+    /// </summary>
+    /// <param name="format">The value to check.</param>
+    /// <param name="paramName">The parameter name to report.</param>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="format"/> is undefined.</exception>
+    internal static void EnsureDefined(ShareFormat format, string paramName)
+    {
+        if (format != ShareFormat.Legacy && format != ShareFormat.Extended)
+        {
+            throw new System.ArgumentOutOfRangeException(paramName, format, null);
+        }
+    }
+}

@@ -1269,31 +1269,77 @@ public class ShareTest
     }
 
     /// <summary>
-    /// The property that makes the extension safe for readers that predate it: the level goes last,
-    /// so a parser taking the first separator and treating the remainder as the value is handed a
-    /// value segment containing a separator, which is not a hexadecimal digit. Such a reader fails
-    /// loudly rather than decoding a truncated or shifted value.
+    /// The property that makes the extension safe for readers that predate it, exercised rather
+    /// than asserted about separators: a parser that takes the first separator and hex-decodes the
+    /// remainder refuses every extended form and accepts every legacy one.
     /// <para>
-    /// Pinned as a shape assertion because the older library cannot be run here. It is easy to
-    /// break while touching the parser — putting the level first, or choosing a separator that is
-    /// a hex digit, would each turn a loud failure into a silent misread.
+    /// <b>This runs a model of the released parser, not the released parser.</b> The old assembly
+    /// cannot be loaded here, so <see cref="LegacyTwoSegmentParseSucceeds"/> reimplements the two
+    /// decisions that matter — split at the first separator, strip one <c>0x</c> prefix, require
+    /// the remainder to be hexadecimal. It establishes that the extended form fails those
+    /// decisions; it does not establish anything the model got wrong about the original.
     /// </para>
-    /// Mirror of the BigInteger-side fact of the same name.
+    /// Mirror of the BigInteger-side theory of the same name.
     /// </summary>
-    [Fact]
-    public void ExtendedFormat_IsRejectedByATwoSegmentReader()
+    /// <param name="index">Share index.</param>
+    /// <param name="value">Share value.</param>
+    /// <param name="securityLevel">Recorded security level.</param>
+    /// <param name="withPrefix">Whether each segment carries the <c>0x</c> prefix.</param>
+    [Theory]
+    [InlineData(11, 42, 13, false)]
+    [InlineData(11, 42, 13, true)]
+    [InlineData(1, 1, 17, false)]
+    [InlineData(255, 4095, 4931, false)]
+    [InlineData(255, 4095, 4931, true)]
+    public void ExtendedFormat_IsRejectedByATwoSegmentReader(int index, int value, int securityLevel, bool withPrefix)
     {
         // Arrange
-        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42), 17);
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(index), new SecureBigIntCalculator(value), securityLevel);
 
         // Act
-        using var serialized = share.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended);
-        var text = new string(serialized.PoolArray, 0, serialized.Length);
-        var legacyValueSegment = text.Substring(text.IndexOf('-') + 1);
+        using var extended = share.ToCharArray(uppercase: true, withPrefix, ShareFormat.Extended);
+        using var legacy = share.ToCharArray(uppercase: true, withPrefix, ShareFormat.Legacy);
 
-        // Assert — what a two-segment reader would take as the value is not hexadecimal.
-        Assert.Equal(2, text.Split('-').Length - 1);
-        Assert.Contains("-", legacyValueSegment);
+        // Assert — the legacy shape still reads; the extended one does not.
+        Assert.True(LegacyTwoSegmentParseSucceeds(new string(legacy.PoolArray, 0, legacy.Length)));
+        Assert.False(LegacyTwoSegmentParseSucceeds(new string(extended.PoolArray, 0, extended.Length)));
+    }
+
+    /// <summary>
+    /// A model of the parse every released version performs: first separator, one optional
+    /// <c>0x</c> prefix per segment, the remainder decoded as hexadecimal.
+    /// </summary>
+    /// <param name="serialized">The serialized share to try.</param>
+    /// <returns><see langword="true"/> when that parse would succeed.</returns>
+    private static bool LegacyTwoSegmentParseSucceeds(string serialized)
+    {
+        int separator = serialized.IndexOf('-');
+        if (separator < 0)
+        {
+            return false;
+        }
+
+        string value = serialized.Substring(separator + 1);
+        if (value.StartsWith("0x", StringComparison.Ordinal))
+        {
+            value = value.Substring(2);
+        }
+
+        if (value.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (char c in value)
+        {
+            bool isHexDigit = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+            if (!isHexDigit)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
