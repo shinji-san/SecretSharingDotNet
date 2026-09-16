@@ -214,4 +214,7 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="ShareSecurityLevelSegmentInvalid" xml:space="preserve">
         <value>The security level segment of the serialized share is empty or not a positive hexadecimal number.</value>
     </data>
+    <data name="SecurityLevelTooSmallForShareCoordinates" xml:space="preserve">
+        <value>Security level {0} names a field too small for the share coordinates.</value>
+    </data>
 </root>

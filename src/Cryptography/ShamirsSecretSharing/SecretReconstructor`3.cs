@@ -591,21 +591,10 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </remarks>
     private static void ValidateCoordinatesFit(IReadOnlyList<Share<TNumber>> shareList, int securityLevel)
     {
-        using var zero = Calculator<TNumber>.Zero;
-        using var one = Calculator<TNumber>.One;
-        using var two = Calculator<TNumber>.Two;
-        using var power = two.Pow(securityLevel);
-        using var prime = power - one;
-
-        for (int i = 0; i < shareList.Count; i++)
+        if (!Share<TNumber>.AllFitField(shareList, securityLevel))
         {
-            var index = shareList[i].Index;
-            var value = shareList[i].Value;
-            if (index < one || index >= prime || value < zero || value >= prime)
-            {
-                throw new ReconstructionException(
-                    string.Format(ErrorMessages.ShareCoordinateOutsideField, securityLevel));
-            }
+            throw new ReconstructionException(
+                string.Format(ErrorMessages.ShareCoordinateOutsideField, securityLevel));
         }
     }
 

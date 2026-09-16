@@ -34,6 +34,7 @@ namespace SecretSharingDotNet.Cryptography;
 using Math;
 using SecureMemory;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -606,6 +607,152 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         }
 
         return HexDigitCount(this.securityLevel.Value);
+    }
+
+    /// <summary>
+    /// Re-issues this share recording the finite field it was created in, for a share that carries
+    /// no record of one.
+    /// </summary>
+    /// <param name="securityLevel">The Mersenne exponent the split actually used.</param>
+    /// <returns>
+    /// A new share with the same coordinates and the given level. The caller owns it; this share is
+    /// untouched and still usable.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// <b>The caller has to supply the exponent the split actually used, after any auto-raise.</b>
+    /// <c>MakeShares</c> lifts the level to fit the secret including its mark byte, so a one-byte
+    /// secret split without an explicit level lands on 17 — rarely the number a caller remembers
+    /// asking for.
+    /// </para>
+    /// <para>
+    /// <b>What this validates, and what it cannot.</b> An exponent the library does not support is
+    /// refused, and so is one naming a field too small for these coordinates. A <em>plausible but
+    /// wrong</em> exponent — supported, and large enough — cannot be detected here: the coordinates
+    /// do not say which field produced them, which is the very absence this whole change exists to
+    /// remedy. Such a share will reconstruct to a wrong secret exactly as it did before, and no
+    /// check in this method can prevent that.
+    /// </para>
+    /// <para>
+    /// The coordinates are cloned rather than shared. The constructor takes ownership of what it is
+    /// given, so handing it these instances would leave two shares owning one pair of buffers and
+    /// disposing either would invalidate the other.
+    /// </para>
+    /// <para>
+    /// The exponent is checked against <see cref="MersennePrimeProvider.Instance"/>, the library's
+    /// own table. A consumer who has configured a different <see cref="IMersennePrimeProvider"/>
+    /// elsewhere should validate the exponent against that provider before calling: a share carries
+    /// no provider to ask, and this operation has no manager in scope to borrow one from.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is not a supported Mersenne prime exponent.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="securityLevel"/> names a field too small for this share's coordinates.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public Share<TNumber> ReissueWithSecurityLevel(int securityLevel)
+    {
+        this.ThrowIfDisposed();
+        EnsureUsableSecurityLevel(new[] { this }, securityLevel);
+        return this.ReissueCore(securityLevel);
+    }
+
+    /// <summary>
+    /// Clones the coordinates into a new share carrying the given level, without validating it.
+    /// </summary>
+    /// <param name="securityLevel">The exponent to record. Already validated by the caller.</param>
+    /// <returns>The new share.</returns>
+    /// <remarks>
+    /// Split from the public entry point so a collection can validate once for all its shares
+    /// instead of recomputing the field prime per element.
+    /// </remarks>
+    internal Share<TNumber> ReissueCore(int securityLevel)
+    {
+        Calculator<TNumber> clonedIndex = null;
+        Calculator<TNumber> clonedValue = null;
+        try
+        {
+            clonedIndex = this.index.Clone();
+            clonedValue = this.value.Clone();
+            var reissued = new Share<TNumber>(clonedIndex, clonedValue, securityLevel);
+
+            // Ownership transferred to the new share -- null out so the finally does not dispose
+            // buffers it now owns.
+            clonedIndex = null;
+            clonedValue = null;
+            return reissued;
+        }
+        finally
+        {
+            clonedIndex?.Dispose();
+            clonedValue?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Rejects a security level that cannot serve the given shares.
+    /// </summary>
+    /// <param name="shares">The shares the level is meant to describe.</param>
+    /// <param name="securityLevel">The exponent to check.</param>
+    /// <remarks>
+    /// Both failures are argument errors: the exponent came in as a parameter of the operation
+    /// being performed, unlike one read off a share during reconstruction, which is a
+    /// reconstruction failure. Same checks, different boundary.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The exponent is not supported.</exception>
+    /// <exception cref="ArgumentException">The field is too small for the coordinates.</exception>
+    internal static void EnsureUsableSecurityLevel(IReadOnlyList<Share<TNumber>> shares, int securityLevel)
+    {
+        if (!MersennePrimeProvider.Instance.IsValidMersennePrimeExponent(securityLevel))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(securityLevel),
+                securityLevel,
+                string.Format(ErrorMessages.SecurityLevelNotSupported, securityLevel));
+        }
+
+        if (!AllFitField(shares, securityLevel))
+        {
+            throw new ArgumentException(
+                string.Format(ErrorMessages.SecurityLevelTooSmallForShareCoordinates, securityLevel),
+                nameof(securityLevel));
+        }
+    }
+
+    /// <summary>
+    /// Reports whether every share lies inside the field of the given Mersenne exponent:
+    /// <c>0 &lt; x &lt; p</c> and <c>0 &lt;= y &lt; p</c>.
+    /// </summary>
+    /// <param name="shares">The shares to check.</param>
+    /// <param name="securityLevel">The exponent naming the field.</param>
+    /// <returns><see langword="true"/> when every coordinate fits.</returns>
+    /// <remarks>
+    /// The rule lives here, once, and the boundaries decide what a violation means: reconstruction
+    /// reports <see cref="ReconstructionException"/>, while a caller handing an exponent to a
+    /// migration helper gets an argument error. Stating the bounds at each site instead is how two
+    /// entry points come to disagree about the same question.
+    /// </remarks>
+    internal static bool AllFitField(IReadOnlyList<Share<TNumber>> shares, int securityLevel)
+    {
+        using var zero = Calculator<TNumber>.Zero;
+        using var one = Calculator<TNumber>.One;
+        using var two = Calculator<TNumber>.Two;
+        using var power = two.Pow(securityLevel);
+        using var prime = power - one;
+
+        for (int i = 0; i < shares.Count; i++)
+        {
+            var index = shares[i].Index;
+            var value = shares[i].Value;
+            if (index < one || index >= prime || value < zero || value >= prime)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>

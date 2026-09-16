@@ -892,4 +892,69 @@ public class SharesTest
             () => shares.ToCharArray(uppercase: true, withPrefix: false, (ShareFormat)42));
         Assert.Equal("format", error.ParamName);
     }
+    /// <summary>
+    /// Re-issuing a collection records the level on every share and leaves the original collection
+    /// intact — both stay independently usable and independently disposable.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_RecordsTheLevelOnEveryShare()
+    {
+        // Arrange
+        using var original = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(3), new SecureBigIntCalculator(30)),
+        });
+
+        // Act
+        using var reissued = original.ReissueWithSecurityLevel(17);
+
+        // Assert
+        Assert.Equal(3, reissued.Count);
+        Assert.All(reissued, share => Assert.Equal(17, share.SecurityLevel));
+        Assert.All(original, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// All or nothing. The level is validated against every share before anything is cloned, so a
+    /// collection is never left half migrated — and the original is untouched either way.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WhenOneShareDoesNotFit_MigratesNothing()
+    {
+        // Arrange — the third share does not fit M13 = 8191.
+        using var original = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(3), new SecureBigIntCalculator(9000)),
+        });
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => original.ReissueWithSecurityLevel(13));
+        Assert.Equal("securityLevel", error.ParamName);
+        Assert.All(original, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// Re-issuing a disposed collection throws rather than cloning freed buffers.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void PostDispose_ReissueWithSecurityLevel_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20)),
+        });
+        shares.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => shares.ReissueWithSecurityLevel(17));
+    }
 }

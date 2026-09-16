@@ -1376,4 +1376,137 @@ public class ShareTest
         // Act & Assert
         Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(pinned));
     }
+    /// <summary>
+    /// Re-issuing produces a new share with the same coordinates and the given level, and leaves
+    /// the original alone.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_RecordsTheLevelAndLeavesTheOriginal()
+    {
+        // Arrange
+        using var original = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+
+        // Act
+        using var reissued = original.ReissueWithSecurityLevel(17);
+
+        // Assert
+        Assert.Null(original.SecurityLevel);
+        Assert.Equal(17, reissued.SecurityLevel);
+        Assert.Equal(original.Index, reissued.Index);
+        Assert.Equal(original.Value, reissued.Value);
+    }
+
+    /// <summary>
+    /// The coordinates are cloned, not shared. The constructor takes ownership of what it is given,
+    /// so handing it the original's instances would leave two shares owning one pair of buffers and
+    /// disposing either would invalidate the other — a use-after-dispose surfacing far from here.
+    /// <para>
+    /// <b>Only the SecureBigInteger side can actually catch a missing clone.</b> Dropping the
+    /// <c>Clone</c> calls turns this test red there, because a disposed <c>SecureBigInteger</c>
+    /// refuses further use; on the BigInteger backend a disposed calculator has no observable
+    /// state, so the shared-buffer mistake reads as success. The assertion is kept on both sides
+    /// for symmetry and to state the contract, but the mirror is what enforces it.
+    /// </para>
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_Clones_SoDisposingOneLeavesTheOtherUsable()
+    {
+        // Arrange
+        var original = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        var reissued = original.ReissueWithSecurityLevel(17);
+
+        // Act — drop the original and keep using the copy.
+        original.Dispose();
+
+        // Assert
+        Assert.Equal(17, reissued.SecurityLevel);
+        Assert.True(reissued.Index.ByteCount > 0);
+        Assert.True(reissued.Value.ByteCount > 0);
+
+        // Act & Assert — and the other way round, on a fresh pair.
+        using var other = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        var copy = other.ReissueWithSecurityLevel(17);
+        copy.Dispose();
+        Assert.True(other.Index.ByteCount > 0);
+
+        reissued.Dispose();
+    }
+
+    /// <summary>
+    /// An exponent the library does not support is refused, naming the parameter it arrived in.
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="securityLevel">An exponent that is not a Mersenne prime exponent.</param>
+    [Theory]
+    [InlineData(18)]
+    [InlineData(12)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ReissueWithSecurityLevel_WithAnUnsupportedLevel_Throws(int securityLevel)
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => share.ReissueWithSecurityLevel(securityLevel));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// A field too small for the coordinates is refused as well. This is the one wrong level the
+    /// coordinates <em>can</em> rule out, and it is an argument error rather than a reconstruction
+    /// failure because the exponent arrived as a parameter of this operation.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAFieldTooSmall_Throws()
+    {
+        // Arrange — 9000 does not fit M13 = 8191.
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(9000));
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => share.ReissueWithSecurityLevel(13));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// <b>The limit, pinned so it does not look like an oversight.</b> A supported exponent that is
+    /// large enough but simply wrong is accepted without complaint. The coordinates do not say
+    /// which field produced them — that absence is the whole defect this change works around — so
+    /// no check here can tell a correct level from a plausible one. The caller's obligation to
+    /// supply the exponent the split actually used is real, and this test is what keeps it from
+    /// being quietly assumed away.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAPlausibleButWrongLevel_IsNotDetected()
+    {
+        // Arrange — coordinates from a level-17 split.
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(3333));
+
+        // Act — 19 is supported and admits these coordinates. It is also not the field they
+        // came from, and nothing available here can say so.
+        using var reissued = share.ReissueWithSecurityLevel(19);
+
+        // Assert
+        Assert.Equal(19, reissued.SecurityLevel);
+    }
+
+    /// <summary>
+    /// Re-issuing a disposed share throws rather than cloning freed buffers.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void PostDispose_ReissueWithSecurityLevel_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        share.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => share.ReissueWithSecurityLevel(17));
+    }
 }

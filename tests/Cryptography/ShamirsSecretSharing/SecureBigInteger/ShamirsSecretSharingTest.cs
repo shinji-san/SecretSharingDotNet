@@ -804,4 +804,71 @@ public class ShamirsSecretSharingTest
             }
         }
     }
+    /// <summary>
+    /// The migration story end to end, on the vector that loses the secret without it. Shares
+    /// stripped of their level — what a share persisted before the format carried one amounts to —
+    /// are re-issued with the exponent the split used, written in the extended form, read back, and
+    /// reconstructed to the original secret.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Migration_ReissuedLegacyShares_ReconstructTheOriginalSecret()
+    {
+        // Arrange — vector C, level stripped.
+        using var secret = new Secret<SecureBigInteger>(new byte[] { 0xFF }, 1, new DeterministicRandomSource(35));
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>(new DeterministicRandomSource(270));
+        secretSplitter.SecurityLevel = 17;
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+        using var shares = secretSplitter.MakeShares(2, 280, secret);
+        var sharesByIndex = shares.ToArray();
+        using var legacy = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(sharesByIndex[0].Index.Clone(), sharesByIndex[0].Value.Clone()),
+            new Share<SecureBigInteger>(sharesByIndex[279].Index.Clone(), sharesByIndex[279].Value.Clone()),
+        });
+
+        // Act — migrate, persist, read back, reconstruct.
+        using var migrated = legacy.ReissueWithSecurityLevel(17);
+        using var parsed = ReadBackAsExtended(migrated, viaLines: false);
+        using var reconstructedSecret = secretReconstructor.Reconstruction(parsed);
+
+        // Assert
+        Assert.All(parsed, share => Assert.Equal(17, share.SecurityLevel));
+        Assert.Equal(17, secretReconstructor.SecurityLevel);
+        Assert.Equal(secret, reconstructedSecret);
+    }
+
+    /// <summary>
+    /// <b>The limit of the migration, carried through to its consequence.</b> Migrating the same
+    /// shares with a supported, large-enough, but wrong exponent is accepted — the coordinates
+    /// cannot say which field produced them — and the reconstruction that follows is wrong in
+    /// exactly the way it would have been without any of this. Naming the field moves the
+    /// correctness question from a guess inside the library to an obligation on the caller; it does
+    /// not answer it.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Migration_WithAPlausibleButWrongLevel_StillLosesTheSecret()
+    {
+        // Arrange — the same vector C coordinates.
+        using var secret = new Secret<SecureBigInteger>(new byte[] { 0xFF }, 1, new DeterministicRandomSource(35));
+        using var secretSplitter = new SecretSplitter<SecureBigInteger>(new DeterministicRandomSource(270));
+        secretSplitter.SecurityLevel = 17;
+        using var secretReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+        using var shares = secretSplitter.MakeShares(2, 280, secret);
+        var sharesByIndex = shares.ToArray();
+        using var legacy = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(sharesByIndex[0].Index.Clone(), sharesByIndex[0].Value.Clone()),
+            new Share<SecureBigInteger>(sharesByIndex[279].Index.Clone(), sharesByIndex[279].Value.Clone()),
+        });
+
+        // Act — 19 is supported and admits these coordinates. It is not the field they came from.
+        using var migrated = legacy.ReissueWithSecurityLevel(19);
+        using var reconstructedSecret = secretReconstructor.Reconstruction(migrated);
+
+        // Assert — accepted throughout, and wrong at the end.
+        Assert.Equal(19, secretReconstructor.SecurityLevel);
+        Assert.NotEqual(secret, reconstructedSecret);
+    }
 }

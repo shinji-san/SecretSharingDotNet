@@ -437,5 +437,11 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("ShareSecurityLevelSegmentInvalid", resourceCulture);
             }
         }
+        
+        internal static string SecurityLevelTooSmallForShareCoordinates {
+            get {
+                return ResourceManager.GetString("SecurityLevelTooSmallForShareCoordinates", resourceCulture);
+            }
+        }
     }
 }

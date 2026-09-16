@@ -207,4 +207,7 @@
     <data name="ShareSecurityLevelSegmentInvalid" xml:space="preserve">
         <value>Das Sicherheitsstufen-Segment des serialisierten Shares ist leer oder keine positive Hexadezimalzahl.</value>
     </data>
+    <data name="SecurityLevelTooSmallForShareCoordinates" xml:space="preserve">
+        <value>Sicherheitsstufe {0} benennt einen Körper, der für die Share-Koordinaten zu klein ist.</value>
+    </data>
 </root>
