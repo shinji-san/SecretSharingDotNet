@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------------
 // <copyright file="IInspectableSecurityLevelManager.cs" company="Private">
-// Copyright (c) 2025 All Rights Reserved
+// Copyright (c) 2026 All Rights Reserved
 // </copyright>
 // <author>Sebastian Walther</author>
 // <date>09/14/2026 10:00:00 PM</date>
