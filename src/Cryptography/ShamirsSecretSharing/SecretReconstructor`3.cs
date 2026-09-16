@@ -296,9 +296,11 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// and the shares may record a level throughout.
     /// </para>
     /// <para>
-    /// Where the shares disagree or say nothing, naming the field through
+    /// Where the shares say nothing, naming the field through
     /// <see cref="IReconstructionWithSecurityLevelUseCase{TNumber}.Reconstruction(Shares{TNumber}, int)"/>
-    /// is the way forward.
+    /// is the way forward. Where they <em>disagree</em>, it is not: any exponent supplied would
+    /// contradict at least one of them, so that overload refuses the set as well. Shares recording
+    /// different fields cannot all come from the same split.
     /// </para>
     /// </exception>
     /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
@@ -324,17 +326,21 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </para>
     /// <list type="number">
     /// <item><description>
-    /// An explicit exponent is validated and checked against every level the shares record;
-    /// contradictory or mixed metadata aborts here, with nothing moved.
+    /// An explicit exponent is validated and checked against every level the shares record.
+    /// Contradictory levels abort here whether or not one was supplied; mixed metadata aborts
+    /// when none was. Nothing has moved at that point.
     /// </description></item>
     /// <item><description>
-    /// The coordinates are checked against the resulting field — but only where the exponent was
-    /// asserted from outside the values. Where it was derived from them, the field admits them by
-    /// construction.
+    /// Index distinctness, then the coordinates against the resulting field — on every path,
+    /// including the one where the exponent was derived from the values. That derivation bounds
+    /// the maximum y and nothing else: it says nothing about a negative y and nothing at all
+    /// about the indices.
     /// </description></item>
     /// <item><description>
-    /// Only then is the level committed, and read back to catch a manager that normalised it
-    /// upward instead of using it as given.
+    /// The level is committed and read back, to catch a manager that normalised it upward instead
+    /// of using it as given. With the exact check available the commit comes last; without it the
+    /// commit comes first, so an unsupported exponent is refused by the manager rather than by
+    /// whatever <c>2^exponent</c> does with it.
     /// </description></item>
     /// </list>
     /// <para>
@@ -386,7 +392,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         // fallback branch that says so.
         var recorded = ReadRecordedLevels(shareList);
         int securityLevel;
-        bool derivedFromValues = false;
         bool alreadyCommitted = false;
 
         if (explicitLevel.HasValue)
@@ -414,7 +419,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
         else
         {
-            derivedFromValues = true;
             if (this.securityLevelManager is IInspectableSecurityLevelManager<TNumber> inspectable)
             {
                 securityLevel = inspectable.DetermineSecurityLevel(maximumY);
@@ -575,8 +579,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// Runs on every path, including the one where the exponent was derived from the share values.
     /// That derivation looks at the <em>maximum</em> y only, so it establishes an upper bound on
     /// one coordinate and nothing else: it says nothing about a negative y, and nothing at all
-    /// about the indices. An index at or above the prime collides modulo <c>p</c> with another and
-    /// makes the Lagrange denominator zero.
+    /// about the indices. An index at or above the prime is simply outside the permitted
+    /// coordinate range — it need not collide with another one to be invalid, and often does not:
+    /// with <c>p = 8191</c> the index 8192 reduces to 1, which may well be free.
     /// </para>
     /// <para>
     /// The prime is computed here rather than read from the manager: the manager's

@@ -560,8 +560,9 @@ public class SecretReconstructorTest
 
     /// <summary>
     /// The legacy path checks coordinates too. Deriving the field from the maximum y bounds one
-    /// coordinate and says nothing about the indices: an index at or above the prime collides
-    /// modulo <c>p</c> with another and drives the Lagrange denominator to zero.
+    /// coordinate and says nothing about the indices: an index at or above the prime lies outside
+    /// the permitted coordinate range. It need not collide with another to be invalid — here
+    /// <c>8192</c> reduces to <c>1</c> modulo <c>8191</c>, and no share holds index 1.
     /// Mirror of the SecureBigInteger-side fact of the same name.
     /// </summary>
     [Fact]
@@ -582,8 +583,15 @@ public class SecretReconstructorTest
     /// <summary>
     /// Duplicate indices are refused before the security level moves. The check has to happen
     /// either way — a repeated index makes the Lagrange denominator zero — but running it after the
-    /// commit would leave the manager on a level the caller never asked for, and its previous prime
-    /// instance disposed, on an input that was never usable.
+    /// commit would leave the manager on a level the caller never asked for, on an input that was
+    /// never usable.
+    /// <para>
+    /// Comparing the level number alone would not catch that: the setter swaps in a freshly built
+    /// prime and disposes the previous instance, so a manager moved to 17 and back to 31 reports
+    /// 31 while every reference handed out beforehand is dead. The assertion therefore holds the
+    /// prime instance from before the call and checks both that it is the same object and that it
+    /// is still usable.
+    /// </para>
     /// Mirror of the SecureBigInteger-side fact of the same name.
     /// </summary>
     [Fact]
@@ -592,6 +600,7 @@ public class SecretReconstructorTest
         // Arrange
         using var manager = new SecurityLevelManager<BigInteger>();
         manager.SecurityLevel = 31;
+        var primeBefore = manager.MersennePrime;
         using var shares = new Shares<BigInteger>(new[]
         {
             new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 17),
@@ -602,5 +611,50 @@ public class SecretReconstructorTest
         // Act & Assert
         Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
         Assert.Equal(31, manager.SecurityLevel);
+        Assert.Same(primeBefore, manager.MersennePrime);
+        Assert.True(primeBefore.ByteCount > 0);
+    }
+
+    /// <summary>
+    /// An unsupported exponent read off the shares is a reconstruction failure, not an argument
+    /// error: the caller supplied no such argument to be told about. Same check as the explicit
+    /// form, different boundary.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WhenTheSharesRecordAnUnsupportedLevel_ThrowsReconstructionException()
+    {
+        // Arrange — 18 is not a Mersenne prime exponent.
+        using var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 18),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20), 18),
+        });
+        using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+    }
+
+    /// <summary>
+    /// The same holds on the compatibility path, where the exponent is vetted by setting it and
+    /// reading it back rather than by an exact check. The manager would have normalised 18 up to
+    /// 19; the read-back catches that, and the failure keeps the type the boundary calls for.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithAManagerLackingTheCapability_TypesAMetadataLevelFailureAsReconstruction()
+    {
+        // Arrange
+        using var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 18),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20), 18),
+        });
+        using var plainManager = new PlainSecurityLevelManager();
+        using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), plainManager);
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
     }
 }
