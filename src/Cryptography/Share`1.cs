@@ -289,9 +289,10 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </exception>
     public Share(PinnedPoolArray<char> shareString)
     {
-        var (parsedIndex, parsedValue) = ParseCore(shareString);
+        var (parsedIndex, parsedValue, parsedSecurityLevel) = ParseCore(shareString);
         this.index = parsedIndex;
         this.value = parsedValue;
+        this.securityLevel = parsedSecurityLevel;
     }
 
     /// <summary>
@@ -501,12 +502,34 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// The caller is responsible for disposing of the returned instance.
     /// </returns>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
-    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false) =>
+        this.ToCharArray(uppercase, withPrefix, ShareFormat.Legacy);
+
+    /// <summary>
+    /// Converts the share to a pinned character buffer in the given serialized form.
+    /// </summary>
+    /// <param name="uppercase">
+    /// <see langword="true"/> for uppercase hex digits (0A–0F); <see langword="false"/> for lowercase.
+    /// </param>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to prepend <c>"0x"</c> to every segment, the security level included.
+    /// </param>
+    /// <param name="format">Which serialized form to write.</param>
+    /// <returns>
+    /// A <see cref="PinnedPoolArray{T}"/> with the hex-encoded share. The caller disposes it.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a defined value.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="format"/> is <see cref="ShareFormat.Extended"/> and this share records no
+    /// <see cref="SecurityLevel"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix, ShareFormat format)
     {
         this.ThrowIfDisposed();
-        var total = this.GetCharCount(withPrefix);
+        var total = this.GetCharCount(withPrefix, format);
         var result = new PinnedPoolArray<char>(total);
-        this.WriteCharsTo(result.PoolArray, 0, uppercase, withPrefix);
+        this.WriteCharsTo(result.PoolArray, 0, uppercase, withPrefix, format);
         return result;
     }
 
@@ -529,11 +552,103 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// asserted in unit tests.
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
-    public int GetCharCount(bool withPrefix)
+    public int GetCharCount(bool withPrefix) => this.GetCharCount(withPrefix, ShareFormat.Legacy);
+
+    /// <summary>
+    /// Returns the number of characters <see cref="WriteCharsTo(char[], int, bool, bool, ShareFormat)"/>
+    /// writes for the given options.
+    /// </summary>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to count a <c>"0x"</c> prefix on every segment.
+    /// </param>
+    /// <param name="format">Which serialized form to measure.</param>
+    /// <returns>The number of characters required.</returns>
+    /// <remarks>
+    /// Shares its arithmetic with the writer through <see cref="MeasureChars"/> rather than
+    /// restating it. The two used to carry the same expression twice, which is the shape that
+    /// quietly disagrees the moment a segment is added.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a defined value.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="format"/> is <see cref="ShareFormat.Extended"/> and this share records no
+    /// <see cref="SecurityLevel"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public int GetCharCount(bool withPrefix, ShareFormat format)
     {
         this.ThrowIfDisposed();
-        var prefixLength = withPrefix ? 2 : 0;
-        return 2 * prefixLength + this.Index.ByteCount * 2 + 1 + this.Value.ByteCount * 2;
+        return MeasureChars(this.Index.ByteCount, this.Value.ByteCount, this.SecurityLevelDigits(format), withPrefix);
+    }
+
+    /// <summary>
+    /// The number of hexadecimal digits the security level occupies in the given format, or zero
+    /// when the format does not carry one.
+    /// </summary>
+    /// <param name="format">The serialized form.</param>
+    /// <returns>Zero for <see cref="ShareFormat.Legacy"/>; otherwise the digit count.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a defined value.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The extended form was requested and this share records no level. Emitting a zero, dropping
+    /// back to two segments or guessing would each hand back a share claiming a field it does not
+    /// know; the caller has to learn that the information was never there.
+    /// </exception>
+    private int SecurityLevelDigits(ShareFormat format)
+    {
+        switch (format)
+        {
+            case ShareFormat.Legacy:
+                return 0;
+            case ShareFormat.Extended:
+                if (this.securityLevel is null)
+                {
+                    throw new InvalidOperationException(ErrorMessages.ShareHasNoSecurityLevelToSerialize);
+                }
+
+                return HexDigitCount(this.securityLevel.Value);
+            default:
+                throw new ArgumentOutOfRangeException(nameof(format), format, null);
+        }
+    }
+
+    /// <summary>
+    /// The number of hexadecimal digits needed for a positive <see cref="int"/>, at least one.
+    /// </summary>
+    /// <param name="value">The value to measure. Security levels are always positive.</param>
+    /// <returns>The digit count.</returns>
+    private static int HexDigitCount(int value)
+    {
+        int digits = 1;
+        for (int remaining = value >> 4; remaining != 0; remaining >>= 4)
+        {
+            digits++;
+        }
+
+        return digits;
+    }
+
+    /// <summary>
+    /// The single length rule for the serialized form, shared by the measurer and the writer.
+    /// </summary>
+    /// <param name="indexByteCount">Byte length of the index coordinate.</param>
+    /// <param name="valueByteCount">Byte length of the value coordinate.</param>
+    /// <param name="securityLevelDigits">Hex digits of the security level, or zero for none.</param>
+    /// <param name="withPrefix">Whether each segment carries a <c>"0x"</c> prefix.</param>
+    /// <returns>The total character count.</returns>
+    /// <remarks>
+    /// The prefix count follows the segment count, so adding a segment does not mean remembering
+    /// to change a hard-coded multiplier in two places.
+    /// </remarks>
+    private static int MeasureChars(int indexByteCount, int valueByteCount, int securityLevelDigits, bool withPrefix)
+    {
+        int segments = securityLevelDigits > 0 ? 3 : 2;
+        int prefixLength = withPrefix ? 2 : 0;
+        int total = (segments * prefixLength) + (indexByteCount * 2) + 1 + (valueByteCount * 2);
+        if (securityLevelDigits > 0)
+        {
+            total += 1 + securityLevelDigits;
+        }
+
+        return total;
     }
 
     /// <summary>
@@ -555,7 +670,34 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="offset"/> is negative or greater than <c>dest.Length</c>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="dest"/> has insufficient remaining space.</exception>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
-    public int WriteCharsTo(char[] dest, int offset, bool uppercase, bool withPrefix)
+    public int WriteCharsTo(char[] dest, int offset, bool uppercase, bool withPrefix) =>
+        this.WriteCharsTo(dest, offset, uppercase, withPrefix, ShareFormat.Legacy);
+
+    /// <summary>
+    /// Writes the hex-encoded share characters into <paramref name="dest"/> in the given format.
+    /// </summary>
+    /// <param name="dest">The destination character buffer. The caller owns its lifetime and pinning.</param>
+    /// <param name="offset">The zero-based index into <paramref name="dest"/> where writing starts.</param>
+    /// <param name="uppercase">
+    /// <see langword="true"/> for uppercase hex digits (0A–0F); <see langword="false"/> for lowercase.
+    /// </param>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to prepend <c>"0x"</c> to every segment, the security level included.
+    /// </param>
+    /// <param name="format">Which serialized form to write.</param>
+    /// <returns>The number of characters written.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="dest"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="offset"/> is negative or greater than <c>dest.Length</c>, or
+    /// <paramref name="format"/> is not a defined value.
+    /// </exception>
+    /// <exception cref="ArgumentException"><paramref name="dest"/> has insufficient remaining space.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="format"/> is <see cref="ShareFormat.Extended"/> and this share records no
+    /// <see cref="SecurityLevel"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public int WriteCharsTo(char[] dest, int offset, bool uppercase, bool withPrefix, ShareFormat format)
     {
         this.ThrowIfDisposed();
         if (dest is null)
@@ -568,10 +710,10 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             throw new ArgumentOutOfRangeException(nameof(offset));
         }
 
+        int securityLevelDigits = this.SecurityLevelDigits(format);
         using var indexBytes = this.Index.ByteRepresentation;
         using var valueBytes = this.Value.ByteRepresentation;
-        var prefixLength = withPrefix ? 2 : 0;
-        var total = 2 * prefixLength + indexBytes.Length * 2 + 1 + valueBytes.Length * 2;
+        var total = MeasureChars(indexBytes.Length, valueBytes.Length, securityLevelDigits, withPrefix);
         if (dest.Length - offset < total)
         {
             throw new ArgumentException(ErrorMessages.DestinationArrayHasFewerElements, nameof(dest));
@@ -585,7 +727,39 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         pos = WritePrefix(dest, pos, withPrefix);
         WriteHexChars(valueBytes, dest, pos, uppercase);
         pos += valueBytes.Length * 2;
+        if (securityLevelDigits > 0)
+        {
+            dest[pos++] = CoordinateSeparator;
+            pos = WritePrefix(dest, pos, withPrefix);
+            WriteHexInt32(this.securityLevel.Value, securityLevelDigits, dest, pos, uppercase);
+            pos += securityLevelDigits;
+        }
+
         return pos - offset;
+    }
+
+    /// <summary>
+    /// Writes a positive <see cref="int"/> as <paramref name="digits"/> hexadecimal characters.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="digits">The digit count, from <see cref="HexDigitCount"/>.</param>
+    /// <param name="dest">The destination buffer.</param>
+    /// <param name="offset">Where to start writing.</param>
+    /// <param name="uppercase">Whether to use uppercase digits.</param>
+    /// <remarks>
+    /// The security level is public metadata, so this needs none of the fixed-time care the
+    /// coordinate encoding is held to.
+    /// </remarks>
+    private static void WriteHexInt32(int value, int digits, char[] dest, int offset, bool uppercase)
+    {
+        char letterBase = uppercase ? 'A' : 'a';
+        for (int i = 0; i < digits; i++)
+        {
+            int nibble = (value >> (4 * i)) & 0xF;
+            dest[offset + digits - 1 - i] = nibble < 10
+                ? (char)('0' + nibble)
+                : (char)(letterBase + nibble - 10);
+        }
     }
 
     /// <summary>
@@ -675,7 +849,8 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// position of the first invalid character), has an empty coordinate, or decodes to an index that
     /// is not positive.
     /// </exception>
-    private static (Calculator<TNumber> Index, Calculator<TNumber> Value) ParseCore(PinnedPoolArray<char> serialized)
+    private static (Calculator<TNumber> Index, Calculator<TNumber> Value, int? SecurityLevel) ParseCore(
+        PinnedPoolArray<char> serialized)
     {
         if (serialized is null)
         {
@@ -691,14 +866,32 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             throw new InvalidShareException(string.Format(ErrorMessages.InvalidShareFormat, CoordinateSeparator));
         }
 
+        // Two segments or three. A fourth has never been written by this library, and reading it
+        // as "the value happens to contain a separator" is how the older parser failed anyway —
+        // just with a message about a hex digit rather than about the shape.
+        var levelSeparatorIndex = IndexOf(buf, separatorIndex + 1, end, CoordinateSeparator);
+        if (levelSeparatorIndex >= 0
+            && IndexOf(buf, levelSeparatorIndex + 1, end, CoordinateSeparator) >= 0)
+        {
+            throw new InvalidShareException(string.Format(ErrorMessages.ShareHasTooManySegments, CoordinateSeparator));
+        }
+
+        var valueEnd = levelSeparatorIndex >= 0 ? levelSeparatorIndex : end;
         var indexStart = StripHexPrefix(buf, start, separatorIndex);
-        var valueStart = StripHexPrefix(buf, separatorIndex + 1, end);
+        var valueStart = StripHexPrefix(buf, separatorIndex + 1, valueEnd);
         var indexLen = separatorIndex - indexStart;
-        var valueLen = end - valueStart;
+        var valueLen = valueEnd - valueStart;
 
         if (indexLen == 0 || valueLen == 0)
         {
             throw new InvalidShareException(ErrorMessages.ShareIndexAndValueMustBeNonEmpty);
+        }
+
+        int? securityLevel = null;
+        if (levelSeparatorIndex >= 0)
+        {
+            var levelStart = StripHexPrefix(buf, levelSeparatorIndex + 1, end);
+            securityLevel = DecodeHexToInt32(buf, levelStart, end - levelStart);
         }
 
         Calculator<TNumber> index = null;
@@ -713,7 +906,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
                 throw new InvalidShareException(ErrorMessages.ShareIndexMustBePositive);
             }
 
-            var result = (index, value);
+            var result = (index, value, securityLevel);
             index = null;
             value = null;
 
@@ -784,6 +977,52 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// Thrown when a non-hexadecimal character is encountered. The message identifies the zero-based
     /// position of the invalid character within <paramref name="buf"/>.
     /// </exception>
+    /// <summary>
+    /// Decodes the security level segment: hexadecimal characters to a positive <see cref="int"/>.
+    /// </summary>
+    /// <param name="buf">The character buffer.</param>
+    /// <param name="offset">Start of the segment, after any <c>"0x"</c> prefix.</param>
+    /// <param name="length">Length of the segment.</param>
+    /// <returns>The decoded exponent.</returns>
+    /// <remarks>
+    /// Decoded to <see cref="int"/> directly rather than through a <see cref="Calculator{TNumber}"/>:
+    /// the level is a small public integer, and the round trip would need a conversion back that
+    /// this library deliberately removed. Whether the exponent is one the library <em>supports</em>
+    /// is a different question and is not asked here — a share carries no provider to ask. That
+    /// check belongs to reconstruction, where a manager is present.
+    /// </remarks>
+    /// <exception cref="InvalidShareException">
+    /// The segment is empty, too long, contains a non-hexadecimal character, or decodes to a
+    /// non-positive value.
+    /// </exception>
+    private static int DecodeHexToInt32(char[] buf, int offset, int length)
+    {
+        if (length <= 0 || length > 8)
+        {
+            throw new InvalidShareException(ErrorMessages.ShareSecurityLevelSegmentInvalid);
+        }
+
+        int decoded = 0;
+        for (int i = 0; i < length; i++)
+        {
+            var digit = GetHexValue(buf[offset + i]);
+            if (digit < 0)
+            {
+                throw new InvalidShareException(
+                    string.Format(ErrorMessages.InvalidHexCharacter, offset + i));
+            }
+
+            decoded = (decoded << 4) | digit;
+        }
+
+        if (decoded <= 0)
+        {
+            throw new InvalidShareException(ErrorMessages.ShareSecurityLevelSegmentInvalid);
+        }
+
+        return decoded;
+    }
+
     private static Calculator<TNumber> DecodeHexToCalculator(char[] buf, int offset, int length)
     {
         var byteCount = (length + 1) >> 1;

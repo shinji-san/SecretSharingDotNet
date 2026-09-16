@@ -198,4 +198,13 @@
     <data name="SecurityLevelNotAppliedByManager" xml:space="preserve">
         <value>Der Sicherheitsstufen-Manager hat die Stufe {0} nicht übernommen; er meldet {1}.</value>
     </data>
+    <data name="ShareHasNoSecurityLevelToSerialize" xml:space="preserve">
+        <value>Dieses Share hält keine Sicherheitsstufe fest und kann daher nicht im erweiterten Format geschrieben werden.</value>
+    </data>
+    <data name="ShareHasTooManySegments" xml:space="preserve">
+        <value>Ein serialisiertes Share hat höchstens drei durch '{0}' getrennte Segmente.</value>
+    </data>
+    <data name="ShareSecurityLevelSegmentInvalid" xml:space="preserve">
+        <value>Das Sicherheitsstufen-Segment des serialisierten Shares ist leer oder keine positive Hexadezimalzahl.</value>
+    </data>
 </root>

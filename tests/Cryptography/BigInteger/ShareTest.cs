@@ -1174,4 +1174,163 @@ public class ShareTest
         // Assert
         Assert.Equal(2, set.Count);
     }
+    /// <summary>
+    /// The legacy form drops a recorded level, and the parser reading it back records none. That
+    /// loss is not a bug in the writer — it is the whole reason a persisted share cannot be
+    /// reconstructed without being told its field, and it stays the default so existing output is
+    /// byte-for-byte unchanged.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_LegacyFormat_DropsTheSecurityLevel()
+    {
+        // Arrange
+        using var share = new Share<BigInteger>(new BigIntCalculator(11), new BigIntCalculator(42), 17);
+
+        // Act
+        using var serialized = share.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Legacy);
+        using var reparsed = new Share<BigInteger>(serialized);
+
+        // Assert
+        Assert.Equal("0B-2A", new string(serialized.PoolArray, 0, serialized.Length));
+        Assert.Null(reparsed.SecurityLevel);
+    }
+
+    /// <summary>
+    /// The extended form carries the level through a round trip, with and without the <c>0x</c>
+    /// prefix. The prefix rule is one rule for every segment — the level segment is prefixed like
+    /// the coordinates are — and the parser strips a prefix from each segment independently.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="withPrefix">Whether each segment carries the <c>0x</c> prefix.</param>
+    /// <param name="expected">The exact expected serialized form.</param>
+    [Theory]
+    [InlineData(false, "0B-2A-11")]
+    [InlineData(true, "0x0B-0x2A-0x11")]
+    public void ToCharArray_ExtendedFormat_RoundTripsTheSecurityLevel(bool withPrefix, string expected)
+    {
+        // Arrange — 0x11 is 17.
+        using var share = new Share<BigInteger>(new BigIntCalculator(11), new BigIntCalculator(42), 17);
+
+        // Act
+        using var serialized = share.ToCharArray(uppercase: true, withPrefix, ShareFormat.Extended);
+        using var reparsed = new Share<BigInteger>(serialized);
+
+        // Assert
+        Assert.Equal(expected, new string(serialized.PoolArray, 0, serialized.Length));
+        Assert.Equal(17, reparsed.SecurityLevel);
+        Assert.Equal(share, reparsed);
+    }
+
+    /// <summary>
+    /// Asking for the extended form from a share that records no level is an
+    /// <see cref="InvalidOperationException"/> — a valid request the object's state cannot serve.
+    /// Emitting a zero, dropping back to two segments or guessing would each hand back a share
+    /// claiming a field it does not know.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ExtendedFormat_WithoutARecordedLevel_ThrowsInvalidOperation()
+    {
+        // Arrange
+        using var share = new Share<BigInteger>(new BigIntCalculator(11), new BigIntCalculator(42));
+        var destination = new char[64];
+
+        // Act & Assert — every entry point on the write path refuses alike.
+        Assert.Throws<InvalidOperationException>(() => share.GetCharCount(false, ShareFormat.Extended));
+        Assert.Throws<InvalidOperationException>(() => share.ToCharArray(true, false, ShareFormat.Extended));
+        Assert.Throws<InvalidOperationException>(
+            () => share.WriteCharsTo(destination, 0, true, false, ShareFormat.Extended));
+    }
+
+    /// <summary>
+    /// The measurer and the writer agree in both formats, with and without the prefix. They derive
+    /// from one shared length rule rather than restating it, which is what keeps them in step when
+    /// a segment is added.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="withPrefix">Whether each segment carries the <c>0x</c> prefix.</param>
+    /// <param name="extended">Whether to write the security level segment.</param>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void GetCharCount_AgreesWithWriteCharsTo(bool withPrefix, bool extended)
+    {
+        // Arrange — 4931 needs three hex digits, so the level segment is not a fixed width.
+        using var share = new Share<BigInteger>(new BigIntCalculator(11), new BigIntCalculator(42), 4931);
+        var format = extended ? ShareFormat.Extended : ShareFormat.Legacy;
+        var destination = new char[128];
+
+        // Act
+        int measured = share.GetCharCount(withPrefix, format);
+        int written = share.WriteCharsTo(destination, 0, uppercase: true, withPrefix, format);
+
+        // Assert
+        Assert.Equal(measured, written);
+    }
+
+    /// <summary>
+    /// The property that makes the extension safe for readers that predate it: the level goes last,
+    /// so a parser taking the first separator and treating the remainder as the value is handed a
+    /// value segment containing a separator, which is not a hexadecimal digit. Such a reader fails
+    /// loudly rather than decoding a truncated or shifted value.
+    /// <para>
+    /// Pinned as a shape assertion because the older library cannot be run here. It is easy to
+    /// break while touching the parser — putting the level first, or choosing a separator that is
+    /// a hex digit, would each turn a loud failure into a silent misread.
+    /// </para>
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ExtendedFormat_IsRejectedByATwoSegmentReader()
+    {
+        // Arrange
+        using var share = new Share<BigInteger>(new BigIntCalculator(11), new BigIntCalculator(42), 17);
+
+        // Act
+        using var serialized = share.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended);
+        var text = new string(serialized.PoolArray, 0, serialized.Length);
+        var legacyValueSegment = text.Substring(text.IndexOf('-') + 1);
+
+        // Assert — what a two-segment reader would take as the value is not hexadecimal.
+        Assert.Equal(2, text.Split('-').Length - 1);
+        Assert.Contains("-", legacyValueSegment);
+    }
+
+    /// <summary>
+    /// A fourth segment is refused by shape rather than by a hex-digit complaint two layers down.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithFourSegments_ThrowsInvalidShare()
+    {
+        // Arrange
+        using var pinned = "B-AA-11-22".ToPinnedSecure();
+
+        // Act & Assert
+        Assert.Throws<InvalidShareException>(() => new Share<BigInteger>(pinned));
+    }
+
+    /// <summary>
+    /// A level segment that is empty, non-hexadecimal or decodes to zero is a malformed share.
+    /// Whether the exponent is one the library <em>supports</em> is a different question, asked
+    /// during reconstruction where a provider is present.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="serialized">A share string with an unusable third segment.</param>
+    [Theory]
+    [InlineData("B-AA-")]
+    [InlineData("B-AA-ZZ")]
+    [InlineData("B-AA-0")]
+    [InlineData("B-AA-000000000")]
+    public void Constructor_WithAnUnusableLevelSegment_ThrowsInvalidShare(string serialized)
+    {
+        // Arrange
+        using var pinned = serialized.ToPinnedSecure();
+
+        // Act & Assert
+        Assert.Throws<InvalidShareException>(() => new Share<BigInteger>(pinned));
+    }
 }

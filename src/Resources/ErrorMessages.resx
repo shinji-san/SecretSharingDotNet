@@ -205,4 +205,13 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     <data name="SecurityLevelNotAppliedByManager" xml:space="preserve">
         <value>The security level manager did not apply security level {0}; it reports {1}.</value>
     </data>
+    <data name="ShareHasNoSecurityLevelToSerialize" xml:space="preserve">
+        <value>This share records no security level, so it cannot be written in the extended format.</value>
+    </data>
+    <data name="ShareHasTooManySegments" xml:space="preserve">
+        <value>A serialized share has at most three segments separated by '{0}'.</value>
+    </data>
+    <data name="ShareSecurityLevelSegmentInvalid" xml:space="preserve">
+        <value>The security level segment of the serialized share is empty or not a positive hexadecimal number.</value>
+    </data>
 </root>

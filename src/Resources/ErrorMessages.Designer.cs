@@ -419,5 +419,23 @@ namespace SecretSharingDotNet {
                 return ResourceManager.GetString("SecurityLevelNotAppliedByManager", resourceCulture);
             }
         }
+        
+        internal static string ShareHasNoSecurityLevelToSerialize {
+            get {
+                return ResourceManager.GetString("ShareHasNoSecurityLevelToSerialize", resourceCulture);
+            }
+        }
+        
+        internal static string ShareHasTooManySegments {
+            get {
+                return ResourceManager.GetString("ShareHasTooManySegments", resourceCulture);
+            }
+        }
+        
+        internal static string ShareSecurityLevelSegmentInvalid {
+            get {
+                return ResourceManager.GetString("ShareSecurityLevelSegmentInvalid", resourceCulture);
+            }
+        }
     }
 }

@@ -316,7 +316,36 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// intermediate unpinned <see cref="string"/> or <see cref="System.Text.StringBuilder"/> allocation.
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
-    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false) =>
+        this.ToCharArray(uppercase, withPrefix, ShareFormat.Legacy);
+
+    /// <summary>
+    /// Converts every share to its hex-encoded form in the given format, one per line.
+    /// </summary>
+    /// <param name="uppercase">
+    /// <see langword="true"/> for uppercase hex digits (0A–0F); <see langword="false"/> for lowercase.
+    /// </param>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to prepend <c>"0x"</c> to every segment, the security level included.
+    /// </param>
+    /// <param name="format">Which serialized form to write.</param>
+    /// <returns>
+    /// A <see cref="PinnedPoolArray{T}"/> with the hex-encoded shares. The caller disposes it.
+    /// </returns>
+    /// <remarks>
+    /// All or nothing: <see cref="ShareFormat.Extended"/> throws unless <b>every</b> share records a
+    /// level, because the first one that does not stops the write — after the earlier lines have
+    /// been measured but before anything is handed back. A collection holding a mixture cannot be
+    /// written in the extended form at all, which is the honest outcome: the missing levels cannot
+    /// be invented and a file of mixed lines would be worse than a refusal.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a defined value.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="format"/> is <see cref="ShareFormat.Extended"/> and at least one share
+    /// records no security level.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix, ShareFormat format)
     {
         this.ThrowIfDisposed();
         if (this.shareList.Count == 0)
@@ -329,14 +358,14 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
         var total = 0;
         for (int i = 0; i < this.shareList.Count; i++)
         {
-            total += this.shareList[i].GetCharCount(withPrefix) + newlineLen;
+            total += this.shareList[i].GetCharCount(withPrefix, format) + newlineLen;
         }
 
         var result = new PinnedPoolArray<char>(total);
         var pos = 0;
         for (int i = 0; i < this.shareList.Count; i++)
         {
-            pos += this.shareList[i].WriteCharsTo(result.PoolArray, pos, uppercase, withPrefix);
+            pos += this.shareList[i].WriteCharsTo(result.PoolArray, pos, uppercase, withPrefix, format);
             newline.CopyTo(0, result.PoolArray, pos, newlineLen);
             pos += newlineLen;
         }

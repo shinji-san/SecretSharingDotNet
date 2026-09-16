@@ -32,6 +32,7 @@
 namespace SecretSharingDotNetTest.Cryptography.BigInteger;
 
 using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Extension;
@@ -758,5 +759,73 @@ public class SharesTest
         // Assert
         Assert.False(findsLegacy);
         Assert.True(findsLevelled);
+    }
+    /// <summary>
+    /// A whole collection survives the extended round trip through text, so a persisted set can be
+    /// read back into shares that still know their field. Both text entry points are covered,
+    /// because both build their shares through the same constructor and either could drift.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_ExtendedFormat_RoundTripsEverySecurityLevel()
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<BigInteger>();
+        splitter.SecurityLevel = 17;
+        using var shares = splitter.MakeShares(2, 3, secret);
+
+        // Act
+        using var serialized = shares.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended);
+        using var reparsed = Shares<BigInteger>.FromText(serialized);
+
+        // Assert
+        Assert.Equal(3, reparsed.Count);
+        Assert.All(reparsed, share => Assert.Equal(17, share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// The legacy form is still the default, so existing output is unchanged and a collection
+    /// written that way comes back without levels — the loss that makes a persisted share
+    /// unreconstructable unless the caller names the field.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_DefaultFormat_StillDropsEverySecurityLevel()
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<BigInteger>();
+        splitter.SecurityLevel = 17;
+        using var shares = splitter.MakeShares(2, 3, secret);
+
+        // Act
+        using var serialized = shares.ToCharArray(uppercase: true);
+        using var reparsed = Shares<BigInteger>.FromText(serialized);
+
+        // Assert
+        Assert.Equal(3, reparsed.Count);
+        Assert.All(reparsed, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// A collection holding a mixture cannot be written in the extended form at all. The missing
+    /// levels cannot be invented, and a file of mixed lines would be worse than a refusal: it would
+    /// read back as the mixed metadata that reconstruction has to reject anyway.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_ExtendedFormat_WithAMixedCollection_ThrowsInvalidOperation()
+    {
+        // Arrange
+        using var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 17),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(
+            () => shares.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended));
     }
 }
