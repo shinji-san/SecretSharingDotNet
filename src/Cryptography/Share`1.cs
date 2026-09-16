@@ -627,11 +627,17 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </para>
     /// <para>
     /// <b>What this validates, and what it cannot.</b> An exponent the library does not support is
-    /// refused, and so is one naming a field too small for these coordinates. A <em>plausible but
-    /// wrong</em> exponent — supported, and large enough — cannot be detected here: the coordinates
-    /// do not say which field produced them, which is the very absence this whole change exists to
-    /// remedy. Such a share will reconstruct to a wrong secret exactly as it did before, and no
-    /// check in this method can prevent that.
+    /// refused; so is one naming a field too small for these coordinates; and so is one that
+    /// contradicts a level this share already records — re-issuing with the same exponent is fine,
+    /// and a share recording none may be given one, but the helper does not overwrite what the
+    /// share already knows.
+    /// </para>
+    /// <para>
+    /// For a share that records <em>nothing</em>, a <em>plausible but wrong</em> exponent —
+    /// supported, large enough — cannot be detected: the coordinates do not say which field
+    /// produced them, which is the very absence this whole change exists to remedy. Such a share
+    /// will reconstruct to a wrong secret exactly as it did before, and no check in this method
+    /// can prevent that.
     /// </para>
     /// <para>
     /// The coordinates are cloned rather than shared. The constructor takes ownership of what it is
@@ -697,12 +703,23 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// <param name="shares">The shares the level is meant to describe.</param>
     /// <param name="securityLevel">The exponent to check.</param>
     /// <remarks>
-    /// Both failures are argument errors: the exponent came in as a parameter of the operation
-    /// being performed, unlike one read off a share during reconstruction, which is a
-    /// reconstruction failure. Same checks, different boundary.
+    /// <para>
+    /// All three failures are argument errors: the exponent came in as a parameter of the operation
+    /// being performed, unlike one read off a share during reconstruction, which is a reconstruction
+    /// failure. Same questions, different boundary.
+    /// </para>
+    /// <para>
+    /// A share that already records a level is not overwritten. Re-issuing it with the same
+    /// exponent is fine and a share recording none may be given one, but a contradiction is
+    /// refused — reconstruction refuses the same contradiction, and a migration helper that
+    /// silently won the argument would be a way to talk the library into the wrong field.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">The exponent is not supported.</exception>
-    /// <exception cref="ArgumentException">The field is too small for the coordinates.</exception>
+    /// <exception cref="ArgumentException">
+    /// The exponent contradicts a level a share already records, or the field is too small for the
+    /// coordinates.
+    /// </exception>
     internal static void EnsureUsableSecurityLevel(IReadOnlyList<Share<TNumber>> shares, int securityLevel)
     {
         if (!MersennePrimeProvider.Instance.IsValidMersennePrimeExponent(securityLevel))
@@ -711,6 +728,17 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
                 nameof(securityLevel),
                 securityLevel,
                 string.Format(ErrorMessages.SecurityLevelNotSupported, securityLevel));
+        }
+
+        for (int i = 0; i < shares.Count; i++)
+        {
+            int? recorded = shares[i].SecurityLevel;
+            if (recorded.HasValue && recorded.Value != securityLevel)
+            {
+                throw new ArgumentException(
+                    string.Format(ErrorMessages.ExplicitSecurityLevelContradictsShares, securityLevel),
+                    nameof(securityLevel));
+            }
         }
 
         if (!AllFitField(shares, securityLevel))

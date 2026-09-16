@@ -918,4 +918,24 @@ public class SharesTest
         // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => shares.ReissueWithSecurityLevel(17));
     }
+    /// <summary>
+    /// A collection is refused as a whole when the exponent contradicts what any one share already
+    /// records — including a collection that mixes shares which know their field with shares that
+    /// do not.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_ContradictingOneRecordedLevel_MigratesNothing()
+    {
+        // Arrange
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20), 17),
+        });
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => original.ReissueWithSecurityLevel(19));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
 }

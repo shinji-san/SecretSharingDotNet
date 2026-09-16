@@ -282,6 +282,59 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     public static implicit operator Shares<TNumber>(Share<TNumber>[] shares) => new Shares<TNumber>(shares);
 
     /// <summary>
+    /// Re-issues every share in this collection recording the finite field they were created in,
+    /// for shares that carry no record of one.
+    /// </summary>
+    /// <param name="securityLevel">The Mersenne exponent the split actually used.</param>
+    /// <returns>
+    /// A new collection of new shares. The caller owns it; this collection is untouched and still
+    /// usable, and disposing either leaves the other intact.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The same caller obligation as the single-share form: the exponent must be the one the split
+    /// actually used, <em>after</em> any auto-raise inside <c>MakeShares</c>. For shares that
+    /// record nothing, a supported exponent that is large enough but simply wrong cannot be
+    /// detected, because the coordinates do not say which field produced them. A share that
+    /// already records a level is never overwritten: a contradicting exponent is refused.
+    /// </para>
+    /// <para>
+    /// All or nothing. The level is validated once against every share before anything is cloned,
+    /// so a collection is never half migrated — and if the cloning itself fails partway, the shares
+    /// already produced are disposed rather than leaked.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is not a supported Mersenne prime exponent.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="securityLevel"/> contradicts a level at least one share already records, or
+    /// names a field too small for at least one share's coordinates.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public Shares<TNumber> ReissueWithSecurityLevel(int securityLevel)
+    {
+        this.ThrowIfDisposed();
+        Share<TNumber>.EnsureUsableSecurityLevel(this.shareList, securityLevel);
+
+        var reissued = new Share<TNumber>[this.shareList.Count];
+        try
+        {
+            for (int i = 0; i < this.shareList.Count; i++)
+            {
+                reissued[i] = this.shareList[i].ReissueCore(securityLevel);
+            }
+
+            return new Shares<TNumber>(reissued);
+        }
+        catch
+        {
+            reissued.DisposeAll();
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Converts the collection to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing
     /// the uppercase hex-encoded shares without coordinate prefixes, one per line, separated and
     /// terminated by <see cref="Environment.NewLine"/>.
@@ -316,57 +369,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// intermediate unpinned <see cref="string"/> or <see cref="System.Text.StringBuilder"/> allocation.
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
-    /// <summary>
-    /// Re-issues every share in this collection recording the finite field they were created in,
-    /// for shares that carry no record of one.
-    /// </summary>
-    /// <param name="securityLevel">The Mersenne exponent the split actually used.</param>
-    /// <returns>
-    /// A new collection of new shares. The caller owns it; this collection is untouched and still
-    /// usable, and disposing either leaves the other intact.
-    /// </returns>
-    /// <remarks>
-    /// <para>
-    /// The same caller obligation as the single-share form: the exponent must be the one the split
-    /// actually used, <em>after</em> any auto-raise inside <c>MakeShares</c>. A supported exponent
-    /// that is large enough but simply wrong cannot be detected here, because the coordinates do
-    /// not say which field produced them.
-    /// </para>
-    /// <para>
-    /// All or nothing. The level is validated once against every share before anything is cloned,
-    /// so a collection is never half migrated — and if the cloning itself fails partway, the shares
-    /// already produced are disposed rather than leaked.
-    /// </para>
-    /// </remarks>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="securityLevel"/> is not a supported Mersenne prime exponent.
-    /// </exception>
-    /// <exception cref="ArgumentException">
-    /// <paramref name="securityLevel"/> names a field too small for at least one share's coordinates.
-    /// </exception>
-    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
-    public Shares<TNumber> ReissueWithSecurityLevel(int securityLevel)
-    {
-        this.ThrowIfDisposed();
-        Share<TNumber>.EnsureUsableSecurityLevel(this.shareList, securityLevel);
-
-        var reissued = new Share<TNumber>[this.shareList.Count];
-        try
-        {
-            for (int i = 0; i < this.shareList.Count; i++)
-            {
-                reissued[i] = this.shareList[i].ReissueCore(securityLevel);
-            }
-
-            return new Shares<TNumber>(reissued);
-        }
-        catch
-        {
-            reissued.DisposeAll();
-            throw;
-        }
-    }
-
     public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false) =>
         this.ToCharArray(uppercase, withPrefix, ShareFormat.Legacy);
 

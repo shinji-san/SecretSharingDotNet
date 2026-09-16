@@ -1417,6 +1417,10 @@ public class ShareTest
         var original = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
         var reissued = original.ReissueWithSecurityLevel(17);
 
+        // Act & Assert — independent instances, which both backends can see.
+        Assert.NotSame(original.Index, reissued.Index);
+        Assert.NotSame(original.Value, reissued.Value);
+
         // Act — drop the original and keep using the copy.
         original.Dispose();
 
@@ -1508,5 +1512,41 @@ public class ShareTest
 
         // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => share.ReissueWithSecurityLevel(17));
+    }
+    /// <summary>
+    /// A share that already records a level is not talked out of it. Reconstruction refuses the
+    /// same contradiction, and a migration helper that silently won the argument would be a way to
+    /// steer the library into the wrong field — the exact failure this change exists to remove.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_ContradictingARecordedLevel_Throws()
+    {
+        // Arrange — 19 is supported and admits these coordinates, but the share says 17.
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(3333), 17);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => share.ReissueWithSecurityLevel(19));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// Re-issuing with the level a share already records is allowed. Nothing contradicts anything,
+    /// and refusing it would make the operation depend on whether the caller happened to know the
+    /// share was already migrated.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_MatchingARecordedLevel_IsAllowed()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(3333), 17);
+
+        // Act
+        using var reissued = share.ReissueWithSecurityLevel(17);
+
+        // Assert
+        Assert.Equal(17, reissued.SecurityLevel);
+        Assert.NotSame(share.Index, reissued.Index);
     }
 }
