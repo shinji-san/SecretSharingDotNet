@@ -901,14 +901,19 @@ using var recovered = useCase.Reconstruction(legacyShares, 17);
 ```
 
 The explicit level outranks what the shares record but is checked against it — a contradiction is
-refused rather than silently preferred. Shares that disagree among themselves, or where some record
-a level and others do not, are refused as well: there is nothing to choose between them, and
-choosing would be the guesswork this change removes.
+refused rather than silently preferred. **Without** such an argument, shares that disagree among
+themselves, or where some record a level and others do not, are refused: there is nothing to choose
+between them, and choosing would be the guesswork this change removes. **With** one there is nothing
+left to choose, because the caller has chosen — so a set mixing re-issued and untouched shares
+reconstructs, as long as every level actually recorded matches the argument.
 
-Shares that record **nothing** still go through the value-derived selection, unchanged. Where that
-now collapses to an undecodable secret, the failure is a `ReconstructionException` naming the
-exponent the interpolation ran under, rather than an `ArgumentException` from two layers down. It
-still cannot name a cause: a tampered share produces exactly the same picture.
+That is also what makes the migration above resumable: a half-migrated set is usable through
+`Reconstruction(shares, 17)` rather than being stuck between two states.
+
+Shares that record **nothing** go through the value-derived selection only where no level is named
+at all. Where that now collapses to an undecodable secret, the failure is a `ReconstructionException`
+naming the exponent the interpolation ran under, rather than an `ArgumentException` from two layers
+down. It still cannot name a cause: a tampered share produces exactly the same picture.
 
 ## Secure console input ⌨️
 `ConsolePasswordReader` reads keyboard input one keystroke at a time directly into a pinned `PinnedPoolArray<char>` — no `string`, no `StringBuilder`, no intermediate heap copy. The pinned buffer is the same shape that `Secret<TNumber>.FromText(...)`, `Share<TNumber>(...)`, and `Shares<TNumber>.FromText(...)` / `Shares<TNumber>.FromTextLines(...)` accept directly, so secrets and shares can flow end-to-end without ever materialising as a `string`. The two sub-examples below cover both directions: reading a secret to split, and reading shares to reconstruct.

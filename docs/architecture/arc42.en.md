@@ -142,7 +142,24 @@
       check now runs before the level is committed; R27 moves from High to Medium, replaces the
       hand-computed counterexample with the one reproduced through the library, and names the
       residual that remains while `ShareFormat.Legacy` is the serialization default. Test totals
-      refreshed to 938 (733 `[Fact]` + 205 `[Theory]`) across 44 test classes.
+      refreshed to 944 (739 `[Fact]` + 205 `[Theory]`) across 45 test classes.
+    - 2026-09-17 — review follow-up on the #403 documentation: three statements were wider than
+      the code. The state guarantee — "a rejected input leaves the manager where it was" — holds
+      only where the manager is inspectable; on the compatibility path the level and the prime
+      instance may already have moved, reproduced as 31 → 13 with the call still throwing over a
+      coordinate outside that field. 6.2 now marks both paths in the sequence diagram and says so
+      in prose. The refusal of mixed share metadata was stated unconditionally, although an
+      explicit level makes such a set reconstruct — which is what lets a half-migrated set stay
+      usable. And the claim that all three public share constructors leave the level `null` is
+      wrong for the text constructor, which adopts a third segment when one is present. Both
+      manager outcomes are now pinned against each other by tests rather than only described.
+    - 2026-09-17 — the property suites draw an arbitrary qualifying subset, which is what the #403
+      plan asked for and what Q6 already claimed. The generated `subsetOffset` named a wrap-around
+      window over the index-sorted shares, reaching the `n` contiguous runs and no combination with
+      an interior gap; it is now a rank into the `C(n, k)` subsets. `Gen.Shuffle` was measured as
+      the simpler alternative and rejected: over 500 draws of `C(5, 3)` it reached 6 of the 10
+      subsets against the rank's 10. Q6 states the new coverage, and the rank-to-subset bijection
+      is checked in its own test rather than assumed.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -181,7 +198,7 @@ package and runs in-process inside the consumer's application (source: `README.m
 | Priority | Quality goal | Motivation |
 |---|---|---|
 | 1 | **Confidentiality of the secret in process memory** | The library's whole value collapses if the secret stays recoverable from heap snapshots, swap files, or reused pool buffers. Realised via GC-pinned, triple-overwritten buffers (`PinnedPoolArray<T>`) and a pervasive `IDisposable` discipline. |
-| 2 | **Functional correctness of the scheme** | A wrongly reconstructed secret is silently fatal: plain Shamir carries no integrity check (`README.md`, threat model). Backed by 938 test methods, property-based round-trip tests (CsCheck), and two parallel test hierarchies — one per numeric backend. |
+| 2 | **Functional correctness of the scheme** | A wrongly reconstructed secret is silently fatal: plain Shamir carries no integrity check (`README.md`, threat model). Backed by 944 test methods, property-based round-trip tests (CsCheck), and two parallel test hierarchies — one per numeric backend. |
 | 3 | **Resistance to passive timing analysis (best effort)** | A deliberate second-rank security goal: the `SecureBigInteger` backend provides core arithmetic whose per-limb loops are constant-time on the limb count, plus a fixed-iteration modular inverse. The guarantee stops at those loops — result normalisation, `ByteCount`, ordering and the other surfaces in 8.2 are value-dependent. The claim is explicitly *best effort in managed .NET*, not audited hardening (`README.md`, *Security & Threat Model* section). |
 | 4 | **Portability across eight target frameworks** | The library should be usable in legacy .NET Framework applications as well as on .NET 10. Cost: extensive `#if` conditionalisation (see risk R1). |
 | 5 | **Public API stability** | After the v1.0 GA, consumers should not break on every internal refactoring. Realised through deliberate `internal` boundaries and SemVer discipline in `CHANGELOG.md`. |
@@ -304,7 +321,7 @@ C4Container
   Person(appDev, "Application developer", "Programs against the library API")
   System_Boundary(sln, "SecretSharingDotNet.slnx") {
     Container(lib, "SecretSharingDotNet", "C# class library, 8 TFMs, strong-named", "The shipped library: Shamir algorithm, numeric backends, pinned memory")
-    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "938 test methods across 6 TFMs, including the timing harness and stress traits")
+    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "944 test methods across 6 TFMs, including the timing harness and stress traits")
     Container(demo, "SecretSharingDotNet.Demo.Console", ".NET 10 console app, Microsoft.Extensions.DependencyInjection", "Runnable end-to-end example with DI composition and console input")
   }
   System_Ext(nuget, "nuget.org", "Distribution channel")
@@ -648,17 +665,25 @@ sequenceDiagram
         Rec->>Rec: check it against every recorded level
     else shares record one
         Rec->>Rec: take the recorded level
-    else shares record none
+    else shares record none, manager inspectable
         Rec->>SLM: DetermineSecurityLevel(maximumY)
         Note over Rec,SLM: Only here is the field still derived from the share values
+    else shares record none, manager not inspectable
+        Rec->>SLM: AdjustSecurityLevel(maximumY)
+        Note over Rec,SLM: Compatibility path: the only way to learn the field is to commit it
     end
     Rec->>Rec: check index distinctness (HashSet + PublicValueEqualityComparer)
     alt duplicate index
         Rec-->>App: ReconstructionException
     end
-    Rec->>Rec: coordinates inside the field? index in (0, p), value in [0, p)
-    Rec->>SLM: SecurityLevel = the level determined above
-    Note over Rec,SLM: The manager moves last, so a rejected input leaves it where it was
+    alt manager inspectable
+        Rec->>Rec: coordinates inside the field? index in (0, p), value in [0, p)
+        Rec->>SLM: SecurityLevel = the level determined above
+    else compatibility path
+        Rec->>SLM: SecurityLevel = the level determined above
+        Rec->>Rec: coordinates inside the field? index in (0, p), value in [0, p)
+    end
+    Note over Rec,SLM: Only on the inspectable path does a rejected input leave the manager untouched
     loop Lagrange basis polynomials
         Rec->>Calc: numerator and denominator products over all index differences
     end
@@ -686,6 +711,19 @@ the derivation is skipped. Where it does run it behaves exactly as before, which
 part of risk R27: it picks the field from the shares' maximum value, and when that guess lands on
 a smaller prime than the split used, the interpolation below runs in the wrong field — silently,
 if the constant term happens to have a residue there.
+
+**The manager's state survives a rejection only on the inspectable path.** With
+`IInspectableSecurityLevelManager<TNumber>` the selection is made without committing it, so every
+validation runs while the manager still holds whatever it held before, and a refusal leaves both
+the level and the prime instance alone. A manager that predates the capability offers no such
+answer: the only way to learn the field a value-derived selection would pick is to commit it, and
+the exponent itself can only be vetted by setting it and reading it back. On that path the level
+— and the prime instance the setter swaps in with it — may already have moved when the call
+throws, for instance when a coordinate turns out to lie outside the very field just selected. The
+two outcomes are pinned against each other by
+`Reconstruction_WithDuplicateIndices_LeavesTheManagerUntouched` and
+`Reconstruction_WithAManagerLackingTheCapability_MayLeaveTheManagerMoved` in both backend test
+hierarchies.
 
 ### 6.3 Critical failure case: a tampered share
 
@@ -1068,7 +1106,7 @@ code state `d920257` across the 56 versioned test files:
   `// Act & Assert` marker stands in.
 - **Every allocation binds with `using`** — including operator results (`+`, `-`, `*`, `/`, `%`),
   `Calculator<T>.Zero/One/Two`, inline expected values, and loop intermediates; 1,209 `using var`
-  declarations across 938 test methods. A forgotten `using` keeps a pinned buffer alive until
+  declarations across 944 test methods. A forgotten `using` keeps a pinned buffer alive until
   AppDomain shutdown.
 - **Two mirrored test hierarchies**, one for `BigInteger` and one for `SecureBigInteger` — visible
   in the sibling directories `tests/Cryptography/{BigInteger,SecureBigInteger}/`,
@@ -1158,11 +1196,11 @@ Quality of SecretSharingDotNet
 | **Q3** | An auditor asks for proof that no weak random source is involved. | There is exactly one random source: `RandomNumberGenerator` behind `SecureRandom`/`IRandomSource`. A `grep` for `System.Random` in `src/` returns zero hits. |
 | **Q4** | A passive observer times `SecureBigInteger.Equals` for two secrets with a long common prefix against two that differ in the first byte. | **Not measured** — the suite carries no positive timing test (8.11), so no empirical result may be reported here. Defended structurally: `Equals` pre-pads to `max(l, r)` and folds the full length with XOR-OR and no short-circuit, uniform across all six TFMs, so there is no input-dependent exit for an observer to find. |
 | **Q5** | The same observer times `SecureBigInteger.Multiply` with small versus 512-bit operands. | The timing harness **must** report a difference here (`HarnessSelfTest`, Welch's t at p < 0.001). If this negative control fails, the harness is measuring nothing real and is invalid as a tool. |
-| **Q6** | A secret is split with an arbitrary `2 ≤ k ≤ n`; then an **arbitrary** k-element subset of the n shares is used for reconstruction. | **Intended:** the reconstructed secret is bit-identical to the original; Lagrange interpolation gives that for *every* qualifying subset. **Delivered: for shares that record their field.** A share produced by `MakeShares` carries its security level, and `Reconstruction` interpolates in that field instead of deriving one from the share values — pinned by `Reconstruction_WhenAShareValueWrappedInTheOriginalField_RestoresTheSecret` in both backend test hierarchies, which is the very vector that used to lose the secret. Shares recording nothing — parsed from the legacy `INDEX-VALUE` form, or rebuilt from bare coordinates — still go through the value-derived selection and can still land in a smaller field than the split used, returning either no decodable secret (an exception) or a different secret with no exception at all; both residual outcomes stay pinned by `Reconstruction_WhenSharesCarryNoLevel_StillRefitsDownward` and `Reconstruction_WhenSharesCarryNoLevelAndTheCoefficientCollapses_ThrowsNamingTheExponent`. The way out for those is `Reconstruction(shares, securityLevel)` or `Shares<TNumber>.ReissueWithSecurityLevel`. Fixed under **issue #403**; R27 carries the residual scope. The subset property itself never failed — the field selection did. The tests evidence a slice of the intended property: the property-based CsCheck tests (250 iterations for `BigInteger`, 50 for `SecureBigInteger`, mirrored across both backends) draw the subset as a cyclic window over the index-sorted shares, that is `n` of the `C(n, k)` possible combinations. |
+| **Q6** | A secret is split with an arbitrary `2 ≤ k ≤ n`; then an **arbitrary** k-element subset of the n shares is used for reconstruction. | **Intended:** the reconstructed secret is bit-identical to the original; Lagrange interpolation gives that for *every* qualifying subset. **Delivered: for shares that record their field.** A share produced by `MakeShares` carries its security level, and `Reconstruction` interpolates in that field instead of deriving one from the share values — pinned by `Reconstruction_WhenAShareValueWrappedInTheOriginalField_RestoresTheSecret` in both backend test hierarchies, which is the very vector that used to lose the secret. Shares recording nothing — parsed from the legacy `INDEX-VALUE` form, or rebuilt from bare coordinates — still go through the value-derived selection and can still land in a smaller field than the split used, returning either no decodable secret (an exception) or a different secret with no exception at all; both residual outcomes stay pinned by `Reconstruction_WhenSharesCarryNoLevel_StillRefitsDownward` and `Reconstruction_WhenSharesCarryNoLevelAndTheCoefficientCollapses_ThrowsNamingTheExponent`. The way out for those is `Reconstruction(shares, securityLevel)` or `Shares<TNumber>.ReissueWithSecurityLevel`. Fixed under **issue #403**; R27 carries the residual scope. The subset property itself never failed — the field selection did. The property-based CsCheck tests (250 iterations for `BigInteger`, 50 for `SecureBigInteger`, mirrored across both backends) draw the subset by combination rank, so every one of the `C(n, k)` subsets is reachable and combinations with interior gaps are exercised — not only the `n` contiguous runs the earlier cyclic window could name. That the rank-to-subset map is a bijection is checked rather than assumed, by `Combination_OverTheGeneratedParameterSpace_IsABijectionOntoTheSubsets`. |
 | **Q7** | Two shares with an identical index are handed to reconstruction. | `ReconstructionException` rather than a generic `ArgumentException`. It is raised on the first duplicate the check encounters, and `EnsureDistinctIndices` runs in the validation phase of `ReconstructionCore` — **before** the security level is committed. A duplicate index makes the Lagrange denominator zero in every field, so the check needs no level at all, and a rejected input leaves the manager where it was. One path is the exception to that: shares recording no level combined with an `ISecurityLevelManager<TNumber>` that is not `IInspectableSecurityLevelManager<TNumber>` offer no way to obtain a candidate other than calling `AdjustSecurityLevel`, so there the manager has already moved when the duplicate surfaces. |
 | **Q8** | A behaviour is changed in the `BigInteger` test hierarchy but not in the `SecureBigInteger` one. | The divergence is caught **in review**, by the mirrored file being the obvious place to look — not by a failing test. The two suites are independent, and nothing enforces the mirroring (see the open item in 8.11). A red test follows only where the underlying production change also breaks the other backend. |
 | **Q9** | A commit reaches `develop` **and matches the path filters of `dotnetall.yml`** (that is, anything but pure Markdown changes; `README.md` is re-included because it is pack input). | Build and tests pass on **all** six test TFMs: `net8.0`/`net9.0`/`net10.0` on `ubuntu-24.04`, `net472`/`net48`/`net481` on `windows-2025`. A red TFM blocks the merge. For excluded changes — these architecture files among them — **no** test matrix runs at all, and the scenario contributes nothing there. |
-| **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 938 test methods (733 `[Fact]`, 205 `[Theory]`) across 44 test classes. |
+| **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 944 test methods (739 `[Fact]`, 205 `[Theory]`) across 45 test classes. |
 | **Q11** | A release is built twice from the same tag. | Identical artefacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (8.0.423 / 9.0.316 / 10.0.302). |
 | **Q12** | A consumer accidentally combines the `SecureBigInteger` backend with the variable-time `ExtendedEuclideanAlgorithm`. | If they use `FixedIterationSecretReconstructor<TNumber>`: a **compile error** (the constructor takes only `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Through the base type `SecretReconstructor<TNumber>` the combination stays possible — that is a documented opt-out, not an accident. |
 

@@ -657,4 +657,71 @@ public class SecretReconstructorTest
         // Act & Assert
         Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
     }
+
+    /// <summary>
+    /// The state guarantee is narrower than it first looks, and the compatibility path is where it
+    /// stops. Without <see cref="IInspectableSecurityLevelManager{TNumber}"/> there is no way to
+    /// learn the field a value-derived selection would land on other than committing it, so
+    /// <c>AdjustSecurityLevel</c> runs before anything is validated: here a manager sitting on 31
+    /// is left on 13 although the index is outside that field and the call throws. The prime
+    /// instance is replaced along with the level, so a reference handed out beforehand is dead.
+    /// <para>
+    /// This is pinned rather than only documented because it is the price of supporting a manager
+    /// written before the capability existed, and the boundary between "rejected input leaves the
+    /// manager alone" and "may not" has to stay visible.
+    /// </para>
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithAManagerLackingTheCapability_MayLeaveTheManagerMoved()
+    {
+        // Arrange — 9000 exceeds M13 = 8191, the field the values 300 and 400 select.
+        using var plainManager = new PlainSecurityLevelManager();
+        plainManager.SecurityLevel = 31;
+        using var primeBefore = plainManager.MersennePrime.Clone();
+        using var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(9000), new BigIntCalculator(300)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(400)),
+        });
+        using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>(), plainManager);
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+        Assert.Equal(13, plainManager.SecurityLevel);
+        Assert.False(primeBefore.Equals(plainManager.MersennePrime));
+    }
+
+    /// <summary>
+    /// Mixed metadata is refused only where there is nothing to choose between the shares. Naming
+    /// the field removes that problem: a set in which one share records 17 and the other records
+    /// nothing reconstructs through <c>Reconstruction(shares, 17)</c>, because the explicit level
+    /// decides and the recorded one is merely checked against it. The same set without the
+    /// argument is refused, which is what makes this pair worth pinning — the two calls differ
+    /// only in whether the caller supplied the field.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithAnExplicitLevel_AcceptsMixedShareMetadata()
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<BigInteger>();
+        splitter.SecurityLevel = 17;
+        using var tagged = splitter.MakeShares(2, 2, secret);
+        var byIndex = tagged.ToArray();
+        using var mixed = new Shares<BigInteger>(new[]
+        {
+            byIndex[0].ReissueWithSecurityLevel(17),
+            new Share<BigInteger>(byIndex[1].Index.Clone(), byIndex[1].Value.Clone()),
+        });
+        using var reconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
+
+        // Act
+        using var named = reconstructor.Reconstruction(mixed, 17);
+
+        // Assert
+        Assert.Equal(secret, named);
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(mixed));
+    }
 }
