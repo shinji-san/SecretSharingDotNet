@@ -840,6 +840,76 @@ public class Program
 }
 ```
 
+## The field a share was created in 🧭
+
+A share is a point on a polynomial over a finite field, and until now it carried no record of
+*which* field. Reconstruction therefore derived one from the share values — and when every value in
+the supplied subset happened to fall below a smaller Mersenne prime, it interpolated in the wrong
+field and returned a different secret, with no error at all
+([issue #403](https://github.com/shinji-san/SecretSharingDotNet/issues/403)).
+
+A share created by `MakeShares` now records its field in `Share<TNumber>.SecurityLevel`, and
+reconstruction uses it. **For shares held in memory, nothing needs to change** — the round trip is
+simply correct now.
+
+> [!IMPORTANT]
+> **Stored shares are a different matter.** `ToCharArray()` still writes the two-segment
+> `INDEX-VALUE` form by default, which has no room for the level, so a share written out and read
+> back is in exactly the position it was before. Opting into the three-segment form is what closes
+> that, and it becomes the default in the next breaking-change cycle.
+
+### Writing shares that keep their field
+
+```csharp
+//// Three segments: INDEX-VALUE-LEVEL, the exponent hexadecimal.
+using var text = shares.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended);
+
+//// Reads either form; a third segment is adopted when present.
+using var reparsed = Shares<BigInteger>.FromText(text);
+```
+
+An older version of this library reading the three-segment form **fails loudly** rather than
+misreading it: its parser takes the first separator and treats the remainder as the value, where the
+second separator is not a hexadecimal digit and the decode is refused.
+
+### Migrating shares you already stored
+
+```csharp
+//// Re-issue with the exponent the split actually used. Coordinates are cloned,
+//// so the originals stay usable.
+using var migrated = legacyShares.ReissueWithSecurityLevel(17);
+using var text = migrated.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended);
+```
+
+> [!WARNING]
+> **You must supply the exponent the split actually used, after any auto-raise.** `MakeShares`
+> raises the level to fit the secret including its mark byte, so a one-byte secret split without an
+> explicit level lands on **17**, which is rarely the number a caller remembers asking for. A
+> supported exponent that is large enough but simply wrong is accepted without complaint and
+> reconstructs to a wrong secret: the coordinates do not say which field produced them, which is the
+> absence this whole change works around. What *is* refused is an unsupported exponent, a field too
+> small for the coordinates, and one contradicting a level the share already records.
+
+### Naming the field per call instead
+
+If you would rather not rewrite stored shares, name the field at reconstruction time:
+
+```csharp
+serviceCollection.AddTransient<IReconstructionWithSecurityLevelUseCase<BigInteger>, SecretReconstructor<BigInteger>>();
+// ...
+using var recovered = useCase.Reconstruction(legacyShares, 17);
+```
+
+The explicit level outranks what the shares record but is checked against it — a contradiction is
+refused rather than silently preferred. Shares that disagree among themselves, or where some record
+a level and others do not, are refused as well: there is nothing to choose between them, and
+choosing would be the guesswork this change removes.
+
+Shares that record **nothing** still go through the value-derived selection, unchanged. Where that
+now collapses to an undecodable secret, the failure is a `ReconstructionException` naming the
+exponent the interpolation ran under, rather than an `ArgumentException` from two layers down. It
+still cannot name a cause: a tampered share produces exactly the same picture.
+
 ## Secure console input ⌨️
 `ConsolePasswordReader` reads keyboard input one keystroke at a time directly into a pinned `PinnedPoolArray<char>` — no `string`, no `StringBuilder`, no intermediate heap copy. The pinned buffer is the same shape that `Secret<TNumber>.FromText(...)`, `Share<TNumber>(...)`, and `Shares<TNumber>.FromText(...)` / `Shares<TNumber>.FromTextLines(...)` accept directly, so secrets and shares can flow end-to-end without ever materialising as a `string`. The two sub-examples below cover both directions: reading a secret to split, and reading shares to reconstruct.
 

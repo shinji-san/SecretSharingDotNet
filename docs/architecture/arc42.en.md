@@ -132,6 +132,17 @@
       fix branch. The counterexample cited in R27 was computed by hand; the vector now in the suite
       is a different one, reproduced through the library, and R27 will be aligned to it with the
       rest of the #403 documentation.
+    - 2026-09-17 — issue #403 fixed; the documentation follows the code. A share now records the
+      Mersenne exponent of the field it was created in (`Share<TNumber>.SecurityLevel`), and
+      `Reconstruction` interpolates in that field instead of deriving one from the share values.
+      1.1 scopes the recovery promise to shares that record their field, 6.2 marks
+      `AdjustSecurityLevel` as conditional, and 8.7 documents the three-segment
+      `ShareFormat.Extended` form. Q6 separates the fixed case from the legacy residual; Q7 drops
+      the claim that the manager is already mutated when the distinctness check starts — that
+      check now runs before the level is committed; R27 moves from High to Medium, replaces the
+      hand-computed counterexample with the one reproduced through the library, and names the
+      residual that remains while `ShareFormat.Legacy` is the serialization default. Test totals
+      refreshed to 938 (733 `[Fact]` + 205 `[Theory]`) across 44 test classes.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -145,9 +156,12 @@ blocks naming the missing information.
 SecretSharingDotNet is a C# class library implementing *Shamir's Secret Sharing*: a secret (text,
 number, or byte sequence) is split into **N** shares, any **K** of which suffice to recover the
 original — while **K−1** shares reveal practically nothing about the secret. That recovery promise
-is the scheme's, and this implementation does not currently keep it in every case: when all
-supplied share values fall below a smaller supported Mersenne prime, reconstruction refits to that
-smaller field and can return a different secret without any error (risk R27, issue #403). *Practically*, not
+is the scheme's, and this implementation kept it only partly until the fix for issue #403: a share
+carried no record of the field it was created in, so reconstruction derived one from the share
+values and could land in a smaller field than the split used. A share now records its field and
+reconstruction reads it. Shares written before that — or built from bare coordinates — record
+nothing and still go through the derivation, so for them the promise holds only if the caller names
+the field (risk R27). *Practically*, not
 *perfectly*: this implementation rerolls the leading polynomial coefficient on a zero draw so the
 degree stays exactly `K−1` and the effective threshold cannot silently drop to `K−1`. That leaves
 the coefficient uniform over `[1, p−1]` rather than `[0, p−1]`, so `K−1` shares rule out exactly
@@ -167,7 +181,7 @@ package and runs in-process inside the consumer's application (source: `README.m
 | Priority | Quality goal | Motivation |
 |---|---|---|
 | 1 | **Confidentiality of the secret in process memory** | The library's whole value collapses if the secret stays recoverable from heap snapshots, swap files, or reused pool buffers. Realised via GC-pinned, triple-overwritten buffers (`PinnedPoolArray<T>`) and a pervasive `IDisposable` discipline. |
-| 2 | **Functional correctness of the scheme** | A wrongly reconstructed secret is silently fatal: plain Shamir carries no integrity check (`README.md`, threat model). Backed by 824 test methods, property-based round-trip tests (CsCheck), and two parallel test hierarchies — one per numeric backend. |
+| 2 | **Functional correctness of the scheme** | A wrongly reconstructed secret is silently fatal: plain Shamir carries no integrity check (`README.md`, threat model). Backed by 938 test methods, property-based round-trip tests (CsCheck), and two parallel test hierarchies — one per numeric backend. |
 | 3 | **Resistance to passive timing analysis (best effort)** | A deliberate second-rank security goal: the `SecureBigInteger` backend provides core arithmetic whose per-limb loops are constant-time on the limb count, plus a fixed-iteration modular inverse. The guarantee stops at those loops — result normalisation, `ByteCount`, ordering and the other surfaces in 8.2 are value-dependent. The claim is explicitly *best effort in managed .NET*, not audited hardening (`README.md`, *Security & Threat Model* section). |
 | 4 | **Portability across eight target frameworks** | The library should be usable in legacy .NET Framework applications as well as on .NET 10. Cost: extensive `#if` conditionalisation (see risk R1). |
 | 5 | **Public API stability** | After the v1.0 GA, consumers should not break on every internal refactoring. Realised through deliberate `internal` boundaries and SemVer discipline in `CHANGELOG.md`. |
@@ -182,7 +196,7 @@ priorities 4–5 drive chapters 2 and 7.
 | **Application developer (consumer)** | An API that is hard to use insecurely by accident; clear migration guidance on breaking changes; runnable examples (`samples/`, README). |
 | **Maintainer** (Sebastian Walther, sole maintainer) | Maintainability under limited time; green CI across all eight TFMs as the release gate; traceable architecture decisions. |
 | **Security reviewer / auditor** | An honestly scoped threat model — what is protected, and what explicitly is *not* (`README.md`, *Security & Threat Model*). |
-| **Share holder (domain role)** | Keeps exactly one share in the `INDEX-VALUE` format (hexadecimal). Never interacts with the library directly — only through the consuming application. |
+| **Share holder (domain role)** | Keeps exactly one share, `INDEX-VALUE` or `INDEX-VALUE-LEVEL` (hexadecimal). Never interacts with the library directly — only through the consuming application. |
 | **CI/release pipeline** | Deterministic, reproducible builds (lock files, `--locked-mode`, `Deterministic=true`) and a publishing path without long-lived secrets (OIDC). |
 
 ---
@@ -253,7 +267,7 @@ C4Context
 | Partner | Exchanged data | Channel / mechanism |
 |---|---|---|
 | Consuming .NET application | `Secret<TNumber>` in, `Shares<TNumber>` out (split); `Shares<TNumber>` in, `Secret<TNumber>` out (reconstruct) | In-process method call through `IMakeSharesUseCase<TNumber>` / `IReconstructionUseCase<TNumber>` |
-| Consuming .NET application (serialization) | A share as `INDEX-VALUE`, both parts hexadecimal; secret optionally as Base64 | `Share<TNumber>.ToCharArray()`, `Shares<TNumber>.ToCharArray()`, `Secret<TNumber>.ToBase64CharArray()` — each into pinned buffers |
+| Consuming .NET application (serialization) | A share as `INDEX-VALUE`, or as `INDEX-VALUE-LEVEL` when it carries its field, hexadecimal throughout; secret optionally as Base64 | `Share<TNumber>.ToCharArray()`, `Shares<TNumber>.ToCharArray()`, `Secret<TNumber>.ToBase64CharArray()` — each into pinned buffers |
 | Operating system CSPRNG | Raw random bytes for polynomial coefficients, random secrets, and the mark byte | `System.Security.Cryptography.RandomNumberGenerator` via the internal `SecureRandom` / `IRandomSource` facade |
 | Interactive console | The user's keystrokes, written straight into a pinned `PinnedPoolArray<char>` | `Console.ReadKey(intercept: true)` in `ConsolePasswordReader` — no managed `string` is materialised at any point |
 | nuget.org | `SecretSharingDotNet.nupkg` + `.snupkg` (symbol package) | `dotnet nuget push` from `publishing.yml`, authenticated via OIDC |
@@ -290,7 +304,7 @@ C4Container
   Person(appDev, "Application developer", "Programs against the library API")
   System_Boundary(sln, "SecretSharingDotNet.slnx") {
     Container(lib, "SecretSharingDotNet", "C# class library, 8 TFMs, strong-named", "The shipped library: Shamir algorithm, numeric backends, pinned memory")
-    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "824 test methods across 6 TFMs, including the timing harness and stress traits")
+    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "938 test methods across 6 TFMs, including the timing harness and stress traits")
     Container(demo, "SecretSharingDotNet.Demo.Console", ".NET 10 console app, Microsoft.Extensions.DependencyInjection", "Runnable end-to-end example with DI composition and console input")
   }
   System_Ext(nuget, "nuget.org", "Distribution channel")
@@ -359,14 +373,14 @@ C4Component
 
 | Building block | Responsibility | Public? |
 |---|---|---|
-| `Cryptography.ShamirsSecretSharing` | Splitting (`SecretSplitter<TNumber>`), reconstructing (`SecretReconstructor<…>`, `FixedIterationSecretReconstructor<TNumber>`), managing the security level (`SecurityLevelManager<TNumber>`). | yes |
-| `Cryptography` | `Secret<TNumber>` (readonly struct over a pinned buffer), `Share<TNumber>` (sealed record, an `Index`/`Value` pair), `Shares<TNumber>` (sorted, read-only collection), the exception hierarchy, the internal RNG facade. | yes (RNG parts `internal`) |
+| `Cryptography.ShamirsSecretSharing` | Splitting (`SecretSplitter<TNumber>`), reconstructing (`SecretReconstructor<…>`, `FixedIterationSecretReconstructor<TNumber>`, with or without an explicit field via `IReconstructionWithSecurityLevelUseCase<TNumber>`), managing the security level (`SecurityLevelManager<TNumber>`, inspectable through `IInspectableSecurityLevelManager<TNumber>`). | yes |
+| `Cryptography` | `Secret<TNumber>` (readonly struct over a pinned buffer), `Share<TNumber>` (sealed record, an `Index`/`Value` pair that also records the `SecurityLevel` of the field it was created in), `Shares<TNumber>` (sorted, read-only collection), `ShareFormat` (the serialized form: `INDEX-VALUE` or `INDEX-VALUE-LEVEL`), the exception hierarchy, the internal RNG facade. | yes (RNG parts `internal`) |
 | `Cryptography.SecureInput` | Input without `string` materialisation: `ConsolePasswordReader`, `SecureCharBufferExtensions`, `SecureNumericBufferExtensions`. | yes |
 | `Math` | `Calculator`/`Calculator<TNumber>` (strategy + closed backend registry), `Polynomial.EvaluateAt` (Horner's method), `ExtendedEuclideanAlgorithm<TNumber>`, `MersenneSafeGcdAlgorithm<TNumber>`, `MersennePrimeProvider`. | yes (`Polynomial` is `internal`) |
 | `Math.Numerics` | `SecureBigInteger` (2,753 LOC, pinned `ulong` limbs, per-limb loops constant-time on the limb count — see 8.2) and the two `Calculator` implementations. | `SecureBigInteger` yes, the calculators `internal` |
 | `SecureMemory` | `PinnedPoolArray<T>`: `ArrayPool` rent + `GCHandle.Alloc(Pinned)` + 3-pass overwrite + `CryptographicOperations.ZeroMemory` on dispose (on `netstandard2.0`/`net472`/`net48`/`net481` instead `LegacySecureClear` with `Volatile.Write` and a memory barrier), with a concurrency counter. | yes |
 | `Extension` | Exclusively `internal`: `DisposeAll`, `Subset<T>`, `FixedTimeEquals`, structural comparison helpers. | no |
-| `Resources` | `ErrorMessages.resx` (neutral/en) and `ErrorMessages.de-DE.resx`, 55 keys each. All exception texts come from here, never inline. | `internal` |
+| `Resources` | `ErrorMessages.resx` (neutral/en) and `ErrorMessages.de-DE.resx`, 66 keys each. All exception texts come from here, never inline. | `internal` |
 
 **Two honest anomalies in the diagram:**
 
@@ -399,11 +413,20 @@ classDiagram
     +SecurityLevel int
     +Reconstruction(Shares shares) Secret
   }
+  class iReconLevel["IReconstructionWithSecurityLevelUseCase&lt;TNumber&gt;"] {
+    <<interface>>
+    +Reconstruction(Shares shares, int securityLevel) Secret
+  }
   class iSlm["ISecurityLevelManager&lt;TNumber&gt;"] {
     <<interface>>
     +SecurityLevel int
     +MersennePrime Calculator
     +AdjustSecurityLevel(Calculator maximumY) void
+  }
+  class iInspectable["IInspectableSecurityLevelManager&lt;TNumber&gt;"] {
+    <<interface>>
+    +IsValidSecurityLevel(int securityLevel) bool
+    +DetermineSecurityLevel(Calculator maximumY) int
   }
   class splitter["SecretSplitter&lt;TNumber&gt;"] {
     <<sealed>>
@@ -426,10 +449,14 @@ classDiagram
   }
 
   iMakeShares <|.. splitter : implements
+  iReconstruction <|-- iReconLevel : adds the explicit level
   iReconstruction <|.. recBase : implements
+  iReconLevel <|.. recBase : implements
   recBase <|-- rec : binds ExtendedGcdResult
   rec <|-- recFixed : enforces fixed-iteration GCD
+  iSlm <|-- iInspectable : optional capability
   iSlm <|.. slm : implements
+  iInspectable <|.. slm : implements
   splitter --> iSlm : owns or borrows
   recBase --> iSlm : owns or borrows
   recBase --> cmp : checks index distinctness
@@ -444,9 +471,23 @@ Notable at this level:
 - **Ownership of the security level is explicit.** Splitter and reconstructor record in an
   `ownsSecurityLevelManager` flag whether they created the manager themselves — only then do
   they dispose it along with themselves.
-- **`SecretReconstructor.SecurityLevel` is read-only.** Every `Reconstruction` call invokes
-  `AdjustSecurityLevel(maximumY)` and would overwrite a caller-set level anyway; a setter would
-  be a lie.
+- **`SecretReconstructor.SecurityLevel` is read-only.** It reports the field the last
+  `Reconstruction` call ran in. Where that field comes from changed with issue #403 — the level
+  recorded on the shares, the caller's explicit argument, or, only for shares recording nothing,
+  the value-derived `AdjustSecurityLevel` — but in all three cases the call decides it and would
+  overwrite a caller-set level anyway; a setter would still be a lie. The way to name a field is
+  `Reconstruction(shares, securityLevel)`, per call, not as state on the reconstructor.
+- **Two interfaces were added rather than the existing two widened (issue #403).**
+  `IReconstructionWithSecurityLevelUseCase<TNumber>` inherits `IReconstructionUseCase<TNumber>`
+  and adds the explicit-level overload; `IInspectableSecurityLevelManager<TNumber>` inherits
+  `ISecurityLevelManager<TNumber>` and adds an **exact** `IsValidSecurityLevel` — the
+  `SecurityLevel` setter normalises a non-Mersenne value upward, which is right for splitting and
+  wrong for a level a caller named — plus a `DetermineSecurityLevel` that selects without
+  committing, which is what lets reconstruction validate before the manager moves. Inheriting
+  keeps every existing implementation compiling; the legacy TFMs have no default interface
+  members. A manager without the second capability stays supported: the level is set and read
+  back instead. Interface inheritance creates no second DI registration — the new interface has
+  to be registered to be resolvable (`README.md`, *Dependency Injection*).
 - **`PublicValueEqualityComparer<TNumber>`** exists because `SecureBigInteger.GetHashCode`
   deliberately hashes only public metadata (sign + limb count). Without this comparer every
   small share index would land in the same bucket and the distinctness check would degrade to
@@ -599,15 +640,25 @@ sequenceDiagram
     participant GCD as GCD strategy
     participant Calc as Calculator backend
 
-    App->>Rec: Reconstruction(shares)
+    App->>Rec: Reconstruction(shares) or Reconstruction(shares, securityLevel)
     Rec->>Rec: at least 2 shares present?
     Rec->>Rec: determine the largest y across all shares
-    Rec->>SLM: AdjustSecurityLevel(maximumY)
-    Note over Rec,SLM: The level is derived from the shares, not set by the caller
+    Rec->>Rec: read the level recorded on the shares
+    alt caller named a level
+        Rec->>Rec: check it against every recorded level
+    else shares record one
+        Rec->>Rec: take the recorded level
+    else shares record none
+        Rec->>SLM: DetermineSecurityLevel(maximumY)
+        Note over Rec,SLM: Only here is the field still derived from the share values
+    end
     Rec->>Rec: check index distinctness (HashSet + PublicValueEqualityComparer)
     alt duplicate index
         Rec-->>App: ReconstructionException
     end
+    Rec->>Rec: coordinates inside the field? index in (0, p), value in [0, p)
+    Rec->>SLM: SecurityLevel = the level determined above
+    Note over Rec,SLM: The manager moves last, so a rejected input leaves it where it was
     loop Lagrange basis polynomials
         Rec->>Calc: numerator and denominator products over all index differences
     end
@@ -628,11 +679,13 @@ Reconstruction evaluates the Lagrange interpolation polynomial at `x = 0`; the r
 the constant term `a₀` — the secret. All intermediate values are `Calculator` instances and are
 disposed on every path, including the error path, via `try/finally`.
 
-The `AdjustSecurityLevel(maximumY)` step at the top of this flow is where the correctness defect
-of risk R27 and issue #403 lives. It picks the field from the shares' maximum value because the
-shares carry no record of the modulus they were split with, and when that guess lands on a
-smaller prime than the split used, the interpolation below runs in the wrong field — silently, if
-the constant term happens to have a residue there.
+The `AdjustSecurityLevel(maximumY)` step at the top of this flow is **conditional** since the fix
+for issue #403. It runs only when the shares record no field of their own and the caller named
+none — for a share that records one, or a call that names one, the field is taken from there and
+the derivation is skipped. Where it does run it behaves exactly as before, which is the residual
+part of risk R27: it picks the field from the shares' maximum value, and when that guess lands on
+a smaller prime than the split used, the interpolation below runs in the wrong field — silently,
+if the constant term happens to have a residue there.
 
 ### 6.3 Critical failure case: a tampered share
 
@@ -869,7 +922,7 @@ the digit values at a given size — not an absolute one.
 | Hex and Base64 decoders (`Share.GetHexValue`, `Secret.DecodeBase64Char`) | The character class of the input | Branching range switches; treated as boundary parsers |
 | `Secret.CompareTo` and the `<`, `>`, `<=`, `>=` operators | The length of the common prefix of two secrets | Aborts at the first differing byte |
 | Per-divstep time of `MersenneSafeGcdAlgorithm` | Which divstep branch was taken | Seven allocations on each odd-`g` branch against six on the even-`g` branch |
-| Security level selected by `AdjustSecurityLevel` | The maximum share value, which share holders already know | The inverse's iteration count follows the selected level |
+| Security level used by `Reconstruction` | The level recorded on the shares, the caller's explicit argument, or — only where neither exists — the maximum share value via `AdjustSecurityLevel`; all three are known to share holders | The inverse's iteration count follows the selected level |
 
 **Not classified.** Absence from both tables is not a guarantee — it means the surface was not
 walked. That currently covers, among others, `ToPinnedCharArray` and `CountDecimalDigits`,
@@ -894,9 +947,9 @@ Three places draw randomness:
 
 1. The **polynomial coefficients** `a₁…a_{k−1}` (`SecretSplitter<TNumber>.CreatePolynomial`, line 387), with rejection
    sampling against modulo bias and a redraw should the leading coefficient come out zero.
-2. The **mark byte** at the end of every secret (`Secret<TNumber>` constructor, line 193), which prevents negative
+2. The **mark byte** at the end of every secret (`Secret<TNumber>` constructor, line 198), which prevents negative
    values under the two's-complement interpretation.
-3. The **secret itself**, where the library generates it (`Secret<TNumber>.CreateRandom`, line 1131): the
+3. The **secret itself**, where the library generates it (`Secret<TNumber>.CreateRandom`, line 1136): the
    `MakeShares(k, n, securityLevel, out generatedSecret)` overload fills a full `prime.ByteCount`
    bytes through `CreateRandom` before the constructor independently draws the mark byte. This is
    the most security-critical of the three — it is where the secret comes into being, not merely
@@ -927,7 +980,7 @@ object type (`Calculator`1.cs:443`), and `SharesEnumerator.Current` a parameterl
 
 ### 8.5 Localization
 
-Two resource files with 55 keys each: `ErrorMessages.resx` (neutral, `en` via
+Two resource files with 66 keys each: `ErrorMessages.resx` (neutral, `en` via
 `NeutralResourcesLanguage`) and `ErrorMessages.de-DE.resx`. The two key sets are reconciled **by
 hand**; there is no build-time check (risk R10).
 
@@ -941,28 +994,37 @@ pinned memory the caller disposes.
 
 Redaction is a property of `ToString()`, not of the types. Public **implicit conversions** hand
 out real content in both build modes and at no syntactic cost to the caller: `Secret<TNumber>` to
-`TNumber` (line 599), `Calculator<TNumber>` (614), `PinnedPoolArray<byte>` (686) and, on net8+,
-`ReadOnlySpan<byte>` (692); `Shares<TNumber>` to `PinnedPoolArray<char>` (`Shares.cs:122`), which
+`TNumber` (line 604), `Calculator<TNumber>` (619), `PinnedPoolArray<byte>` (691) and, on net8+,
+`ReadOnlySpan<byte>` (697); `Shares<TNumber>` to `PinnedPoolArray<char>` (`Shares.cs:122`), which
 routes through `ToCharArray()`. An assignment or an overload resolution is enough to trigger one,
 so "only the explicit paths disclose content" would be wrong — the explicit paths are the ones a
 reader can *see*.
 
 ### 8.7 Serialization format
 
-A share serialises as `INDEX-VALUE`, both parts hexadecimal, separated by `-`. Multiple shares are
-concatenated line by line. The format carries **no** metadata: no security level, no threshold `k`,
-no text encoding of the original secret. The security level is recomputed from the largest y value
-during reconstruction; the encoding is the caller's responsibility (risk R11).
+A share serialises as `INDEX-VALUE` by default, both parts hexadecimal, separated by `-`; the
+three-segment form `INDEX-VALUE-LEVEL` is opt-in and described below. Multiple shares are
+concatenated line by line. The format carries **no** threshold `k` and **no** text encoding of the
+original secret. The security level is the one piece of metadata it can carry, and only when the
+caller asks for it; where no level is present, reconstruction recomputes one from the largest y
+value. The encoding stays the caller's responsibility (risk R11).
 
 **The original threshold `k` is not in the format, and it cannot be derived from the number of
 shares supplied.** `Reconstruction` checks only the general lower bound of two
-(`SecretReconstructor`, lines 299 and 170), so two shares of a 3-of-5 split pass without
+(`SecretReconstructor`, lines 361 and 172), so two shares of a 3-of-5 split pass without
 complaint and interpolate a wrong secret. Callers must keep `k` themselves and ensure at least
 `k` distinct shares of the *same* split are present; the library cannot detect a shortfall
 against the original threshold. This is independent of the field-selection defect in R27 — it
-happens with the field unchanged. Recomputing the level rather than carrying it
-is not merely a size saving — it is the direct cause of the correctness defect in risk R27 and
-issue #403, and the fix extends this format to carry the exponent.
+happens with the field unchanged.
+
+**The security level can now be carried.** `ShareFormat.Extended` writes `INDEX-VALUE-LEVEL`, the
+exponent hexadecimal in a third segment; `ShareFormat.Legacy` writes the two-segment form and
+remains the default on every existing signature, so no output changed. The parser accepts either
+and adopts a third segment when present. The level goes last so an older reader fails loudly
+instead of misreading — it takes the first separator and treats the remainder as the value, where
+the second separator is not a hexadecimal digit. Recomputing the level rather than carrying it was
+the direct cause of the correctness defect in risk R27 and issue #403; that this format can now
+carry it is what removes the cause, and only for shares actually written that way.
 
 ### 8.8 Multi-targeting
 
@@ -1006,7 +1068,7 @@ code state `d920257` across the 56 versioned test files:
   `// Act & Assert` marker stands in.
 - **Every allocation binds with `using`** — including operator results (`+`, `-`, `*`, `/`, `%`),
   `Calculator<T>.Zero/One/Two`, inline expected values, and loop intermediates; 1,209 `using var`
-  declarations across 824 test methods. A forgotten `using` keeps a pinned buffer alive until
+  declarations across 938 test methods. A forgotten `using` keeps a pinned buffer alive until
   AppDomain shutdown.
 - **Two mirrored test hierarchies**, one for `BigInteger` and one for `SecureBigInteger` — visible
   in the sibling directories `tests/Cryptography/{BigInteger,SecureBigInteger}/`,
@@ -1061,6 +1123,7 @@ code state `d920257` across the 56 versioned test files:
 | 6 | `IRandomSource` stays `internal` rather than publicly injectable | `src/Cryptography/IRandomSource.cs`, PR #334 | A deliberate forfeit of external testability convenience for security reasons. |
 | 7 | Mutation testing (Stryker.NET) parked instead of repaired | GitHub issue #343 | A quality measure was actively rolled back — the reason (Stryker cannot measure xUnit v3) deserves recording. |
 | 8 | Eight target frameworks retained despite the `#if` cost | `src/SecretSharingDotNet.csproj:8` | The counter-position (netstandard2.0 + net8/9/10 only) is already on the table; retention is the active decision. |
+| 9 | The security level travels on the share (`int?`), takes part in equality, and `ShareFormat.Legacy` stays the serialization default | `CHANGELOG.md` `[Unreleased]`, issue #403 | Four bound decisions in one change: `int?` over a sentinel value; the level in `Equals`/`GetHashCode`, so a share recording none is not equal to one recording any; a new inheriting interface rather than a widened `IReconstructionUseCase<TNumber>`; and the legacy two-segment form kept as the default — the last one deliberately leaves the defect open for shares written through the default path, and reversing it is breaking. |
 
 ---
 
@@ -1095,11 +1158,11 @@ Quality of SecretSharingDotNet
 | **Q3** | An auditor asks for proof that no weak random source is involved. | There is exactly one random source: `RandomNumberGenerator` behind `SecureRandom`/`IRandomSource`. A `grep` for `System.Random` in `src/` returns zero hits. |
 | **Q4** | A passive observer times `SecureBigInteger.Equals` for two secrets with a long common prefix against two that differ in the first byte. | **Not measured** — the suite carries no positive timing test (8.11), so no empirical result may be reported here. Defended structurally: `Equals` pre-pads to `max(l, r)` and folds the full length with XOR-OR and no short-circuit, uniform across all six TFMs, so there is no input-dependent exit for an observer to find. |
 | **Q5** | The same observer times `SecureBigInteger.Multiply` with small versus 512-bit operands. | The timing harness **must** report a difference here (`HarnessSelfTest`, Welch's t at p < 0.001). If this negative control fails, the harness is measuring nothing real and is invalid as a tool. |
-| **Q6** | A secret is split with an arbitrary `2 ≤ k ≤ n`; then an **arbitrary** k-element subset of the n shares is used for reconstruction. | **Intended:** the reconstructed secret is bit-identical to the original; Lagrange interpolation gives that for *every* qualifying subset. **Delivered today: not always.** `Reconstruction` refits the security level to the shares' maximum value, and the interpolation then runs in a smaller field than the split used — returning either no decodable secret (an exception) or a different secret with no exception at all. This does **not** require the constant term to reach the refitted prime: the share values carry reductions performed in the original field, so a secret that fits comfortably in both fields can still come back wrong (see R27 for a worked counterexample). Both outcomes are pinned deterministically by `Reconstruction_WhenConstantTermReachesTheRefittedPrime_LosesTheSecret` in both backend test hierarchies. Tracked as **issue #403** and as risk R27. The subset property itself is not what fails — the field selection is. The tests evidence a slice of the intended property: the property-based CsCheck tests (250 iterations for `BigInteger`, 50 for `SecureBigInteger`, mirrored across both backends) draw the subset as a cyclic window over the index-sorted shares, that is `n` of the `C(n, k)` possible combinations. |
-| **Q7** | Two shares with an identical index are handed to reconstruction. | `ReconstructionException` rather than a generic `ArgumentException`. It is raised on the first duplicate the check encounters, but not before the rest of the work: `Reconstruction` materialises the collection, scans every share for `maximumY` and calls `AdjustSecurityLevel` first, so the manager has already been mutated by the time `LagrangeInterpolate` starts the distinctness check. |
+| **Q6** | A secret is split with an arbitrary `2 ≤ k ≤ n`; then an **arbitrary** k-element subset of the n shares is used for reconstruction. | **Intended:** the reconstructed secret is bit-identical to the original; Lagrange interpolation gives that for *every* qualifying subset. **Delivered: for shares that record their field.** A share produced by `MakeShares` carries its security level, and `Reconstruction` interpolates in that field instead of deriving one from the share values — pinned by `Reconstruction_WhenAShareValueWrappedInTheOriginalField_RestoresTheSecret` in both backend test hierarchies, which is the very vector that used to lose the secret. Shares recording nothing — parsed from the legacy `INDEX-VALUE` form, or rebuilt from bare coordinates — still go through the value-derived selection and can still land in a smaller field than the split used, returning either no decodable secret (an exception) or a different secret with no exception at all; both residual outcomes stay pinned by `Reconstruction_WhenSharesCarryNoLevel_StillRefitsDownward` and `Reconstruction_WhenSharesCarryNoLevelAndTheCoefficientCollapses_ThrowsNamingTheExponent`. The way out for those is `Reconstruction(shares, securityLevel)` or `Shares<TNumber>.ReissueWithSecurityLevel`. Fixed under **issue #403**; R27 carries the residual scope. The subset property itself never failed — the field selection did. The tests evidence a slice of the intended property: the property-based CsCheck tests (250 iterations for `BigInteger`, 50 for `SecureBigInteger`, mirrored across both backends) draw the subset as a cyclic window over the index-sorted shares, that is `n` of the `C(n, k)` possible combinations. |
+| **Q7** | Two shares with an identical index are handed to reconstruction. | `ReconstructionException` rather than a generic `ArgumentException`. It is raised on the first duplicate the check encounters, and `EnsureDistinctIndices` runs in the validation phase of `ReconstructionCore` — **before** the security level is committed. A duplicate index makes the Lagrange denominator zero in every field, so the check needs no level at all, and a rejected input leaves the manager where it was. One path is the exception to that: shares recording no level combined with an `ISecurityLevelManager<TNumber>` that is not `IInspectableSecurityLevelManager<TNumber>` offer no way to obtain a candidate other than calling `AdjustSecurityLevel`, so there the manager has already moved when the duplicate surfaces. |
 | **Q8** | A behaviour is changed in the `BigInteger` test hierarchy but not in the `SecureBigInteger` one. | The divergence is caught **in review**, by the mirrored file being the obvious place to look — not by a failing test. The two suites are independent, and nothing enforces the mirroring (see the open item in 8.11). A red test follows only where the underlying production change also breaks the other backend. |
 | **Q9** | A commit reaches `develop` **and matches the path filters of `dotnetall.yml`** (that is, anything but pure Markdown changes; `README.md` is re-included because it is pack input). | Build and tests pass on **all** six test TFMs: `net8.0`/`net9.0`/`net10.0` on `ubuntu-24.04`, `net472`/`net48`/`net481` on `windows-2025`. A red TFM blocks the merge. For excluded changes — these architecture files among them — **no** test matrix runs at all, and the scenario contributes nothing there. |
-| **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 824 test methods (641 `[Fact]`, 183 `[Theory]`) across 44 test classes. |
+| **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 938 test methods (733 `[Fact]`, 205 `[Theory]`) across 44 test classes. |
 | **Q11** | A release is built twice from the same tag. | Identical artefacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (8.0.423 / 9.0.316 / 10.0.302). |
 | **Q12** | A consumer accidentally combines the `SecureBigInteger` backend with the variable-time `ExtendedEuclideanAlgorithm`. | If they use `FixedIterationSecretReconstructor<TNumber>`: a **compile error** (the constructor takes only `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Through the base type `SecretReconstructor<TNumber>` the combination stays possible — that is a documented opt-out, not an accident. |
 
@@ -1120,9 +1183,11 @@ Quality of SecretSharingDotNet
 The table consolidates the architecture and security findings. The *Evidence* column names the
 place where each finding can be re-checked — a file/line reference in the repository, a section
 of `README.md`, or a public PR/issue number. **No open finding is High in the sense of an active
-security hole**: the only two Medium findings on the secret path (`GetHashCode` hashed content
-instead of metadata, and `Equals`/`GetHashCode` violated their contract) were closed with
-PR #327. What remains is maintenance load, misuse risk, and documented trade-offs.
+security hole**: the only two Medium confidentiality findings on the secret path (`GetHashCode`
+hashed content instead of metadata, and `Equals`/`GetHashCode` violated their contract) were closed
+with PR #327. R27 was the one High entry — a correctness defect, not a confidentiality one; issue
+#403 removed its cause for shares that record their field, and what is left of it is scoped to
+shares that do not. What remains is maintenance load, misuse risk, and documented trade-offs.
 
 | # | Risk / debt | Severity | Impact | Mitigation | Evidence |
 |---|---|---|---|---|---|
@@ -1135,11 +1200,11 @@ PR #327. What remains is maintenance load, misuse risk, and documented trade-off
 | **R7** | **`Secret<TNumber>` is a `readonly struct` over a shared buffer.** A value copy aliases the memory; `Dispose` on one copy invalidates all. | Medium | A classic footgun for consumers; today guarded only by XML documentation. | Migration to a `sealed class` — queued for the next breaking-change cycle. | XDoc on `Secret<TNumber>`, from line 50 |
 | **R8** | **No `IAsyncDisposable`; `ConsolePasswordReader.ReadPassword` blocks.** | Medium | Blocks threads in ASP.NET or worker hosts. | `IAsyncDisposable` on the large disposables; `ReadPasswordAsync(CancellationToken)`. | no `IAsyncDisposable` under `src/`; `ConsolePasswordReader.cs:86` |
 | **R9** | **No per-share integrity check.** A tampered share yields a silent, wrong result (see flow 6.3). | Medium (deliberate, documented) | Consumers with share manipulation in their threat model are unprotected without their own measure. | Stated openly in the threat model; consumers must layer signed shares, HMAC envelopes, or VSS on top. A VSS implementation is not on the roadmap. | `README.md`, *Security & Threat Model* |
-| **R10** | **No build-time check that the two `.resx` key sets match.** | Low | A missing de-DE key only surfaces at runtime (fallback to English). | A build target or analyzer diffing both key sets — or drop the de-DE resource. | `src/Resources/ErrorMessages.resx` and `…de-DE.resx`, 55 keys each |
+| **R10** | **No build-time check that the two `.resx` key sets match.** | Low | A missing de-DE key only surfaces at runtime (fallback to English). | A build target or analyzer diffing both key sets — or drop the de-DE resource. | `src/Resources/ErrorMessages.resx` and `…de-DE.resx`, 66 keys each |
 | **R11** | **The text encoding is not persisted in the share.** Splitting with `Encoding` A and reconstructing with `Encoding` B yields silent garbage. | Low | Affects only those who deliberately use the `Encoding` overloads; the UTF-8 default is identical on both sides. | Document it as a caller responsibility on the `Encoding` overloads (open doc fix). | `CHANGELOG.md` `[0.14.0]`; `README.md` |
 | **R13** | **Mutation testing measures nothing.** Stryker.NET 4.16.0 cannot instrument the xUnit v3/MTP suite; the first green CI run was a **false green** (0.00 %, 1248/1248 survived). | Low (externally blocked) | There is no solid statement about test sharpness beyond coverage. | Workflow parked, configuration kept as a revival aid; tracked in GitHub issue #343. Blocked by stryker-net #3117/#3094. | `.config/dotnet-tools.json` (Stryker 4.16.0); GitHub issue #343 |
 | **R14** | **Deferred: constant time for the hex/Base64 decoders and `Secret.CompareTo`.** The former are branchy boundary parsers; the latter short-circuits at the first differing byte and leaks the common prefix length. | Low (named in the threat model) | Sorting or comparing secret material is observable in time; only equality is CT. | Branchless variants are designed and parked for a dedicated PR cycle; `[Obsolete]` markers on the relational operators are an option. | `README.md`, *Security & Threat Model* |
-| **R15** | **`Secret.CreateRandom` is entropy-suboptimal for small security levels** (level 13/17 ≈ 8 bits, level 31 ≈ 24 bits; measured over 3000 draws). | Low | Affects only the small levels that are discouraged anyway; from level 127 upwards ≈ p−8 bits remain. | A localized fix (uniform rejection sampling) was implemented and **rejected**: it breaks the round trip, because the mark byte is coupled to the prime at the representation level. A real fix is architectural. | `Secret<TNumber>.CreateRandom`, from line 1128 |
+| **R15** | **`Secret.CreateRandom` is entropy-suboptimal for small security levels** (level 13/17 ≈ 8 bits, level 31 ≈ 24 bits; measured over 3000 draws). | Low | Affects only the small levels that are discouraged anyway; from level 127 upwards ≈ p−8 bits remain. | A localized fix (uniform rejection sampling) was implemented and **rejected**: it breaks the round trip, because the mark byte is coupled to the prime at the representation level. A real fix is architectural. | `Secret<TNumber>.CreateRandom`, from line 1133 |
 | **R16** | **Further low/info footguns:** `PinnedPoolArray.PoolArray` hands out the raw buffer; `Secret` has implicit reveal conversions to `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` and, on net8+, `ReadOnlySpan<byte>` — the `byte[]` operator goes the other way, into a `Secret`; `Shares` silently takes ownership of a supplied share array; `(length + 7) / 8` can overflow on ~2 GB input; the reduction loop in `Secret.CreateRandom` is data-dependent. | Low | Each is a misuse risk, not an active hole. | Documented trade-offs; each can be hardened individually. | `PinnedPoolArray<T>.PoolArray` (l. 225), `Secret<TNumber>` (ll. 599, 614, 686, 692), `Shares<TNumber>` (l. 82), `SecureBigInteger` (l. 268), `Secret<TNumber>.CreateRandom` |
 | **R17** | **No `MIGRATION.md`, no public v1.0 roadmap.** The API-freeze criteria exist only as an internal note. | Low | Consumers cannot judge the maturity level. | Add `MIGRATION.md` and a public roadmap. | repository contains no `MIGRATION.md` |
 | **R18** | **Broad `InternalsVisibleTo` coupling.** The test suite reaches every `internal` type; refactoring resistance grows. | Low | Internal restructuring breaks tests even when the public API is unchanged. | Minimise the test surface where public-API tests suffice; document the remaining `internal` needs. | `src/SecretSharingDotNet.csproj` (`InternalsVisibleTo` items) |
@@ -1150,10 +1215,10 @@ PR #327. What remains is maintenance load, misuse risk, and documented trade-off
 | **R23** | **`SecurityLevelManager` is thread-safe for the swap, not for reads.** The `MersennePrime` getter runs without the lock; the setter disposes the old prime outside it. | Low | A concurrent reader holding the reference across a level change reaches a disposed `Calculator`. Only reachable where a manager is shared between use cases. | The interface XDoc already documents the invalidation; chapter 8.9 now advises against sharing. Hardening would pull the getter under the same lock and settle ownership of the handed-out reference. | `SecurityLevelManager.MersennePrime` (getter without `lock`) against `oldPrime?.Dispose()` after the lock |
 | **R24** | **Result normalisation is not constant-time.** `TrimLeadingZerosInPlace` stops at the first non-zero limb, and the trimmed length sizes the next operation. | Low | The runtime of every core operation depends on the magnitude of its result, and the limb count of intermediate values is secret-derived rather than public. Small in absolute terms (at most one `ulong` comparison per limb) but structurally present in all six operations. | Solvable only with a fixed-width representation that never trims — a change to `SecureBigInteger`'s representation with consequences for memory use and `Equals`. Named openly for now rather than promised. | `SecureBigInteger.GetActualLength` (downward scan with early return), called from the limb constructor |
 | **R25** | **`ByteCount` is value-dependent and sits on the secret path.** An early return on a zero high limb, otherwise `BytesInLimb` — a loop over the significant bytes of the top limb. | Low | Its runtime reveals the value's byte length, finer than R24's limb granularity. Evaluated on share values (`AdjustSecurityLevel`), on the secret itself, and on polynomial coefficients. | A constant-time variant would iterate all eight byte positions and mask-select rather than break — locally feasible, but `ByteCount` is called often. | `SecureBigInteger.ByteCount` and `BytesInLimb` (line 442) |
-| **R26** | **Sign branches run on the modular-inverse intermediates — but not on the secret.** `ApplyExtendedDivstep` operates on the signed Bézout coefficients (`newUG = uG - uF` turns negative at the first branch-1 iteration: the first divstep when the normalised denominator is odd, a later one when it is even, because the even-`g` branch carries `uG` through unchanged); `MersenneModulo` and `IsOne` carry sign branches of their own; `MersenneModulo`'s is reached inside `Compute` itself, which reduces two signed intermediates per call (`beta * inv2n` and `alpha * inv2n`) and takes the negative path for whichever is negative, rather than from `DivMod`. Inside this library none of them sees secret data: `Compute`'s single call site passes the normalised *denominator* and the prime, and both `DivMod` call sites build that denominator from differences of the public share indices — the share values enter the *numerator*, which never reaches `Compute`. | Low | At a fixed level the divstep history is a function of the public indices, so reconstruction reveals nothing here beyond the level selection already documented (the exponent is chosen from the share values, hence revealed by the share sizes). The exposure is for consumers calling `SecureBigInteger` or `MersenneSafeGcdAlgorithm` directly on signed secret operands: timing separates equal-sign from mixed-sign operands, and `MersenneModulo`'s negative path costs three extra limb loops, a `SubtractInPlace` and one more allocation. | Split the signed coefficients into a magnitude plus a separate sign bit and drive the arithmetic by mask — the same direction as the parked branchless divstep variant. | `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` (lines 497-511); `SecureBigInteger.MersenneModulo` (negative branch) and `IsOne`; `SecretReconstructor.LagrangeInterpolate` (lines 254, 262) and `DivMod` (line 380) |
-| **R27** | **The security-level refit can return the wrong secret (issue #403).** `Reconstruction` derives the field from the shares' maximum y-value via `AdjustSecurityLevel`, which walks down to the smallest Mersenne prime still above it. A share carries no record of the modulus it was split with, so when every share value in the supplied subset happens to fall below a smaller prime, the interpolation runs in that smaller field. **A secret that fits in both fields is not safe from this.** The share values were already reduced modulo the original prime; a value that wrapped there is no longer a point on the polynomial in the smaller field, so interpolating it can yield neither `a₀` nor `a₀ mod P_small` but an unrelated residue. A refit does not corrupt every time — when no share value in the subset wrapped, or the wraps cancel, the result is still correct, which is why the defect hides so well. Worked counterexample, checked by hand: secret `FF` with mark byte `01` gives `a₀ = 511`; split at level 17 (`P = 131071`) with `f(x) = 511 + 489x` and 2-of-280, the shares `(1, 1000)` and `(280, 6360)` both fall below `M13 = 8191`, so reconstruction refits to level 13 and returns **7469**, decoding to the payload byte `2D` instead of `FF` — although `511 < 8191`. | **High** (correctness, not confidentiality) | Two outcomes, and the second is the dangerous one: the interpolated coefficient decodes to no secret and an exception surfaces, or it decodes to a **different** secret and nothing surfaces at all. The shares are individually valid and untampered throughout, so no integrity check would catch it. An unsuccessful random sweep proves neither general correctness nor a failure probability: a 180,000-split sweep found nothing, while targeted counterexamples exhibit both failure outcomes. | Carry the security level on the share and use it during reconstruction instead of guessing, with an explicit-level overload as the escape hatch for legacy shares. Staged plan and open API decisions on issue #403. | `SecurityLevelManager.AdjustSecurityLevel`; `SecretReconstructor.Reconstruction`; `Reconstruction_WhenConstantTermReachesTheRefittedPrime_LosesTheSecret` in both backend test hierarchies |
+| **R26** | **Sign branches run on the modular-inverse intermediates — but not on the secret.** `ApplyExtendedDivstep` operates on the signed Bézout coefficients (`newUG = uG - uF` turns negative at the first branch-1 iteration: the first divstep when the normalised denominator is odd, a later one when it is even, because the even-`g` branch carries `uG` through unchanged); `MersenneModulo` and `IsOne` carry sign branches of their own; `MersenneModulo`'s is reached inside `Compute` itself, which reduces two signed intermediates per call (`beta * inv2n` and `alpha * inv2n`) and takes the negative path for whichever is negative, rather than from `DivMod`. Inside this library none of them sees secret data: `Compute`'s single call site passes the normalised *denominator* and the prime, and both `DivMod` call sites build that denominator from differences of the public share indices — the share values enter the *numerator*, which never reaches `Compute`. | Low | At a fixed level the divstep history is a function of the public indices, so reconstruction reveals nothing here beyond the level selection already documented (the exponent is chosen from the share values, hence revealed by the share sizes). The exposure is for consumers calling `SecureBigInteger` or `MersenneSafeGcdAlgorithm` directly on signed secret operands: timing separates equal-sign from mixed-sign operands, and `MersenneModulo`'s negative path costs three extra limb loops, a `SubtractInPlace` and one more allocation. | Split the signed coefficients into a magnitude plus a separate sign bit and drive the arithmetic by mask — the same direction as the parked branchless divstep variant. | `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` (lines 497-511); `SecureBigInteger.MersenneModulo` (negative branch) and `IsOne`; `SecretReconstructor.LagrangeInterpolate` (lines 236, 244) and `DivMod` (line 713) |
+| **R27** | **The security-level refit could return the wrong secret — removed for shares that record their field (issue #403).** `Reconstruction` used to derive the field from the shares' maximum y-value via `AdjustSecurityLevel`, which walks down to the smallest Mersenne prime still above it. A share carried no record of the modulus it was split with, so when every share value in the supplied subset happened to fall below a smaller prime, the interpolation ran in that smaller field. **A secret that fits in both fields was not safe from this.** The share values were already reduced modulo the original prime; a value that wrapped there is no longer a point on the polynomial in the smaller field, so interpolating it can yield neither `a₀` nor `a₀ mod P_small` but an unrelated residue. A refit did not corrupt every time — when no share value in the subset wrapped, or the wraps cancelled, the result was still correct, which is why the defect hid so well. Counterexample, verified through the library: the one-byte secret `FF` with the mark byte drawn from `DeterministicRandomSource(35)` gives `a₀ = 511`; split at level 17 (`P = 131071`) as 2-of-280 with `DeterministicRandomSource(270)`, the shares `(1, 3333)` and `(280, 4245)` both fall below `M13 = 8191`, so the old reconstruction refitted to level 13 and interpolated **1304**, decoding to the payload byte `18` instead of `FF` — although `511 < 8191`. The share now carries its level and reconstruction uses it, so this vector round-trips. **Residual:** shares recording nothing — the legacy `INDEX-VALUE` serialization, still the default of `ToCharArray()`, and shares rebuilt from bare coordinates — keep taking the value-derived path and stay exposed to exactly this failure. | **Medium** (correctness, not confidentiality; only shares without a recorded level) | Two outcomes, and the second is the dangerous one: the interpolated coefficient decodes to no secret and an exception surfaces, or it decodes to a **different** secret and nothing surfaces at all. The shares are individually valid and untampered throughout, so no integrity check would catch it. An unsuccessful random sweep proves neither general correctness nor a failure probability: a 180,000-split sweep found nothing, while targeted counterexamples exhibit both failure outcomes. Both outcomes are now confined to shares without a recorded level, and the loud one at least names the exponent the interpolation ran under. | Done for shares that record a field: `Share<TNumber>.SecurityLevel` holds the exponent, `Reconstruction` interpolates in it, and levels contradicting each other or an explicit argument are refused rather than guessed at. For shares already in storage: `Reconstruction(shares, securityLevel)` names the field per call, `Shares<TNumber>.ReissueWithSecurityLevel(int)` writes it onto the shares once, and `ToCharArray(…, ShareFormat.Extended)` persists it. Closing the residual gap means making `ShareFormat.Extended` the default, which is a wire-format break and belongs to the next breaking-change cycle. | `Share<TNumber>.SecurityLevel`; `SecretReconstructor.ReconstructionCore`; `SecurityLevelManager.DetermineSecurityLevel`; `Reconstruction_WhenAShareValueWrappedInTheOriginalField_RestoresTheSecret` and `Reconstruction_WhenSharesCarryNoLevel_StillRefitsDownward` in both backend test hierarchies |
 
-The numbering R1–R26 stays stable across updates. The identifier **R12 is unassigned**: it
+The numbering R1–R27 stays stable across updates. The identifier **R12 is unassigned**: it
 described the maintenance state of a local, unversioned working file and was therefore not a risk
 of the repository.
 
@@ -1169,7 +1234,7 @@ backend discovery (PR #374), the Math→Crypto upward edge (PR #375), the except
 
 | Begriff (DE) | Term (EN) | Definition |
 |---|---|---|
-| Anteil | Share | A point `(Index, Value)` on the secret polynomial. Serialised as `INDEX-VALUE` in hexadecimal. |
+| Anteil | Share | A point `(Index, Value)` on the secret polynomial, optionally recording the field it was created in. Serialised as `INDEX-VALUE`, or `INDEX-VALUE-LEVEL` when that record is written along, in hexadecimal. |
 | Geheimnis | Secret | The value to be protected (text, number, or bytes), `Secret<TNumber>` in code. Corresponds to the polynomial's constant term `a₀`. |
 | Schwellwert | Threshold (k) | Minimum number of shares required for reconstruction. |
 | Sicherheitsstufe | Security level | The chosen Mersenne prime exponent `p`; determines the finite field `GF(2^p − 1)` and thereby the share length. Valid values: 43 known exponents from 13 to 43,112,609. |
