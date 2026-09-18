@@ -668,8 +668,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// prime, returning the modular result of dividing the numerator by the
     /// denominator. The prime modulus and exponent are sourced from
     /// <see cref="securityLevelManager"/>; callers must ensure the manager is
-    /// configured before invoking this method (the public
-    /// <see cref="Reconstruction"/> entry point handles that automatically).
+    /// configured before invoking this method (the public entry points
+    /// <see cref="Reconstruction(Shares{TNumber})"/> and
+    /// <see cref="Reconstruction(Shares{TNumber}, int)"/> both handle that automatically).
     /// </summary>
     /// <param name="numerator">The value to be divided.</param>
     /// <param name="denominator">The value by which the numerator is divided.</param>
