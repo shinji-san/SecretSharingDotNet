@@ -383,7 +383,9 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// </param>
     /// <param name="format">Which serialized form to write.</param>
     /// <returns>
-    /// A <see cref="PinnedPoolArray{T}"/> with the hex-encoded shares. The caller disposes it.
+    /// A <see cref="PinnedPoolArray{T}"/> with the hex-encoded shares. The caller disposes it. If
+    /// the write fails after the buffer was allocated, the buffer is disposed before the exception
+    /// propagates.
     /// </returns>
     /// <remarks>
     /// All or nothing: <see cref="ShareFormat.Extended"/> throws unless <b>every</b> share records a
@@ -419,16 +421,18 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
             total += this.shareList[i].GetCharCount(withPrefix, format) + newlineLen;
         }
 
-        var result = new PinnedPoolArray<char>(total);
-        var pos = 0;
-        for (int i = 0; i < this.shareList.Count; i++)
-        {
-            pos += this.shareList[i].WriteCharsTo(result.PoolArray, pos, uppercase, withPrefix, format);
-            newline.CopyTo(0, result.PoolArray, pos, newlineLen);
-            pos += newlineLen;
-        }
-
-        return result;
+        return PinnedPoolArrayExtensions.AllocateAndFill<char>(
+            total,
+            buffer =>
+            {
+                var pos = 0;
+                for (int i = 0; i < this.shareList.Count; i++)
+                {
+                    pos += this.shareList[i].WriteCharsTo(buffer.PoolArray, pos, uppercase, withPrefix, format);
+                    newline.CopyTo(0, buffer.PoolArray, pos, newlineLen);
+                    pos += newlineLen;
+                }
+            });
     }
 
     /// <summary>

@@ -31,6 +31,7 @@
 
 namespace SecretSharingDotNet.Cryptography;
 
+using Extension;
 using Math;
 using SecureMemory;
 using System;
@@ -517,7 +518,9 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </param>
     /// <param name="format">Which serialized form to write.</param>
     /// <returns>
-    /// A <see cref="PinnedPoolArray{T}"/> with the hex-encoded share. The caller disposes it.
+    /// A <see cref="PinnedPoolArray{T}"/> with the hex-encoded share. The caller disposes it. If the
+    /// write fails after the buffer was allocated, the buffer is disposed before the exception
+    /// propagates.
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a defined value.</exception>
     /// <exception cref="InvalidOperationException">
@@ -529,9 +532,9 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     {
         this.ThrowIfDisposed();
         var total = this.GetCharCount(withPrefix, format);
-        var result = new PinnedPoolArray<char>(total);
-        this.WriteCharsTo(result.PoolArray, 0, uppercase, withPrefix, format);
-        return result;
+        return PinnedPoolArrayExtensions.AllocateAndFill<char>(
+            total,
+            buffer => this.WriteCharsTo(buffer.PoolArray, 0, uppercase, withPrefix, format));
     }
 
     /// <summary>
