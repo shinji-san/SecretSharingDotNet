@@ -303,6 +303,24 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </para>
     /// </exception>
     /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// <b>Validating an exponent does not bound what it costs.</b> Reconstruction computes the
+    /// Mersenne prime for the level it runs under — once for the coordinate check, again when the
+    /// manager takes the level — and that grows roughly quadratically with the exponent, into
+    /// minutes near the top of the built-in table. A level recorded on the shares comes from the
+    /// input and no longer scales with its size: a three-segment string of a dozen characters can
+    /// name the largest exponent. When reconstructing shares from untrusted sources, build the
+    /// security level manager on an <see cref="IMersennePrimeProvider"/> that supports only the
+    /// exponents in use; one it does not support is then refused before any prime is computed.
+    /// That is an allowlist, not a general denial-of-service defence.
+    /// </para>
+    /// <para>
+    /// <b>A recorded level is not authenticated.</b> Levels that disagree are refused; levels
+    /// changed alike on every share are not, and can yield a wrong secret. See
+    /// <see cref="Share{TNumber}.SecurityLevel"/>.
+    /// </para>
+    /// </remarks>
     public Secret<TNumber> Reconstruction(Shares<TNumber> shares) => this.ReconstructionCore(shares, null);
 
     /// <inheritdoc cref="IReconstructionWithSecurityLevelUseCase{TNumber}.Reconstruction(Shares{TNumber}, int)"/>

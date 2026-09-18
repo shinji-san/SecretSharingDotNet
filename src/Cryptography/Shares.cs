@@ -342,6 +342,12 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// share validated before the first is cloned — except for which table decides. The exponent
     /// is checked against <paramref name="mersennePrimeProvider"/> exactly, with no rounding up and
     /// no fallback to the built-in table, before the field for the coordinate check is computed.
+    /// <para>
+    /// The provider is also where an application bounds the exponent. The field check computes
+    /// the prime for any exponent the provider supports, and near the top of the built-in table
+    /// that takes minutes; a provider limited to the exponents in use keeps migration — like
+    /// reconstruction through a security level manager on the same provider — from doing so.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="mersennePrimeProvider"/> is <see langword="null"/>.

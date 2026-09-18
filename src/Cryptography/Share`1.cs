@@ -146,6 +146,13 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// A share created by <c>MakeShares</c> carries the exponent that actually governed the
     /// polynomial — the value after any auto-raise, not the one the caller requested.
     /// </para>
+    /// <para>
+    /// <b>Not authenticated.</b> A level read from the three-segment text form is whatever the
+    /// text says. Reconstruction refuses shares whose levels disagree, which detects
+    /// inconsistency, not manipulation: a level changed alike on every share passes that check
+    /// and can yield a wrong secret without an error. An integrity scheme layered on top has to
+    /// cover the level together with the coordinates.
+    /// </para>
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     public int? SecurityLevel
@@ -692,6 +699,12 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// built-in table lacks it, and one it does not support is refused where the built-in table has
     /// it. That check comes first, before the field for the coordinate check is computed and before
     /// anything is cloned.
+    /// <para>
+    /// The provider is also where an application bounds the exponent. The field check computes
+    /// the prime for any exponent the provider supports, and near the top of the built-in table
+    /// that takes minutes; a provider limited to the exponents in use keeps migration — like
+    /// reconstruction through a security level manager on the same provider — from doing so.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="mersennePrimeProvider"/> is <see langword="null"/>.

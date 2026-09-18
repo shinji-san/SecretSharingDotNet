@@ -154,7 +154,7 @@ The library is generic in the numeric backend: `BigInteger` (used in the example
 | `BigInteger` | `SecretReconstructor` + `ExtendedEuclideanAlgorithm` | no | no | no | performance matters and timing side channels are out of scope |
 | `SecureBigInteger` | `FixedIterationSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | partial † | yes | secrets where passive timing analysis is in scope |
 
-† Both constant-time properties are best-effort against passive timing analysis — managed .NET cannot guarantee constant time (see the Security & Threat Model section). *Constant-time arithmetic* is **partial**: the per-limb work of the core primitives is fixed by the operand limb counts and branchless — by `max(l, r)` for subtraction, `max(l, r) + 1` for addition, `left × right` for multiplication and squaring, and `dividend × 64` outer iterations for division and remainder — but every result is normalised by a leading-zero trim whose iteration count depends on the result's magnitude, and that trimmed length then sizes the next operation — so the limb count of an intermediate value is itself secret-derived rather than public. It covers the core primitives (add / subtract / multiply / square / divide / remainder) on the public bit length; it does not cover `Pow` (variable-time on its exponent), ordering (`CompareTo`), or the hex / Base64 decoders. *Fixed-iteration inverse* means that at a fixed security level the GCD iteration count depends only on that (public) level, not on the secret operand values — removing the iteration-count side channel of a plain extended-Euclidean GCD. Reconstruction auto-selects the level from the shares' maximum value, so the iteration count still reflects the selected level (which the share sizes already reveal); it is not per-operation constant-time (`MersenneSafeGcdAlgorithm`'s per-iteration timing is not uniform). Together these two properties **reduce but do not eliminate** reconstruction timing side channels — they do not make the whole reconstruction constant-time.
+† Both constant-time properties are best-effort against passive timing analysis — managed .NET cannot guarantee constant time (see the Security & Threat Model section). *Constant-time arithmetic* is **partial**: the per-limb work of the core primitives is fixed by the operand limb counts and branchless — by `max(l, r)` for subtraction, `max(l, r) + 1` for addition, `left × right` for multiplication and squaring, and `dividend × 64` outer iterations for division and remainder — but every result is normalised by a leading-zero trim whose iteration count depends on the result's magnitude, and that trimmed length then sizes the next operation — so the limb count of an intermediate value is itself secret-derived rather than public. It covers the core primitives (add / subtract / multiply / square / divide / remainder) on the public bit length; it does not cover `Pow` (variable-time on its exponent), ordering (`CompareTo`), or the hex / Base64 decoders. *Fixed-iteration inverse* means that at a fixed security level the GCD iteration count depends only on that (public) level, not on the secret operand values — removing the iteration-count side channel of a plain extended-Euclidean GCD. Reconstruction runs at the level the shares record or the caller names, and derives one from the shares' maximum value only for shares recording neither, so the iteration count still reflects that level — which is public either way, recorded in the share or revealed by its size; it is not per-operation constant-time (`MersenneSafeGcdAlgorithm`'s per-iteration timing is not uniform). Together these two properties **reduce but do not eliminate** reconstruction timing side channels — they do not make the whole reconstruction constant-time.
 
 > [!WARNING]
 > Do not pair `SecureBigInteger` with `ExtendedEuclideanAlgorithm`: you keep the pinned memory but reintroduce an operand-value-dependent iteration count — the side channel `FixedIterationSecretReconstructor` removes. `FixedIterationSecretReconstructor<SecureBigInteger>` accepts only fixed-iteration GCD strategies, so this mispairing is a compile-time error rather than a silent side channel. See the Security & Threat Model section for the exact scope.
@@ -1236,14 +1236,31 @@ for hardened native crypto stacks.
   included for round-trip / parameter-exploration scenarios, *not* as a
   recommended cipher-strength floor. The auto-upgrade in
   `SecretSplitter<TNumber>.MakeShares` raises the level whenever the
-  secret's bit-length exceeds the current prime; reconstruction additionally
-  fits the level to the maximum share value via
+  secret's bit-length exceeds the current prime; reconstruction runs at the
+  level the shares record or the caller names, and only for shares recording
+  neither fits the level to the maximum share value via
   `SecurityLevelManager.AdjustSecurityLevel`, which may raise or lower the
   level. Either way, consumers who explicitly construct shares at low
   exponents on a small secret receive what they ask for. Treat
   `MinMersennePrimeExponent` as a representational floor, not a security
   floor; production secrets should use a security level of `127` or higher,
   in line with the README examples.
+- **Resource use of a supported security level.** Validating an exponent keeps
+  *unsupported* values out; it does not bound what a *supported* one costs. The
+  built-in table reaches `43,112,609`, and reconstruction computes the Mersenne
+  prime for the level it runs under — at least twice, once to check the
+  coordinates against the field and once when the security level manager takes
+  the level. That computation grows roughly quadratically with the exponent:
+  seconds in the low millions, extrapolating to minutes at the top of the table,
+  and longer on `SecureBigInteger`. Because shares can record their level, the
+  cost no longer scales with the size of the input — a three-segment share
+  string of a dozen characters can name the largest exponent. Applications that
+  reconstruct shares from untrusted sources should build their
+  `SecurityLevelManager` on an `IMersennePrimeProvider` that supports only the
+  exponents they use; reconstruction then refuses any other before computing a
+  prime. Pass the same provider to `ReissueWithSecurityLevel` when migrating.
+  The library sets no ceiling of its own, and such a provider is an allowlist,
+  not a general denial-of-service defence.
 - **Silent reconstruction on tampered shares.** Shamir's scheme carries no
   integrity check on individual shares: if a single share's `Index` or
   `Value` is mutated in transit, in storage, or by a malicious participant,
@@ -1252,7 +1269,12 @@ for hardened native crypto stacks.
   implements plain Shamir; it does not implement verifiable secret sharing
   (VSS — e.g. Feldman or Pedersen) or per-share MACs. Consumers whose threat
   model includes share manipulation must layer an integrity scheme (signed
-  shares, HMAC-keyed envelopes, VSS) on top.
+  shares, HMAC-keyed envelopes, VSS) on top. **The recorded security level is
+  not authenticated either.** Reconstruction refuses shares whose levels
+  disagree, but that detects inconsistency, not manipulation: a level changed
+  alike on every share passes the check and can lead to a wrong secret just as
+  silently. An integrity scheme has to cover the level together with the
+  coordinates — for the three-segment form, the whole string.
 
 **Not classified.** The three groups above list what was examined. Absence from all of them
 is not a guarantee — it means the surface was not walked against the code. That currently
