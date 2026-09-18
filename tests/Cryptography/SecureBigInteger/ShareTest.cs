@@ -1,5 +1,6 @@
 namespace SecretSharingDotNetTest.Cryptography.SecureBigInteger;
 
+using Moq;
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math;
@@ -1499,6 +1500,88 @@ public class ShareTest
 
         // Assert
         Assert.Equal(19, reissued.SecurityLevel);
+    }
+
+    /// <summary>
+    /// The provider overload asks the provider it is given, not the built-in table. 7 is a Mersenne
+    /// prime exponent the built-in table does not carry — it starts at 13 — so the default
+    /// overload refuses it while the provider overload accepts it once the provider does. The
+    /// coordinates stay below <c>M7 = 127</c>, so the field check passes on its own merits.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProviderSupportingAnExtraExponent_AcceptsIt()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        var provider = MersennePrimeProviderStub.Supporting(7);
+
+        // Act
+        using var reissued = share.ReissueWithSecurityLevel(7, provider.Object);
+
+        // Assert
+        Assert.Equal(7, reissued.SecurityLevel);
+        Assert.Equal(share.Index, reissued.Index);
+        Assert.Equal(share.Value, reissued.Value);
+        provider.Verify(p => p.IsValidMersennePrimeExponent(7), Times.Once);
+        var viaDefault = Assert.Throws<ArgumentOutOfRangeException>(() => share.ReissueWithSecurityLevel(7));
+        Assert.Equal("securityLevel", viaDefault.ParamName);
+    }
+
+    /// <summary>
+    /// The other direction: an exponent the built-in table has is refused when the given provider
+    /// does not support it. There is no fallback to the built-in table.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProviderRejectingABuiltInExponent_Throws()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        var provider = MersennePrimeProviderStub.Supporting(13, 19);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => share.ReissueWithSecurityLevel(17, provider.Object));
+        Assert.Equal("securityLevel", error.ParamName);
+        using var viaDefault = share.ReissueWithSecurityLevel(17);
+        Assert.Equal(17, viaDefault.SecurityLevel);
+    }
+
+    /// <summary>
+    /// A missing provider is an argument error naming the provider parameter.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithoutAProvider_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentNullException>(() => share.ReissueWithSecurityLevel(17, null));
+        Assert.Equal("mersennePrimeProvider", error.ParamName);
+    }
+
+    /// <summary>
+    /// Which table decides changes nothing about the other checks: a field too small for the
+    /// coordinates and a level contradicting the one a share records stay argument errors on
+    /// <c>securityLevel</c>, with an exponent the provider does support.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProvider_KeepsTheFieldAndContradictionChecks()
+    {
+        // Arrange — 200 does not fit M7 = 127; the second share already records 13.
+        using var tooLarge = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(200));
+        using var recorded = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10), 13);
+        var provider = MersennePrimeProviderStub.Supporting(7, 13);
+
+        // Act & Assert
+        var tooSmall = Assert.Throws<ArgumentException>(() => tooLarge.ReissueWithSecurityLevel(7, provider.Object));
+        Assert.Equal("securityLevel", tooSmall.ParamName);
+        var contradiction = Assert.Throws<ArgumentException>(() => recorded.ReissueWithSecurityLevel(7, provider.Object));
+        Assert.Equal("securityLevel", contradiction.ParamName);
     }
 
     /// <summary>

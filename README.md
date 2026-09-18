@@ -891,6 +891,20 @@ using var text = migrated.ToCharArray(uppercase: true, withPrefix: false, ShareF
 > exponent, a field too small for the coordinates, and one contradicting a level the share already
 > records.
 
+"Unsupported" means the library's built-in table of Mersenne exponents. If your
+`SecurityLevelManager` is built on your own `IMersennePrimeProvider`, migrate against that provider,
+so migration and reconstruction answer to the same table:
+
+```csharp
+//// The provider decides exactly: an exponent it supports is accepted even where the
+//// built-in table lacks it, and one it rejects is refused even where the table has it.
+using var migrated = legacyShares.ReissueWithSecurityLevel(17, mersennePrimeProvider);
+```
+
+Checking the exponent against your provider first and then calling the one-argument overload does
+not achieve the same: that overload refuses anything the built-in table lacks, whatever your
+provider says.
+
 ### Naming the field per call instead
 
 If you would rather not rewrite stored shares, name the field at reconstruction time:

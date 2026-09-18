@@ -31,6 +31,7 @@
 
 namespace SecretSharingDotNetTest.Cryptography.BigInteger;
 
+using Moq;
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.SecureMemory;
@@ -937,5 +938,94 @@ public class SharesTest
         // Act & Assert
         var error = Assert.Throws<ArgumentException>(() => original.ReissueWithSecurityLevel(19));
         Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// The collection overload with a provider migrates every share to an exponent only that
+    /// provider supports; the default overload refuses the same exponent.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProviderSupportingAnExtraExponent_RecordsItOnEveryShare()
+    {
+        // Arrange
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+        var provider = MersennePrimeProviderStub.Supporting(7);
+
+        // Act
+        using var migrated = original.ReissueWithSecurityLevel(7, provider.Object);
+
+        // Assert
+        Assert.All(migrated, share => Assert.Equal(7, share.SecurityLevel));
+        var viaDefault = Assert.Throws<ArgumentOutOfRangeException>(() => original.ReissueWithSecurityLevel(7));
+        Assert.Equal("securityLevel", viaDefault.ParamName);
+    }
+
+    /// <summary>
+    /// An exponent the built-in table has, refused by the given provider, migrates nothing: the
+    /// original shares still record no level afterwards.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProviderRejectingABuiltInExponent_MigratesNothing()
+    {
+        // Arrange
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+        var provider = MersennePrimeProviderStub.Supporting(13, 19);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => original.ReissueWithSecurityLevel(17, provider.Object));
+        Assert.Equal("securityLevel", error.ParamName);
+        Assert.All(original, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// A missing provider is an argument error naming the provider parameter.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithoutAProvider_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentNullException>(() => original.ReissueWithSecurityLevel(17, null));
+        Assert.Equal("mersennePrimeProvider", error.ParamName);
+    }
+
+    /// <summary>
+    /// All or nothing holds with a provider as well: one share whose value does not fit the named
+    /// field stops the migration before any share is re-issued.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProvider_WhenOneShareDoesNotFit_MigratesNothing()
+    {
+        // Arrange — 200 does not fit M7 = 127.
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(200)),
+        });
+        var provider = MersennePrimeProviderStub.Supporting(7);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => original.ReissueWithSecurityLevel(7, provider.Object));
+        Assert.Equal("securityLevel", error.ParamName);
+        Assert.All(original, share => Assert.Null(share.SecurityLevel));
     }
 }

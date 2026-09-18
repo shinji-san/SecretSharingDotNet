@@ -32,6 +32,7 @@
 namespace SecretSharingDotNet.Cryptography;
 
 using Extension;
+using Math;
 using SecureMemory;
 using System;
 using System.Collections;
@@ -303,6 +304,13 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// so a collection is never half migrated — and if the cloning itself fails partway, the shares
     /// already produced are disposed rather than leaked.
     /// </para>
+    /// <para>
+    /// This overload checks the exponent against <see cref="MersennePrimeProvider.Instance"/>, the
+    /// library's own table. With a security level manager built on a different
+    /// <see cref="IMersennePrimeProvider"/>, use
+    /// <see cref="ReissueWithSecurityLevel(int, IMersennePrimeProvider)"/> so migration and
+    /// reconstruction answer to the same table.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="securityLevel"/> is not a supported Mersenne prime exponent.
@@ -312,10 +320,49 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// names a field too small for at least one share's coordinates.
     /// </exception>
     /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
-    public Shares<TNumber> ReissueWithSecurityLevel(int securityLevel)
+    public Shares<TNumber> ReissueWithSecurityLevel(int securityLevel) =>
+        this.ReissueWithSecurityLevel(securityLevel, MersennePrimeProvider.Instance);
+
+    /// <summary>
+    /// Re-issues every share in this collection recording the finite field they were created in,
+    /// with the given provider deciding which exponents are supported.
+    /// </summary>
+    /// <param name="securityLevel">The Mersenne exponent the split actually used.</param>
+    /// <param name="mersennePrimeProvider">
+    /// The provider whose table decides which exponents are supported — the one the security
+    /// level manager reconstructing these shares uses. Borrowed for this call only: it is neither
+    /// stored on the new shares nor disposed.
+    /// </param>
+    /// <returns>
+    /// A new collection of new shares. The caller owns it; this collection is untouched and still
+    /// usable, and disposing either leaves the other intact.
+    /// </returns>
+    /// <remarks>
+    /// The same operation as <see cref="ReissueWithSecurityLevel(int)"/> — all or nothing, every
+    /// share validated before the first is cloned — except for which table decides. The exponent
+    /// is checked against <paramref name="mersennePrimeProvider"/> exactly, with no rounding up and
+    /// no fallback to the built-in table, before the field for the coordinate check is computed.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="mersennePrimeProvider"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is not supported by <paramref name="mersennePrimeProvider"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="securityLevel"/> contradicts a level at least one share already records, or
+    /// names a field too small for at least one share's coordinates.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public Shares<TNumber> ReissueWithSecurityLevel(int securityLevel, IMersennePrimeProvider mersennePrimeProvider)
     {
         this.ThrowIfDisposed();
-        Share<TNumber>.EnsureUsableSecurityLevel(this.shareList, securityLevel);
+        if (mersennePrimeProvider is null)
+        {
+            throw new ArgumentNullException(nameof(mersennePrimeProvider));
+        }
+
+        Share<TNumber>.EnsureUsableSecurityLevel(this.shareList, securityLevel, mersennePrimeProvider);
 
         var reissued = new Share<TNumber>[this.shareList.Count];
         try

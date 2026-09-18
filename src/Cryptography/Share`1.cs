@@ -647,23 +647,69 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// disposing either would invalidate the other.
     /// </para>
     /// <para>
-    /// The exponent is checked against <see cref="MersennePrimeProvider.Instance"/>, the library's
-    /// own table. A consumer who has configured a different <see cref="IMersennePrimeProvider"/>
-    /// elsewhere should validate the exponent against that provider before calling: a share carries
-    /// no provider to ask, and this operation has no manager in scope to borrow one from.
+    /// This overload checks the exponent against <see cref="MersennePrimeProvider.Instance"/>, the
+    /// library's own table. A consumer whose security level manager uses a different
+    /// <see cref="IMersennePrimeProvider"/> passes that provider to
+    /// <see cref="ReissueWithSecurityLevel(int, IMersennePrimeProvider)"/> instead, so migration and
+    /// reconstruction answer to the same table. Checking the exponent against that provider before
+    /// calling this overload does not help: an exponent the built-in table lacks is refused here
+    /// regardless.
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="securityLevel"/> is not a supported Mersenne prime exponent.
     /// </exception>
     /// <exception cref="ArgumentException">
-    /// <paramref name="securityLevel"/> names a field too small for this share's coordinates.
+    /// <paramref name="securityLevel"/> contradicts a level this share already records, or names a
+    /// field too small for its coordinates.
     /// </exception>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
-    public Share<TNumber> ReissueWithSecurityLevel(int securityLevel)
+    public Share<TNumber> ReissueWithSecurityLevel(int securityLevel) =>
+        this.ReissueWithSecurityLevel(securityLevel, MersennePrimeProvider.Instance);
+
+    /// <summary>
+    /// Re-issues this share recording the finite field it was created in, with the given provider
+    /// deciding which exponents are supported.
+    /// </summary>
+    /// <param name="securityLevel">The Mersenne exponent the split actually used.</param>
+    /// <param name="mersennePrimeProvider">
+    /// The provider whose table decides which exponents are supported — the one the security
+    /// level manager reconstructing these shares uses. Borrowed for this call only: it is neither
+    /// stored on the new share nor disposed.
+    /// </param>
+    /// <returns>
+    /// A new share with the same coordinates and the given level. The caller owns it; this share is
+    /// untouched and still usable.
+    /// </returns>
+    /// <remarks>
+    /// The same operation as <see cref="ReissueWithSecurityLevel(int)"/>, with the same caller
+    /// obligation and the same checks, except for which table decides. The exponent is checked
+    /// against <paramref name="mersennePrimeProvider"/> exactly — no rounding up and no fallback
+    /// to the built-in table — so an exponent this provider supports is accepted where the
+    /// built-in table lacks it, and one it does not support is refused where the built-in table has
+    /// it. That check comes first, before the field for the coordinate check is computed and before
+    /// anything is cloned.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="mersennePrimeProvider"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is not supported by <paramref name="mersennePrimeProvider"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="securityLevel"/> contradicts a level this share already records, or names a
+    /// field too small for its coordinates.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public Share<TNumber> ReissueWithSecurityLevel(int securityLevel, IMersennePrimeProvider mersennePrimeProvider)
     {
         this.ThrowIfDisposed();
-        EnsureUsableSecurityLevel(new[] { this }, securityLevel);
+        if (mersennePrimeProvider is null)
+        {
+            throw new ArgumentNullException(nameof(mersennePrimeProvider));
+        }
+
+        EnsureUsableSecurityLevel(new[] { this }, securityLevel, mersennePrimeProvider);
         return this.ReissueCore(securityLevel);
     }
 
@@ -704,6 +750,10 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </summary>
     /// <param name="shares">The shares the level is meant to describe.</param>
     /// <param name="securityLevel">The exponent to check.</param>
+    /// <param name="mersennePrimeProvider">
+    /// The table that decides whether <paramref name="securityLevel"/> is supported, consulted
+    /// exactly and first, before the field prime is computed.
+    /// </param>
     /// <remarks>
     /// <para>
     /// All three failures are argument errors: the exponent came in as a parameter of the operation
@@ -722,9 +772,12 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// The exponent contradicts a level a share already records, or the field is too small for the
     /// coordinates.
     /// </exception>
-    internal static void EnsureUsableSecurityLevel(IReadOnlyList<Share<TNumber>> shares, int securityLevel)
+    internal static void EnsureUsableSecurityLevel(
+        IReadOnlyList<Share<TNumber>> shares,
+        int securityLevel,
+        IMersennePrimeProvider mersennePrimeProvider)
     {
-        if (!MersennePrimeProvider.Instance.IsValidMersennePrimeExponent(securityLevel))
+        if (!mersennePrimeProvider.IsValidMersennePrimeExponent(securityLevel))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(securityLevel),
