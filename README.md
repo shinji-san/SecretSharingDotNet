@@ -885,10 +885,11 @@ using var text = migrated.ToCharArray(uppercase: true, withPrefix: false, ShareF
 > **You must supply the exponent the split actually used, after any auto-raise.** `MakeShares`
 > raises the level to fit the secret including its mark byte, so a one-byte secret split without an
 > explicit level lands on **17**, which is rarely the number a caller remembers asking for. A
-> supported exponent that is large enough but simply wrong is accepted without complaint and
-> reconstructs to a wrong secret: the coordinates do not say which field produced them, which is the
-> absence this whole change works around. What *is* refused is an unsupported exponent, a field too
-> small for the coordinates, and one contradicting a level the share already records.
+> supported exponent that is large enough but simply wrong is accepted without complaint and can
+> silently reconstruct a different secret: the coordinates do not say which field produced them,
+> which is the absence this whole change works around. What *is* refused is an unsupported
+> exponent, a field too small for the coordinates, and one contradicting a level the share already
+> records.
 
 ### Naming the field per call instead
 

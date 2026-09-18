@@ -636,8 +636,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// For a share that records <em>nothing</em>, a <em>plausible but wrong</em> exponent —
     /// supported, large enough — cannot be detected: the coordinates do not say which field
     /// produced them, which is the very absence this whole change exists to remedy. Such a share
-    /// will reconstruct to a wrong secret exactly as it did before, and no check in this method
-    /// can prevent that.
+    /// can silently reconstruct a different secret, and no check in this method can prevent that.
     /// </para>
     /// <para>
     /// The coordinates are cloned rather than shared. The constructor takes ownership of what it is

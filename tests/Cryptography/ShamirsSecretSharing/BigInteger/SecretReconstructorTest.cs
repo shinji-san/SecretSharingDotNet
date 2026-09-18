@@ -581,10 +581,13 @@ public class SecretReconstructorTest
     }
 
     /// <summary>
-    /// Duplicate indices are refused before the security level moves. The check has to happen
-    /// either way — a repeated index makes the Lagrange denominator zero — but running it after the
-    /// commit would leave the manager on a level the caller never asked for, on an input that was
-    /// never usable.
+    /// With an inspectable manager, duplicate indices are refused before the security level moves.
+    /// The check has to happen either way — a repeated index makes the Lagrange denominator zero —
+    /// but running it after the commit would leave the manager on a level the caller never asked
+    /// for, on an input that was never usable. On the compatibility path a rejected input may leave
+    /// the manager moved, as
+    /// <c>Reconstruction_WithAManagerLackingTheCapability_MayLeaveTheManagerMoved</c> pins for an
+    /// out-of-field coordinate.
     /// <para>
     /// Comparing the level number alone would not catch that: the setter swaps in a freshly built
     /// prime and disposes the previous instance, so a manager moved to 17 and back to 31 reports
