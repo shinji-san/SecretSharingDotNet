@@ -153,8 +153,8 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// The interpolated coefficient carries no payload beyond its mark byte and therefore decodes
     /// to no secret at all. Index distinctness is <em>not</em> checked here — see
     /// <see cref="EnsureDistinctIndices"/>, which runs before the security level is committed
-    /// unless a manager without <see cref="IInspectableSecurityLevelManager{TNumber}"/> had to
-    /// commit a value-derived level first.
+    /// except where the value-derived selection on a manager without
+    /// <see cref="IInspectableSecurityLevelManager{TNumber}"/> has already committed it.
     /// </exception>
     /// <remarks>
     /// The <paramref name="shares"/> are borrowed — this method reads <see cref="Share{TNumber}.Index"/>
@@ -467,12 +467,12 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <param name="shareList">The shares to check.</param>
     /// <remarks>
     /// <para>
-    /// Runs before the security level is committed, except on the one path where that is
-    /// impossible: shares recording no level, with a manager lacking
-    /// <see cref="IInspectableSecurityLevelManager{TNumber}"/>, whose value-derived level can
-    /// only be learned by committing it. Duplicate indices make the Lagrange denominator zero, so
-    /// this has to be caught either way; everywhere else, catching it after the manager had moved
-    /// would break the promise that input validation leaves the state alone.
+    /// Runs before the security level is committed, except on the compatibility path, where the
+    /// value-derived selection has already committed the level: shares recording no level, with a
+    /// manager lacking <see cref="IInspectableSecurityLevelManager{TNumber}"/>, which cannot report
+    /// that selection without committing it. Duplicate indices make the Lagrange denominator zero,
+    /// so this has to be caught either way; everywhere else, catching it after the manager had
+    /// moved would break the promise that input validation leaves the state alone.
     /// </para>
     /// <para>
     /// Explicit <see cref="HashSet{T}"/> loop instead of <c>Select(...).Distinct().Count()</c> —
