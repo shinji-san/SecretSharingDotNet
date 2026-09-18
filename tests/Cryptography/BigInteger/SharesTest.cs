@@ -31,7 +31,9 @@
 
 namespace SecretSharingDotNetTest.Cryptography.BigInteger;
 
+using Moq;
 using SecretSharingDotNet.Cryptography;
+using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.SecureMemory;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Extension;
@@ -733,5 +735,297 @@ public class SharesTest
         Assert.Equal(2, shares.Count);
         Assert.Equal(expectedIndex0, shares[0].Index);
         Assert.Equal(expectedIndex1, shares[1].Index);
+    }
+    /// <summary>
+    /// <see cref="Shares{TNumber}.Contains"/> runs on <see cref="Share{TNumber}.Equals"/>, so a
+    /// legacy share is not found in a collection of levelled ones even with identical coordinates.
+    /// This is the concrete place a consumer meets the consequence of letting the level into
+    /// equality, which is why it is pinned here rather than left to be discovered.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Contains_LegacyShareAgainstLevelledCollection_ReturnsFalse()
+    {
+        // Arrange
+        using var levelled = new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 17);
+        using var other = new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20), 17);
+        using var shares = new Shares<BigInteger>(new[] { levelled, other });
+        using var legacy = new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10));
+        using var sameLevel = new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 17);
+
+        // Act
+        bool findsLegacy = shares.Contains(legacy);
+        bool findsLevelled = shares.Contains(sameLevel);
+
+        // Assert
+        Assert.False(findsLegacy);
+        Assert.True(findsLevelled);
+    }
+    /// <summary>
+    /// A whole collection survives the extended round trip through text, so a persisted set can be
+    /// read back into shares that still know their field. Both text entry points are covered,
+    /// because both build their shares through the same constructor and either could drift.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_ExtendedFormat_RoundTripsEverySecurityLevel()
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<BigInteger>();
+        splitter.SecurityLevel = 17;
+        using var shares = splitter.MakeShares(2, 3, secret);
+
+        // Act
+        using var serialized = shares.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended);
+        using var reparsed = Shares<BigInteger>.FromText(serialized);
+
+        // Assert
+        Assert.Equal(3, reparsed.Count);
+        Assert.All(reparsed, share => Assert.Equal(17, share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// The legacy form is still the default, so existing output is unchanged and a collection
+    /// written that way comes back without levels — the loss that makes a persisted share
+    /// unreconstructable unless the caller names the field.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_DefaultFormat_StillDropsEverySecurityLevel()
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<BigInteger>();
+        splitter.SecurityLevel = 17;
+        using var shares = splitter.MakeShares(2, 3, secret);
+
+        // Act
+        using var serialized = shares.ToCharArray(uppercase: true);
+        using var reparsed = Shares<BigInteger>.FromText(serialized);
+
+        // Assert
+        Assert.Equal(3, reparsed.Count);
+        Assert.All(reparsed, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// A collection holding a mixture cannot be written in the extended form at all. The missing
+    /// levels cannot be invented, and a file of mixed lines would be worse than a refusal: it would
+    /// read back as the mixed metadata that reconstruction has to reject anyway.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_ExtendedFormat_WithAMixedCollection_ThrowsInvalidOperation()
+    {
+        // Arrange
+        using var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10), 17),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(
+            () => shares.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Extended));
+    }
+    /// <summary>
+    /// An undefined format is refused whether or not there is anything to write. Validating after
+    /// the emptiness short-circuit made the contract depend on the data: a populated collection
+    /// refused a cast integer and an empty one handed back a buffer.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="shareCount">How many shares the collection holds.</param>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void ToCharArray_WithAnUndefinedFormat_ThrowsRegardlessOfCount(int shareCount)
+    {
+        // Arrange
+        using var secret = new Secret<BigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<BigInteger>();
+        splitter.SecurityLevel = 17;
+        using var populated = splitter.MakeShares(2, 2, secret);
+        using var empty = new Shares<BigInteger>(Array.Empty<Share<BigInteger>>());
+        var shares = shareCount == 0 ? empty : populated;
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => shares.ToCharArray(uppercase: true, withPrefix: false, (ShareFormat)42));
+        Assert.Equal("format", error.ParamName);
+    }
+    /// <summary>
+    /// Re-issuing a collection records the level on every share and leaves the original collection
+    /// intact — both stay independently usable and independently disposable.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_RecordsTheLevelOnEveryShare()
+    {
+        // Arrange
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+            new Share<BigInteger>(new BigIntCalculator(3), new BigIntCalculator(30)),
+        });
+
+        // Act
+        using var reissued = original.ReissueWithSecurityLevel(17);
+
+        // Assert
+        Assert.Equal(3, reissued.Count);
+        Assert.All(reissued, share => Assert.Equal(17, share.SecurityLevel));
+        Assert.All(original, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// All or nothing. The level is validated against every share before anything is cloned, so a
+    /// collection is never left half migrated — and the original is untouched either way.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WhenOneShareDoesNotFit_MigratesNothing()
+    {
+        // Arrange — the third share does not fit M13 = 8191.
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+            new Share<BigInteger>(new BigIntCalculator(3), new BigIntCalculator(9000)),
+        });
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => original.ReissueWithSecurityLevel(13));
+        Assert.Equal("securityLevel", error.ParamName);
+        Assert.All(original, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// Re-issuing a disposed collection throws rather than cloning freed buffers.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void PostDispose_ReissueWithSecurityLevel_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var shares = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+        shares.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => shares.ReissueWithSecurityLevel(17));
+    }
+    /// <summary>
+    /// A collection is refused as a whole when the exponent contradicts what any one share already
+    /// records — including a collection that mixes shares which know their field with shares that
+    /// do not.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_ContradictingOneRecordedLevel_MigratesNothing()
+    {
+        // Arrange
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20), 17),
+        });
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => original.ReissueWithSecurityLevel(19));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// The collection overload with a provider migrates every share to an exponent only that
+    /// provider supports; the default overload refuses the same exponent.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProviderSupportingAnExtraExponent_RecordsItOnEveryShare()
+    {
+        // Arrange
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+        var provider = MersennePrimeProviderStub.Supporting(7);
+
+        // Act
+        using var migrated = original.ReissueWithSecurityLevel(7, provider.Object);
+
+        // Assert
+        Assert.All(migrated, share => Assert.Equal(7, share.SecurityLevel));
+        var viaDefault = Assert.Throws<ArgumentOutOfRangeException>(() => original.ReissueWithSecurityLevel(7));
+        Assert.Equal("securityLevel", viaDefault.ParamName);
+    }
+
+    /// <summary>
+    /// An exponent the built-in table has, refused by the given provider, migrates nothing: the
+    /// original shares still record no level afterwards.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProviderRejectingABuiltInExponent_MigratesNothing()
+    {
+        // Arrange
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+        var provider = MersennePrimeProviderStub.Supporting(13, 19);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => original.ReissueWithSecurityLevel(17, provider.Object));
+        Assert.Equal("securityLevel", error.ParamName);
+        Assert.All(original, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// A missing provider is an argument error naming the provider parameter.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithoutAProvider_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(20)),
+        });
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentNullException>(() => original.ReissueWithSecurityLevel(17, null));
+        Assert.Equal("mersennePrimeProvider", error.ParamName);
+    }
+
+    /// <summary>
+    /// All or nothing holds with a provider as well: one share whose value does not fit the named
+    /// field stops the migration before any share is re-issued.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProvider_WhenOneShareDoesNotFit_MigratesNothing()
+    {
+        // Arrange — 200 does not fit M7 = 127.
+        using var original = new Shares<BigInteger>(new[]
+        {
+            new Share<BigInteger>(new BigIntCalculator(1), new BigIntCalculator(10)),
+            new Share<BigInteger>(new BigIntCalculator(2), new BigIntCalculator(200)),
+        });
+        var provider = MersennePrimeProviderStub.Supporting(7);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => original.ReissueWithSecurityLevel(7, provider.Object));
+        Assert.Equal("securityLevel", error.ParamName);
+        Assert.All(original, share => Assert.Null(share.SecurityLevel));
     }
 }

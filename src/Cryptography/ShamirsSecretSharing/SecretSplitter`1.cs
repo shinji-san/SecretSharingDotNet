@@ -493,7 +493,10 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
                 {
                     x = Calculator.Create<TNumber>(bytes, bytes.Length);
                     y = Polynomial.EvaluateAt(x, polynomial, this.securityLevelManager.SecurityLevel);
-                    shares[i - 1] = new Share<TNumber>(x, y);
+                    // The level the share records is the one that governed the polynomial -- the
+                    // post-auto-raise value read on the line above, not whatever the caller asked
+                    // for before MakeShares raised it to fit the secret.
+                    shares[i - 1] = new Share<TNumber>(x, y, this.securityLevelManager.SecurityLevel);
                     // Ownership transferred to Share -- null out so the catch does not double-dispose.
                     x = null;
                     y = null;

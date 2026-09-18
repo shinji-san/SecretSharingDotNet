@@ -44,7 +44,7 @@ using System.Threading;
 /// <typeparam name="TNumber">The numeric type used in the calculations, typically an integer or big integer.</typeparam>
 /// <typeparam name="TExtendedGcdAlgorithm">The type of the implementation for the extended greatest common divisor (GCD) algorithm.</typeparam>
 /// <typeparam name="TExtendedGcdResult">The result type returned by the specified extended GCD algorithm.</typeparam>
-public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult> : IReconstructionUseCase<TNumber>
+public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult> : IReconstructionWithSecurityLevelUseCase<TNumber>
     where TExtendedGcdAlgorithm : class, IExtendedGcdAlgorithm<TNumber, TExtendedGcdResult>
     where TExtendedGcdResult : struct, IExtendedGcdResult<TNumber>
 {
@@ -116,12 +116,14 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <see cref="ISecurityLevelManager{TNumber}"/>.
     /// </summary>
     /// <remarks>
-    /// Read-only on this type. Each <see cref="Reconstruction"/> call invokes
-    /// <see cref="ISecurityLevelManager{TNumber}.AdjustSecurityLevel"/> on the manager,
-    /// which fits the level to <c>maximumY</c>; a value pinned by the caller would be
-    /// overwritten and is therefore not exposed via a setter. Callers who need to control
-    /// the level must inject their own <see cref="ISecurityLevelManager{TNumber}"/> via
-    /// the 2-arg constructor and configure it directly.
+    /// Read-only on this type. Every reconstruction sets the level itself — from the exponent the
+    /// shares record, from the one the caller named, or, only when neither is available, from the
+    /// share values through <see cref="ISecurityLevelManager{TNumber}.AdjustSecurityLevel"/>. A
+    /// value pinned in advance through a setter would be overwritten in all three cases, which is
+    /// why none is offered. Callers who need to name the field pass it to
+    /// <see cref="IReconstructionWithSecurityLevelUseCase{TNumber}.Reconstruction(Shares{TNumber}, int)"/>;
+    /// callers who need to control the manager itself inject their own via the 2-arg constructor.
+    /// After a successful call this property reports the level the interpolation ran under.
     /// </remarks>
     /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
     public int SecurityLevel
@@ -148,7 +150,11 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <paramref name="shares"/> contains fewer than two entries.
     /// </exception>
     /// <exception cref="ReconstructionException">
-    /// Two or more entries in <paramref name="shares"/> share the same <see cref="Share{TNumber}.Index"/>.
+    /// The interpolated coefficient carries no payload beyond its mark byte and therefore decodes
+    /// to no secret at all. Index distinctness is <em>not</em> checked here — see
+    /// <see cref="EnsureDistinctIndices"/>, which runs before the security level is committed
+    /// except where the value-derived selection on a manager without
+    /// <see cref="IInspectableSecurityLevelManager{TNumber}"/> has already committed it.
     /// </exception>
     /// <remarks>
     /// The <paramref name="shares"/> are borrowed — this method reads <see cref="Share{TNumber}.Index"/>
@@ -170,31 +176,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             throw new ArgumentOutOfRangeException(nameof(shares), numberOfPoints, ErrorMessages.MinNumberOfSharesLowerThanTwo);
         }
 
-        // Explicit HashSet loop instead of shares.Select(s => s.Index).Distinct().Count()
-        // — avoids the SelectIterator + DistinctIterator + enumerator allocations on the
-        // unpinned managed heap. Throws on first-duplicate detection instead of after full
-        // enumeration; eager-vs-lazy throw on the public x-coordinates yields the same
-        // exception type and message, no observable difference on the success path.
-        //
-        // Indices are hashed through PublicValueEqualityComparer: Calculator.GetHashCode delegates
-        // to TNumber.GetHashCode, and the SecureBigInteger backend deliberately hashes only public
-        // metadata (sign + limb count) so a value-derived hash of secret material cannot be observed.
-        // That makes every small positive one-limb index hash identically, which would collapse this
-        // check into one bucket (O(n²)). Indices are public (the X coordinate on the "INDEX-VALUE"
-        // wire), so a value-based hash of them is safe and restores O(n).
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-        var seenIndices = new HashSet<Calculator<TNumber>>(numberOfPoints, PublicValueEqualityComparer<TNumber>.Instance);
-#else
-        var seenIndices = new HashSet<Calculator<TNumber>>(PublicValueEqualityComparer<TNumber>.Instance);
-#endif
-        for (int i = 0; i < numberOfPoints; i++)
-        {
-            if (!seenIndices.Add(shares[i].Index))
-            {
-                throw new ReconstructionException(ErrorMessages.ShareIndicesNotDistinct);
-            }
-        }
-
+        // Index distinctness is checked by ReconstructionCore, before it commits the security
+        // level everywhere except on the value-derived compatibility path. Rejecting a duplicate
+        // here, after the commit, would move the manager on an input that was never usable.
         using var zero = Calculator<TNumber>.Zero;
         var numeratorProducts = new Calculator<TNumber>[numberOfPoints];
         var denominatorProducts = new Calculator<TNumber>[numberOfPoints];
@@ -261,6 +245,21 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
             // normalised secret coefficient a0 directly.
             using var a0 = this.DivMod(numerator, denominator);
 
+            // Secret.FromCoefficient strips the trailing mark byte, so a coefficient that
+            // occupies no more than that byte leaves nothing behind and the Secret constructor
+            // rejects it with ArgumentException from two layers down -- an error naming neither
+            // the cause nor the operation. Reject it here instead, on the reconstruction
+            // contract. The field was chosen and the inputs validated in ReconstructionCore
+            // before this method ran, so the message states what is known at this point: the
+            // exponent the interpolation ran under. It names no cause, because none can be told
+            // apart here -- a field derived wrongly for shares recording nothing, a supported but
+            // wrong level recorded or named, and a tampered share all produce the same picture.
+            if (a0.ByteCount <= Secret<TNumber>.MarkByteCount)
+            {
+                throw new ReconstructionException(
+                    string.Format(ErrorMessages.ReconstructionYieldedNoDecodableSecret, mersenneExponent));
+            }
+
             return Secret<TNumber>.FromCoefficient(a0);
         }
         finally
@@ -284,11 +283,91 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <paramref name="shares"/> contains fewer than two entries.
     /// </exception>
     /// <exception cref="ReconstructionException">
-    /// <paramref name="shares"/> has no maximum y-value, or contains entries with duplicate
-    /// <see cref="Share{TNumber}.Index"/> values.
+    /// The shares record different security levels, or some record one and others do not, so
+    /// there is no field to choose without being told; a recorded level is not a supported Mersenne prime exponent; a coordinate lies outside
+    /// the recorded field; two entries share the same <see cref="Share{TNumber}.Index"/>; or the
+    /// interpolation produces a coefficient that decodes to no secret.
+    /// <para>
+    /// The last case carries the Mersenne exponent the interpolation ran under and identifies no
+    /// cause, because a tampered share is indistinguishable from an ill-fitting field here. Using
+    /// the recorded level removes the ill-fitting field as a cause, not the failure: a tampered
+    /// share whose value drives the interpolated coefficient to zero produces it just the same,
+    /// and the shares may record a level throughout.
+    /// </para>
+    /// <para>
+    /// Where the shares say nothing, naming the field through
+    /// <see cref="IReconstructionWithSecurityLevelUseCase{TNumber}.Reconstruction(Shares{TNumber}, int)"/>
+    /// is the way forward. Where they <em>disagree</em>, it is not: any exponent supplied would
+    /// contradict at least one of them, so that overload refuses the set as well. Shares recording
+    /// different fields cannot all come from the same split.
+    /// </para>
     /// </exception>
     /// <exception cref="ObjectDisposedException">This instance has been disposed.</exception>
-    public Secret<TNumber> Reconstruction(Shares<TNumber> shares)
+    /// <remarks>
+    /// <para>
+    /// <b>Validating an exponent does not bound what it costs.</b> Reconstruction computes the
+    /// Mersenne prime for the level it runs under — once for the coordinate check, again when the
+    /// manager takes the level — and that grows roughly quadratically with the exponent, into
+    /// minutes near the top of the built-in table. A level recorded on the shares comes from the
+    /// input and no longer scales with its size: a three-segment string of a dozen characters can
+    /// name the largest exponent. When reconstructing shares from untrusted sources, build the
+    /// security level manager on an <see cref="IMersennePrimeProvider"/> that supports only the
+    /// exponents in use; one it does not support is then refused before any prime is computed.
+    /// That is an allowlist, not a general denial-of-service defence.
+    /// </para>
+    /// <para>
+    /// <b>A recorded level is not authenticated.</b> Levels that disagree are refused; levels
+    /// changed alike on every share are not, and can yield a wrong secret. See
+    /// <see cref="Share{TNumber}.SecurityLevel"/>.
+    /// </para>
+    /// </remarks>
+    public Secret<TNumber> Reconstruction(Shares<TNumber> shares) => this.ReconstructionCore(shares, null);
+
+    /// <inheritdoc cref="IReconstructionWithSecurityLevelUseCase{TNumber}.Reconstruction(Shares{TNumber}, int)"/>
+    public Secret<TNumber> Reconstruction(Shares<TNumber> shares, int securityLevel) =>
+        this.ReconstructionCore(shares, securityLevel);
+
+    /// <summary>
+    /// The single reconstruction path. Both public overloads run through it; they differ only in
+    /// where the finite field comes from.
+    /// </summary>
+    /// <param name="shares">The k or more shares to reconstruct from.</param>
+    /// <param name="explicitLevel">
+    /// The exponent supplied by the caller, or <see langword="null"/> to take it from the shares.
+    /// </param>
+    /// <returns>The reconstructed secret.</returns>
+    /// <remarks>
+    /// <para>
+    /// The field is chosen in three phases — determine, validate, commit — so that an input error
+    /// is rejected before the manager moves, wherever the manager makes that possible:
+    /// </para>
+    /// <list type="number">
+    /// <item><description>
+    /// An explicit exponent is validated and checked against every level the shares record.
+    /// Contradictory levels abort here whether or not one was supplied; mixed metadata aborts
+    /// when none was. Nothing has moved at that point.
+    /// </description></item>
+    /// <item><description>
+    /// Index distinctness, then the coordinates against the resulting field — on every path,
+    /// including the one where the exponent was derived from the values. That derivation bounds
+    /// the maximum y and nothing else: it says nothing about a negative y and nothing at all
+    /// about the indices.
+    /// </description></item>
+    /// <item><description>
+    /// The level is committed and read back, to catch a manager that normalised it upward instead
+    /// of using it as given. With the exact check available the commit comes last; without it the
+    /// commit comes first, so an unsupported exponent is refused by the manager rather than by
+    /// whatever <c>2^exponent</c> does with it.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// Without <see cref="IInspectableSecurityLevelManager{TNumber}"/> the first phase cannot run
+    /// for the derived case: learning that manager's answer means letting it commit one. Its own
+    /// selection logic is preserved — which is the point — but the state has moved before
+    /// validation. That is a supported path, not an error.
+    /// </para>
+    /// </remarks>
+    private Secret<TNumber> ReconstructionCore(Shares<TNumber> shares, int? explicitLevel)
     {
         this.ThrowIfDisposed();
         if (shares is null)
@@ -302,41 +381,323 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         var shareList = shares.ToArray();
-        // Explicit loop instead of shareList.Select(share => share.Value).Max() —
-        // avoids the SelectArrayIterator + enumerator allocations on the unpinned
-        // managed heap. Null-skip matches Enumerable.Max semantics for reference
-        // types: the maximum of all non-null values, or null if every value is null.
-        Calculator<TNumber> maximumY = null;
-        for (int i = 0; i < shareList.Length; i++)
+
+        // Phase 1 — determine a candidate. Nothing below moves the manager except the one
+        // fallback branch that says so.
+        var recorded = ReadRecordedLevels(shareList);
+        int securityLevel;
+        bool alreadyCommitted = false;
+
+        if (explicitLevel.HasValue)
+        {
+            securityLevel = explicitLevel.Value;
+            this.ValidateExponent(securityLevel, explicitlySupplied: true);
+            if (recorded.AnyRecorded && (recorded.Differing || recorded.First != securityLevel))
+            {
+                throw new ReconstructionException(
+                    string.Format(ErrorMessages.ExplicitSecurityLevelContradictsShares, securityLevel));
+            }
+        }
+        else if (recorded.Differing)
+        {
+            throw new ReconstructionException(ErrorMessages.SharesCarryDifferentSecurityLevels);
+        }
+        else if (recorded.AnyRecorded && recorded.AnyMissing)
+        {
+            throw new ReconstructionException(ErrorMessages.SharesCarryMixedSecurityLevelMetadata);
+        }
+        else if (recorded.AnyRecorded)
+        {
+            securityLevel = recorded.First;
+            this.ValidateExponent(securityLevel, explicitlySupplied: false);
+        }
+        else
+        {
+            // Only this branch derives the field from the values, so only this branch needs their
+            // maximum. With a recorded or an explicit level the values play no part in the choice.
+            var maximumY = MaximumValue(shareList);
+            if (this.securityLevelManager is IInspectableSecurityLevelManager<TNumber> inspectable)
+            {
+                securityLevel = inspectable.DetermineSecurityLevel(maximumY);
+            }
+            else
+            {
+                this.securityLevelManager.AdjustSecurityLevel(maximumY);
+                securityLevel = this.securityLevelManager.SecurityLevel;
+                alreadyCommitted = true;
+            }
+        }
+
+        // Phase 2 — validate. Distinctness first: it needs no field, and a duplicate index makes
+        // the Lagrange denominator zero whatever the level is.
+        EnsureDistinctIndices(shareList);
+
+        // The coordinate check and the commit swap places depending on what the manager can
+        // answer. With the exact check the exponent is already known to be supported, so the
+        // coordinates are validated first and the state moves last. Without it, nothing has
+        // vetted the exponent yet — so the manager is asked to accept it first, which keeps an
+        // unsupported value out of the big-integer arithmetic below and gives a single, uniform
+        // rejection instead of whatever `2^exponent` happens to do with it.
+        if (alreadyCommitted)
+        {
+            ValidateCoordinatesFit(shareList, securityLevel);
+        }
+        else if (this.securityLevelManager is IInspectableSecurityLevelManager<TNumber>)
+        {
+            ValidateCoordinatesFit(shareList, securityLevel);
+            this.CommitSecurityLevel(securityLevel, explicitLevel.HasValue);
+        }
+        else
+        {
+            this.CommitSecurityLevel(securityLevel, explicitLevel.HasValue);
+            ValidateCoordinatesFit(shareList, securityLevel);
+        }
+
+        return this.LagrangeInterpolate(shareList);
+    }
+
+    /// <summary>
+    /// Returns the largest <see cref="Share{TNumber}.Value"/> among the shares — the input of the
+    /// value-derived field selection.
+    /// </summary>
+    /// <param name="shareList">The shares; at least two.</param>
+    /// <returns>The largest value, borrowed from its share rather than copied.</returns>
+    /// <remarks>
+    /// An explicit loop rather than <c>Select(...).Max()</c>, which would allocate an iterator and
+    /// an enumerator on the unpinned managed heap. There is no null handling: every constructor of
+    /// <see cref="Share{TNumber}"/> rejects a null value and the getter throws once a share is
+    /// disposed, so a maximum always exists once there are shares at all.
+    /// </remarks>
+    private static Calculator<TNumber> MaximumValue(IReadOnlyList<Share<TNumber>> shareList)
+    {
+        var maximum = shareList[0].Value;
+        for (int i = 1; i < shareList.Count; i++)
         {
             var candidate = shareList[i].Value;
-            if (candidate is null)
+            if (candidate > maximum)
             {
+                maximum = candidate;
+            }
+        }
+
+        return maximum;
+    }
+
+    /// <summary>
+    /// Rejects a set containing two shares with the same index.
+    /// </summary>
+    /// <param name="shareList">The shares to check.</param>
+    /// <remarks>
+    /// <para>
+    /// Runs before the security level is committed, except on the compatibility path, where the
+    /// value-derived selection has already committed the level: shares recording no level, with a
+    /// manager lacking <see cref="IInspectableSecurityLevelManager{TNumber}"/>, which cannot report
+    /// that selection without committing it. Duplicate indices make the Lagrange denominator zero,
+    /// so this has to be caught either way; everywhere else, catching it after the manager had
+    /// moved would break the promise that input validation leaves the state alone.
+    /// </para>
+    /// <para>
+    /// Explicit <see cref="HashSet{T}"/> loop instead of <c>Select(...).Distinct().Count()</c> —
+    /// avoids the iterator and enumerator allocations on the unpinned managed heap, and throws on
+    /// the first duplicate rather than after a full enumeration.
+    /// </para>
+    /// <para>
+    /// Indices are hashed through <c>PublicValueEqualityComparer</c>:
+    /// <c>Calculator.GetHashCode</c> delegates to <typeparamref name="TNumber"/>, and the
+    /// <c>SecureBigInteger</c> backend deliberately hashes only public metadata (sign and limb
+    /// count) so a value-derived hash of secret material cannot be observed. That makes every
+    /// small positive one-limb index hash identically, which would collapse this check into a
+    /// single bucket and make it quadratic. Indices are public — they travel as the X coordinate
+    /// of every serialised share — so hashing them by value is safe and restores the linear cost.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ReconstructionException">Two entries share the same index.</exception>
+    private static void EnsureDistinctIndices(IReadOnlyList<Share<TNumber>> shareList)
+    {
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+        var seenIndices = new HashSet<Calculator<TNumber>>(shareList.Count, PublicValueEqualityComparer<TNumber>.Instance);
+#else
+        var seenIndices = new HashSet<Calculator<TNumber>>(PublicValueEqualityComparer<TNumber>.Instance);
+#endif
+        for (int i = 0; i < shareList.Count; i++)
+        {
+            if (!seenIndices.Add(shareList[i].Index))
+            {
+                throw new ReconstructionException(ErrorMessages.ShareIndicesNotDistinct);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Summarises the security levels the shares record, in one pass and without allocating.
+    /// </summary>
+    /// <param name="shareList">The shares to inspect.</param>
+    /// <returns>
+    /// Whether any share records a level, whether any records none, whether two recorded levels
+    /// differ, and the first recorded level (meaningful only when <c>AnyRecorded</c>).
+    /// </returns>
+    private static (bool AnyRecorded, bool AnyMissing, bool Differing, int First) ReadRecordedLevels(
+        IReadOnlyList<Share<TNumber>> shareList)
+    {
+        bool anyRecorded = false;
+        bool anyMissing = false;
+        bool differing = false;
+        int first = 0;
+        for (int i = 0; i < shareList.Count; i++)
+        {
+            int? level = shareList[i].SecurityLevel;
+            if (level is null)
+            {
+                anyMissing = true;
                 continue;
             }
 
-            if (maximumY is null || candidate > maximumY)
+            if (!anyRecorded)
             {
-                maximumY = candidate;
+                anyRecorded = true;
+                first = level.Value;
+            }
+            else if (first != level.Value)
+            {
+                differing = true;
             }
         }
 
-        if (maximumY is null)
+        return (anyRecorded, anyMissing, differing, first);
+    }
+
+    /// <summary>
+    /// Rejects an exponent the manager does not support, exactly and without rounding.
+    /// </summary>
+    /// <param name="securityLevel">The exponent to check.</param>
+    /// <param name="explicitlySupplied">
+    /// <see langword="true"/> when the caller handed the exponent in, <see langword="false"/> when
+    /// it was read off the shares.
+    /// </param>
+    /// <remarks>
+    /// One check, two exception types: the API boundary decides which. An exponent handed in by
+    /// the caller is an argument error; one read off a share is a reconstruction failure. Without
+    /// <see cref="IInspectableSecurityLevelManager{TNumber}"/> there is nothing to check against
+    /// here — the set-and-read-back in <see cref="CommitSecurityLevel"/> catches a normalised
+    /// value instead. Missing that capability is not by itself a reason to throw.
+    /// </remarks>
+    private void ValidateExponent(int securityLevel, bool explicitlySupplied)
+    {
+        if (this.securityLevelManager is not IInspectableSecurityLevelManager<TNumber> inspectable
+            || inspectable.IsValidSecurityLevel(securityLevel))
         {
-            throw new ReconstructionException(ErrorMessages.NoMaximumY);
+            return;
         }
 
-        this.securityLevelManager.AdjustSecurityLevel(maximumY);
-        return this.LagrangeInterpolate(shareList);
+        throw RejectSecurityLevel(
+            securityLevel,
+            explicitlySupplied,
+            string.Format(ErrorMessages.SecurityLevelNotSupported, securityLevel));
     }
+
+    /// <summary>
+    /// Rejects share coordinates that do not lie in the field of the given exponent:
+    /// <c>0 &lt; x &lt; p</c> and <c>0 &lt;= y &lt; p</c>.
+    /// </summary>
+    /// <param name="shareList">The shares to check.</param>
+    /// <param name="securityLevel">The exponent naming the field.</param>
+    /// <remarks>
+    /// <para>
+    /// Runs on every path, including the one where the exponent was derived from the share values.
+    /// That derivation looks at the <em>maximum</em> y only, so it establishes an upper bound on
+    /// one coordinate and nothing else: it says nothing about a negative y, and nothing at all
+    /// about the indices. An index at or above the prime is simply outside the permitted
+    /// coordinate range — it need not collide with another one to be invalid, and often does not:
+    /// with <c>p = 8191</c> the index 8192 reduces to 1, which may well be free.
+    /// </para>
+    /// <para>
+    /// The prime is computed here rather than read from the manager: the manager's
+    /// <c>MersennePrime</c> belongs to the level it currently holds, which on the pre-commit paths
+    /// is not yet this one.
+    /// </para>
+    /// </remarks>
+    private static void ValidateCoordinatesFit(IReadOnlyList<Share<TNumber>> shareList, int securityLevel)
+    {
+        if (!Share<TNumber>.AllFitField(shareList, securityLevel))
+        {
+            throw new ReconstructionException(
+                string.Format(ErrorMessages.ShareCoordinateOutsideField, securityLevel));
+        }
+    }
+
+    /// <summary>
+    /// Moves the manager to the chosen level and confirms it got there.
+    /// </summary>
+    /// <param name="securityLevel">The exponent to apply.</param>
+    /// <param name="explicitlySupplied">
+    /// <see langword="true"/> when the caller handed the exponent in, <see langword="false"/> when
+    /// it was read off the shares.
+    /// </param>
+    /// <remarks>
+    /// The read-back happens after <em>every</em> successful set, not only where rounding is
+    /// suspected. Without the non-mutating check this method cannot tell which case it is in, and
+    /// that not knowing is what put it here. A manager that normalised the value upward has
+    /// quietly chosen a different field than the one named, which is the defect this whole path
+    /// exists to prevent.
+    /// </remarks>
+    private void CommitSecurityLevel(int securityLevel, bool explicitlySupplied)
+    {
+        try
+        {
+            this.securityLevelManager.SecurityLevel = securityLevel;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // Targeted, not blanket. This assignment takes exactly one argument, so an
+            // out-of-range rejection from it is about that exponent and nothing else. It is
+            // re-typed to this boundary's contract because the manager names its own parameter,
+            // which the caller has never seen and cannot act on.
+            throw RejectSecurityLevel(
+                securityLevel,
+                explicitlySupplied,
+                string.Format(ErrorMessages.SecurityLevelNotSupported, securityLevel));
+        }
+
+        int applied = this.securityLevelManager.SecurityLevel;
+        if (applied == securityLevel)
+        {
+            return;
+        }
+
+        throw RejectSecurityLevel(
+            securityLevel,
+            explicitlySupplied,
+            string.Format(ErrorMessages.SecurityLevelNotAppliedByManager, securityLevel, applied));
+    }
+
+    /// <summary>
+    /// Builds the rejection for an unusable security level, typed by where the level came from.
+    /// </summary>
+    /// <param name="securityLevel">The exponent that was refused.</param>
+    /// <param name="explicitlySupplied">
+    /// <see langword="true"/> when the caller handed the exponent in, <see langword="false"/> when
+    /// it was read off the shares.
+    /// </param>
+    /// <param name="message">The message describing the refusal.</param>
+    /// <returns>The exception to throw.</returns>
+    /// <remarks>
+    /// One rule in one place: an exponent the caller passed is an argument error naming the
+    /// parameter; the same exponent read off a share is a reconstruction failure, because the
+    /// caller supplied no such argument to be told about.
+    /// </remarks>
+    private static Exception RejectSecurityLevel(int securityLevel, bool explicitlySupplied, string message) =>
+        explicitlySupplied
+            ? new ArgumentOutOfRangeException(nameof(securityLevel), securityLevel, message)
+            : (Exception)new ReconstructionException(message);
 
     /// <summary>
     /// Performs division in the finite field defined by the configured Mersenne
     /// prime, returning the modular result of dividing the numerator by the
     /// denominator. The prime modulus and exponent are sourced from
     /// <see cref="securityLevelManager"/>; callers must ensure the manager is
-    /// configured before invoking this method (the public
-    /// <see cref="Reconstruction"/> entry point handles that automatically).
+    /// configured before invoking this method (the public entry points
+    /// <see cref="Reconstruction(Shares{TNumber})"/> and
+    /// <see cref="Reconstruction(Shares{TNumber}, int)"/> both handle that automatically).
     /// </summary>
     /// <param name="numerator">The value to be divided.</param>
     /// <param name="denominator">The value by which the numerator is divided.</param>

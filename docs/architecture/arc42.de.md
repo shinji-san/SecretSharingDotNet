@@ -137,6 +137,72 @@
       gibt — der `byte[]`-Operator konvertiert *in* ein `Secret`; die tatsächlichen
       Ausgabekonvertierungen sind `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` und
       `ReadOnlySpan<byte>`.
+    - 2026-09-13 — Testzahlen auf 824 (641 `[Fact]` + 183 `[Theory]`) aktualisiert, zusammen mit
+      dem Regressionstest für den Refit-Fehler, der keinen großen konstanten Term braucht, ergänzt
+      im Fix-Branch zu #403. Das in R27 zitierte Gegenbeispiel wurde von Hand gerechnet; der nun in
+      der Suite liegende Vektor ist ein anderer, durch die Bibliothek reproduziert — R27 wird mit
+      der übrigen #403-Dokumentation darauf ausgerichtet.
+    - 2026-09-17 — Issue #403 behoben; die Dokumentation zieht dem Code nach. Ein Share vermerkt
+      jetzt den Mersenne-Exponenten des Körpers, in dem es erzeugt wurde
+      (`Share<TNumber>.SecurityLevel`), und `Reconstruction` interpoliert in diesem Körper, statt
+      einen aus den Share-Werten abzuleiten. 1.1 grenzt das Wiederherstellungsversprechen auf
+      Shares ein, die ihren Körper mitführen, 6.2 kennzeichnet `AdjustSecurityLevel` als bedingt,
+      und 8.7 dokumentiert die dreisegmentige Form `ShareFormat.Extended`. Q6 trennt den behobenen
+      Fall vom Alt-Rest; Q7 verliert die Aussage, der Manager sei beim Start der
+      Distinktheitsprüfung bereits mutiert — diese Prüfung läuft jetzt vor der Übernahme des
+      Levels; R27 geht von Hoch auf Mittel, ersetzt das von Hand gerechnete Gegenbeispiel durch
+      das über die Bibliothek reproduzierte und benennt den Rest, der bleibt, solange
+      `ShareFormat.Legacy` die Vorgabe der Serialisierung ist. Testzahlen auf 944
+      (739 `[Fact]` + 205 `[Theory]`) über 45 Testklassen aktualisiert.
+    - 2026-09-17 — Review-Nachlauf zur #403-Dokumentation: Drei Aussagen waren weiter gefasst als
+      der Code. Die Zustandszusage — „eine abgewiesene Eingabe lässt den Manager stehen“ — gilt
+      nur, wo der Manager inspizierbar ist; auf dem Kompatibilitätspfad können Stufe und
+      Prime-Instanz bereits bewegt sein, reproduziert als 31 → 13, während der Aufruf wegen einer
+      Koordinate außerhalb genau dieses Körpers weiterhin wirft. 6.2 kennzeichnet beide Pfade
+      jetzt im Sequenzdiagramm und sagt es im Fließtext. Die Abweisung gemischter Share-Metadaten
+      stand ohne Einschränkung da, obwohl ein explizites Level genau so eine Menge rekonstruieren
+      lässt — und eben das hält eine halb migrierte Menge benutzbar. Und die Aussage, alle drei
+      öffentlichen Share-Konstruktoren ließen das Level `null`, stimmt für den Textkonstruktor
+      nicht, der ein vorhandenes drittes Segment übernimmt. Beide Manager-Ausgänge sind jetzt
+      durch Tests gegeneinander festgenagelt statt nur beschrieben.
+    - 2026-09-17 — Die Property-Suites ziehen eine beliebige qualifizierende Teilmenge, was der
+      #403-Plan verlangte und Q6 bereits behauptete. Der generierte `subsetOffset` benannte ein
+      zyklisches Fenster über die indexsortierten Shares und erreichte damit die `n`
+      zusammenhängenden Läufe, aber keine Kombination mit einer Lücke; jetzt ist es ein Rang in
+      die `C(n, k)` Teilmengen. `Gen.Shuffle` wurde als einfachere Alternative gemessen und
+      verworfen: über 500 Ziehungen aus `C(5, 3)` erreichte es 6 der 10 Teilmengen, der Rang alle
+      10. Q6 nennt die neue Abdeckung, und die Bijektion von Rang auf Teilmenge wird in einem
+      eigenen Test geprüft statt angenommen.
+    - 2026-09-18 — zweiter Review-Nachlauf zur #403-Dokumentation. Der offene Punkt, der hinter Q6
+      echte `k`-Kombinationen verlangte, ist entfernt; der vorige Eintrag hat ihn erledigt. Er hatte
+      außerdem vorgeschlagen, sie für kleine `n` erschöpfend aufzuzählen, und die Suites ziehen
+      stattdessen Stichproben: Jede Teilmenge ist erreichbar, jeder Lauf zieht gleichverteilt
+      daraus (χ² 4,4 über 20.000 Ziehungen aus `C(5, 3)`), und die Abbildung von Rang auf
+      Teilmenge selbst wird erschöpfend geprüft. Das Sequenzdiagramm in 6.2 zeigte auf dem
+      Kompatibilitätspfad nach `AdjustSecurityLevel` eine zweite Zuweisung der Stufe, die der Code
+      überspringt; es hat jetzt drei Zweige — inspizierbar, nicht inspizierbar mit noch zu
+      setzender Stufe, und nicht inspizierbar mit bereits übernommener Stufe. Seine Schlussnotiz
+      und die Überschrift des Fließtexts darunter sagten, eine abgewiesene Eingabe lasse den
+      Manager *nur* auf dem inspizierbaren Pfad stehen, was sich als „sonst nie“ liest, obwohl ein
+      doppelter Index mit benannter Stufe auch auf dem Kompatibilitätspfad vor der Übernahme
+      abgewiesen wird; beide sagen jetzt, nur der inspizierbare Pfad *garantiere* es.
+    - 2026-09-18 — Q7 sagte, ohne inspizierbaren Manager gebe es einen wertbasierten Kandidaten
+      nur über `AdjustSecurityLevel`, „also“ sei der Manager beim Auftauchen eines Duplikats
+      bereits bewegt. Die erste Hälfte stimmt; die zweite folgt aus der Reihenfolge im Code, nicht
+      aus der ersten — die Distinktheitsprüfung braucht keinen Körper und könnte vor der Auswahl
+      laufen. Q7 nennt diese Reihenfolge jetzt als Tatsache.
+    - 2026-09-18 — zwei Sicherheitsgrenzen des vermerkten Levels, dokumentiert statt gelöst. R9
+      sagt jetzt, dass das Level so wenig authentifiziert ist wie die Koordinaten: Die
+      Widerspruchsprüfung erkennt Inkonsistenz, und ein auf allen Shares gleich verändertes Level
+      passiert sie. Neues Risiko R28: Die Validierung eines Exponenten begrenzt nicht, was er
+      kostet, und das vermerkte Level entkoppelt diesen Aufwand von der Eingabegröße — gemessen
+      etwa 2,5 s für `3.021.377` mit `BigInteger`, hochgerechnet Minuten am Tabellenende. Die
+      Gegenmaßnahme ist eine Allowlist über den `IMersennePrimeProvider`, für die Rekonstruktion
+      über den Manager und für die Migration über den neuen Provider-Overload; eine globale
+      Obergrenze gibt es bewusst nicht.
+    - 2026-09-18 — Zahlen nach den Review-Nachläufen zu #407 aktualisiert: 963 Testmethoden
+      (758 `[Fact]` + 205 `[Theory]`) über 46 Testklassen und 65 Ressourcenschlüssel je Sprache,
+      seit der unerreichbare `NoMaximumY`-Pfad entfallen ist.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -151,10 +217,13 @@ SecretSharingDotNet ist eine C#-Klassenbibliothek, die *Shamir's Secret Sharing*
 Ein Geheimnis (Text, Zahl oder Byte-Folge) wird in **N** Anteile (*Shares*) zerlegt, von denen
 beliebige **K** Anteile genügen, um das Original wiederherzustellen — während **K−1** Anteile
 praktisch keine Information über das Geheimnis preisgeben. Diese Wiederherstellungszusage gehört
-dem Verfahren, und diese Implementierung hält sie derzeit nicht in jedem Fall ein: Fallen alle
-übergebenen Share-Werte unter eine kleinere unterstützte Mersenne-Primzahl, wechselt die
-Rekonstruktion in diesen kleineren Körper und kann ohne jede Fehlermeldung ein anderes Geheimnis
-liefern (Risiko R27, Issue #403). *Praktisch*, nicht *perfekt*: Diese
+dem Verfahren, und diese Implementierung hielt sie bis zum Fix für Issue #403 nur teilweise ein:
+Ein Share trug keinen Vermerk über den Körper, in dem es entstanden ist, also leitete die
+Rekonstruktion einen aus den Share-Werten ab und konnte in einem kleineren Körper landen als der
+Split. Ein Share hält seinen Körper jetzt fest, und die Rekonstruktion liest ihn. Vorher
+geschriebene Shares — oder aus nackten Koordinaten gebaute — halten nichts fest und laufen
+weiterhin durch die Ableitung; für sie gilt die Zusage nur, wenn der Aufrufer den Körper benennt
+(Risiko R27). *Praktisch*, nicht *perfekt*: Diese
 Implementierung würfelt den führenden Polynomkoeffizienten bei einer Null neu, damit der Grad
 exakt `K−1` bleibt und die effektive Schwelle nicht stillschweigend auf `K−1` fällt. Dadurch ist
 dieser Koeffizient auf `[1, p−1]` statt auf `[0, p−1]` gleichverteilt, und `K−1` Anteile schließen
@@ -174,7 +243,7 @@ Konsumenten (Quelle: `README.md`, `src/SecretSharingDotNet.csproj`).
 | Priorität | Qualitätsziel | Motivation |
 |---|---|---|
 | 1 | **Vertraulichkeit des Geheimnisses im Prozessspeicher** | Der gesamte Nutzen der Bibliothek entfällt, wenn das Geheimnis aus Heap-Snapshots, Swap-Dateien oder wiederverwendeten Pool-Puffern rekonstruierbar bleibt. Umgesetzt über GC-gepinnte, dreifach überschriebene Puffer (`PinnedPoolArray<T>`) und eine durchgehende `IDisposable`-Disziplin. |
-| 2 | **Funktionale Korrektheit des Schemas** | Ein falsch rekonstruiertes Geheimnis ist unbemerkt fatal: plain Shamir hat keine Integritätsprüfung (`README.md`, Threat Model). Abgesichert über 822 Testmethoden, property-basierte Round-Trip-Tests (CsCheck) und zwei parallele Testhierarchien für beide numerischen Backends. |
+| 2 | **Funktionale Korrektheit des Schemas** | Ein falsch rekonstruiertes Geheimnis ist unbemerkt fatal: plain Shamir hat keine Integritätsprüfung (`README.md`, Threat Model). Abgesichert über 963 Testmethoden, property-basierte Round-Trip-Tests (CsCheck) und zwei parallele Testhierarchien für beide numerischen Backends. |
 | 3 | **Resistenz gegen passive Timing-Analyse (best effort)** | Zweites, bewusst nachrangiges Sicherheitsziel: Das `SecureBigInteger`-Backend liefert Kernarithmetik, deren Limb-Schleifen konstantzeitig über die Limb-Anzahl laufen, plus einen Fixed-Iteration-Modularinversen. Die Zusage endet bei diesen Schleifen — Ergebnisnormalisierung, `ByteCount`, Ordnung und die übrigen Flächen aus 8.2 sind wertabhängig. Der Anspruch ist explizit *best effort in managed .NET*, nicht auditierte Härtung (`README.md`, Abschnitt *Security & Threat Model*). |
 | 4 | **Portabilität über acht Ziel-Frameworks** | Die Bibliothek soll in Legacy-.NET-Framework-Anwendungen ebenso einsetzbar sein wie in .NET 10. Kosten: umfangreiche `#if`-Konditionalisierung (siehe Risiko R1). |
 | 5 | **Stabilität der öffentlichen API** | Nach dem v1.0-GA sollen Consumer nicht bei jedem internen Refactoring brechen. Umgesetzt über bewusste `internal`-Grenzen und SemVer-Disziplin im `CHANGELOG.md`. |
@@ -189,7 +258,7 @@ Priorität 1–3 steuern Kapitel 8 (Querschnittliche Konzepte) und Kapitel 10
 | **Anwendungsentwickler (Consumer)** | Eine API, die sich nicht versehentlich unsicher benutzen lässt; verständliche Migrationshinweise bei Breaking Changes; lauffähige Beispiele (`samples/`, README). |
 | **Maintainer** (Sebastian Walther, Einzelmaintainer) | Wartbarkeit bei begrenzter Zeit; grüne CI über alle acht TFMs als Freigabekriterium; nachvollziehbare Architekturentscheidungen. |
 | **Sicherheitsreviewer / Auditor** | Ein ehrlich abgegrenztes Bedrohungsmodell — was geschützt ist, was ausdrücklich *nicht* (`README.md`, Abschnitt *Security & Threat Model*). |
-| **Share-Inhaber (Domänenrolle)** | Verwahrt genau einen Anteil im Format `INDEX-VALUE` (hexadezimal). Interagiert nie direkt mit der Bibliothek — nur über die konsumierende Anwendung. |
+| **Share-Inhaber (Domänenrolle)** | Verwahrt genau einen Anteil, `INDEX-VALUE` oder `INDEX-VALUE-LEVEL` (hexadezimal). Interagiert nie direkt mit der Bibliothek — nur über die konsumierende Anwendung. |
 | **CI/Release-Pipeline** | Deterministische, reproduzierbare Builds (Lock-Files, `--locked-mode`, `Deterministic=true`) und ein Publishing-Pfad ohne langlebige Secrets (OIDC). |
 
 ---
@@ -261,7 +330,7 @@ C4Context
 | Partner | Ausgetauschte Daten | Kanal / Mechanismus |
 |---|---|---|
 | Konsumierende .NET-Anwendung | `Secret<TNumber>` hinein, `Shares<TNumber>` heraus (Split); `Shares<TNumber>` hinein, `Secret<TNumber>` heraus (Reconstruct) | In-Process-Methodenaufruf über `IMakeSharesUseCase<TNumber>` / `IReconstructionUseCase<TNumber>` |
-| Konsumierende .NET-Anwendung (Serialisierung) | Ein Share als `INDEX-VALUE`, beide Teile hexadezimal; Secret optional als Base64 | `Share<TNumber>.ToCharArray()`, `Shares<TNumber>.ToCharArray()`, `Secret<TNumber>.ToBase64CharArray()` — jeweils in gepinnten Puffern |
+| Konsumierende .NET-Anwendung (Serialisierung) | Ein Share als `INDEX-VALUE` oder als `INDEX-VALUE-LEVEL`, wenn es seinen Körper mitführt, durchweg hexadezimal; Secret optional als Base64 | `Share<TNumber>.ToCharArray()`, `Shares<TNumber>.ToCharArray()`, `Secret<TNumber>.ToBase64CharArray()` — jeweils in gepinnten Puffern |
 | Betriebssystem-CSPRNG | Rohe Zufallsbytes für Polynomkoeffizienten, Zufallsgeheimnisse und das Markierungsbyte | `System.Security.Cryptography.RandomNumberGenerator` über die interne Fassade `SecureRandom` / `IRandomSource` |
 | Interaktive Konsole | Tastendrücke des Benutzers, direkt in einen gepinnten `PinnedPoolArray<char>` | `Console.ReadKey(intercept: true)` in `ConsolePasswordReader` — es entsteht zu keinem Zeitpunkt ein managed `string` |
 | nuget.org | `SecretSharingDotNet.nupkg` + `.snupkg` (Symbolpaket) | `dotnet nuget push` aus `publishing.yml`, Authentifizierung per OIDC |
@@ -300,7 +369,7 @@ C4Container
   Person(appDev, "Anwendungsentwickler", "Programmiert gegen die Bibliotheks-API")
   System_Boundary(sln, "SecretSharingDotNet.slnx") {
     Container(lib, "SecretSharingDotNet", "C# Klassenbibliothek, 8 TFMs, strong-named", "Die ausgelieferte Bibliothek: Shamir-Algorithmus, numerische Backends, gepinnter Speicher")
-    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "822 Testmethoden ueber 6 TFMs, inkl. Timing-Harness und Stress-Traits")
+    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "963 Testmethoden ueber 6 TFMs, inkl. Timing-Harness und Stress-Traits")
     Container(demo, "SecretSharingDotNet.Demo.Console", ".NET 10 Konsolen-App, Microsoft.Extensions.DependencyInjection", "Lauffaehiges End-to-End-Beispiel mit DI-Komposition und Konsoleneingabe")
   }
   System_Ext(nuget, "nuget.org", "Verteilkanal")
@@ -370,14 +439,14 @@ C4Component
 
 | Baustein | Verantwortung | Öffentlich? |
 |---|---|---|
-| `Cryptography.ShamirsSecretSharing` | Aufteilen (`SecretSplitter<TNumber>`), Rekonstruieren (`SecretReconstructor<…>`, `FixedIterationSecretReconstructor<TNumber>`), Sicherheitsstufe verwalten (`SecurityLevelManager<TNumber>`). | ja |
-| `Cryptography` | `Secret<TNumber>` (readonly struct über gepinntem Puffer), `Share<TNumber>` (sealed record, Paar aus `Index` und `Value`), `Shares<TNumber>` (sortierte, schreibgeschützte Sammlung), Exception-Hierarchie, interne RNG-Fassade. | ja (RNG-Teile `internal`) |
+| `Cryptography.ShamirsSecretSharing` | Aufteilen (`SecretSplitter<TNumber>`), Rekonstruieren (`SecretReconstructor<…>`, `FixedIterationSecretReconstructor<TNumber>`, mit oder ohne expliziten Körper über `IReconstructionWithSecurityLevelUseCase<TNumber>`), Sicherheitsstufe verwalten (`SecurityLevelManager<TNumber>`, inspizierbar über `IInspectableSecurityLevelManager<TNumber>`). | ja |
+| `Cryptography` | `Secret<TNumber>` (readonly struct über gepinntem Puffer), `Share<TNumber>` (sealed record, Paar aus `Index` und `Value`, das zusätzlich das `SecurityLevel` seines Erzeugungskörpers vermerkt), `Shares<TNumber>` (sortierte, schreibgeschützte Sammlung), `ShareFormat` (die serialisierte Form: `INDEX-VALUE` oder `INDEX-VALUE-LEVEL`), Exception-Hierarchie, interne RNG-Fassade. | ja (RNG-Teile `internal`) |
 | `Cryptography.SecureInput` | Eingabe ohne `string`-Materialisierung: `ConsolePasswordReader`, `SecureCharBufferExtensions`, `SecureNumericBufferExtensions`. | ja |
 | `Math` | `Calculator`/`Calculator<TNumber>` (Strategie + geschlossene Backend-Registry), `Polynomial.EvaluateAt` (Horner-Schema), `ExtendedEuclideanAlgorithm<TNumber>`, `MersenneSafeGcdAlgorithm<TNumber>`, `MersennePrimeProvider`. | ja (`Polynomial` ist `internal`) |
 | `Math.Numerics` | `SecureBigInteger` (2.753 LOC, gepinnte `ulong`-Limbs, Limb-Schleifen konstantzeitig über die Limb-Anzahl — siehe 8.2) und die beiden `Calculator`-Implementierungen. | `SecureBigInteger` ja, die Calculator `internal` |
 | `SecureMemory` | `PinnedPoolArray<T>`: `ArrayPool`-Miete + `GCHandle.Alloc(Pinned)` + 3-Pass-Überschreiben + `CryptographicOperations.ZeroMemory` beim Dispose (auf `netstandard2.0`/`net472`/`net48`/`net481` stattdessen `LegacySecureClear` mit `Volatile.Write` und Speicherbarriere), mit Nebenläufigkeitszähler. | ja |
 | `Extension` | Ausschließlich `internal`: `DisposeAll`, `Subset<T>`, `FixedTimeEquals`, strukturelle Vergleichshelfer. | nein |
-| `Resources` | `ErrorMessages.resx` (neutral/en) und `ErrorMessages.de-DE.resx`, je 55 Schlüssel. Alle Ausnahmetexte stammen von hier, nie inline. | `internal` |
+| `Resources` | `ErrorMessages.resx` (neutral/en) und `ErrorMessages.de-DE.resx`, je 65 Schlüssel. Alle Ausnahmetexte stammen von hier, nie inline. | `internal` |
 
 **Zwei ehrliche Auffälligkeiten im Diagramm:**
 
@@ -410,11 +479,20 @@ classDiagram
     +SecurityLevel int
     +Reconstruction(Shares shares) Secret
   }
+  class iReconLevel["IReconstructionWithSecurityLevelUseCase&lt;TNumber&gt;"] {
+    <<interface>>
+    +Reconstruction(Shares shares, int securityLevel) Secret
+  }
   class iSlm["ISecurityLevelManager&lt;TNumber&gt;"] {
     <<interface>>
     +SecurityLevel int
     +MersennePrime Calculator
     +AdjustSecurityLevel(Calculator maximumY) void
+  }
+  class iInspectable["IInspectableSecurityLevelManager&lt;TNumber&gt;"] {
+    <<interface>>
+    +IsValidSecurityLevel(int securityLevel) bool
+    +DetermineSecurityLevel(Calculator maximumY) int
   }
   class splitter["SecretSplitter&lt;TNumber&gt;"] {
     <<sealed>>
@@ -437,10 +515,14 @@ classDiagram
   }
 
   iMakeShares <|.. splitter : implementiert
+  iReconstruction <|-- iReconLevel : ergaenzt die explizite Stufe
   iReconstruction <|.. recBase : implementiert
+  iReconLevel <|.. recBase : implementiert
   recBase <|-- rec : bindet ExtendedGcdResult
   rec <|-- recFixed : erzwingt Fixed-Iteration-GCD
+  iSlm <|-- iInspectable : optionale Faehigkeit
   iSlm <|.. slm : implementiert
+  iInspectable <|.. slm : implementiert
   splitter --> iSlm : besitzt oder leiht
   recBase --> iSlm : besitzt oder leiht
   recBase --> cmp : prueft Index-Eindeutigkeit
@@ -456,9 +538,26 @@ Bemerkenswert an dieser Ebene:
 - **Besitz der Sicherheitsstufe ist explizit.** Splitter und Reconstructor merken sich in einem
   `ownsSecurityLevelManager`-Flag, ob sie den Manager selbst erzeugt haben — nur dann
   entsorgen sie ihn mit.
-- **`SecretReconstructor.SecurityLevel` ist schreibgeschützt.** Jeder
-  `Reconstruction`-Aufruf ruft `AdjustSecurityLevel(maximumY)` und überschreibt eine vom
-  Aufrufer gesetzte Stufe ohnehin; ein Setter wäre eine Lüge.
+- **`SecretReconstructor.SecurityLevel` ist schreibgeschützt.** Sie meldet den Körper, in dem
+  der letzte `Reconstruction`-Aufruf lief. Woher dieser Körper stammt, hat sich mit Issue #403
+  geändert — aus dem an den Shares vermerkten Level, aus dem expliziten Argument des Aufrufers
+  oder, nur für Shares ohne Vermerk, aus dem wertbasierten `AdjustSecurityLevel` —, doch in
+  allen drei Fällen entscheidet der Aufruf darüber und überschreibt eine vom Aufrufer gesetzte
+  Stufe ohnehin; ein Setter wäre weiterhin eine Lüge. Einen Körper benennt man über
+  `Reconstruction(shares, securityLevel)`, pro Aufruf, nicht als Zustand am Reconstructor.
+- **Zwei Schnittstellen kamen hinzu, statt die beiden bestehenden zu verbreitern (Issue #403).**
+  `IReconstructionWithSecurityLevelUseCase<TNumber>` erbt von `IReconstructionUseCase<TNumber>`
+  und ergänzt die Überladung mit expliziter Stufe; `IInspectableSecurityLevelManager<TNumber>`
+  erbt von `ISecurityLevelManager<TNumber>` und ergänzt ein **exaktes** `IsValidSecurityLevel`
+  — der `SecurityLevel`-Setter rundet einen Nicht-Mersenne-Wert nach oben, was fürs Aufteilen
+  richtig und für eine vom Aufrufer benannte Stufe falsch ist — sowie ein
+  `DetermineSecurityLevel`, das auswählt, ohne zu übernehmen; genau das erlaubt der
+  Rekonstruktion, vor der Bewegung des Managers zu validieren. Durch das Erben bleibt jede
+  bestehende Implementierung übersetzbar; die alten TFMs kennen keine Default Interface Members.
+  Ein Manager ohne die zweite Fähigkeit bleibt unterstützt: Dann wird die Stufe gesetzt und
+  zurückgelesen. Schnittstellenvererbung erzeugt keine zweite DI-Registrierung — die neue
+  Schnittstelle muss registriert werden, um auflösbar zu sein (`README.md`, *Dependency
+  Injection*).
 - **`PublicValueEqualityComparer<TNumber>`** existiert, weil `SecureBigInteger.GetHashCode`
   bewusst nur öffentliche Metadaten (Vorzeichen + Limb-Anzahl) hasht. Ohne diesen Comparer
   würden alle kleinen Share-Indizes in denselben Bucket fallen und die Eindeutigkeitsprüfung auf
@@ -614,15 +713,35 @@ sequenceDiagram
     participant GCD as GCD-Strategie
     participant Calc as Calculator-Backend
 
-    App->>Rec: Reconstruction(shares)
+    App->>Rec: Reconstruction(shares) oder Reconstruction(shares, securityLevel)
     Rec->>Rec: mindestens 2 Shares ?
     Rec->>Rec: groesstes y ueber alle Shares bestimmen
-    Rec->>SLM: AdjustSecurityLevel(maximumY)
-    Note over Rec,SLM: Die Stufe wird aus den Shares abgeleitet, nicht vom Aufrufer gesetzt
+    Rec->>Rec: an den Shares vermerkte Stufe lesen
+    alt Aufrufer hat eine Stufe benannt
+        Rec->>Rec: gegen jede vermerkte Stufe pruefen
+    else Shares vermerken eine
+        Rec->>Rec: vermerkte Stufe uebernehmen
+    else Shares vermerken keine, Manager inspizierbar
+        Rec->>SLM: DetermineSecurityLevel(maximumY)
+        Note over Rec,SLM: Nur hier wird der Koerper noch aus den Share-Werten abgeleitet
+    else Shares vermerken keine, Manager nicht inspizierbar
+        Rec->>SLM: AdjustSecurityLevel(maximumY)
+        Note over Rec,SLM: Kompatibilitaetspfad: den Koerper erfaehrt man nur durch Uebernehmen
+    end
     Rec->>Rec: Index-Eindeutigkeit pruefen (HashSet + PublicValueEqualityComparer)
     alt doppelter Index
         Rec-->>App: ReconstructionException
     end
+    alt Manager inspizierbar
+        Rec->>Rec: Koordinaten im Koerper ? Index in (0, p), Wert in [0, p)
+        Rec->>SLM: SecurityLevel = die oben bestimmte Stufe
+    else nicht inspizierbar, Stufe benannt oder vermerkt, noch zu setzen
+        Rec->>SLM: SecurityLevel = die oben bestimmte Stufe
+        Rec->>Rec: Koordinaten im Koerper ? Index in (0, p), Wert in [0, p)
+    else nicht inspizierbar, per AdjustSecurityLevel bereits uebernommen
+        Rec->>Rec: Koordinaten im Koerper ? Index in (0, p), Wert in [0, p)
+    end
+    Note over Rec,SLM: Nur der inspizierbare Pfad garantiert, dass eine abgewiesene Eingabe den Manager stehen laesst
     loop Lagrange-Basispolynome
         Rec->>Calc: Zaehler- und Nennerprodukte ueber alle Index-Differenzen
     end
@@ -643,11 +762,25 @@ Die Rekonstruktion wertet das Lagrange-Interpolationspolynom an `x = 0` aus; das
 genau der konstante Term `a₀` — das Geheimnis. Alle Zwischenwerte sind `Calculator`-Instanzen
 und werden auf jedem Pfad (auch dem Fehlerpfad) über `try/finally` entsorgt.
 
-Der Schritt `AdjustSecurityLevel(maximumY)` am Anfang dieses Ablaufs ist die Stelle, an der der
-Korrektheitsfehler aus Risiko R27 und Issue #403 sitzt. Er wählt den Körper anhand des größten
-Share-Werts, weil die Shares keinen Vermerk über den Modulus tragen, mit dem sie erzeugt wurden —
-und trifft diese Schätzung eine kleinere Primzahl als der Split verwendet hat, läuft die
-Interpolation darunter im falschen Körper. Still, wenn der konstante Term dort einen Rest hat.
+Der Schritt `AdjustSecurityLevel(maximumY)` am Anfang dieses Ablaufs ist seit dem Fix für Issue
+#403 **bedingt**. Er läuft nur, wenn die Shares keinen eigenen Körper festhalten und der Aufrufer
+keinen benannt hat — hält ein Share einen fest oder benennt ein Aufruf einen, wird er von dort
+genommen und die Ableitung übersprungen. Wo sie läuft, verhält sie sich unverändert, und das ist
+der verbliebene Teil von Risiko R27: Sie wählt den Körper anhand des größten Share-Werts, und
+trifft diese Schätzung eine kleinere Primzahl als der Split verwendet hat, läuft die Interpolation
+darunter im falschen Körper. Still, wenn der konstante Term dort einen Rest hat.
+
+**Nur der inspizierbare Pfad garantiert, dass der Zustand des Managers eine Abweisung übersteht.** Mit
+`IInspectableSecurityLevelManager<TNumber>` fällt die Auswahl, ohne sie zu übernehmen; jede
+Prüfung läuft also, solange der Manager noch hält, was er vorher hielt, und eine Abweisung lässt
+Stufe wie Prime-Instanz unberührt. Ein Manager, der älter ist als diese Fähigkeit, kann das nicht
+beantworten: Den Körper einer wertbasierten Auswahl erfährt man nur, indem man ihn übernimmt, und
+den Exponenten selbst prüft man nur, indem man ihn setzt und zurückliest. Auf diesem Pfad können
+Stufe — und mit ihr die Prime-Instanz, die der Setter austauscht — bereits bewegt sein, wenn der
+Aufruf wirft, etwa weil eine Koordinate außerhalb genau des eben gewählten Körpers liegt. Beide
+Ausgänge sind mit `Reconstruction_WithDuplicateIndices_LeavesTheManagerUntouched` und
+`Reconstruction_WithAManagerLackingTheCapability_MayLeaveTheManagerMoved` in beiden
+Backend-Testhierarchien gegeneinander festgenagelt.
 
 ### 6.3 Kritischer Fehlerfall: manipuliertes Share
 
@@ -893,7 +1026,7 @@ Verzweigung auf die Ziffernwerte bei gegebener Größe —, keine absolute.
 | Hex- und Base64-Dekoder (`Share.GetHexValue`, `Secret.DecodeBase64Char`) | Die Zeichenklasse der Eingabe | Verzweigende Bereichs-Switches; als Randparser eingestuft |
 | `Secret.CompareTo` und die Operatoren `<`, `>`, `<=`, `>=` | Die Länge des gemeinsamen Präfixes zweier Geheimnisse | Abbruch beim ersten abweichenden Byte |
 | Per-Divstep-Zeit von `MersenneSafeGcdAlgorithm` | Welcher Divstep-Zweig genommen wurde | Sieben Allokationen je ungerade-`g`-Zweig gegen sechs im geraden Zweig |
-| Über `AdjustSecurityLevel` gewählte Sicherheitsstufe | Das Maximum der Share-Werte, das Share-Inhabern ohnehin bekannt ist | Die Iterationszahl des Inversen folgt der gewählten Stufe |
+| Von `Reconstruction` verwendete Sicherheitsstufe | Die an den Shares vermerkte Stufe, das explizite Argument des Aufrufers oder — nur wo beides fehlt — das Maximum der Share-Werte über `AdjustSecurityLevel`; alle drei sind Share-Inhabern bekannt | Die Iterationszahl des Inversen folgt der gewählten Stufe |
 
 **Nicht klassifiziert.** Das Fehlen in beiden Tabellen ist keine Zusage — es heißt, dass die
 Oberfläche nicht durchgegangen wurde. Das betrifft derzeit unter anderem `ToPinnedCharArray`
@@ -920,9 +1053,9 @@ Drei Stellen ziehen Zufall:
 
 1. Die **Polynomkoeffizienten** `a₁…a_{k−1}` (`SecretSplitter<TNumber>.CreatePolynomial`, Zeile 387), mit Rejection Sampling
    gegen Modulo-Bias und einer Neuziehung, falls der führende Koeffizient null wäre.
-2. Das **Markierungsbyte** am Ende jedes Secrets (`Secret<TNumber>`-Konstruktor, Zeile 193), das negative Werte in der
+2. Das **Markierungsbyte** am Ende jedes Secrets (`Secret<TNumber>`-Konstruktor, Zeile 198), das negative Werte in der
    Zweierkomplement-Interpretation verhindert.
-3. Das **Geheimnis selbst**, wenn es die Bibliothek erzeugt (`Secret<TNumber>.CreateRandom`, Zeile 1131): Die Überladung
+3. Das **Geheimnis selbst**, wenn es die Bibliothek erzeugt (`Secret<TNumber>.CreateRandom`, Zeile 1136): Die Überladung
    `MakeShares(k, n, securityLevel, out generatedSecret)` füllt über `CreateRandom` volle
    `prime.ByteCount` Bytes, bevor der Konstruktor unabhängig davon das Markierungsbyte zieht.
    Das ist die sicherheitskritischste der drei Stellen — hier entsteht das Geheimnis, nicht nur
@@ -953,7 +1086,7 @@ für einen nicht unterstützten Objekttyp ein parameterloses `ArgumentException`
 
 ### 8.5 Lokalisierung
 
-Zwei Ressourcendateien mit je 55 Schlüsseln: `ErrorMessages.resx` (neutral, `en` per
+Zwei Ressourcendateien mit je 65 Schlüsseln: `ErrorMessages.resx` (neutral, `en` per
 `NeutralResourcesLanguage`) und `ErrorMessages.de-DE.resx`. Der Abgleich beider Schlüsselmengen
 erfolgt **von Hand**; ein Build-Check existiert nicht (Risiko R10).
 
@@ -967,29 +1100,39 @@ zurück, dafür in gepinntem Speicher, den der Aufrufer entsorgt.
 
 Redaction ist eine Eigenschaft von `ToString()`, nicht der Typen. Öffentliche **implizite
 Konvertierungen** liefern in beiden Build-Modi echten Inhalt, und zwar ohne jeden syntaktischen
-Aufwand für den Aufrufer: `Secret<TNumber>` nach `TNumber` (Zeile 599), `Calculator<TNumber>`
-(614), `PinnedPoolArray<byte>` (686) und, ab net8, `ReadOnlySpan<byte>` (692); `Shares<TNumber>`
+Aufwand für den Aufrufer: `Secret<TNumber>` nach `TNumber` (Zeile 604), `Calculator<TNumber>`
+(619), `PinnedPoolArray<byte>` (691) und, ab net8, `ReadOnlySpan<byte>` (697); `Shares<TNumber>`
 nach `PinnedPoolArray<char>` (`Shares.cs:122`), was über `ToCharArray()` läuft. Eine Zuweisung
 oder eine Überladungsauflösung genügt, um eine davon auszulösen — „nur die expliziten Pfade geben
 Inhalt heraus" wäre also falsch: Die expliziten Pfade sind die, die man *sieht*.
 
 ### 8.7 Serialisierungsformat
 
-Ein Share serialisiert als `INDEX-VALUE`, beide Teile hexadezimal, Trennzeichen `-`. Mehrere
-Shares werden zeilenweise aneinandergereiht. Das Format enthält **keine** Metadaten: weder
-Sicherheitsstufe noch Schwellwert `k`, noch die Textkodierung des ursprünglichen Geheimnisses.
-Die Sicherheitsstufe wird bei der Rekonstruktion aus dem größten y-Wert zurückgerechnet; `k`
-die Kodierung ist Aufrufer-Verantwortung (Risiko R11).
+Ein Share serialisiert standardmäßig als `INDEX-VALUE`, beide Teile hexadezimal, Trennzeichen
+`-`; die dreisegmentige Form `INDEX-VALUE-LEVEL` ist optional und unten beschrieben. Mehrere
+Shares werden zeilenweise aneinandergereiht. Das Format enthält **weder** den Schwellwert `k`
+**noch** die Textkodierung des ursprünglichen Geheimnisses. Die Sicherheitsstufe ist das einzige
+Metadatum, das es tragen kann, und auch nur, wenn der Aufrufer es verlangt; liegt keine Stufe vor,
+rechnet die Rekonstruktion sie aus dem größten y-Wert zurück. Die Kodierung bleibt
+Aufrufer-Verantwortung (Risiko R11).
 
 **Der ursprüngliche Schwellwert `k` steht nicht im Format und lässt sich nicht aus der Anzahl
 übergebener Shares ableiten.** `Reconstruction` prüft nur die allgemeine Untergrenze von zwei
-(`SecretReconstructor`, Zeilen 299 und 170) — zwei Shares eines 3-aus-5-Splits laufen also
+(`SecretReconstructor`, Zeilen 361 und 172) — zwei Shares eines 3-aus-5-Splits laufen also
 anstandslos durch und interpolieren ein falsches Geheimnis. Aufrufer müssen `k` selbst vorhalten
 und sicherstellen, dass mindestens `k` unterschiedliche Shares *derselben* Aufteilung vorliegen;
 die Bibliothek kann eine Unterschreitung des ursprünglichen Schwellwerts nicht erkennen. Das ist
-unabhängig vom Körperwahl-Fehler aus R27 — es passiert auch bei unverändertem Körper. Dass die Stufe zurückgerechnet und nicht mitgeführt wird,
-spart nicht nur Platz — es ist die unmittelbare Ursache des Korrektheitsfehlers in Risiko R27 und
-Issue #403, und der Fix erweitert genau dieses Format um den Exponenten.
+unabhängig vom Körperwahl-Fehler aus R27 — es passiert auch bei unverändertem Körper.
+
+**Die Sicherheitsstufe kann jetzt mitgeführt werden.** `ShareFormat.Extended` schreibt
+`INDEX-VALUE-LEVEL`, den Exponenten hexadezimal im dritten Segment; `ShareFormat.Legacy` schreibt
+die zweiteilige Form und bleibt auf jeder bestehenden Signatur der Default, es hat sich also keine
+Ausgabe geändert. Der Parser nimmt beide Formen und übernimmt ein drittes Segment, wenn es da ist.
+Die Stufe steht hinten, damit ein älterer Leser laut scheitert statt falsch zu lesen — er nimmt den
+ersten Separator und behandelt den Rest als Wert, wo der zweite Separator keine Hex-Ziffer ist.
+Dass die Stufe zurückgerechnet und nicht mitgeführt wurde, war die unmittelbare Ursache des
+Korrektheitsfehlers in Risiko R27 und Issue #403; dass dieses Format sie jetzt tragen kann, nimmt
+die Ursache weg — und zwar nur für Shares, die auch so geschrieben werden.
 
 ### 8.8 Mehrfachziel-Kompilierung
 
@@ -1035,7 +1178,7 @@ am Codestand `d920257` über die 56 versionierten Testdateien gemessen:
   aus; wo Aktion und Prüfung untrennbar sind, steht ein zusammengezogenes `// Act & Assert`.
 - **Jede Allokation bindet per `using`** — auch Operator-Ergebnisse (`+`, `-`, `*`, `/`, `%`),
   `Calculator<T>.Zero/One/Two`, Inline-Erwartungswerte und Schleifen-Zwischenwerte; 1.209
-  `using var`-Deklarationen auf 822 Testmethoden. Ein vergessenes `using` hält einen gepinnten
+  `using var`-Deklarationen auf 963 Testmethoden. Ein vergessenes `using` hält einen gepinnten
   Puffer bis zum AppDomain-Ende am Leben.
 - **Zwei gespiegelte Testhierarchien**, je eine für `BigInteger` und `SecureBigInteger` — sichtbar
   an den Geschwisterverzeichnissen `tests/Cryptography/{BigInteger,SecureBigInteger}/`,
@@ -1092,6 +1235,7 @@ am Codestand `d920257` über die 56 versionierten Testdateien gemessen:
 | 6 | `IRandomSource` bleibt `internal` statt öffentlich injizierbar | `src/Cryptography/IRandomSource.cs`, PR #334 | Bewusster Verzicht auf Testbarkeitskomfort nach außen aus Sicherheitsgründen. |
 | 7 | Mutationstests (Stryker.NET) geparkt statt repariert | GitHub-Issue #343 | Eine Qualitätsmaßnahme wurde aktiv zurückgebaut — der Grund (Stryker misst xUnit v3 nicht) gehört festgehalten. |
 | 8 | Acht Ziel-Frameworks beibehalten trotz `#if`-Aufwand | `src/SecretSharingDotNet.csproj:8` | Die Gegenposition (nur netstandard2.0 + net8/9/10) steht bereits im Raum; die Beibehaltung ist die aktive Entscheidung. |
+| 9 | Das Sicherheitslevel reist am Share mit (`int?`), nimmt an der Gleichheit teil, und `ShareFormat.Legacy` bleibt die Vorgabe der Serialisierung | `CHANGELOG.md` `[Unreleased]`, Issue #403 | Vier bindende Entscheidungen in einer Änderung: `int?` statt eines Sentinel-Werts; das Level in `Equals`/`GetHashCode`, ein Share ohne Vermerk ist also keinem mit Vermerk gleich; eine neue erbende Schnittstelle statt eines verbreiterten `IReconstructionUseCase<TNumber>`; und die alte zweisegmentige Form als Vorgabe beibehalten — Letzteres lässt den Fehler für Shares, die über den Standardpfad geschrieben werden, bewusst offen, und eine Umkehr wäre breaking. |
 
 ---
 
@@ -1126,18 +1270,13 @@ Qualität von SecretSharingDotNet
 | **Q3** | Ein Prüfer verlangt den Nachweis, dass keine schwache Zufallsquelle im Spiel ist. | Es gibt genau eine Zufallsquelle: `RandomNumberGenerator` hinter `SecureRandom`/`IRandomSource`. Ein `grep` nach `System.Random` in `src/` liefert null Treffer. |
 | **Q4** | Ein passiver Beobachter misst die Laufzeit von `SecureBigInteger.Equals` für zwei Geheimnisse mit langem gemeinsamem Präfix gegen zwei mit sofort abweichendem Byte. | **Nicht gemessen** — die Suite enthält keinen positiven Timing-Test (8.11), also darf hier kein empirisches Ergebnis stehen. Strukturell begründet: `Equals` füllt vorab auf `max(l, r)` auf und faltet die volle Länge per XOR-OR ohne Kurzschluss, einheitlich über alle sechs TFMs — es gibt also keinen eingabeabhängigen Ausstieg, den ein Beobachter finden könnte. |
 | **Q5** | Derselbe Beobachter misst `SecureBigInteger.Multiply` mit kleinen gegen 512-Bit-Operanden. | Der Timing-Harness **muss** hier einen Unterschied melden (`HarnessSelfTest`, Welch-t bei p < 0,001). Schlägt diese Negativkontrolle fehl, misst der Harness nichts Reales und ist als Werkzeug ungültig. |
-| **Q6** | Ein Geheimnis wird mit beliebigem `2 ≤ k ≤ n` aufgeteilt; anschließend wird eine **beliebige** k-elementige Teilmenge der n Shares zur Rekonstruktion verwendet. | **Gewünscht:** Das rekonstruierte Geheimnis ist bitgleich zum Original; das leistet die Lagrange-Interpolation für *jede* qualifizierende Teilmenge. **Heute geliefert: nicht immer.** `Reconstruction` passt das Sicherheitslevel an den größten Share-Wert an, und die Interpolation läuft dann in einem kleineren Körper als der Split — mit dem Ergebnis, dass entweder kein dekodierbares Geheimnis herauskommt (Exception) oder ein anderes Geheimnis ohne jede Exception. Dafür muss der konstante Term die neu gewählte Primzahl **nicht** erreichen: Die Share-Werte tragen Reduktionen aus dem ursprünglichen Körper, weshalb auch ein Geheimnis, das bequem in beide Körper passt, falsch zurückkommen kann (Gegenbeispiel in R27). Beide Ausgänge sind mit `Reconstruction_WhenConstantTermReachesTheRefittedPrime_LosesTheSecret` in beiden Backend-Testhierarchien deterministisch festgenagelt. Erfasst als **Issue #403** und als Risiko R27. Nicht die Teilmengen-Eigenschaft versagt, sondern die Körperwahl. Die Tests belegen von der gewünschten Eigenschaft einen Ausschnitt: Die property-basierten CsCheck-Tests (250 Iterationen für `BigInteger`, 50 für `SecureBigInteger`, über beide Backends gespiegelt) ziehen die Teilmenge als zyklisches Fenster über die indexsortierten Shares, also `n` der `C(n, k)` möglichen Kombinationen. |
-| **Q7** | Zwei Shares mit identischem Index werden zur Rekonstruktion gereicht. | `ReconstructionException` statt einer generischen `ArgumentException`. Sie fällt beim ersten Duplikat, das die Prüfung findet — aber nicht vor der übrigen Arbeit: `Reconstruction` materialisiert erst die Sammlung, sucht über alle Shares das `maximumY` und ruft `AdjustSecurityLevel`, der Manager ist also bereits mutiert, wenn `LagrangeInterpolate` die Distinktheitsprüfung beginnt. |
+| **Q6** | Ein Geheimnis wird mit beliebigem `2 ≤ k ≤ n` aufgeteilt; anschließend wird eine **beliebige** k-elementige Teilmenge der n Shares zur Rekonstruktion verwendet. | **Gewünscht:** Das rekonstruierte Geheimnis ist bitgleich zum Original; das leistet die Lagrange-Interpolation für *jede* qualifizierende Teilmenge. **Geliefert: für Shares, die ihren Körper mitführen.** Ein von `MakeShares` erzeugtes Share trägt sein Sicherheitslevel, und `Reconstruction` interpoliert in diesem Körper, statt einen aus den Share-Werten abzuleiten — festgenagelt durch `Reconstruction_WhenAShareValueWrappedInTheOriginalField_RestoresTheSecret` in beiden Backend-Testhierarchien, also genau dem Vektor, der das Geheimnis früher verlor. Shares, die nichts mitführen — aus der alten `INDEX-VALUE`-Form geparst oder aus blanken Koordinaten gebaut —, laufen weiterhin durch die wertbasierte Auswahl und können weiterhin in einem kleineren Körper landen als der Split: Entweder kommt kein dekodierbares Geheimnis heraus (Exception) oder ein anderes Geheimnis ohne jede Exception. Beide Restausgänge bleiben durch `Reconstruction_WhenSharesCarryNoLevel_StillRefitsDownward` und `Reconstruction_WhenSharesCarryNoLevelAndTheCoefficientCollapses_ThrowsNamingTheExponent` festgenagelt. Der Ausweg dafür heißt `Reconstruction(shares, securityLevel)` oder `Shares<TNumber>.ReissueWithSecurityLevel`. Behoben unter **Issue #403**; den verbleibenden Umfang trägt R27. Nicht die Teilmengen-Eigenschaft hat je versagt, sondern die Körperwahl. Die property-basierten CsCheck-Tests (250 Iterationen für `BigInteger`, 50 für `SecureBigInteger`, über beide Backends gespiegelt) ziehen die Teilmenge über einen Kombinationsrang: Jede der `C(n, k)` Teilmengen ist damit erreichbar, und Kombinationen mit Lücken kommen vor — nicht nur die `n` zusammenhängenden Läufe, die das frühere zyklische Fenster benennen konnte. Dass die Abbildung von Rang auf Teilmenge eine Bijektion ist, wird geprüft statt angenommen, durch `Combination_OverTheGeneratedParameterSpace_IsABijectionOntoTheSubsets`. |
+| **Q7** | Zwei Shares mit identischem Index werden zur Rekonstruktion gereicht. | `ReconstructionException` statt einer generischen `ArgumentException`. Sie fällt beim ersten Duplikat, das die Prüfung findet, und `EnsureDistinctIndices` läuft in der Validierungsphase von `ReconstructionCore` — **bevor** das Sicherheitslevel übernommen wird. Ein doppelter Index macht den Lagrange-Nenner in jedem Körper zu null, die Prüfung braucht also gar kein Level, und eine abgewiesene Eingabe lässt den Manager dort stehen, wo er war. Ein Pfad ist die Ausnahme davon: Tragen die Shares kein Level und ist der `ISecurityLevelManager<TNumber>` kein `IInspectableSecurityLevelManager<TNumber>`, gibt es keinen Weg zu einem Kandidaten außer `AdjustSecurityLevel`, und dieser Aufruf liegt vor der Distinktheitsprüfung — dort ist der Manager beim Auftauchen des Duplikats also bereits bewegt. |
 | **Q8** | Ein Verhalten wird in der `BigInteger`-Testhierarchie geändert, in der `SecureBigInteger`-Hierarchie aber nicht. | Die Abweichung fällt **im Review** auf, weil die gespiegelte Datei der naheliegende Ort zum Nachsehen ist — nicht durch einen fehlschlagenden Test. Die beiden Suiten sind unabhängig, und die Spiegelung wird nirgends erzwungen (siehe den offenen Punkt in 8.11). Rot wird ein Test nur, wenn die zugrunde liegende Produktivänderung auch das andere Backend bricht. |
 | **Q9** | Ein Commit erreicht `develop` **und passt auf die Pfadfilter von `dotnetall.yml`** (also alles außer reinen Markdown-Änderungen; `README.md` ist wieder eingeschlossen, weil sie Pack-Eingabe ist). | Build und Tests laufen über **alle** sechs Test-TFMs grün: `net8.0`/`net9.0`/`net10.0` auf `ubuntu-24.04`, `net472`/`net48`/`net481` auf `windows-2025`. Ein roter TFM blockiert den Merge. Für ausgeschlossene Änderungen — etwa diese Architekturdateien — läuft **keine** Testmatrix; dort trägt das Szenario nichts bei. |
-| **Q10** | Ein neuer Test wird geschrieben. | Er trägt AAA-Marker, bindet jede Allokation per `using` und existiert in beiden Backend-Hierarchien (Kapitel 8.11). Durchgesetzt wird das im Review, nicht durch ein Werkzeug — siehe den offenen Punkt in 8.11. Aktueller Stand: 822 Testmethoden (639 `[Fact]`, 183 `[Theory]`) über 44 Testklassen. |
+| **Q10** | Ein neuer Test wird geschrieben. | Er trägt AAA-Marker, bindet jede Allokation per `using` und existiert in beiden Backend-Hierarchien (Kapitel 8.11). Durchgesetzt wird das im Review, nicht durch ein Werkzeug — siehe den offenen Punkt in 8.11. Aktueller Stand: 963 Testmethoden (758 `[Fact]`, 205 `[Theory]`) über 46 Testklassen. |
 | **Q11** | Ein Release wird zweimal aus demselben Tag gebaut. | Identische Artefakte: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode`-Restore gegen `packages.lock.json`, SDK-Versionen exakt gepinnt (8.0.423 / 9.0.316 / 10.0.302). |
 | **Q12** | Ein Consumer kombiniert das `SecureBigInteger`-Backend versehentlich mit der variabelzeitigen `ExtendedEuclideanAlgorithm`. | Wenn er `FixedIterationSecretReconstructor<TNumber>` verwendet: **Compile-Fehler** (der Konstruktor nimmt nur `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Über den Basistyp `SecretReconstructor<TNumber>` bleibt die Kombination möglich — das ist ein dokumentiertes Opt-out, kein Versehen. |
-
-> **Offen:** Die Teilmengen-Abdeckung in Q6 ist zyklisch, nicht kombinatorisch. Ein Defekt, der
-> nur bei nicht zusammenhängenden Index-Kombinationen auftritt, bliebe darum grün. Benötigt:
-> entweder ein Generator, der echte `k`-Kombinationen zieht (für kleine `n` erschöpfend), oder die
-> bewusste Entscheidung, dass die zyklische Stichprobe als Abdeckung genügt.
 
 > **Offen:** Für nichtfunktionale *Performance*-Ziele existiert keine Vorgabe — weder ein
 > Durchsatz- noch ein Latenzbudget, weder eine Benchmark-Suite noch Messwerte. Der
@@ -1153,9 +1292,12 @@ Die Tabelle führt die Architektur- und Sicherheitsbefunde zusammen. Die Spalte 
 jeweils die Fundstelle, an der sich der Befund nachprüfen lässt — eine Datei-/Zeilenangabe im
 Repository, ein Abschnitt der `README.md` oder eine öffentliche PR-/Issue-Nummer. **Kein offener
 Befund hat den Schweregrad Hoch im Sinne einer aktiven Sicherheitslücke**: Die beiden einzigen
-Medium-Befunde am Geheimnispfad (`GetHashCode` hashte Inhalte statt Metadaten, und
-`Equals`/`GetHashCode` waren vertragswidrig) sind mit PR #327 geschlossen. Die verbliebenen
-Einträge sind Wartungslast, Fehlbedienungsrisiken und dokumentierte Trade-offs.
+Medium-Vertraulichkeitsbefunde am Geheimnispfad (`GetHashCode` hashte Inhalte statt Metadaten, und
+`Equals`/`GetHashCode` waren vertragswidrig) sind mit PR #327 geschlossen. R27 war der einzige
+Hoch-Eintrag — ein Korrektheits-, kein Vertraulichkeitsbefund; Issue #403 hat seine Ursache für
+Shares beseitigt, die ihren Körper mitführen, und was davon bleibt, ist auf Shares beschränkt, die
+das nicht tun. Die verbliebenen Einträge sind Wartungslast, Fehlbedienungsrisiken und dokumentierte
+Trade-offs.
 
 | # | Risiko / Schuld | Schweregrad | Auswirkung | Gegenmaßnahme | Beleg |
 |---|---|---|---|---|---|
@@ -1167,12 +1309,12 @@ Einträge sind Wartungslast, Fehlbedienungsrisiken und dokumentierte Trade-offs.
 | **R6** | **Namespace-Zyklus `SecureMemory ↔ Extension`** und die Doku-Aufwärtskante `Math → Cryptography.ShamirsSecretSharing`. | Niedrig | Keine Laufzeitwirkung (ein Assembly, beide Seiten `internal` bzw. kommentar-only), aber die Schichtung ist nicht mehr azyklisch beweisbar. | `PinnedPoolArrayList.DisposeAll` lokal auflösen; den doc-only `using` durch einen voll qualifizierten `cref` ersetzen. | Kapitel 5.2 (diese Doku) |
 | **R7** | **`Secret<TNumber>` ist ein `readonly struct` über gemeinsamem Puffer.** Eine Wertkopie aliast den Speicher; `Dispose` auf einer Kopie entwertet alle. | Mittel | Klassischer Fußangel-Fall für Consumer; heute nur per XML-Kommentar abgesichert. | Migration zu `sealed class` — vorgemerkt für den nächsten Breaking-Change-Zyklus. | XDoc an `Secret<TNumber>`, ab Zeile 50 |
 | **R8** | **Kein `IAsyncDisposable`; `ConsolePasswordReader.ReadPassword` blockiert.** | Mittel | In ASP.NET- oder Worker-Hosts werden Threads blockiert. | `IAsyncDisposable` auf den großen Disposables; `ReadPasswordAsync(CancellationToken)`. | kein `IAsyncDisposable` in `src/`; `ConsolePasswordReader.cs:86` |
-| **R9** | **Keine Integritätsprüfung pro Share.** Ein manipuliertes Share führt zu einem stillen, falschen Ergebnis (siehe Ablauf 6.3). | Mittel (bewusst, dokumentiert) | Consumer, die Share-Manipulation im Bedrohungsmodell haben, sind ohne eigene Maßnahme ungeschützt. | Im Threat Model offen benannt; Consumer müssen signierte Shares, HMAC-Umschläge oder VSS darüberlegen. Eine VSS-Implementierung steht nicht auf der Roadmap. | `README.md`, *Security & Threat Model* |
-| **R10** | **Kein Build-Check auf Schlüsselgleichheit der beiden `.resx`.** | Niedrig | Ein fehlender de-DE-Schlüssel fällt erst zur Laufzeit auf (Fallback auf Englisch). | Build-Target oder Analyzer, der beide Schlüsselmengen diffed — oder die de-DE-Ressource fallen lassen. | `src/Resources/ErrorMessages.resx` und `…de-DE.resx`, je 55 Schlüssel |
+| **R9** | **Keine Integritätsprüfung pro Share.** Ein manipuliertes Share führt zu einem stillen, falschen Ergebnis (siehe Ablauf 6.3). Das gilt auch für das vermerkte Sicherheitslevel: Die Rekonstruktion weist Level ab, die einander widersprechen — das erkennt Inkonsistenz, nicht Manipulation; ein auf allen Shares gleich verändertes Level passiert und kann ein falsches Geheimnis liefern. | Mittel (bewusst, dokumentiert) | Consumer, die Share-Manipulation im Bedrohungsmodell haben, sind ohne eigene Maßnahme ungeschützt. | Im Threat Model offen benannt; Consumer müssen signierte Shares, HMAC-Umschläge oder VSS darüberlegen, die das Level zusammen mit den Koordinaten abdecken. Eine VSS-Implementierung steht nicht auf der Roadmap. | `README.md`, *Security & Threat Model* |
+| **R10** | **Kein Build-Check auf Schlüsselgleichheit der beiden `.resx`.** | Niedrig | Ein fehlender de-DE-Schlüssel fällt erst zur Laufzeit auf (Fallback auf Englisch). | Build-Target oder Analyzer, der beide Schlüsselmengen diffed — oder die de-DE-Ressource fallen lassen. | `src/Resources/ErrorMessages.resx` und `…de-DE.resx`, je 65 Schlüssel |
 | **R11** | **Textkodierung wird nicht im Share persistiert.** Split mit `Encoding` A und Rekonstruktion mit `Encoding` B liefert stillen Datenmüll. | Niedrig | Betrifft nur, wer die `Encoding`-Überladungen bewusst nutzt; der Default UTF-8 ist auf beiden Seiten gleich. | Als Aufrufer-Verantwortung an den `Encoding`-Überladungen dokumentieren (offener Doku-Fix). | `CHANGELOG.md` `[0.14.0]`; `README.md` |
 | **R13** | **Mutationstests messen nichts.** Stryker.NET 4.16.0 kann die xUnit-v3/MTP-Suite nicht instrumentieren; der erste grüne CI-Lauf war ein **False Green** (0,00 %, 1248/1248 überlebt). | Niedrig (blockiert extern) | Es gibt keine belastbare Aussage zur Testschärfe jenseits der Abdeckung. | Workflow geparkt, Konfiguration als Wiederbelebungshilfe behalten; getrackt in GitHub-Issue #343. Blockiert durch stryker-net #3117/#3094. | `.config/dotnet-tools.json` (Stryker 4.16.0); GitHub-Issue #343 |
 | **R14** | **Deferred: konstante Laufzeit für Hex-/Base64-Dekoder und `Secret.CompareTo`.** Erstere sind verzweigende Randparser, letzteres bricht beim ersten abweichenden Byte ab und verrät die gemeinsame Präfixlänge. | Niedrig (im Threat Model benannt) | Sortieren oder Vergleichen von Geheimmaterial ist zeitlich beobachtbar; nur Gleichheit ist CT. | Verzweigungsfreie Varianten sind entworfen und für einen eigenen PR-Zyklus geparkt; `[Obsolete]`-Markierungen auf den Relationaloperatoren sind eine Option. | `README.md`, *Security & Threat Model* |
-| **R15** | **`Secret.CreateRandom` ist für kleine Sicherheitsstufen entropie-suboptimal** (Stufe 13/17 ≈ 8 Bit, Stufe 31 ≈ 24 Bit; empirisch über 3000 Ziehungen). | Niedrig | Betrifft nur die ohnehin abgeratenen kleinen Stufen; ab Stufe 127 bleiben ≈ p−8 Bit. | Ein lokaler Fix (uniformes Rejection Sampling) wurde implementiert und **verworfen**: Er bricht den Round-Trip, weil das Markierungsbyte repräsentationsseitig an die Primzahl gekoppelt ist. Echter Fix ist architektonisch. | `Secret<TNumber>.CreateRandom`, ab Zeile 1128 |
+| **R15** | **`Secret.CreateRandom` ist für kleine Sicherheitsstufen entropie-suboptimal** (Stufe 13/17 ≈ 8 Bit, Stufe 31 ≈ 24 Bit; empirisch über 3000 Ziehungen). | Niedrig | Betrifft nur die ohnehin abgeratenen kleinen Stufen; ab Stufe 127 bleiben ≈ p−8 Bit. | Ein lokaler Fix (uniformes Rejection Sampling) wurde implementiert und **verworfen**: Er bricht den Round-Trip, weil das Markierungsbyte repräsentationsseitig an die Primzahl gekoppelt ist. Echter Fix ist architektonisch. | `Secret<TNumber>.CreateRandom`, ab Zeile 1133 |
 | **R16** | **Weitere Low/Info-Fußangeln:** `PinnedPoolArray.PoolArray` gibt den rohen Puffer heraus; `Secret` hat implizite Reveal-Konvertierungen nach `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` und, ab net8, `ReadOnlySpan<byte>` — der `byte[]`-Operator läuft in die andere Richtung, in ein `Secret` hinein; `Shares` übernimmt stillschweigend den Besitz übergebener Share-Arrays; `(length + 7) / 8` kann bei ~2 GB Eingabe überlaufen; die Reduktionsschleife in `Secret.CreateRandom` ist datenabhängig. | Niedrig | Jeweils Fehlbedienungsrisiko, keine aktive Lücke. | Dokumentierte Trade-offs; Härtung einzeln möglich. | `PinnedPoolArray<T>.PoolArray` (Z. 225), `Secret<TNumber>` (Z. 599, 614, 686, 692), `Shares<TNumber>` (Z. 82), `SecureBigInteger` (Z. 268), `Secret<TNumber>.CreateRandom` |
 | **R17** | **Kein `MIGRATION.md`, keine öffentliche v1.0-Roadmap.** Die API-Freeze-Kriterien existieren nur als interne Notiz. | Niedrig | Consumer können den Reifegrad nicht einschätzen. | `MIGRATION.md` und eine öffentliche Roadmap ergänzen. | Repository enthält kein `MIGRATION.md` |
 | **R18** | **Breite `InternalsVisibleTo`-Kopplung.** Die Testsuite erreicht alle `internal`-Typen; Refactoring-Widerstand steigt. | Niedrig | Interne Umbauten brechen Tests, obwohl die öffentliche API unverändert bleibt. | Testoberfläche minimieren, wo öffentliche API-Tests reichen; verbleibende `internal`-Bedarfe dokumentieren. | `src/SecretSharingDotNet.csproj` (`InternalsVisibleTo`-Items) |
@@ -1183,10 +1325,11 @@ Einträge sind Wartungslast, Fehlbedienungsrisiken und dokumentierte Trade-offs.
 | **R23** | **`SecurityLevelManager` ist nur beim Tausch thread-sicher, nicht beim Lesen.** Der `MersennePrime`-Getter läuft ohne Lock; der Setter entsorgt die alte Primzahl außerhalb des Locks. | Niedrig | Ein nebenläufiger Leser, der die Referenz über einen Stufenwechsel hinweg hält, greift auf einen entsorgten `Calculator`. Nur erreichbar, wenn ein Manager zwischen Use Cases geteilt wird. | Der XDoc des Interface benennt die Entwertung bereits; Kapitel 8.9 rät jetzt ausdrücklich vom Teilen ab. Eine Härtung müsste den Getter unter dasselbe Lock ziehen und die Besitzfrage der herausgegebenen Referenz klären. | `SecurityLevelManager.MersennePrime` (Getter ohne `lock`) gegen `oldPrime?.Dispose()` nach dem Lock |
 | **R24** | **Ergebnisnormalisierung ist nicht konstantzeitig.** `TrimLeadingZerosInPlace` bricht beim ersten Nicht-Null-Limb ab; die getrimmte Länge dimensioniert die Folgeoperation. | Niedrig | Die Laufzeit jeder Kernoperation hängt an der Größe des Ergebnisses, und die Limb-Anzahl von Zwischenwerten ist geheimnisabgeleitet statt öffentlich. Absolut klein (höchstens ein `ulong`-Vergleich je Limb), strukturell aber in allen sechs Operationen vorhanden. | Nur mit fester Ergebnisbreite lösbar, die nie trimmt — ein Eingriff in die Darstellung von `SecureBigInteger` samt Folgen für Speicherbedarf und `Equals`. Vorerst offen benannt statt zugesagt. | `SecureBigInteger.GetActualLength` (Abwärts-Scan mit Early Return), aufgerufen aus dem Limb-Ctor |
 | **R25** | **`ByteCount` ist wertabhängig und liegt auf dem Geheimnispfad.** Early Return bei Null-High-Limb, sonst `BytesInLimb` — eine Schleife über die signifikanten Bytes des obersten Limbs. | Niedrig | Die Laufzeit verrät die Byte-Länge des Werts, feiner als die Limb-Granularität aus R24. Ausgewertet über Share-Werte (`AdjustSecurityLevel`), das Geheimnis selbst und Polynomkoeffizienten. | Eine konstantzeitige Variante müsste über alle acht Byte-Positionen laufen und per Maske auswählen statt abzubrechen — lokal machbar, aber `ByteCount` wird häufig aufgerufen. | `SecureBigInteger.ByteCount` und `BytesInLimb` (Zeile 442) |
-| **R26** | **Vorzeichenzweige laufen auf den Zwischenwerten des Modularinversen — aber nicht auf dem Geheimnis.** `ApplyExtendedDivstep` rechnet auf den vorzeichenbehafteten Bézout-Koeffizienten (`newUG = uG - uF` wird bei der ersten Branch-1-Iteration negativ: beim ersten Divstep, wenn der normalisierte Nenner ungerade ist, sonst später, weil der Zweig für gerades `g` das `uG` unverändert durchreicht); `MersenneModulo` und `IsOne` tragen eigene Vorzeichenzweige; der von `MersenneModulo` wird in `Compute` selbst erreicht, das pro Aufruf zwei vorzeichenbehaftete Zwischenwerte reduziert (`beta * inv2n` und `alpha * inv2n`) und den Negativpfad für den jeweils negativen nimmt, nicht von `DivMod` aus. Innerhalb dieser Bibliothek sieht keiner davon geheime Daten: Die einzige Aufrufstelle von `Compute` übergibt den normalisierten *Nenner* und die Primzahl, und beide `DivMod`-Aufrufstellen bilden diesen Nenner aus Differenzen der öffentlichen Share-Indizes — die Share-Werte gehen in den *Zähler*, der `Compute` nie erreicht. | Niedrig | Bei festem Level ist die Divstep-Historie eine Funktion der öffentlichen Indizes; die Rekonstruktion verrät hier also nichts über die bereits dokumentierte Level-Auswahl hinaus (der Exponent wird aus den Share-Werten bestimmt und damit von den Share-Größen verraten). Betroffen sind Anwender, die `SecureBigInteger` oder `MersenneSafeGcdAlgorithm` direkt mit vorzeichenbehafteten geheimen Operanden aufrufen: Die Laufzeit unterscheidet gleich- von gemischtvorzeichigen Operanden, und `MersenneModulo`s Negativpfad kostet drei zusätzliche Limb-Schleifen, ein `SubtractInPlace` und eine weitere Allokation. | Vorzeichenbehaftete Koeffizienten in Betrag plus separates Vorzeichenbit zerlegen und maskengesteuert rechnen — dieselbe Richtung wie die geparkte verzweigungsfreie Divstep-Variante. | `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` (Zeilen 497–511); `SecureBigInteger.MersenneModulo` (Negativzweig) und `IsOne`; `SecretReconstructor.LagrangeInterpolate` (Zeilen 254, 262) und `DivMod` (Zeile 380) |
-| **R27** | **Die Level-Anpassung kann das falsche Geheimnis liefern (Issue #403).** `Reconstruction` bestimmt den Körper über `AdjustSecurityLevel` aus dem größten y-Wert der Shares und läuft dabei zur kleinsten Mersenne-Primzahl hinunter, die noch darüber liegt. Ein Share trägt keinen Vermerk über den Modulus, mit dem es erzeugt wurde — fallen also alle Share-Werte der übergebenen Teilmenge zufällig unter eine kleinere Primzahl, läuft die Interpolation in diesem kleineren Körper. **Ein Geheimnis, das in beide Körper passt, ist davor nicht sicher.** Die Share-Werte wurden bereits modulo der ursprünglichen Primzahl reduziert; ein Wert, der dabei übergelaufen ist, liegt im kleineren Körper nicht mehr auf dem Polynom — seine Interpolation kann dann weder `a₀` noch `a₀ mod P_small` ergeben, sondern einen unverwandten Rest. Nicht jeder Feldwechsel verdirbt das Ergebnis — ist in der Teilmenge kein Wert übergelaufen oder heben sich die Überläufe auf, stimmt es weiterhin. Genau deshalb versteckt sich der Fehler so gut. Von Hand nachgerechnetes Gegenbeispiel: Geheimnis `FF` mit Mark-Byte `01` ergibt `a₀ = 511`; Split auf Level 17 (`P = 131071`) mit `f(x) = 511 + 489x` und 2-aus-280, die Shares `(1, 1000)` und `(280, 6360)` liegen beide unter `M13 = 8191`, die Rekonstruktion wechselt also auf Level 13 und liefert **7469**, was zum Payload-Byte `2D` statt `FF` dekodiert — obwohl `511 < 8191`. | **Hoch** (Korrektheit, nicht Vertraulichkeit) | Zwei Ausgänge, und der zweite ist der gefährliche: Der interpolierte Koeffizient dekodiert zu keinem Geheimnis und es fliegt eine Exception — oder er dekodiert zu einem **anderen** Geheimnis, und es passiert gar nichts. Die Shares sind dabei durchweg einzeln gültig und unmanipuliert, keine Integritätsprüfung würde anschlagen. Ein erfolgloser Zufallssweep belegt weder allgemeine Fehlerfreiheit noch eine Fehlerwahrscheinlichkeit: Ein Lauf über 180.000 Splits fand nichts, während gezielte Gegenbeispiele beide Fehlerausgänge zeigen. | Das Sicherheitslevel am Share mitführen und bei der Rekonstruktion verwenden statt zu raten, mit einer Überladung für explizite Level als Ausweg für Alt-Shares. Stufenplan und offene API-Entscheidungen in Issue #403. | `SecurityLevelManager.AdjustSecurityLevel`; `SecretReconstructor.Reconstruction`; `Reconstruction_WhenConstantTermReachesTheRefittedPrime_LosesTheSecret` in beiden Backend-Testhierarchien |
+| **R26** | **Vorzeichenzweige laufen auf den Zwischenwerten des Modularinversen — aber nicht auf dem Geheimnis.** `ApplyExtendedDivstep` rechnet auf den vorzeichenbehafteten Bézout-Koeffizienten (`newUG = uG - uF` wird bei der ersten Branch-1-Iteration negativ: beim ersten Divstep, wenn der normalisierte Nenner ungerade ist, sonst später, weil der Zweig für gerades `g` das `uG` unverändert durchreicht); `MersenneModulo` und `IsOne` tragen eigene Vorzeichenzweige; der von `MersenneModulo` wird in `Compute` selbst erreicht, das pro Aufruf zwei vorzeichenbehaftete Zwischenwerte reduziert (`beta * inv2n` und `alpha * inv2n`) und den Negativpfad für den jeweils negativen nimmt, nicht von `DivMod` aus. Innerhalb dieser Bibliothek sieht keiner davon geheime Daten: Die einzige Aufrufstelle von `Compute` übergibt den normalisierten *Nenner* und die Primzahl, und beide `DivMod`-Aufrufstellen bilden diesen Nenner aus Differenzen der öffentlichen Share-Indizes — die Share-Werte gehen in den *Zähler*, der `Compute` nie erreicht. | Niedrig | Bei festem Level ist die Divstep-Historie eine Funktion der öffentlichen Indizes; die Rekonstruktion verrät hier also nichts über die bereits dokumentierte Level-Auswahl hinaus (der Exponent wird aus den Share-Werten bestimmt und damit von den Share-Größen verraten). Betroffen sind Anwender, die `SecureBigInteger` oder `MersenneSafeGcdAlgorithm` direkt mit vorzeichenbehafteten geheimen Operanden aufrufen: Die Laufzeit unterscheidet gleich- von gemischtvorzeichigen Operanden, und `MersenneModulo`s Negativpfad kostet drei zusätzliche Limb-Schleifen, ein `SubtractInPlace` und eine weitere Allokation. | Vorzeichenbehaftete Koeffizienten in Betrag plus separates Vorzeichenbit zerlegen und maskengesteuert rechnen — dieselbe Richtung wie die geparkte verzweigungsfreie Divstep-Variante. | `MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` (Zeilen 497–511); `SecureBigInteger.MersenneModulo` (Negativzweig) und `IsOne`; `SecretReconstructor.LagrangeInterpolate` (Zeilen 236, 244) und `DivMod` (Zeile 713) |
+| **R27** | **Die Level-Anpassung konnte das falsche Geheimnis liefern — für Shares, die ihren Körper mitführen, beseitigt (Issue #403).** `Reconstruction` bestimmte den Körper über `AdjustSecurityLevel` aus dem größten y-Wert der Shares und lief dabei zur kleinsten Mersenne-Primzahl hinunter, die noch darüber liegt. Ein Share trug keinen Vermerk über den Modulus, mit dem es erzeugt wurde — fielen also alle Share-Werte der übergebenen Teilmenge zufällig unter eine kleinere Primzahl, lief die Interpolation in diesem kleineren Körper. **Ein Geheimnis, das in beide Körper passt, war davor nicht sicher.** Die Share-Werte waren bereits modulo der ursprünglichen Primzahl reduziert; ein Wert, der dabei übergelaufen ist, liegt im kleineren Körper nicht mehr auf dem Polynom — seine Interpolation kann dann weder `a₀` noch `a₀ mod P_small` ergeben, sondern einen unverwandten Rest. Nicht jeder Feldwechsel verdarb das Ergebnis — war in der Teilmenge kein Wert übergelaufen oder hoben sich die Überläufe auf, stimmte es weiterhin. Genau deshalb versteckte sich der Fehler so gut. Gegenbeispiel, über die Bibliothek verifiziert: Das Ein-Byte-Geheimnis `FF` mit dem Mark-Byte aus `DeterministicRandomSource(35)` ergibt `a₀ = 511`; aufgeteilt auf Level 17 (`P = 131071`) als 2-aus-280 mit `DeterministicRandomSource(270)` liegen die Shares `(1, 3333)` und `(280, 4245)` beide unter `M13 = 8191`, die alte Rekonstruktion wechselte also auf Level 13 und interpolierte **1304**, was zum Payload-Byte `18` statt `FF` dekodiert — obwohl `511 < 8191`. Das Share führt sein Level jetzt mit und die Rekonstruktion verwendet es, dieser Vektor läuft also wieder sauber hin und zurück. **Rest:** Shares, die nichts mitführen — die alte `INDEX-VALUE`-Serialisierung, weiterhin die Vorgabe von `ToCharArray()`, und aus blanken Koordinaten gebaute Shares — nehmen weiterhin den wertbasierten Pfad und bleiben genau diesem Fehler ausgesetzt. | **Mittel** (Korrektheit, nicht Vertraulichkeit; nur Shares ohne vermerktes Level) | Zwei Ausgänge, und der zweite ist der gefährliche: Der interpolierte Koeffizient dekodiert zu keinem Geheimnis und es fliegt eine Exception — oder er dekodiert zu einem **anderen** Geheimnis, und es passiert gar nichts. Die Shares sind dabei durchweg einzeln gültig und unmanipuliert, keine Integritätsprüfung würde anschlagen. Ein erfolgloser Zufallssweep belegt weder allgemeine Fehlerfreiheit noch eine Fehlerwahrscheinlichkeit: Ein Lauf über 180.000 Splits fand nichts, während gezielte Gegenbeispiele beide Fehlerausgänge zeigen. Beide Ausgänge sind jetzt auf Shares ohne vermerktes Level beschränkt, und der laute nennt immerhin den Exponenten, unter dem die Interpolation lief. | Für Shares mit vermerktem Körper erledigt: `Share<TNumber>.SecurityLevel` hält den Exponenten, `Reconstruction` interpoliert darin, und Level, die einander oder einem expliziten Argument widersprechen, werden abgewiesen statt erraten. Für bereits gespeicherte Shares: `Reconstruction(shares, securityLevel)` benennt den Körper pro Aufruf, `Shares<TNumber>.ReissueWithSecurityLevel(int)` schreibt ihn einmalig auf die Shares, und `ToCharArray(…, ShareFormat.Extended)` persistiert ihn. Die Restlücke zu schließen hieße, `ShareFormat.Extended` zur Vorgabe zu machen — ein Bruch des Wire-Formats, der in den nächsten Breaking-Change-Zyklus gehört. | `Share<TNumber>.SecurityLevel`; `SecretReconstructor.ReconstructionCore`; `SecurityLevelManager.DetermineSecurityLevel`; `Reconstruction_WhenAShareValueWrappedInTheOriginalField_RestoresTheSecret` und `Reconstruction_WhenSharesCarryNoLevel_StillRefitsDownward` in beiden Backend-Testhierarchien |
+| **R28** | **Ein vermerktes Level entkoppelt den Rekonstruktionsaufwand von der Eingabegröße.** Die Validierung hält nicht unterstützte Exponenten fern, begrenzt aber nicht, was ein unterstützter kostet: Die Rekonstruktion berechnet die Mersenne-Primzahl der Stufe, unter der sie läuft, mindestens zweimal (Koordinatenprüfung, dann Übernahme durch den Manager), und die eingebaute Tabelle reicht bis `43.112.609`. Der Aufwand wächst grob quadratisch — etwa 2,5 s bei `3.021.377` mit `BigInteger`, hochgerechnet Minuten am Tabellenende, länger mit `SecureBigInteger`. Vor Issue #403 folgte die Stufe dem größten Share-Wert, sie zu erreichen kostete also Megabytes an Share-Daten; jetzt kann ein dreisegmentiger Share-Text von einem Dutzend Zeichen sie benennen. | Mittel (Verfügbarkeit; nur nicht vertrauenswürdige Shares) | Ein Aufrufer, der Shares aus nicht vertrauenswürdiger Quelle rekonstruiert, kann pro Aufruf Minuten an CPU-Zeit verlieren. Der Migrations-Helfer berechnet dieselbe Primzahl für jeden Exponenten, den seine Tabelle akzeptiert. | Den `SecurityLevelManager` auf einem `IMersennePrimeProvider` aufbauen, der nur die verwendeten Exponenten unterstützt — ein nicht unterstützter wird dann abgewiesen, bevor eine Primzahl berechnet wird — und denselben Provider bei der Migration an `ReissueWithSecurityLevel(int, IMersennePrimeProvider)` übergeben. Im Threat Model dokumentiert; bewusst ohne globale Obergrenze und ohne neue Konfiguration. Der Provider ist eine Allowlist, keine allgemeine Denial-of-Service-Abwehr. | `Share<TNumber>.AllFitField`; `SecretReconstructor.ValidateCoordinatesFit` und `CommitSecurityLevel`; `README.md`, *Security & Threat Model* |
 
-Die Nummerierung R1–R26 bleibt über Aktualisierungen hinweg stabil. Die Kennung **R12 ist nicht
+Die Nummerierung R1–R28 bleibt über Aktualisierungen hinweg stabil. Die Kennung **R12 ist nicht
 vergeben**: Sie beschrieb den Pflegestand einer lokalen, nicht versionierten Arbeitsdatei und war
 damit kein Risiko des Repositorys.
 
@@ -1202,7 +1345,7 @@ Demo-Projekt (`samples/SecretSharingDotNet.Demo.Console/`).
 
 | Begriff (DE) | Term (EN) | Definition |
 |---|---|---|
-| Anteil | Share | Ein Punkt `(Index, Value)` auf dem Geheimpolynom. Serialisiert als `INDEX-VALUE` in Hexadezimal. |
+| Anteil | Share | Ein Punkt `(Index, Value)` auf dem Geheimpolynom, der seinen Erzeugungskörper vermerken kann. Serialisiert als `INDEX-VALUE` oder als `INDEX-VALUE-LEVEL`, wenn dieser Vermerk mitgeschrieben wird, in Hexadezimal. |
 | Geheimnis | Secret | Der zu schützende Wert (Text, Zahl oder Bytes), im Code `Secret<TNumber>`. Entspricht dem konstanten Term `a₀` des Polynoms. |
 | Schwellwert | Threshold (k) | Mindestanzahl an Anteilen, die zur Rekonstruktion nötig ist. |
 | Sicherheitsstufe | Security level | Der gewählte Mersenne-Prim-Exponent `p`; bestimmt den endlichen Körper `GF(2^p − 1)` und damit die Länge der Anteile. Gültige Werte: 43 bekannte Exponenten von 13 bis 43.112.609. |

@@ -38,9 +38,9 @@ using System.Runtime.Serialization;
 
 /// <summary>
 /// The exception that is thrown when a secret cannot be reconstructed from a set of shares
-/// that are individually well-formed — for example shares carrying duplicate indices, a set
-/// with no usable maximum y-value, or a denominator that has no modular inverse in the
-/// finite field (a zero or non-invertible denominator during Lagrange interpolation).
+/// that are individually well-formed — for example shares carrying duplicate indices, levels
+/// that contradict each other, or a denominator that has no modular inverse in the finite field
+/// (a zero or non-invertible denominator during Lagrange interpolation).
 /// </summary>
 /// <remarks>
 /// Distinguishes a genuine reconstruction failure from caller misuse: passing fewer than two

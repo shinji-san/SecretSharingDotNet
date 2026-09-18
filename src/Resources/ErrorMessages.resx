@@ -66,9 +66,6 @@
     <data name="DataTypeNotSupported" xml:space="preserve">
         <value>Data Type '{0}' not supported!</value>
     </data>
-    <data name="NoMaximumY" xml:space="preserve">
-        <value>Unexpected error. The largest Y coordinate could not be determined. Please check the shares.</value>
-    </data>
     <data name="NoValidMersennePrimeExponentAvailable" xml:space="preserve">
         <value>No valid Mersenne prime exponent &gt;= {0} available.</value>
     </data>
@@ -183,5 +180,38 @@ Check that all computations are performed in GF(p) with a prime modulus.</value>
     </data>
     <data name="PinnedBufferLengthMismatch" xml:space="preserve">
         <value>Expected a pinned buffer of length {0}, but was {1}.</value>
+    </data>
+    <data name="ReconstructionYieldedNoDecodableSecret" xml:space="preserve">
+        <value>Reconstruction produced no decodable secret. Mersenne exponent used: {0}.</value>
+    </data>
+    <data name="SecurityLevelNotSupported" xml:space="preserve">
+        <value>Security level {0} is not a supported Mersenne prime exponent. It is used as given and never rounded up.</value>
+    </data>
+    <data name="ExplicitSecurityLevelContradictsShares" xml:space="preserve">
+        <value>The supplied security level {0} contradicts the level recorded on at least one share.</value>
+    </data>
+    <data name="SharesCarryDifferentSecurityLevels" xml:space="preserve">
+        <value>The shares record different security levels. They cannot all come from the same split; supplying a level explicitly does not resolve this, because it would contradict at least one of them.</value>
+    </data>
+    <data name="SharesCarryMixedSecurityLevelMetadata" xml:space="preserve">
+        <value>Some shares record a security level and others do not. Supply the level explicitly to say which field applies.</value>
+    </data>
+    <data name="ShareCoordinateOutsideField" xml:space="preserve">
+        <value>A share coordinate does not fit the field of Mersenne exponent {0}.</value>
+    </data>
+    <data name="SecurityLevelNotAppliedByManager" xml:space="preserve">
+        <value>The security level manager did not apply security level {0}; it reports {1}.</value>
+    </data>
+    <data name="ShareHasNoSecurityLevelToSerialize" xml:space="preserve">
+        <value>This share records no security level, so it cannot be written in the extended format.</value>
+    </data>
+    <data name="ShareHasTooManySegments" xml:space="preserve">
+        <value>A serialized share has at most three segments separated by '{0}'.</value>
+    </data>
+    <data name="ShareSecurityLevelSegmentInvalid" xml:space="preserve">
+        <value>The security level segment of the serialized share is empty or not a positive hexadecimal number.</value>
+    </data>
+    <data name="SecurityLevelTooSmallForShareCoordinates" xml:space="preserve">
+        <value>Security level {0} names a field too small for the share coordinates.</value>
     </data>
 </root>

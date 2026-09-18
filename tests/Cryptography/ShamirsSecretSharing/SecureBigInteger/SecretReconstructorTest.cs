@@ -41,6 +41,7 @@ using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
+using System.Linq;
 using Xunit;
 
 /// <summary>
@@ -264,5 +265,466 @@ public class SecretReconstructorTest
         {
             Assert.DoesNotContain(ErrorMessages.ShareIndicesNotDistinct, re.Message);
         }
+    }
+    /// <summary>
+    /// The escape hatch for shares that record no level: naming the field explicitly restores the
+    /// round trip on exactly the input that loses the secret without it. Same shares, same values,
+    /// one argument.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithExplicitLevel_RecoversWhatTheDerivationLoses()
+    {
+        // Arrange — vector C with the level stripped by rebuilding from bare coordinates.
+        using var secret = new Secret<SecureBigInteger>(new byte[] { 0xFF }, 1, new DeterministicRandomSource(35));
+        using var splitter = new SecretSplitter<SecureBigInteger>(new DeterministicRandomSource(270));
+        splitter.SecurityLevel = 17;
+        using var shares = splitter.MakeShares(2, 280, secret);
+        var byIndex = shares.ToArray();
+        using var legacy = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(byIndex[0].Index.Clone(), byIndex[0].Value.Clone()),
+            new Share<SecureBigInteger>(byIndex[279].Index.Clone(), byIndex[279].Value.Clone()),
+        });
+        using var derivingReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+        using var toldReconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act
+        using var derived = derivingReconstructor.Reconstruction(legacy);
+        using var told = toldReconstructor.Reconstruction(legacy, 17);
+
+        // Assert
+        Assert.NotEqual(secret, derived);
+        Assert.Equal(secret, told);
+        Assert.Equal(17, toldReconstructor.SecurityLevel);
+    }
+
+    /// <summary>
+    /// An explicit level that contradicts what a share records is refused rather than silently
+    /// preferred. The parameter outranks the metadata in precedence, not in truth.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithExplicitLevelContradictingTheShares_Throws()
+    {
+        // Arrange
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10), 17),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20), 17),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares, 19));
+    }
+
+    /// <summary>
+    /// An exponent the manager does not support is an argument error on the overload that takes
+    /// it, naming the parameter — not a reconstruction failure, and never rounded up to the next
+    /// supported exponent.
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="securityLevel">An exponent that is not a supported Mersenne prime exponent.</param>
+    [Theory]
+    [InlineData(18)]
+    [InlineData(12)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Reconstruction_WithUnsupportedExplicitLevel_ThrowsArgumentOutOfRange(int securityLevel)
+    {
+        // Arrange
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20)),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => reconstructor.Reconstruction(shares, securityLevel));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// Shares recording different levels are refused with no level supplied: there is nothing to
+    /// choose between them, and picking one would be the guesswork this fix removes.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WhenSharesRecordDifferentLevels_Throws()
+    {
+        // Arrange
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10), 17),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20), 19),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+    }
+
+    /// <summary>
+    /// A set in which some shares record a level and others do not is refused as well. The recorded
+    /// level cannot be assumed to govern the others, and assuming it would reintroduce exactly the
+    /// unverified inference this fix exists to remove.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WhenShareMetadataIsMixed_Throws()
+    {
+        // Arrange
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10), 17),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20)),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+    }
+
+    /// <summary>
+    /// A coordinate outside the named field is refused before the interpolation runs. The level is
+    /// asserted here rather than derived from the values, so the two can disagree — and a value
+    /// that does not fit cannot have come from that field.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WhenACoordinateDoesNotFitTheNamedField_Throws()
+    {
+        // Arrange — 9000 exceeds M13 = 8191.
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(9000)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20)),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares, 13));
+    }
+
+    /// <summary>
+    /// The explicit form is reachable through an abstraction, not only through the concrete type.
+    /// The interface inherits <see cref="IReconstructionUseCase{TNumber}"/>, so one injected
+    /// reference offers both call shapes — but a container registration for the base interface does
+    /// not resolve this one, which is why the DI guidance registers it separately.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_ExplicitForm_IsReachableThroughTheInterface()
+    {
+        // Arrange
+        using var secret = new Secret<SecureBigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<SecureBigInteger>();
+        splitter.SecurityLevel = 17;
+        using var shares = splitter.MakeShares(2, 2, secret);
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act
+        IReconstructionWithSecurityLevelUseCase<SecureBigInteger> useCase = reconstructor;
+        using var viaExplicit = useCase.Reconstruction(shares, splitter.SecurityLevel);
+        using var viaBase = ((IReconstructionUseCase<SecureBigInteger>)useCase).Reconstruction(shares);
+
+        // Assert
+        Assert.Equal(secret, viaExplicit);
+        Assert.Equal(secret, viaBase);
+    }
+    /// <summary>
+    /// A security level manager without
+    /// <see cref="IInspectableSecurityLevelManager{TNumber}"/> — an external implementation as it
+    /// existed before the capability. It delegates everything, and deliberately does not offer the
+    /// non-mutating members, so the reconstructor has to take the compatibility path.
+    /// </summary>
+    private sealed class PlainSecurityLevelManager : ISecurityLevelManager<SecureBigInteger>
+    {
+        private readonly SecurityLevelManager<SecureBigInteger> inner = new SecurityLevelManager<SecureBigInteger>();
+
+        public int SecurityLevel
+        {
+            get => this.inner.SecurityLevel;
+            set => this.inner.SecurityLevel = value;
+        }
+
+        public Calculator<SecureBigInteger> MersennePrime => this.inner.MersennePrime;
+
+        public void AdjustSecurityLevel(Calculator<SecureBigInteger> maximumY) => this.inner.AdjustSecurityLevel(maximumY);
+
+        public void Dispose() => this.inner.Dispose();
+    }
+
+    /// <summary>
+    /// A manager lacking the non-mutating capability is a supported configuration, not an error:
+    /// reconstruction still works, and a level recorded on the shares is still used.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithAManagerLackingTheCapability_StillUsesTheRecordedLevel()
+    {
+        // Arrange
+        using var secret = new Secret<SecureBigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<SecureBigInteger>();
+        splitter.SecurityLevel = 17;
+        using var shares = splitter.MakeShares(2, 2, secret);
+        using var plainManager = new PlainSecurityLevelManager();
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>(), plainManager);
+
+        // Act
+        using var reconstructed = reconstructor.Reconstruction(shares);
+
+        // Assert
+        Assert.Equal(17, reconstructor.SecurityLevel);
+        Assert.Equal(secret, reconstructed);
+    }
+
+    /// <summary>
+    /// Without the exact check there is nothing to validate an exponent against beforehand, so the
+    /// compatibility path sets it and reads it back. A manager that normalised 18 upward to 19 has
+    /// quietly chosen a different field than the one named, and the read-back is what turns that
+    /// into an error instead of a wrong secret. The failure still names the parameter, because the
+    /// exponent came from the caller.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithAManagerLackingTheCapability_CatchesANormalisedLevelOnReadBack()
+    {
+        // Arrange
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20)),
+        });
+        using var plainManager = new PlainSecurityLevelManager();
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>(), plainManager);
+
+        // Act & Assert — 18 is not a Mersenne exponent; the setter would round it to 19.
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => reconstructor.Reconstruction(shares, 18));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+    /// <summary>
+    /// Without the exact check the exponent is vetted by the manager, before any of it reaches the
+    /// big-integer arithmetic. Every rejection comes back as the same argument error naming the
+    /// same parameter, whatever the manager's own setter would have called it — a caller cannot act
+    /// on a parameter name it never supplied.
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="securityLevel">An exponent that is not a supported Mersenne prime exponent.</param>
+    [Theory]
+    [InlineData(18)]
+    [InlineData(12)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MaxValue)]
+    public void Reconstruction_WithAManagerLackingTheCapability_RejectsEveryUnsupportedLevelAlike(int securityLevel)
+    {
+        // Arrange
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20)),
+        });
+        using var plainManager = new PlainSecurityLevelManager();
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>(), plainManager);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => reconstructor.Reconstruction(shares, securityLevel));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// A negative y-coordinate is outside the field even though it is below the prime. Comparing
+    /// only against the upper bound would let it through, and the interpolation would run on a
+    /// point that is not in the field it claims to be in.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithANegativeCoordinate_Throws()
+    {
+        // Arrange
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(-489)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(-1489)),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares, 13));
+    }
+
+    /// <summary>
+    /// The legacy path checks coordinates too. Deriving the field from the maximum y bounds one
+    /// coordinate and says nothing about the indices: an index at or above the prime lies outside
+    /// the permitted coordinate range. It need not collide with another to be invalid — here
+    /// <c>8192</c> reduces to <c>1</c> modulo <c>8191</c>, and no share holds index 1.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WhenAnIndexExceedsTheDerivedField_Throws()
+    {
+        // Arrange — maximumY 2511 derives M13 = 8191, which index 8192 does not fit.
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(8192), new SecureBigIntCalculator(1511)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(2511)),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+    }
+
+    /// <summary>
+    /// With an inspectable manager, duplicate indices are refused before the security level moves.
+    /// The check has to happen either way — a repeated index makes the Lagrange denominator zero —
+    /// but running it after the commit would leave the manager on a level the caller never asked
+    /// for, on an input that was never usable. On the compatibility path a rejected input may leave
+    /// the manager moved, as
+    /// <c>Reconstruction_WithAManagerLackingTheCapability_MayLeaveTheManagerMoved</c> pins for an
+    /// out-of-field coordinate.
+    /// <para>
+    /// Comparing the level number alone would not catch that: the setter swaps in a freshly built
+    /// prime and disposes the previous instance, so a manager moved to 17 and back to 31 reports
+    /// 31 while every reference handed out beforehand is dead. The assertion therefore holds the
+    /// prime instance from before the call and checks both that it is the same object and that it
+    /// is still usable.
+    /// </para>
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithDuplicateIndices_LeavesTheManagerUntouched()
+    {
+        // Arrange
+        using var manager = new SecurityLevelManager<SecureBigInteger>();
+        manager.SecurityLevel = 31;
+        var primeBefore = manager.MersennePrime;
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10), 17),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(20), 17),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>(), manager);
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+        Assert.Equal(31, manager.SecurityLevel);
+        Assert.Same(primeBefore, manager.MersennePrime);
+        Assert.True(primeBefore.ByteCount > 0);
+    }
+
+    /// <summary>
+    /// An unsupported exponent read off the shares is a reconstruction failure, not an argument
+    /// error: the caller supplied no such argument to be told about. Same check as the explicit
+    /// form, different boundary.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WhenTheSharesRecordAnUnsupportedLevel_ThrowsReconstructionException()
+    {
+        // Arrange — 18 is not a Mersenne prime exponent.
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10), 18),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20), 18),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+    }
+
+    /// <summary>
+    /// The same holds on the compatibility path, where the exponent is vetted by setting it and
+    /// reading it back rather than by an exact check. The manager would have normalised 18 up to
+    /// 19; the read-back catches that, and the failure keeps the type the boundary calls for.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithAManagerLackingTheCapability_TypesAMetadataLevelFailureAsReconstruction()
+    {
+        // Arrange
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10), 18),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(20), 18),
+        });
+        using var plainManager = new PlainSecurityLevelManager();
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>(), plainManager);
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+    }
+
+    /// <summary>
+    /// The state guarantee is narrower than it first looks, and the compatibility path is where it
+    /// stops. Without <see cref="IInspectableSecurityLevelManager{TNumber}"/> there is no way to
+    /// learn the field a value-derived selection would land on other than committing it, so
+    /// <c>AdjustSecurityLevel</c> runs before anything is validated: here a manager sitting on 31
+    /// is left on 13 although the index is outside that field and the call throws. The prime
+    /// instance is replaced along with the level, so a reference handed out beforehand is dead.
+    /// <para>
+    /// This is pinned rather than only documented because it is the price of supporting a manager
+    /// written before the capability existed, and the boundary between "rejected input leaves the
+    /// manager alone" and "may not" has to stay visible.
+    /// </para>
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithAManagerLackingTheCapability_MayLeaveTheManagerMoved()
+    {
+        // Arrange — 9000 exceeds M13 = 8191, the field the values 300 and 400 select.
+        using var plainManager = new PlainSecurityLevelManager();
+        plainManager.SecurityLevel = 31;
+        using var primeBefore = plainManager.MersennePrime.Clone();
+        using var shares = new Shares<SecureBigInteger>(new[]
+        {
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(9000), new SecureBigIntCalculator(300)),
+            new Share<SecureBigInteger>(new SecureBigIntCalculator(2), new SecureBigIntCalculator(400)),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>(), plainManager);
+
+        // Act & Assert
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(shares));
+        Assert.Equal(13, plainManager.SecurityLevel);
+        Assert.False(primeBefore.Equals(plainManager.MersennePrime));
+    }
+
+    /// <summary>
+    /// Mixed metadata is refused only where there is nothing to choose between the shares. Naming
+    /// the field removes that problem: a set in which one share records 17 and the other records
+    /// nothing reconstructs through <c>Reconstruction(shares, 17)</c>, because the explicit level
+    /// decides and the recorded one is merely checked against it. The same set without the
+    /// argument is refused, which is what makes this pair worth pinning — the two calls differ
+    /// only in whether the caller supplied the field.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Reconstruction_WithAnExplicitLevel_AcceptsMixedShareMetadata()
+    {
+        // Arrange
+        using var secret = new Secret<SecureBigInteger>(new byte[] { 0x2A });
+        using var splitter = new SecretSplitter<SecureBigInteger>();
+        splitter.SecurityLevel = 17;
+        using var tagged = splitter.MakeShares(2, 2, secret);
+        var byIndex = tagged.ToArray();
+        using var mixed = new Shares<SecureBigInteger>(new[]
+        {
+            byIndex[0].ReissueWithSecurityLevel(17),
+            new Share<SecureBigInteger>(byIndex[1].Index.Clone(), byIndex[1].Value.Clone()),
+        });
+        using var reconstructor = new SecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgorithm<SecureBigInteger>());
+
+        // Act
+        using var named = reconstructor.Reconstruction(mixed, 17);
+
+        // Assert
+        Assert.Equal(secret, named);
+        Assert.Throws<ReconstructionException>(() => reconstructor.Reconstruction(mixed));
     }
 }

@@ -144,12 +144,6 @@ namespace SecretSharingDotNet {
             }
         }
         
-        internal static string NoMaximumY {
-            get {
-                return ResourceManager.GetString("NoMaximumY", resourceCulture);
-            }
-        }
-        
         internal static string NoValidMersennePrimeExponentAvailable {
             get {
                 return ResourceManager.GetString("NoValidMersennePrimeExponentAvailable", resourceCulture);
@@ -375,6 +369,72 @@ namespace SecretSharingDotNet {
         internal static string PinnedBufferLengthMismatch {
             get {
                 return ResourceManager.GetString("PinnedBufferLengthMismatch", resourceCulture);
+            }
+        }
+        
+        internal static string ReconstructionYieldedNoDecodableSecret {
+            get {
+                return ResourceManager.GetString("ReconstructionYieldedNoDecodableSecret", resourceCulture);
+            }
+        }
+        
+        internal static string SecurityLevelNotSupported {
+            get {
+                return ResourceManager.GetString("SecurityLevelNotSupported", resourceCulture);
+            }
+        }
+        
+        internal static string ExplicitSecurityLevelContradictsShares {
+            get {
+                return ResourceManager.GetString("ExplicitSecurityLevelContradictsShares", resourceCulture);
+            }
+        }
+        
+        internal static string SharesCarryDifferentSecurityLevels {
+            get {
+                return ResourceManager.GetString("SharesCarryDifferentSecurityLevels", resourceCulture);
+            }
+        }
+        
+        internal static string SharesCarryMixedSecurityLevelMetadata {
+            get {
+                return ResourceManager.GetString("SharesCarryMixedSecurityLevelMetadata", resourceCulture);
+            }
+        }
+        
+        internal static string ShareCoordinateOutsideField {
+            get {
+                return ResourceManager.GetString("ShareCoordinateOutsideField", resourceCulture);
+            }
+        }
+        
+        internal static string SecurityLevelNotAppliedByManager {
+            get {
+                return ResourceManager.GetString("SecurityLevelNotAppliedByManager", resourceCulture);
+            }
+        }
+        
+        internal static string ShareHasNoSecurityLevelToSerialize {
+            get {
+                return ResourceManager.GetString("ShareHasNoSecurityLevelToSerialize", resourceCulture);
+            }
+        }
+        
+        internal static string ShareHasTooManySegments {
+            get {
+                return ResourceManager.GetString("ShareHasTooManySegments", resourceCulture);
+            }
+        }
+        
+        internal static string ShareSecurityLevelSegmentInvalid {
+            get {
+                return ResourceManager.GetString("ShareSecurityLevelSegmentInvalid", resourceCulture);
+            }
+        }
+        
+        internal static string SecurityLevelTooSmallForShareCoordinates {
+            get {
+                return ResourceManager.GetString("SecurityLevelTooSmallForShareCoordinates", resourceCulture);
             }
         }
     }
