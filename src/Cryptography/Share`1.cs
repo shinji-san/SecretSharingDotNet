@@ -366,25 +366,28 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// Returns <see langword="false"/> when <paramref name="other"/> is <see langword="null"/>.
     /// </returns>
     /// <remarks>
+    /// <para>
+    /// Replaces the compiler-synthesised record equality, which would (a) compare the internal
+    /// <c>disposed</c> flag and therefore disagree on equality between a live and a just-disposed
+    /// share with otherwise-identical content (contradicting the value-based contract documented
+    /// on the class), and (b) route through the SecureBigInteger backend's <c>Equals</c> on a
+    /// disposed operand and surface <see cref="ObjectDisposedException"/>.
+    /// </para>
+    /// <para>
     /// <see cref="SecurityLevel"/> is compared as a nullable value, not as a wildcard: two shares
     /// that both record no level are equal, and a share recording none differs from one recording
     /// any. Treating <see langword="null"/> as "matches any level" would break transitivity. The
     /// practical consequence is that a share parsed from the legacy two-segment text form is not
     /// equal to its migrated counterpart, which is observable through
     /// <see cref="Shares{TNumber}.Contains"/> and through <c>HashSet</c> membership.
-    /// </remarks>
-    /// <remarks>
-    /// Replaces the compiler-synthesised record equality, which would (a) compare the internal
-    /// <c>disposed</c> flag and therefore disagree on equality between a live and a just-disposed
-    /// share with otherwise-identical content (contradicting the value-based contract documented
-    /// on the class), and (b) route through the SecureBigInteger backend's <c>Equals</c> on a
-    /// disposed operand and surface <see cref="ObjectDisposedException"/>.
-    ///
-    /// The two Calculator-level comparison results are pre-computed into local <see cref="bool"/>s
-    /// and folded with a non-short-circuit <c>&amp;</c>; this mirrors the constant-time pattern
-    /// of <c>SecureBigInteger.Equals</c> (see the matching S2178 suppression there) and remains
-    /// resilient against later refactors that might inline either side of the equality fold
-    /// into a short-circuit-sensitive expression.
+    /// </para>
+    /// <para>
+    /// The three comparison results — two at the Calculator level, one on the nullable level —
+    /// are pre-computed into local <see cref="bool"/>s and folded with a non-short-circuit
+    /// <c>&amp;</c>; this mirrors the constant-time pattern of <c>SecureBigInteger.Equals</c> (see
+    /// the matching S2178 suppression there) and remains resilient against later refactors that
+    /// might inline one side of the fold into a short-circuit-sensitive expression.
+    /// </para>
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     [SuppressMessage("SonarQube", "S2178",
