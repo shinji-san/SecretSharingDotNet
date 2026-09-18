@@ -17,8 +17,9 @@ public interface IReconstructionUseCase<TNumber> : IDisposable
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="shares"/> contains fewer than two entries.
     /// </exception>
-    /// <exception cref="ArgumentException">
-    /// <paramref name="shares"/> contains entries with duplicate share indices, or has no maximum y-value.
+    /// <exception cref="ReconstructionException">
+    /// <paramref name="shares"/> contains entries with duplicate share indices, or the shares cannot
+    /// otherwise be reconstructed — see the implementing type for the full list.
     /// </exception>
     /// <exception cref="ObjectDisposedException">The implementation has been disposed.</exception>
     Secret<TNumber> Reconstruction(Shares<TNumber> shares);

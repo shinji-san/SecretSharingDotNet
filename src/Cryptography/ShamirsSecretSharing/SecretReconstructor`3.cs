@@ -285,9 +285,8 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <paramref name="shares"/> contains fewer than two entries.
     /// </exception>
     /// <exception cref="ReconstructionException">
-    /// <paramref name="shares"/> has no maximum y-value; the shares record different security
-    /// levels, or some record one and others do not, so there is no field to choose without being
-    /// told; a recorded level is not a supported Mersenne prime exponent; a coordinate lies outside
+    /// The shares record different security levels, or some record one and others do not, so
+    /// there is no field to choose without being told; a recorded level is not a supported Mersenne prime exponent; a coordinate lies outside
     /// the recorded field; two entries share the same <see cref="Share{TNumber}.Index"/>; or the
     /// interpolation produces a coefficient that decodes to no secret.
     /// <para>
@@ -366,29 +365,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         var shareList = shares.ToArray();
-        // Explicit loop instead of shareList.Select(share => share.Value).Max() —
-        // avoids the SelectArrayIterator + enumerator allocations on the unpinned
-        // managed heap. Null-skip matches Enumerable.Max semantics for reference
-        // types: the maximum of all non-null values, or null if every value is null.
-        Calculator<TNumber> maximumY = null;
-        for (int i = 0; i < shareList.Length; i++)
-        {
-            var candidate = shareList[i].Value;
-            if (candidate is null)
-            {
-                continue;
-            }
-
-            if (maximumY is null || candidate > maximumY)
-            {
-                maximumY = candidate;
-            }
-        }
-
-        if (maximumY is null)
-        {
-            throw new ReconstructionException(ErrorMessages.NoMaximumY);
-        }
 
         // Phase 1 — determine a candidate. Nothing below moves the manager except the one
         // fallback branch that says so.
@@ -421,6 +397,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
         else
         {
+            // Only this branch derives the field from the values, so only this branch needs their
+            // maximum. With a recorded or an explicit level the values play no part in the choice.
+            var maximumY = MaximumValue(shareList);
             if (this.securityLevelManager is IInspectableSecurityLevelManager<TNumber> inspectable)
             {
                 securityLevel = inspectable.DetermineSecurityLevel(maximumY);
@@ -459,6 +438,33 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         return this.LagrangeInterpolate(shareList);
+    }
+
+    /// <summary>
+    /// Returns the largest <see cref="Share{TNumber}.Value"/> among the shares — the input of the
+    /// value-derived field selection.
+    /// </summary>
+    /// <param name="shareList">The shares; at least two.</param>
+    /// <returns>The largest value, borrowed from its share rather than copied.</returns>
+    /// <remarks>
+    /// An explicit loop rather than <c>Select(...).Max()</c>, which would allocate an iterator and
+    /// an enumerator on the unpinned managed heap. There is no null handling: every constructor of
+    /// <see cref="Share{TNumber}"/> rejects a null value and the getter throws once a share is
+    /// disposed, so a maximum always exists once there are shares at all.
+    /// </remarks>
+    private static Calculator<TNumber> MaximumValue(IReadOnlyList<Share<TNumber>> shareList)
+    {
+        var maximum = shareList[0].Value;
+        for (int i = 1; i < shareList.Count; i++)
+        {
+            var candidate = shareList[i].Value;
+            if (candidate > maximum)
+            {
+                maximum = candidate;
+            }
+        }
+
+        return maximum;
     }
 
     /// <summary>

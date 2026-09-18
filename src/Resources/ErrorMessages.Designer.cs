@@ -144,12 +144,6 @@ namespace SecretSharingDotNet {
             }
         }
         
-        internal static string NoMaximumY {
-            get {
-                return ResourceManager.GetString("NoMaximumY", resourceCulture);
-            }
-        }
-        
         internal static string NoValidMersennePrimeExponentAvailable {
             get {
                 return ResourceManager.GetString("NoValidMersennePrimeExponentAvailable", resourceCulture);
