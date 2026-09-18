@@ -65,15 +65,22 @@ public class PinnedPoolArrayExtensionsTest
     /// <summary>
     /// The failure the serializers cannot reach deterministically, triggered on purpose: the fill
     /// writes content and then throws. The exception must reach the caller unchanged, and the
-    /// buffer must already be disposed and wiped by then — not left pinned and partly filled
-    /// for a finalizer. The fill keeps a reference only so the test can look afterwards.
+    /// buffer must already be disposed by then — not left pinned and partly filled for a
+    /// finalizer. The fill keeps a reference only so the test can look afterwards.
+    /// <para>
+    /// Deliberately no check of the buffer's content. Once disposed, the array belongs to the
+    /// shared pool again, and any thread in the process — another test, or the runner itself —
+    /// may already have rented and written it; on .NET Framework the pool has no thread-local
+    /// cache to delay that. Reading it would test the pool's traffic, not this helper. Wiping on
+    /// dispose is <see cref="PinnedPoolArray{T}"/>'s guarantee; what this helper promises, and what
+    /// is asserted here without a race, is that dispose happens.
+    /// </para>
     /// </summary>
     [Fact]
-    public void AllocateAndFill_WhenTheFillThrowsAfterWriting_DisposesAndWipesTheBuffer()
+    public void AllocateAndFill_WhenTheFillThrowsAfterWriting_DisposesTheBuffer()
     {
         // Arrange
         PinnedPoolArray<char> seen = null;
-        char[] seenStorage = null;
 
         // Act
         var thrown = Assert.Throws<InvalidOperationException>(() => PinnedPoolArrayExtensions.AllocateAndFill<char>(
@@ -81,15 +88,13 @@ public class PinnedPoolArrayExtensionsTest
             buffer =>
             {
                 seen = buffer;
-                seenStorage = buffer.PoolArray;
-                "sec!".CopyTo(0, seenStorage, 0, 4);
+                "sec!".CopyTo(0, buffer.PoolArray, 0, 4);
                 throw new InvalidOperationException("write failed");
             }));
 
         // Assert
         Assert.Equal("write failed", thrown.Message);
         Assert.True(seen.IsDisposed);
-        Assert.Equal(new string('\0', 4), new string(seenStorage, 0, 4));
     }
 
     /// <summary>
