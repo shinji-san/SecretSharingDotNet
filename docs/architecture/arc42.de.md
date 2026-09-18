@@ -200,6 +200,9 @@
       Gegenmaßnahme ist eine Allowlist über den `IMersennePrimeProvider`, für die Rekonstruktion
       über den Manager und für die Migration über den neuen Provider-Overload; eine globale
       Obergrenze gibt es bewusst nicht.
+    - 2026-09-18 — Zahlen nach den Review-Nachläufen zu #407 aktualisiert: 963 Testmethoden
+      (758 `[Fact]` + 205 `[Theory]`) über 46 Testklassen und 65 Ressourcenschlüssel je Sprache,
+      seit der unerreichbare `NoMaximumY`-Pfad entfallen ist.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -240,7 +243,7 @@ Konsumenten (Quelle: `README.md`, `src/SecretSharingDotNet.csproj`).
 | Priorität | Qualitätsziel | Motivation |
 |---|---|---|
 | 1 | **Vertraulichkeit des Geheimnisses im Prozessspeicher** | Der gesamte Nutzen der Bibliothek entfällt, wenn das Geheimnis aus Heap-Snapshots, Swap-Dateien oder wiederverwendeten Pool-Puffern rekonstruierbar bleibt. Umgesetzt über GC-gepinnte, dreifach überschriebene Puffer (`PinnedPoolArray<T>`) und eine durchgehende `IDisposable`-Disziplin. |
-| 2 | **Funktionale Korrektheit des Schemas** | Ein falsch rekonstruiertes Geheimnis ist unbemerkt fatal: plain Shamir hat keine Integritätsprüfung (`README.md`, Threat Model). Abgesichert über 944 Testmethoden, property-basierte Round-Trip-Tests (CsCheck) und zwei parallele Testhierarchien für beide numerischen Backends. |
+| 2 | **Funktionale Korrektheit des Schemas** | Ein falsch rekonstruiertes Geheimnis ist unbemerkt fatal: plain Shamir hat keine Integritätsprüfung (`README.md`, Threat Model). Abgesichert über 963 Testmethoden, property-basierte Round-Trip-Tests (CsCheck) und zwei parallele Testhierarchien für beide numerischen Backends. |
 | 3 | **Resistenz gegen passive Timing-Analyse (best effort)** | Zweites, bewusst nachrangiges Sicherheitsziel: Das `SecureBigInteger`-Backend liefert Kernarithmetik, deren Limb-Schleifen konstantzeitig über die Limb-Anzahl laufen, plus einen Fixed-Iteration-Modularinversen. Die Zusage endet bei diesen Schleifen — Ergebnisnormalisierung, `ByteCount`, Ordnung und die übrigen Flächen aus 8.2 sind wertabhängig. Der Anspruch ist explizit *best effort in managed .NET*, nicht auditierte Härtung (`README.md`, Abschnitt *Security & Threat Model*). |
 | 4 | **Portabilität über acht Ziel-Frameworks** | Die Bibliothek soll in Legacy-.NET-Framework-Anwendungen ebenso einsetzbar sein wie in .NET 10. Kosten: umfangreiche `#if`-Konditionalisierung (siehe Risiko R1). |
 | 5 | **Stabilität der öffentlichen API** | Nach dem v1.0-GA sollen Consumer nicht bei jedem internen Refactoring brechen. Umgesetzt über bewusste `internal`-Grenzen und SemVer-Disziplin im `CHANGELOG.md`. |
@@ -366,7 +369,7 @@ C4Container
   Person(appDev, "Anwendungsentwickler", "Programmiert gegen die Bibliotheks-API")
   System_Boundary(sln, "SecretSharingDotNet.slnx") {
     Container(lib, "SecretSharingDotNet", "C# Klassenbibliothek, 8 TFMs, strong-named", "Die ausgelieferte Bibliothek: Shamir-Algorithmus, numerische Backends, gepinnter Speicher")
-    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "944 Testmethoden ueber 6 TFMs, inkl. Timing-Harness und Stress-Traits")
+    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "963 Testmethoden ueber 6 TFMs, inkl. Timing-Harness und Stress-Traits")
     Container(demo, "SecretSharingDotNet.Demo.Console", ".NET 10 Konsolen-App, Microsoft.Extensions.DependencyInjection", "Lauffaehiges End-to-End-Beispiel mit DI-Komposition und Konsoleneingabe")
   }
   System_Ext(nuget, "nuget.org", "Verteilkanal")
@@ -443,7 +446,7 @@ C4Component
 | `Math.Numerics` | `SecureBigInteger` (2.753 LOC, gepinnte `ulong`-Limbs, Limb-Schleifen konstantzeitig über die Limb-Anzahl — siehe 8.2) und die beiden `Calculator`-Implementierungen. | `SecureBigInteger` ja, die Calculator `internal` |
 | `SecureMemory` | `PinnedPoolArray<T>`: `ArrayPool`-Miete + `GCHandle.Alloc(Pinned)` + 3-Pass-Überschreiben + `CryptographicOperations.ZeroMemory` beim Dispose (auf `netstandard2.0`/`net472`/`net48`/`net481` stattdessen `LegacySecureClear` mit `Volatile.Write` und Speicherbarriere), mit Nebenläufigkeitszähler. | ja |
 | `Extension` | Ausschließlich `internal`: `DisposeAll`, `Subset<T>`, `FixedTimeEquals`, strukturelle Vergleichshelfer. | nein |
-| `Resources` | `ErrorMessages.resx` (neutral/en) und `ErrorMessages.de-DE.resx`, je 66 Schlüssel. Alle Ausnahmetexte stammen von hier, nie inline. | `internal` |
+| `Resources` | `ErrorMessages.resx` (neutral/en) und `ErrorMessages.de-DE.resx`, je 65 Schlüssel. Alle Ausnahmetexte stammen von hier, nie inline. | `internal` |
 
 **Zwei ehrliche Auffälligkeiten im Diagramm:**
 
@@ -1083,7 +1086,7 @@ für einen nicht unterstützten Objekttyp ein parameterloses `ArgumentException`
 
 ### 8.5 Lokalisierung
 
-Zwei Ressourcendateien mit je 66 Schlüsseln: `ErrorMessages.resx` (neutral, `en` per
+Zwei Ressourcendateien mit je 65 Schlüsseln: `ErrorMessages.resx` (neutral, `en` per
 `NeutralResourcesLanguage`) und `ErrorMessages.de-DE.resx`. Der Abgleich beider Schlüsselmengen
 erfolgt **von Hand**; ein Build-Check existiert nicht (Risiko R10).
 
@@ -1175,7 +1178,7 @@ am Codestand `d920257` über die 56 versionierten Testdateien gemessen:
   aus; wo Aktion und Prüfung untrennbar sind, steht ein zusammengezogenes `// Act & Assert`.
 - **Jede Allokation bindet per `using`** — auch Operator-Ergebnisse (`+`, `-`, `*`, `/`, `%`),
   `Calculator<T>.Zero/One/Two`, Inline-Erwartungswerte und Schleifen-Zwischenwerte; 1.209
-  `using var`-Deklarationen auf 944 Testmethoden. Ein vergessenes `using` hält einen gepinnten
+  `using var`-Deklarationen auf 963 Testmethoden. Ein vergessenes `using` hält einen gepinnten
   Puffer bis zum AppDomain-Ende am Leben.
 - **Zwei gespiegelte Testhierarchien**, je eine für `BigInteger` und `SecureBigInteger` — sichtbar
   an den Geschwisterverzeichnissen `tests/Cryptography/{BigInteger,SecureBigInteger}/`,
@@ -1271,7 +1274,7 @@ Qualität von SecretSharingDotNet
 | **Q7** | Zwei Shares mit identischem Index werden zur Rekonstruktion gereicht. | `ReconstructionException` statt einer generischen `ArgumentException`. Sie fällt beim ersten Duplikat, das die Prüfung findet, und `EnsureDistinctIndices` läuft in der Validierungsphase von `ReconstructionCore` — **bevor** das Sicherheitslevel übernommen wird. Ein doppelter Index macht den Lagrange-Nenner in jedem Körper zu null, die Prüfung braucht also gar kein Level, und eine abgewiesene Eingabe lässt den Manager dort stehen, wo er war. Ein Pfad ist die Ausnahme davon: Tragen die Shares kein Level und ist der `ISecurityLevelManager<TNumber>` kein `IInspectableSecurityLevelManager<TNumber>`, gibt es keinen Weg zu einem Kandidaten außer `AdjustSecurityLevel`, und dieser Aufruf liegt vor der Distinktheitsprüfung — dort ist der Manager beim Auftauchen des Duplikats also bereits bewegt. |
 | **Q8** | Ein Verhalten wird in der `BigInteger`-Testhierarchie geändert, in der `SecureBigInteger`-Hierarchie aber nicht. | Die Abweichung fällt **im Review** auf, weil die gespiegelte Datei der naheliegende Ort zum Nachsehen ist — nicht durch einen fehlschlagenden Test. Die beiden Suiten sind unabhängig, und die Spiegelung wird nirgends erzwungen (siehe den offenen Punkt in 8.11). Rot wird ein Test nur, wenn die zugrunde liegende Produktivänderung auch das andere Backend bricht. |
 | **Q9** | Ein Commit erreicht `develop` **und passt auf die Pfadfilter von `dotnetall.yml`** (also alles außer reinen Markdown-Änderungen; `README.md` ist wieder eingeschlossen, weil sie Pack-Eingabe ist). | Build und Tests laufen über **alle** sechs Test-TFMs grün: `net8.0`/`net9.0`/`net10.0` auf `ubuntu-24.04`, `net472`/`net48`/`net481` auf `windows-2025`. Ein roter TFM blockiert den Merge. Für ausgeschlossene Änderungen — etwa diese Architekturdateien — läuft **keine** Testmatrix; dort trägt das Szenario nichts bei. |
-| **Q10** | Ein neuer Test wird geschrieben. | Er trägt AAA-Marker, bindet jede Allokation per `using` und existiert in beiden Backend-Hierarchien (Kapitel 8.11). Durchgesetzt wird das im Review, nicht durch ein Werkzeug — siehe den offenen Punkt in 8.11. Aktueller Stand: 944 Testmethoden (739 `[Fact]`, 205 `[Theory]`) über 45 Testklassen. |
+| **Q10** | Ein neuer Test wird geschrieben. | Er trägt AAA-Marker, bindet jede Allokation per `using` und existiert in beiden Backend-Hierarchien (Kapitel 8.11). Durchgesetzt wird das im Review, nicht durch ein Werkzeug — siehe den offenen Punkt in 8.11. Aktueller Stand: 963 Testmethoden (758 `[Fact]`, 205 `[Theory]`) über 46 Testklassen. |
 | **Q11** | Ein Release wird zweimal aus demselben Tag gebaut. | Identische Artefakte: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode`-Restore gegen `packages.lock.json`, SDK-Versionen exakt gepinnt (8.0.423 / 9.0.316 / 10.0.302). |
 | **Q12** | Ein Consumer kombiniert das `SecureBigInteger`-Backend versehentlich mit der variabelzeitigen `ExtendedEuclideanAlgorithm`. | Wenn er `FixedIterationSecretReconstructor<TNumber>` verwendet: **Compile-Fehler** (der Konstruktor nimmt nur `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Über den Basistyp `SecretReconstructor<TNumber>` bleibt die Kombination möglich — das ist ein dokumentiertes Opt-out, kein Versehen. |
 
@@ -1307,7 +1310,7 @@ Trade-offs.
 | **R7** | **`Secret<TNumber>` ist ein `readonly struct` über gemeinsamem Puffer.** Eine Wertkopie aliast den Speicher; `Dispose` auf einer Kopie entwertet alle. | Mittel | Klassischer Fußangel-Fall für Consumer; heute nur per XML-Kommentar abgesichert. | Migration zu `sealed class` — vorgemerkt für den nächsten Breaking-Change-Zyklus. | XDoc an `Secret<TNumber>`, ab Zeile 50 |
 | **R8** | **Kein `IAsyncDisposable`; `ConsolePasswordReader.ReadPassword` blockiert.** | Mittel | In ASP.NET- oder Worker-Hosts werden Threads blockiert. | `IAsyncDisposable` auf den großen Disposables; `ReadPasswordAsync(CancellationToken)`. | kein `IAsyncDisposable` in `src/`; `ConsolePasswordReader.cs:86` |
 | **R9** | **Keine Integritätsprüfung pro Share.** Ein manipuliertes Share führt zu einem stillen, falschen Ergebnis (siehe Ablauf 6.3). Das gilt auch für das vermerkte Sicherheitslevel: Die Rekonstruktion weist Level ab, die einander widersprechen — das erkennt Inkonsistenz, nicht Manipulation; ein auf allen Shares gleich verändertes Level passiert und kann ein falsches Geheimnis liefern. | Mittel (bewusst, dokumentiert) | Consumer, die Share-Manipulation im Bedrohungsmodell haben, sind ohne eigene Maßnahme ungeschützt. | Im Threat Model offen benannt; Consumer müssen signierte Shares, HMAC-Umschläge oder VSS darüberlegen, die das Level zusammen mit den Koordinaten abdecken. Eine VSS-Implementierung steht nicht auf der Roadmap. | `README.md`, *Security & Threat Model* |
-| **R10** | **Kein Build-Check auf Schlüsselgleichheit der beiden `.resx`.** | Niedrig | Ein fehlender de-DE-Schlüssel fällt erst zur Laufzeit auf (Fallback auf Englisch). | Build-Target oder Analyzer, der beide Schlüsselmengen diffed — oder die de-DE-Ressource fallen lassen. | `src/Resources/ErrorMessages.resx` und `…de-DE.resx`, je 66 Schlüssel |
+| **R10** | **Kein Build-Check auf Schlüsselgleichheit der beiden `.resx`.** | Niedrig | Ein fehlender de-DE-Schlüssel fällt erst zur Laufzeit auf (Fallback auf Englisch). | Build-Target oder Analyzer, der beide Schlüsselmengen diffed — oder die de-DE-Ressource fallen lassen. | `src/Resources/ErrorMessages.resx` und `…de-DE.resx`, je 65 Schlüssel |
 | **R11** | **Textkodierung wird nicht im Share persistiert.** Split mit `Encoding` A und Rekonstruktion mit `Encoding` B liefert stillen Datenmüll. | Niedrig | Betrifft nur, wer die `Encoding`-Überladungen bewusst nutzt; der Default UTF-8 ist auf beiden Seiten gleich. | Als Aufrufer-Verantwortung an den `Encoding`-Überladungen dokumentieren (offener Doku-Fix). | `CHANGELOG.md` `[0.14.0]`; `README.md` |
 | **R13** | **Mutationstests messen nichts.** Stryker.NET 4.16.0 kann die xUnit-v3/MTP-Suite nicht instrumentieren; der erste grüne CI-Lauf war ein **False Green** (0,00 %, 1248/1248 überlebt). | Niedrig (blockiert extern) | Es gibt keine belastbare Aussage zur Testschärfe jenseits der Abdeckung. | Workflow geparkt, Konfiguration als Wiederbelebungshilfe behalten; getrackt in GitHub-Issue #343. Blockiert durch stryker-net #3117/#3094. | `.config/dotnet-tools.json` (Stryker 4.16.0); GitHub-Issue #343 |
 | **R14** | **Deferred: konstante Laufzeit für Hex-/Base64-Dekoder und `Secret.CompareTo`.** Erstere sind verzweigende Randparser, letzteres bricht beim ersten abweichenden Byte ab und verrät die gemeinsame Präfixlänge. | Niedrig (im Threat Model benannt) | Sortieren oder Vergleichen von Geheimmaterial ist zeitlich beobachtbar; nur Gleichheit ist CT. | Verzweigungsfreie Varianten sind entworfen und für einen eigenen PR-Zyklus geparkt; `[Obsolete]`-Markierungen auf den Relationaloperatoren sind eine Option. | `README.md`, *Security & Threat Model* |
