@@ -660,7 +660,7 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </remarks>
     private static Exception RejectSecurityLevel(int securityLevel, bool explicitlySupplied, string message) =>
         explicitlySupplied
-            ? new ArgumentOutOfRangeException("securityLevel", securityLevel, message)
+            ? new ArgumentOutOfRangeException(nameof(securityLevel), securityLevel, message)
             : (Exception)new ReconstructionException(message);
 
     /// <summary>
