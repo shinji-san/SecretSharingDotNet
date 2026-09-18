@@ -173,6 +173,19 @@
       verworfen: über 500 Ziehungen aus `C(5, 3)` erreichte es 6 der 10 Teilmengen, der Rang alle
       10. Q6 nennt die neue Abdeckung, und die Bijektion von Rang auf Teilmenge wird in einem
       eigenen Test geprüft statt angenommen.
+    - 2026-09-18 — zweiter Review-Nachlauf zur #403-Dokumentation. Der offene Punkt, der hinter Q6
+      echte `k`-Kombinationen verlangte, ist entfernt; der vorige Eintrag hat ihn erledigt. Er hatte
+      außerdem vorgeschlagen, sie für kleine `n` erschöpfend aufzuzählen, und die Suites ziehen
+      stattdessen Stichproben: Jede Teilmenge ist erreichbar, jeder Lauf zieht gleichverteilt
+      daraus (χ² 4,4 über 20.000 Ziehungen aus `C(5, 3)`), und die Abbildung von Rang auf
+      Teilmenge selbst wird erschöpfend geprüft. Das Sequenzdiagramm in 6.2 zeigte auf dem
+      Kompatibilitätspfad nach `AdjustSecurityLevel` eine zweite Zuweisung der Stufe, die der Code
+      überspringt; es hat jetzt drei Zweige — inspizierbar, nicht inspizierbar mit noch zu
+      setzender Stufe, und nicht inspizierbar mit bereits übernommener Stufe. Seine Schlussnotiz
+      und die Überschrift des Fließtexts darunter sagten, eine abgewiesene Eingabe lasse den
+      Manager *nur* auf dem inspizierbaren Pfad stehen, was sich als „sonst nie“ liest, obwohl ein
+      doppelter Index mit benannter Stufe auch auf dem Kompatibilitätspfad vor der Übernahme
+      abgewiesen wird; beide sagen jetzt, nur der inspizierbare Pfad *garantiere* es.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -705,11 +718,13 @@ sequenceDiagram
     alt Manager inspizierbar
         Rec->>Rec: Koordinaten im Koerper ? Index in (0, p), Wert in [0, p)
         Rec->>SLM: SecurityLevel = die oben bestimmte Stufe
-    else Kompatibilitaetspfad
+    else nicht inspizierbar, Stufe benannt oder vermerkt, noch zu setzen
         Rec->>SLM: SecurityLevel = die oben bestimmte Stufe
         Rec->>Rec: Koordinaten im Koerper ? Index in (0, p), Wert in [0, p)
+    else nicht inspizierbar, per AdjustSecurityLevel bereits uebernommen
+        Rec->>Rec: Koordinaten im Koerper ? Index in (0, p), Wert in [0, p)
     end
-    Note over Rec,SLM: Nur auf dem inspizierbaren Pfad laesst eine abgewiesene Eingabe den Manager stehen
+    Note over Rec,SLM: Nur der inspizierbare Pfad garantiert, dass eine abgewiesene Eingabe den Manager stehen laesst
     loop Lagrange-Basispolynome
         Rec->>Calc: Zaehler- und Nennerprodukte ueber alle Index-Differenzen
     end
@@ -738,7 +753,7 @@ der verbliebene Teil von Risiko R27: Sie wählt den Körper anhand des größten
 trifft diese Schätzung eine kleinere Primzahl als der Split verwendet hat, läuft die Interpolation
 darunter im falschen Körper. Still, wenn der konstante Term dort einen Rest hat.
 
-**Der Zustand des Managers übersteht eine Abweisung nur auf dem inspizierbaren Pfad.** Mit
+**Nur der inspizierbare Pfad garantiert, dass der Zustand des Managers eine Abweisung übersteht.** Mit
 `IInspectableSecurityLevelManager<TNumber>` fällt die Auswahl, ohne sie zu übernehmen; jede
 Prüfung läuft also, solange der Manager noch hält, was er vorher hielt, und eine Abweisung lässt
 Stufe wie Prime-Instanz unberührt. Ein Manager, der älter ist als diese Fähigkeit, kann das nicht
@@ -1245,11 +1260,6 @@ Qualität von SecretSharingDotNet
 | **Q10** | Ein neuer Test wird geschrieben. | Er trägt AAA-Marker, bindet jede Allokation per `using` und existiert in beiden Backend-Hierarchien (Kapitel 8.11). Durchgesetzt wird das im Review, nicht durch ein Werkzeug — siehe den offenen Punkt in 8.11. Aktueller Stand: 944 Testmethoden (739 `[Fact]`, 205 `[Theory]`) über 45 Testklassen. |
 | **Q11** | Ein Release wird zweimal aus demselben Tag gebaut. | Identische Artefakte: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode`-Restore gegen `packages.lock.json`, SDK-Versionen exakt gepinnt (8.0.423 / 9.0.316 / 10.0.302). |
 | **Q12** | Ein Consumer kombiniert das `SecureBigInteger`-Backend versehentlich mit der variabelzeitigen `ExtendedEuclideanAlgorithm`. | Wenn er `FixedIterationSecretReconstructor<TNumber>` verwendet: **Compile-Fehler** (der Konstruktor nimmt nur `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Über den Basistyp `SecretReconstructor<TNumber>` bleibt die Kombination möglich — das ist ein dokumentiertes Opt-out, kein Versehen. |
-
-> **Offen:** Die Teilmengen-Abdeckung in Q6 ist zyklisch, nicht kombinatorisch. Ein Defekt, der
-> nur bei nicht zusammenhängenden Index-Kombinationen auftritt, bliebe darum grün. Benötigt:
-> entweder ein Generator, der echte `k`-Kombinationen zieht (für kleine `n` erschöpfend), oder die
-> bewusste Entscheidung, dass die zyklische Stichprobe als Abdeckung genügt.
 
 > **Offen:** Für nichtfunktionale *Performance*-Ziele existiert keine Vorgabe — weder ein
 > Durchsatz- noch ein Latenzbudget, weder eine Benchmark-Suite noch Messwerte. Der

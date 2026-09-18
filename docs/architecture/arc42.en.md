@@ -160,6 +160,18 @@
       the simpler alternative and rejected: over 500 draws of `C(5, 3)` it reached 6 of the 10
       subsets against the rank's 10. Q6 states the new coverage, and the rank-to-subset bijection
       is checked in its own test rather than assumed.
+    - 2026-09-18 — second review follow-up on the #403 documentation. The open item asking for
+      genuine `k`-combinations behind Q6 is removed; the previous entry resolved it. It had also
+      suggested enumerating them exhaustively for small `n`, and the suites sample instead: every
+      subset is reachable, each run draws uniformly among them (χ² 4.4 over 20,000 draws of
+      `C(5, 3)`), and the rank-to-subset map itself is checked exhaustively. The 6.2 sequence
+      diagram showed a second level assignment after `AdjustSecurityLevel` on the compatibility
+      path, which the code skips; it now has three branches — inspectable, not inspectable with the
+      level still to set, and not inspectable with the level already committed. Its closing note,
+      and the prose heading below it, said a rejected input leaves the manager untouched *only* on
+      the inspectable path, which reads as "never elsewhere" although a duplicate index with a named
+      level is refused before the commit on the compatibility path too; both now say the
+      inspectable path is the only one that *guarantees* it.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -679,11 +691,13 @@ sequenceDiagram
     alt manager inspectable
         Rec->>Rec: coordinates inside the field? index in (0, p), value in [0, p)
         Rec->>SLM: SecurityLevel = the level determined above
-    else compatibility path
+    else not inspectable, level named or recorded, still to set
         Rec->>SLM: SecurityLevel = the level determined above
         Rec->>Rec: coordinates inside the field? index in (0, p), value in [0, p)
+    else not inspectable, already committed by AdjustSecurityLevel
+        Rec->>Rec: coordinates inside the field? index in (0, p), value in [0, p)
     end
-    Note over Rec,SLM: Only on the inspectable path does a rejected input leave the manager untouched
+    Note over Rec,SLM: Only the inspectable path guarantees that a rejected input leaves the manager untouched
     loop Lagrange basis polynomials
         Rec->>Calc: numerator and denominator products over all index differences
     end
@@ -712,7 +726,7 @@ part of risk R27: it picks the field from the shares' maximum value, and when th
 a smaller prime than the split used, the interpolation below runs in the wrong field — silently,
 if the constant term happens to have a residue there.
 
-**The manager's state survives a rejection only on the inspectable path.** With
+**Only the inspectable path guarantees that the manager's state survives a rejection.** With
 `IInspectableSecurityLevelManager<TNumber>` the selection is made without committing it, so every
 validation runs while the manager still holds whatever it held before, and a refusal leaves both
 the level and the prime instance alone. A manager that predates the capability offers no such
@@ -1203,11 +1217,6 @@ Quality of SecretSharingDotNet
 | **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 944 test methods (739 `[Fact]`, 205 `[Theory]`) across 45 test classes. |
 | **Q11** | A release is built twice from the same tag. | Identical artefacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (8.0.423 / 9.0.316 / 10.0.302). |
 | **Q12** | A consumer accidentally combines the `SecureBigInteger` backend with the variable-time `ExtendedEuclideanAlgorithm`. | If they use `FixedIterationSecretReconstructor<TNumber>`: a **compile error** (the constructor takes only `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Through the base type `SecretReconstructor<TNumber>` the combination stays possible — that is a documented opt-out, not an accident. |
-
-> **Open:** The subset coverage behind Q6 is cyclic, not combinatorial. A defect that only shows
-> up on non-contiguous index combinations would therefore stay green. Needed: either a generator
-> drawing genuine `k`-combinations (exhaustively for small `n`), or the deliberate decision that
-> the cyclic sample is coverage enough.
 
 > **Open:** There is no non-functional *performance* target — no throughput or latency budget, no
 > benchmark suite, no measurements. The timing harness measures uniformity, not speed. Needed: if
