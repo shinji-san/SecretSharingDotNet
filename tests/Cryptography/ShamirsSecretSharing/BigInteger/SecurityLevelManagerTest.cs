@@ -38,6 +38,8 @@ using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 /// <summary>
@@ -444,5 +446,68 @@ public class SecurityLevelManagerTest
         // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => manager.IsValidSecurityLevel(17));
         Assert.Throws<ObjectDisposedException>(() => manager.DetermineSecurityLevel(maximumY));
+    }
+
+    /// <summary>
+    /// Tests that calling <see cref="SecurityLevelManager{TNumber}.Dispose"/> repeatedly is
+    /// idempotent — second and third calls do not throw.
+    /// </summary>
+    [Fact]
+    public void Dispose_CalledMultipleTimes_IsIdempotent()
+    {
+        // Arrange
+        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+
+        // Act
+        var ex = Record.Exception(() =>
+        {
+            securityLevelManager.Dispose();
+            securityLevelManager.Dispose();
+            securityLevelManager.Dispose();
+        });
+
+        // Assert
+        Assert.Null(ex);
+    }
+
+    /// <summary>
+    /// The idempotency guard in the non-virtual <c>Dispose()</c> covers the whole override chain: a
+    /// derived manager that cleans up in its override and then calls <c>base.Dispose(disposing)</c>
+    /// sees the override run once — after two sequential calls, and after a hundred concurrent
+    /// ones. With the guard in <c>Dispose(bool)</c>, as the dispose pattern suggests, only the base
+    /// body would be protected and the override would run on every call.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Dispose_OnADerivedType_RunsTheOverrideOnce()
+    {
+        // Arrange
+        var sequential = new CountingManager();
+        var concurrent = new CountingManager();
+
+        // Act
+        sequential.Dispose();
+        sequential.Dispose();
+        Parallel.For(0, 100, _ => concurrent.Dispose());
+
+        // Assert
+        Assert.Equal(1, sequential.OverrideRuns);
+        Assert.Equal(1, concurrent.OverrideRuns);
+    }
+
+    /// <summary>
+    /// A derived security level manager that counts how often its <c>Dispose(bool)</c> override runs.
+    /// </summary>
+    private sealed class CountingManager : SecurityLevelManager<BigInteger>
+    {
+        private int overrideRuns;
+
+        public int OverrideRuns => Volatile.Read(ref this.overrideRuns);
+
+        protected override void Dispose(bool disposing)
+        {
+            Interlocked.Increment(ref this.overrideRuns);
+            base.Dispose(disposing);
+        }
     }
 }
