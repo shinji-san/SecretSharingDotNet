@@ -164,9 +164,11 @@ public class PinnedPoolArrayTest
     /// <summary>
     /// Every byte of a multi-byte element is wiped. The length of the region to clear must follow
     /// the size the element has in memory, which is what <c>sizeof</c> reports. The legacy wipe path
-    /// used to take the marshalling size instead, and that is a different number: 1 for
-    /// <see cref="char"/>, so exactly the low half of a text buffer was cleared and every second
-    /// byte — a whole character in every pair — stayed in the pooled memory.
+    /// used to take the marshalling size, and for <see cref="char"/> that is 1 instead of 2: the
+    /// loop cleared the first <c>Capacity</c> bytes of a buffer twice that long, which zeroed the
+    /// front half of the characters and left the back half in the pooled memory in full — not, as
+    /// an earlier description of this defect claimed, the second byte of each character. The fill
+    /// value has both of its bytes set, so the test fails whichever half a regression spares.
     /// </summary>
     [Fact]
     public void SecureClear_OnCharBuffer_ClearsEveryCharacter()
@@ -175,7 +177,7 @@ public class PinnedPoolArrayTest
         using var pinnedArray = new PinnedPoolArray<char>(16);
         for (int i = 0; i < pinnedArray.Capacity; i++)
         {
-            pinnedArray.PoolArray[i] = 'A';
+            pinnedArray.PoolArray[i] = '䅁';
         }
 
         // Act
@@ -211,14 +213,42 @@ public class PinnedPoolArrayTest
         }
     }
 
+#if NETFRAMEWORK
     /// <summary>
-    /// An enum is an unmanaged type and therefore a permitted <c>T</c>. The legacy wipe path used to
-    /// ask for its marshalling size, which throws for an enum — and threw from inside
-    /// <c>Dispose</c>, after the disposed flag was set but before the pin was released, so the
-    /// buffer stayed pinned for the rest of the process.
+    /// .NET Framework pins only arrays whose element type it accepts as primitive and blittable,
+    /// and an enum is neither, although the <c>where T : unmanaged</c> constraint admits it. The
+    /// buffer therefore cannot be created there at all, which is a limit of the platform rather
+    /// than of this type: CoreCLR creates it, and the wipe test for an enum lives there.
+    /// <para>
+    /// Mono, which runs these target frameworks locally, accepts the enum array — so the rule is
+    /// invisible outside the Windows CI leg, and this test skips rather than asserting a Mono
+    /// behaviour that no deployment target depends on.
+    /// </para>
     /// </summary>
     [Fact]
-    public void SecureClear_OnEnumBuffer_ClearsAndDoesNotThrow()
+    public void Constructor_OnEnumBuffer_IsRefusedByNetFramework()
+    {
+        // Arrange
+        if (Type.GetType("Mono.Runtime") is not null)
+        {
+            Assert.Skip("Mono pins enum arrays; the rule under test is .NET Framework's.");
+        }
+
+        // Act
+        var exception = Record.Exception(() => new PinnedPoolArray<SampleEnum>(4));
+
+        // Assert
+        Assert.IsType<ArgumentException>(exception);
+    }
+#else
+    /// <summary>
+    /// An enum is an unmanaged type and therefore a permitted <c>T</c>, and the one element type
+    /// with no marshalling size at all — <c>Marshal.SizeOf</c> throws for it instead of returning a
+    /// number. This documents that such a buffer works on the runtimes that pin it; it does not
+    /// cover the legacy wipe path, which these target frameworks do not compile.
+    /// </summary>
+    [Fact]
+    public void SecureClear_OnEnumBuffer_ClearsEveryValue()
     {
         // Arrange
         using var pinnedArray = new PinnedPoolArray<SampleEnum>(4);
@@ -228,16 +258,15 @@ public class PinnedPoolArrayTest
         }
 
         // Act
-        var exception = Record.Exception(() =>
-        {
-            pinnedArray.SecureClear();
-            pinnedArray.Dispose();
-        });
+        pinnedArray.SecureClear();
 
         // Assert
-        Assert.Null(exception);
-        Assert.True(pinnedArray.IsDisposed);
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            Assert.Equal(SampleEnum.None, pinnedArray.PoolArray[i]);
+        }
     }
+#endif
 
     /// <summary>
     /// An unmanaged type for the enum cases above.

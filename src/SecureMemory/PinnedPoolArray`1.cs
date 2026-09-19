@@ -663,6 +663,24 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         }
         finally
         {
+            if (!cleared)
+            {
+                // The wipe did not finish, so the buffer may still hold plaintext, and freeing the
+                // pin below makes it movable: a compacting collection would copy that plaintext to
+                // a second place before either is eventually overwritten. Array.Clear needs neither
+                // the handle nor a byte span, so it is the one wipe still available here. It is a
+                // single zeroing pass rather than the three scrambling ones, and it must not
+                // displace the original failure, which is the one worth surfacing.
+                try
+                {
+                    Array.Clear(this.poolArray, 0, this.poolArray.Length);
+                }
+                catch
+                {
+                    // Nothing else can be done for this buffer.
+                }
+            }
+
             if (this.poolArrayHandle.IsAllocated)
             {
                 this.poolArrayHandle.Free();
@@ -699,10 +717,12 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// <remarks>
     /// <c>sizeof(T)</c>, not <see cref="System.Runtime.InteropServices.Marshal.SizeOf(Type)"/>: the
     /// latter reports the <em>marshalling</em> size, which is a different number for several
-    /// unmanaged types. It says 1 for <see cref="char"/>, which would leave the second byte of every
-    /// character in the buffer untouched, and 4 for <see cref="bool"/>, which would write past the
-    /// end of the array. For an enum it throws outright. The buffer to wipe is a managed array, so
-    /// its layout is what <c>sizeof</c> reports.
+    /// unmanaged types. It says 1 for <see cref="char"/>, which sizes the wipe at half the buffer:
+    /// the passes write consecutively from the base address, so the front half of the characters
+    /// would be cleared and the back half left in plaintext in full. It says 4 for
+    /// <see cref="bool"/>, which overshoots the array by three bytes per element. For an enum it
+    /// throws outright. The buffer to wipe is a managed array, so its layout is what <c>sizeof</c>
+    /// reports.
     /// </remarks>
     private static unsafe int SizeOf()
     {
