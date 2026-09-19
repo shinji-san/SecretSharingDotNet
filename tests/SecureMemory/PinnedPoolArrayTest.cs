@@ -162,6 +162,125 @@ public class PinnedPoolArrayTest
     }
 
     /// <summary>
+    /// Every byte of a multi-byte element is wiped. The length of the region to clear must follow
+    /// the size the element has in memory, which is what <c>sizeof</c> reports. The legacy wipe path
+    /// used to take the marshalling size, and for <see cref="char"/> that is 1 instead of 2: the
+    /// loop cleared the first <c>Capacity</c> bytes of a buffer twice that long, which zeroed the
+    /// front half of the characters and left the back half in the pooled memory in full — not, as
+    /// an earlier description of this defect claimed, the second byte of each character. The fill
+    /// value has both of its bytes set, so the test fails whichever half a regression spares.
+    /// </summary>
+    [Fact]
+    public void SecureClear_OnCharBuffer_ClearsEveryCharacter()
+    {
+        // Arrange
+        using var pinnedArray = new PinnedPoolArray<char>(16);
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            pinnedArray.PoolArray[i] = '䅁';
+        }
+
+        // Act
+        pinnedArray.SecureClear();
+
+        // Assert
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            Assert.Equal('\0', pinnedArray.PoolArray[i]);
+        }
+    }
+
+    /// <summary>
+    /// The same for the eight-byte element the <c>SecureBigInteger</c> limbs use.
+    /// </summary>
+    [Fact]
+    public void SecureClear_OnLimbBuffer_ClearsEveryLimb()
+    {
+        // Arrange
+        using var pinnedArray = new PinnedPoolArray<ulong>(8);
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            pinnedArray.PoolArray[i] = ulong.MaxValue;
+        }
+
+        // Act
+        pinnedArray.SecureClear();
+
+        // Assert
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            Assert.Equal(0UL, pinnedArray.PoolArray[i]);
+        }
+    }
+
+#if NETFRAMEWORK
+    /// <summary>
+    /// .NET Framework pins only arrays whose element type it accepts as primitive and blittable,
+    /// and an enum is neither, although the <c>where T : unmanaged</c> constraint admits it. The
+    /// buffer therefore cannot be created there at all, which is a limit of the platform rather
+    /// than of this type: CoreCLR creates it, and the wipe test for an enum lives there.
+    /// <para>
+    /// Mono, which runs these target frameworks locally, accepts the enum array — so the rule is
+    /// invisible outside the Windows CI leg, and this test skips rather than asserting a Mono
+    /// behaviour that no deployment target depends on.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Constructor_OnEnumBuffer_IsRefusedByNetFramework()
+    {
+        // Arrange
+        if (Type.GetType("Mono.Runtime") is not null)
+        {
+            Assert.Skip("Mono pins enum arrays; the rule under test is .NET Framework's.");
+        }
+
+        // Act
+        var exception = Record.Exception(() => new PinnedPoolArray<SampleEnum>(4));
+
+        // Assert
+        Assert.IsType<ArgumentException>(exception);
+    }
+#else
+    /// <summary>
+    /// An enum is an unmanaged type and therefore a permitted <c>T</c>, and the one element type
+    /// with no marshalling size at all — <c>Marshal.SizeOf</c> throws for it instead of returning a
+    /// number. This documents that such a buffer works on the runtimes that pin it; it does not
+    /// cover the legacy wipe path, which these target frameworks do not compile.
+    /// </summary>
+    [Fact]
+    public void SecureClear_OnEnumBuffer_ClearsEveryValue()
+    {
+        // Arrange
+        using var pinnedArray = new PinnedPoolArray<SampleEnum>(4);
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            pinnedArray.PoolArray[i] = SampleEnum.Set;
+        }
+
+        // Act
+        pinnedArray.SecureClear();
+
+        // Assert
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            Assert.Equal(SampleEnum.None, pinnedArray.PoolArray[i]);
+        }
+    }
+#endif
+
+    /// <summary>
+    /// An unmanaged type for the enum cases above.
+    /// </summary>
+    private enum SampleEnum
+    {
+        /// <summary>The default value.</summary>
+        None = 0,
+
+        /// <summary>A value distinguishable from the cleared state.</summary>
+        Set = 0x4141,
+    }
+
+    /// <summary>
     /// Regression guard that a caller setting <see cref="PinnedPoolArray{T}.Length"/> to
     /// zero before disposal cannot bypass the secure-clear pass —
     /// <see cref="PinnedPoolArray{T}.SecureClear"/> must still zero the full capacity.
