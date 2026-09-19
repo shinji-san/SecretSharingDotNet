@@ -131,14 +131,6 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     }
 
     /// <summary>
-    /// Finalizes an instance of the <see cref="SecretSplitter{TNumber}"/> class.
-    /// </summary>
-    ~SecretSplitter()
-    {
-        this.Dispose(false);
-    }
-
-    /// <summary>
     /// Gets or sets the security level (in bits) of the underlying
     /// <see cref="ISecurityLevelManager{TNumber}"/>.
     /// </summary>
@@ -555,12 +547,11 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         this.Dispose(true);
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>
     /// Releases the resources used by the <see cref="SecretSplitter{TNumber}"/> instance.
-    /// Internal helper invoked exactly once by <see cref="Dispose"/> after the disposed
+    /// Internal helper invoked exactly once by <see cref="Dispose()"/> after the disposed
     /// flag has been flipped.
     /// </summary>
     /// <param name="disposing">A boolean value indicating whether to release managed resources (<see langword="true"/>)

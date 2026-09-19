@@ -43,6 +43,9 @@ using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 /// <summary>
@@ -96,6 +99,138 @@ public class SecretReconstructorTest
 
         // Assert
         Assert.Null(ex);
+    }
+
+    /// <summary>
+    /// The idempotency guard in the non-virtual <c>Dispose()</c> covers the whole override chain: a
+    /// derived type that cleans up in its override and then calls <c>base.Dispose(disposing)</c>
+    /// sees the override run once — after two sequential calls, and after a hundred concurrent
+    /// ones. With the guard in <c>Dispose(bool)</c>, as the dispose pattern suggests, only the base
+    /// body would be protected and the override would run on every call.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Dispose_OnADerivedType_RunsTheOverrideOnce()
+    {
+        // Arrange
+        var sequential = new CountingReconstructor();
+        var concurrent = new CountingReconstructor();
+
+        // Act
+        sequential.Dispose();
+        sequential.Dispose();
+        Parallel.For(0, 100, _ => concurrent.Dispose());
+
+        // Assert
+        Assert.Equal(1, sequential.OverrideRuns);
+        Assert.Equal(1, concurrent.OverrideRuns);
+    }
+
+    /// <summary>
+    /// A derived reconstructor that counts how often its <c>Dispose(bool)</c> override runs.
+    /// </summary>
+    private sealed class CountingReconstructor : SecretReconstructor<BigInteger>
+    {
+        private int overrideRuns;
+
+        public CountingReconstructor()
+            : base(new ExtendedEuclideanAlgorithm<BigInteger>())
+        {
+        }
+
+        public int OverrideRuns => Volatile.Read(ref this.overrideRuns);
+
+        protected override void Dispose(bool disposing)
+        {
+            Interlocked.Increment(ref this.overrideRuns);
+            base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>
+    /// A derived reconstructor that is never disposed still reaches its <c>Dispose(bool)</c>
+    /// override — with <c>disposing</c> set to <see langword="false"/> — through the finalizer
+    /// of <c>SecretReconstructor</c>. The finalizer releases nothing of the base type's own; it is
+    /// kept because an existing derivation may rely on it to clean up, and removing it is reserved
+    /// for the next major version. This test is what makes that removal a deliberate step.
+    /// <para>
+    /// The instance is created on a thread of its own, which has ended by the time the test
+    /// collects: Mono scans stacks conservatively, and a stale slot on the test thread's stack could
+    /// otherwise keep the instance alive through every retry. The retries only cover a collector
+    /// that has not finished on the first pass.
+    /// </para>
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Finalizer_OfAnUndisposedDerivedType_CallsDisposeWithDisposingFalse()
+    {
+        // Arrange
+        var recorder = new FinalizationRecorder();
+
+        // Act
+        var creator = new Thread(() => AbandonFinalizingReconstructor(recorder));
+        creator.Start();
+        creator.Join();
+        for (int attempt = 0; attempt < 10 && !recorder.Called; attempt++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+
+        // Assert
+        Assert.True(recorder.Called);
+        Assert.False(recorder.Disposing);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="FinalizingReconstructor"/> and drops it without disposing it, which is
+    /// the point: only the finalizer can reach it afterwards.
+    /// </summary>
+    /// <param name="recorder">Receives the call the finalizer makes.</param>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void AbandonFinalizingReconstructor(FinalizationRecorder recorder)
+    {
+        _ = new FinalizingReconstructor(recorder);
+    }
+
+    /// <summary>
+    /// Records whether <c>Dispose(bool)</c> was reached and with which argument. Holds no reference
+    /// to the reconstructor, so it does not keep it alive.
+    /// </summary>
+    private sealed class FinalizationRecorder
+    {
+        private int called;
+        private int disposing;
+
+        public bool Called => Volatile.Read(ref this.called) == 1;
+
+        public bool Disposing => Volatile.Read(ref this.disposing) == 1;
+
+        public void Record(bool value)
+        {
+            Volatile.Write(ref this.disposing, value ? 1 : 0);
+            Volatile.Write(ref this.called, 1);
+        }
+    }
+
+    /// <summary>
+    /// A derived reconstructor whose <c>Dispose(bool)</c> override reports to a recorder.
+    /// </summary>
+    private sealed class FinalizingReconstructor : SecretReconstructor<BigInteger>
+    {
+        private readonly FinalizationRecorder recorder;
+
+        public FinalizingReconstructor(FinalizationRecorder recorder)
+            : base(new ExtendedEuclideanAlgorithm<BigInteger>())
+        {
+            this.recorder = recorder;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            this.recorder.Record(disposing);
+            base.Dispose(disposing);
+        }
     }
 
     /// <summary>

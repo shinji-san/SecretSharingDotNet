@@ -106,6 +106,20 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <summary>
     /// Finalizes an instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This type owns no unmanaged resource, and <c>Dispose(false)</c> releases nothing of its own.
+    /// The finalizer is kept for derived types: the class is public and not sealed, and an existing
+    /// derivation may rely on it to reach its own <c>Dispose(bool)</c> override when an instance is
+    /// never disposed. Removing it would drop that cleanup silently, so it is reserved for the next
+    /// major version, together with a migration note for derived types.
+    /// </para>
+    /// <para>
+    /// When adding a derived finalizer before 2.0.0, ensure that cleanup safely handles repeated
+    /// calls to <c>Dispose(false)</c>, because both finalizers may invoke the override: a derived
+    /// finalizer chains to this one, and both call the virtual <c>Dispose(false)</c>.
+    /// </para>
+    /// </remarks>
     ~SecretReconstructor()
     {
         this.Dispose(false);
@@ -761,8 +775,19 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Idempotent and safe to call from multiple threads concurrently. The owned
     /// <see cref="ISecurityLevelManager{TNumber}"/> (when present) is disposed exactly once.
+    /// </para>
+    /// <para>
+    /// The idempotency guard sits here, in the non-virtual method, and not in <c>Dispose(bool)</c>
+    /// where the dispose pattern puts it. That placement is deliberate: it makes the whole override
+    /// chain run once, so an override of <c>Dispose(bool)</c> in a derived type is also called
+    /// exactly once, however often and from however many threads disposal is requested. With the
+    /// guard in <c>Dispose(bool)</c> only the base body would be protected, and an override that
+    /// cleans up and then calls <c>base.Dispose(disposing)</c> would run on every call — including
+    /// concurrently — which for a type handing buffers back to a pool means handing one back twice.
+    /// </para>
     /// </remarks>
     public void Dispose()
     {
@@ -782,8 +807,16 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <param name="disposing">A boolean value indicating whether to release managed resources (<see langword="true"/>)
     /// or only unmanaged resources (<see langword="false"/>).</param>
     /// <remarks>
+    /// <para>
     /// Disposes the contained <see cref="ISecurityLevelManager{TNumber}"/> only when this instance owns it
     /// (i.e. when constructed via the parameterless-manager overload).
+    /// </para>
+    /// <para>
+    /// Called exactly once through <see cref="Dispose()"/>, which holds the idempotency guard so that
+    /// an override runs once as well, or by the finalizer with <paramref name="disposing"/> set to
+    /// <see langword="false"/> when an instance was never disposed. The base body then releases
+    /// nothing; the finalizer exists for derived types that clean up in their override.
+    /// </para>
     /// </remarks>
     protected virtual void Dispose(bool disposing)
     {

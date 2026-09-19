@@ -253,8 +253,19 @@ public class SecurityLevelManager<TNumber> : IInspectableSecurityLevelManager<TN
     /// Releases all resources used by the current instance of the <see cref="SecurityLevelManager{TNumber}"/> class.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Idempotent and safe to call from multiple threads concurrently. The owned
     /// <see cref="MersennePrime"/> Calculator is disposed exactly once.
+    /// </para>
+    /// <para>
+    /// The idempotency guard sits here, in the non-virtual method, and not in <c>Dispose(bool)</c>
+    /// where the dispose pattern puts it. That placement is deliberate: it makes the whole override
+    /// chain run once, so an override of <c>Dispose(bool)</c> in a derived type is also called
+    /// exactly once, however often and from however many threads disposal is requested. With the
+    /// guard in <c>Dispose(bool)</c> only the base body would be protected, and an override that
+    /// cleans up and then calls <c>base.Dispose(disposing)</c> would run on every call — including
+    /// concurrently.
+    /// </para>
     /// </remarks>
     public void Dispose()
     {
@@ -272,6 +283,12 @@ public class SecurityLevelManager<TNumber> : IInspectableSecurityLevelManager<TN
     /// </summary>
     /// <param name="disposing">A boolean value indicating whether to release managed resources
     /// (<see langword="true"/>) or only unmanaged resources (<see langword="false"/>).</param>
+    /// <remarks>
+    /// Called exactly once through <see cref="Dispose()"/>, which holds the idempotency guard so that
+    /// an override runs once as well. This type declares no finalizer, so
+    /// <paramref name="disposing"/> is <see langword="false"/> only if a derived type with a
+    /// finalizer of its own passes it on.
+    /// </remarks>
     protected virtual void Dispose(bool disposing)
     {
         if (!disposing)
