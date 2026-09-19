@@ -258,11 +258,6 @@ public class SecurityLevelManager<TNumber> : IInspectableSecurityLevelManager<TN
     /// </remarks>
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
-        {
-            return;
-        }
-
         this.Dispose(true);
         GC.SuppressFinalize(this);
     }
@@ -272,8 +267,21 @@ public class SecurityLevelManager<TNumber> : IInspectableSecurityLevelManager<TN
     /// </summary>
     /// <param name="disposing">A boolean value indicating whether to release managed resources
     /// (<see langword="true"/>) or only unmanaged resources (<see langword="false"/>).</param>
+    /// <remarks>
+    /// The idempotency guard lives here rather than in <see cref="Dispose()"/>, as the dispose pattern
+    /// has it: the public method only forwards, and the first call through either path flips the flag
+    /// atomically, so the prime is disposed exactly once however often, and from however many
+    /// threads, disposal is requested. This type declares no finalizer, so
+    /// <paramref name="disposing"/> is <see langword="false"/> only if a derived type with a
+    /// finalizer of its own passes it on.
+    /// </remarks>
     protected virtual void Dispose(bool disposing)
     {
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
+        {
+            return;
+        }
+
         if (!disposing)
         {
             return;

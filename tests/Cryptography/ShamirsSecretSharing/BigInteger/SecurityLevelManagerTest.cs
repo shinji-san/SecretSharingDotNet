@@ -445,4 +445,26 @@ public class SecurityLevelManagerTest
         Assert.Throws<ObjectDisposedException>(() => manager.IsValidSecurityLevel(17));
         Assert.Throws<ObjectDisposedException>(() => manager.DetermineSecurityLevel(maximumY));
     }
+
+    /// <summary>
+    /// Tests that calling <see cref="SecurityLevelManager{TNumber}.Dispose"/> repeatedly is
+    /// idempotent — second and third calls do not throw.
+    /// </summary>
+    [Fact]
+    public void Dispose_CalledMultipleTimes_IsIdempotent()
+    {
+        // Arrange
+        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+
+        // Act
+        var ex = Record.Exception(() =>
+        {
+            securityLevelManager.Dispose();
+            securityLevelManager.Dispose();
+            securityLevelManager.Dispose();
+        });
+
+        // Assert
+        Assert.Null(ex);
+    }
 }

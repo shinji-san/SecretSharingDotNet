@@ -104,14 +104,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     }
 
     /// <summary>
-    /// Finalizes an instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
-    /// </summary>
-    ~SecretReconstructor()
-    {
-        this.Dispose(false);
-    }
-
-    /// <summary>
     /// Gets the security level (in bits) of the underlying
     /// <see cref="ISecurityLevelManager{TNumber}"/>.
     /// </summary>
@@ -766,11 +758,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </remarks>
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
-        {
-            return;
-        }
-
         this.Dispose(true);
         GC.SuppressFinalize(this);
     }
@@ -782,11 +769,26 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <param name="disposing">A boolean value indicating whether to release managed resources (<see langword="true"/>)
     /// or only unmanaged resources (<see langword="false"/>).</param>
     /// <remarks>
+    /// <para>
     /// Disposes the contained <see cref="ISecurityLevelManager{TNumber}"/> only when this instance owns it
     /// (i.e. when constructed via the parameterless-manager overload).
+    /// </para>
+    /// <para>
+    /// The idempotency guard lives here rather than in <see cref="Dispose()"/>, as the dispose pattern
+    /// has it: the public method only forwards, and the first call through either path flips the flag
+    /// atomically, so the owned manager is disposed exactly once however often, and from however many
+    /// threads, disposal is requested. This type declares no finalizer — it holds no unmanaged
+    /// resource of its own — so <paramref name="disposing"/> is <see langword="false"/> only if a
+    /// derived type with a finalizer of its own passes it on.
+    /// </para>
     /// </remarks>
     protected virtual void Dispose(bool disposing)
     {
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
+        {
+            return;
+        }
+
         if (disposing && this.ownsSecurityLevelManager)
         {
             this.securityLevelManager.Dispose();
