@@ -195,11 +195,19 @@
       often and concurrently `Dispose()` is called, and that an undisposed derived reconstructor still
       reaches its override through the finalizer.
     - 2026-09-19 — the wipe on the four legacy targets took its length from `Marshal.SizeOf`, the
-      *marshalling* size: 1 for `char`, so half of every character survived in the pooled buffer,
-      and an `ArgumentException` for an enum, so nothing was cleared at all (measured on .NET 8 and
-      on Mono 6.8 alike). It now uses `sizeof(T)` and computes the length in 64 bit. Q1 and 8.1
-      record the previous scope and the fix; totals refreshed to 973 (768 `[Fact]` + 205 `[Theory]`)
-      across 46 test classes for the three element-size facts in `PinnedPoolArrayTest`.
+      *marshalling* size: 1 for `char`, and an `ArgumentException` for an enum, so nothing was
+      cleared at all. It now uses `sizeof(T)` and computes the length in 64 bit. Q1 and 8.1 record
+      the previous scope and the fix.
+    - 2026-09-20 — review round on the fix above; two corrections and one platform finding. The
+      `char` case was described as leaving the second byte of every character behind. That is
+      wrong: the passes write consecutively from the base address, so the front half of the
+      characters was cleared and the back half survived in full — worse than the first description,
+      which for ASCII text would have meant nothing recoverable. Reproduced directly
+      (`char[16]` filled with `A`, wiped at the old length: `........AAAAAAAA`), and the test's fill
+      value is now `䅁` so that neither half can pass unnoticed. The enum case is further
+      scoped: .NET Framework refuses to pin an enum array at all, so it was reachable only for a
+      `netstandard2.0` build on CoreCLR — found by the Windows CI leg, since Mono accepts the array
+      and hid the difference locally. Totals refreshed to 974 (769 `[Fact]` + 205 `[Theory]`).
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -238,7 +246,7 @@ package and runs in-process inside the consumer's application (source: `README.m
 | Priority | Quality goal | Motivation |
 |---|---|---|
 | 1 | **Confidentiality of the secret in process memory** | The library's whole value collapses if the secret stays recoverable from heap snapshots, swap files, or reused pool buffers. Realised via GC-pinned, triple-overwritten buffers (`PinnedPoolArray<T>`) and a pervasive `IDisposable` discipline. |
-| 2 | **Functional correctness of the scheme** | A wrongly reconstructed secret is silently fatal: plain Shamir carries no integrity check (`README.md`, threat model). Backed by 973 test methods, property-based round-trip tests (CsCheck), and two parallel test hierarchies — one per numeric backend. |
+| 2 | **Functional correctness of the scheme** | A wrongly reconstructed secret is silently fatal: plain Shamir carries no integrity check (`README.md`, threat model). Backed by 974 test methods, property-based round-trip tests (CsCheck), and two parallel test hierarchies — one per numeric backend. |
 | 3 | **Resistance to passive timing analysis (best effort)** | A deliberate second-rank security goal: the `SecureBigInteger` backend provides core arithmetic whose per-limb loops are constant-time on the limb count, plus a fixed-iteration modular inverse. The guarantee stops at those loops — result normalisation, `ByteCount`, ordering and the other surfaces in 8.2 are value-dependent. The claim is explicitly *best effort in managed .NET*, not audited hardening (`README.md`, *Security & Threat Model* section). |
 | 4 | **Portability across eight target frameworks** | The library should be usable in legacy .NET Framework applications as well as on .NET 10. Cost: extensive `#if` conditionalisation (see risk R1). |
 | 5 | **Public API stability** | After the v1.0 GA, consumers should not break on every internal refactoring. Realised through deliberate `internal` boundaries and SemVer discipline in `CHANGELOG.md`. |
@@ -361,7 +369,7 @@ C4Container
   Person(appDev, "Application developer", "Programs against the library API")
   System_Boundary(sln, "SecretSharingDotNet.slnx") {
     Container(lib, "SecretSharingDotNet", "C# class library, 8 TFMs, strong-named", "The shipped library: Shamir algorithm, numeric backends, pinned memory")
-    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "973 test methods across 6 TFMs, including the timing harness and stress traits")
+    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "974 test methods across 6 TFMs, including the timing harness and stress traits")
     Container(demo, "SecretSharingDotNet.Demo.Console", ".NET 10 console app, Microsoft.Extensions.DependencyInjection", "Runnable end-to-end example with DI composition and console input")
   }
   System_Ext(nuget, "nuget.org", "Distribution channel")
@@ -1151,7 +1159,7 @@ code state `d920257` across the 56 versioned test files:
   `// Act & Assert` marker stands in.
 - **Every allocation binds with `using`** — including operator results (`+`, `-`, `*`, `/`, `%`),
   `Calculator<T>.Zero/One/Two`, inline expected values, and loop intermediates; 1,209 `using var`
-  declarations across 973 test methods. A forgotten `using` keeps a pinned buffer alive until
+  declarations across 974 test methods. A forgotten `using` keeps a pinned buffer alive until
   AppDomain shutdown.
 - **Two mirrored test hierarchies**, one for `BigInteger` and one for `SecureBigInteger` — visible
   in the sibling directories `tests/Cryptography/{BigInteger,SecureBigInteger}/`,
@@ -1236,7 +1244,7 @@ Quality of SecretSharingDotNet
 
 | # | Scenario | Measure / evidence |
 |---|---|---|
-| **Q1** | An attacker obtains a heap dump of the process after a `Secret` has been disposed. | Within the **library-owned** buffer the secret bytes are no longer findable: it was overwritten three times and zeroed **before** it went back to the `ArrayPool` — through `CryptographicOperations.ZeroMemory` on net8+/netstandard2.1, through `LegacySecureClear` on the four legacy targets. Evidence: `PinnedPoolArrayTest`, dispose ordering in `PinnedPoolArray.DisposeCore`. On those four targets the statement held until 2026-09-19 only for element types whose *marshalling* size happens to equal their memory size: the wipe length came from `Marshal.SizeOf`, so a `char` buffer was cleared over half its bytes and an enum buffer threw instead of being cleared at all. The length now comes from `sizeof(T)`; `SecureClear_OnCharBuffer_ClearsEveryCharacter`, `SecureClear_OnLimbBuffer_ClearsEveryLimb` and `SecureClear_OnEnumBuffer_ClearsAndDoesNotThrow` pin the element size per type. The guarantee stops at the ownership boundary: a caller-retained `byte[]` the `Secret` was constructed from is a foreign allocation and is never overwritten — the constructor copies. In DEBUG builds `ToString()` additionally materialises a plaintext `string` on the GC heap that no `Dispose` can reach (Release redacts). **The swap file is explicitly out of scope** (risk R22). |
+| **Q1** | An attacker obtains a heap dump of the process after a `Secret` has been disposed. | Within the **library-owned** buffer the secret bytes are no longer findable: it was overwritten three times and zeroed **before** it went back to the `ArrayPool` — through `CryptographicOperations.ZeroMemory` on net8+/netstandard2.1, through `LegacySecureClear` on the four legacy targets. Evidence: `PinnedPoolArrayTest`, dispose ordering in `PinnedPoolArray.DisposeCore`. On those four targets the statement held until 2026-09-19 only for element types whose *marshalling* size happens to equal their memory size: the wipe length came from `Marshal.SizeOf`, which for `char` is 1 instead of 2. The passes write consecutively from the base address, so a text buffer had the front half of its characters cleared and the back half left in plaintext in full, and the rented capacity — a power of two of at least 16 — decided how much that was. The length now comes from `sizeof(T)`; `SecureClear_OnCharBuffer_ClearsEveryCharacter` and `SecureClear_OnLimbBuffer_ClearsEveryLimb` pin the element size, with a fill value whose bytes are both set so that no half can pass unnoticed. An enum buffer took the other failure mode, `Marshal.SizeOf` throwing rather than returning a size — reachable only for a `netstandard2.0` build on CoreCLR, because .NET Framework refuses to pin an enum array at all (`Constructor_OnEnumBuffer_IsRefusedByNetFramework`). The guarantee stops at the ownership boundary: a caller-retained `byte[]` the `Secret` was constructed from is a foreign allocation and is never overwritten — the constructor copies. In DEBUG builds `ToString()` additionally materialises a plaintext `string` on the GC heap that no `Dispose` can reach (Release redacts). **The swap file is explicitly out of scope** (risk R22). |
 | **Q2** | The GC performs a compacting collection during a split operation. | With the `SecureBigInteger` backend no secret byte is copied and no plaintext is left at the old address, because every buffer involved is immobile via `GCHandle.Alloc(Pinned)`. With the `BigInteger` backend this does **not** hold: its internal magnitude and the intermediate array from `Value.ToByteArray()` are movable (see chapter 8.1). |
 | **Q3** | An auditor asks for proof that no weak random source is involved. | There is exactly one random source: `RandomNumberGenerator` behind `SecureRandom`/`IRandomSource`. A `grep` for `System.Random` in `src/` returns zero hits. |
 | **Q4** | A passive observer times `SecureBigInteger.Equals` for two secrets with a long common prefix against two that differ in the first byte. | **Not measured** — the suite carries no positive timing test (8.11), so no empirical result may be reported here. Defended structurally: `Equals` pre-pads to `max(l, r)` and folds the full length with XOR-OR and no short-circuit, uniform across all six TFMs, so there is no input-dependent exit for an observer to find. |
@@ -1245,7 +1253,7 @@ Quality of SecretSharingDotNet
 | **Q7** | Two shares with an identical index are handed to reconstruction. | `ReconstructionException` rather than a generic `ArgumentException`. It is raised on the first duplicate the check encounters, and `EnsureDistinctIndices` runs in the validation phase of `ReconstructionCore` — **before** the security level is committed. A duplicate index makes the Lagrange denominator zero in every field, so the check needs no level at all, and a rejected input leaves the manager where it was. One path is the exception to that: shares recording no level combined with an `ISecurityLevelManager<TNumber>` that is not `IInspectableSecurityLevelManager<TNumber>` offer no way to obtain a candidate other than calling `AdjustSecurityLevel`, and that call precedes the distinctness check, so there the manager has already moved when the duplicate surfaces. |
 | **Q8** | A behaviour is changed in the `BigInteger` test hierarchy but not in the `SecureBigInteger` one. | The divergence is caught **in review**, by the mirrored file being the obvious place to look — not by a failing test. The two suites are independent, and nothing enforces the mirroring (see the open item in 8.11). A red test follows only where the underlying production change also breaks the other backend. |
 | **Q9** | A commit reaches `develop` **and matches the path filters of `dotnetall.yml`** (that is, anything but pure Markdown changes; `README.md` is re-included because it is pack input). | Build and tests pass on **all** six test TFMs: `net8.0`/`net9.0`/`net10.0` on `ubuntu-24.04`, `net472`/`net48`/`net481` on `windows-2025`. A red TFM blocks the merge. For excluded changes — these architecture files among them — **no** test matrix runs at all, and the scenario contributes nothing there. |
-| **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 973 test methods (768 `[Fact]`, 205 `[Theory]`) across 46 test classes. |
+| **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 974 test methods (769 `[Fact]`, 205 `[Theory]`) across 46 test classes; 973 of them compile into any one target framework, because the enum buffer is covered by one test for .NET Framework and a different one everywhere else. |
 | **Q11** | A release is built twice from the same tag. | Identical artefacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (8.0.423 / 9.0.316 / 10.0.302). |
 | **Q12** | A consumer accidentally combines the `SecureBigInteger` backend with the variable-time `ExtendedEuclideanAlgorithm`. | If they use `FixedIterationSecretReconstructor<TNumber>`: a **compile error** (the constructor takes only `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Through the base type `SecretReconstructor<TNumber>` the combination stays possible — that is a documented opt-out, not an accident. |
 
