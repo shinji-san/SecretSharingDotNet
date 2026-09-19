@@ -107,15 +107,17 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// Finalizes an instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This type owns no unmanaged resource, and <c>Dispose(false)</c> releases nothing of its own.
     /// The finalizer is kept for derived types: the class is public and not sealed, and an existing
     /// derivation may rely on it to reach its own <c>Dispose(bool)</c> override when an instance is
     /// never disposed. Removing it would drop that cleanup silently, so it is reserved for the next
     /// major version, together with a migration note for derived types.
+    /// </para>
     /// <para>
-    /// Until then a derived type must not declare a finalizer of its own: a derived finalizer
-    /// chains to this one, both call the virtual <c>Dispose(false)</c>, and the override would run
-    /// twice.
+    /// When adding a derived finalizer before 2.0.0, ensure that cleanup safely handles repeated
+    /// calls to <c>Dispose(false)</c>, because both finalizers may invoke the override: a derived
+    /// finalizer chains to this one, and both call the virtual <c>Dispose(false)</c>.
     /// </para>
     /// </remarks>
     ~SecretReconstructor()
