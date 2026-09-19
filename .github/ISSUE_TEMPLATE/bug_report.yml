@@ -65,18 +65,26 @@ body:
   - type: dropdown
     id: tfm
     attributes:
-      label: Target framework
-      description: Select every framework on which you observed the problem.
+      label: Target framework of your project
+      description: |
+        The `<TargetFramework>` of the project that references SecretSharingDotNet,
+        not the package asset NuGet resolves it to. A net6.0 app, for example, is
+        served the netstandard2.1 asset -- picking your own framework here lets us
+        derive that. Select every framework on which you observed the problem.
       multiple: true
       options:
         - net10.0
         - net9.0
         - net8.0
+        - net7.0
+        - net6.0
+        - netcoreapp3.1
         - net481
         - net48
         - net472
         - netstandard2.1
         - netstandard2.0
+        - Other or not sure (please state it under Additional context)
     validations:
       required: true
 
