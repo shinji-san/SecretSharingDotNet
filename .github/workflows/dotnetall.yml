@@ -12,16 +12,23 @@ on:
     # that introduces heading drift. Other Markdown and .gitignore cannot
     # affect build, test, or pack; .gitattributes can (checkout applies its
     # eol / working-tree-encoding / filter rules while materializing the
-    # sources), so it stays a trigger. Last match wins.
+    # sources), so it stays a trigger. Issue forms are YAML, so the `**.md`
+    # negation no longer covers them and they need one of their own. Last
+    # match wins.
     paths:
     - '**'
     - '!**.md'
     - 'README.md'
     - '!.gitignore'
+    - '!.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches:
     - develop
     - main
+    # Deliberately without the ISSUE_TEMPLATE negation that the push filter
+    # carries: a pull request touching only the forms should still report a
+    # status, so this check cannot become unsatisfiable if the target branch
+    # is protected later.
     paths:
     - '**'
     - '!**.md'

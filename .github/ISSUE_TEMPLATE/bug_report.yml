@@ -1,0 +1,137 @@
+name: Bug report
+description: Report incorrect behaviour of the library
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report.
+
+        If you are unsure whether the behaviour you see is a defect, please ask in
+        [Discussions / Q&A](https://github.com/shinji-san/SecretSharingDotNet/discussions/categories/q-a)
+        first — that is usually the faster route to an answer.
+
+        **Never paste a real secret into this form.** Reproduce the problem with a
+        throwaway value; the issue tracker is public.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the incorrect behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps or code to reproduce
+      description: |
+        The smallest snippet that shows the problem. Where they are relevant, please
+        include the secret size, the number of shares, and the threshold.
+      render: csharp
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: SecretSharingDotNet version
+      placeholder: "1.0.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Numeric backend
+      description: The type argument you used, for example `ShamirsSecretSharing<BigInteger>`.
+      options:
+        - BigInteger
+        - SecureBigInteger
+        - Both
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tfm
+    attributes:
+      label: Target framework
+      description: Select every framework on which you observed the problem.
+      multiple: true
+      options:
+        - net10.0
+        - net9.0
+        - net8.0
+        - net481
+        - net48
+        - net472
+        - netstandard2.1
+        - netstandard2.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      multiple: true
+      options:
+        - Linux
+        - Windows
+        - macOS
+        - Android
+        - iOS
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Process architecture
+      options:
+        - x64
+        - x86
+        - arm64
+        - arm32
+        - Not sure
+    validations:
+      required: false
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: How did you obtain the library?
+      options:
+        - NuGet package
+        - Built from source
+    validations:
+      required: false
+
+  - type: dropdown
+    id: configuration
+    attributes:
+      label: Build configuration
+      options:
+        - Release
+        - Debug
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Stack traces, screenshots, or anything else that helps.
+    validations:
+      required: false
