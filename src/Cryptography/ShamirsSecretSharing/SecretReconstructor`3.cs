@@ -753,11 +753,27 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Idempotent and safe to call from multiple threads concurrently. The owned
     /// <see cref="ISecurityLevelManager{TNumber}"/> (when present) is disposed exactly once.
+    /// </para>
+    /// <para>
+    /// The idempotency guard sits here, in the non-virtual method, and not in <c>Dispose(bool)</c>
+    /// where the dispose pattern puts it. That placement is deliberate: it makes the whole override
+    /// chain run once, so an override of <c>Dispose(bool)</c> in a derived type is also called
+    /// exactly once, however often and from however many threads disposal is requested. With the
+    /// guard in <c>Dispose(bool)</c> only the base body would be protected, and an override that
+    /// cleans up and then calls <c>base.Dispose(disposing)</c> would run on every call — including
+    /// concurrently — which for a type handing buffers back to a pool means handing one back twice.
+    /// </para>
     /// </remarks>
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
+        {
+            return;
+        }
+
         this.Dispose(true);
         GC.SuppressFinalize(this);
     }
@@ -774,21 +790,14 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// (i.e. when constructed via the parameterless-manager overload).
     /// </para>
     /// <para>
-    /// The idempotency guard lives here rather than in <see cref="Dispose()"/>, as the dispose pattern
-    /// has it: the public method only forwards, and the first call through either path flips the flag
-    /// atomically, so the owned manager is disposed exactly once however often, and from however many
-    /// threads, disposal is requested. This type declares no finalizer — it holds no unmanaged
+    /// Called exactly once through <see cref="Dispose()"/>, which holds the idempotency guard so that
+    /// an override runs once as well. This type declares no finalizer — it holds no unmanaged
     /// resource of its own — so <paramref name="disposing"/> is <see langword="false"/> only if a
     /// derived type with a finalizer of its own passes it on.
     /// </para>
     /// </remarks>
     protected virtual void Dispose(bool disposing)
     {
-        if (Interlocked.Exchange(ref this.disposed, 1) == 1)
-        {
-            return;
-        }
-
         if (disposing && this.ownsSecurityLevelManager)
         {
             this.securityLevelManager.Dispose();

@@ -547,7 +547,6 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         this.Dispose(true);
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>
