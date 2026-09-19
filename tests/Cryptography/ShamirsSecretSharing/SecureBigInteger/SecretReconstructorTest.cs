@@ -154,8 +154,10 @@ public class SecretReconstructorTest
     /// kept because an existing derivation may rely on it to clean up, and removing it is reserved
     /// for the next major version. This test is what makes that removal a deliberate step.
     /// <para>
-    /// The instance is created in a separate, non-inlined method so no stack slot keeps it alive,
-    /// and collection is retried a few times because Mono scans the stack conservatively.
+    /// The instance is created on a thread of its own, which has ended by the time the test
+    /// collects: Mono scans stacks conservatively, and a stale slot on the test thread's stack could
+    /// otherwise keep the instance alive through every retry. The retries only cover a collector
+    /// that has not finished on the first pass.
     /// </para>
     /// Mirror of the BigInteger-side fact of the same name.
     /// </summary>
@@ -166,7 +168,9 @@ public class SecretReconstructorTest
         var recorder = new FinalizationRecorder();
 
         // Act
-        AbandonFinalizingReconstructor(recorder);
+        var creator = new Thread(() => AbandonFinalizingReconstructor(recorder));
+        creator.Start();
+        creator.Join();
         for (int attempt = 0; attempt < 10 && !recorder.Called; attempt++)
         {
             GC.Collect();

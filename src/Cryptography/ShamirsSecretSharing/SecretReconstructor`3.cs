@@ -112,6 +112,11 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// derivation may rely on it to reach its own <c>Dispose(bool)</c> override when an instance is
     /// never disposed. Removing it would drop that cleanup silently, so it is reserved for the next
     /// major version, together with a migration note for derived types.
+    /// <para>
+    /// Until then a derived type must not declare a finalizer of its own: a derived finalizer
+    /// chains to this one, both call the virtual <c>Dispose(false)</c>, and the override would run
+    /// twice.
+    /// </para>
     /// </remarks>
     ~SecretReconstructor()
     {
