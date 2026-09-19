@@ -125,7 +125,16 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// </summary>
     ~PinnedPoolArray()
     {
-        this.DisposeCore();
+        try
+        {
+            this.DisposeCore();
+        }
+        catch
+        {
+            // An exception leaving a finalizer terminates the process, so a failed wipe must not
+            // escape here. It still escapes Dispose, where a caller can see it; on this path the
+            // buffer is simply not returned to the pool, which the finally in DisposeCore ensures.
+        }
     }
 
     /// <summary>
@@ -558,7 +567,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
             return;
         }
 
-        LegacySecureClear(this.poolArrayHandle.AddrOfPinnedObject(), this.poolArray.Length * SizeOf());
+        LegacySecureClear(this.poolArrayHandle.AddrOfPinnedObject(), (long)this.poolArray.Length * SizeOf());
 #endif
     }
 
@@ -642,13 +651,28 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
             return;
         }
 
-        this.SecureClearCore();
-        if (this.poolArrayHandle.IsAllocated)
+        // The pin is released whatever the wipe does; leaving it allocated would keep the buffer
+        // immobile for the rest of the process, and the disposed flag above already stops a second
+        // attempt. The buffer goes back to the pool only once it is known to be clear: handing a
+        // partially wiped buffer to the next tenant is the one outcome worse than not reusing it.
+        bool cleared = false;
+        try
         {
-            this.poolArrayHandle.Free();
+            this.SecureClearCore();
+            cleared = true;
         }
+        finally
+        {
+            if (this.poolArrayHandle.IsAllocated)
+            {
+                this.poolArrayHandle.Free();
+            }
 
-        ArrayPool<T>.Shared.Return(this.poolArray);
+            if (cleared)
+            {
+                ArrayPool<T>.Shared.Return(this.poolArray);
+            }
+        }
     }
 
     /// <summary>
@@ -669,14 +693,20 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
 
 #if NETFRAMEWORK || NETSTANDARD2_0
     /// <summary>
-    /// Determines the size, in bytes, of an object of type <typeparamref name="T"/>.
+    /// Determines the size, in bytes, that one <typeparamref name="T"/> occupies in memory.
     /// </summary>
-    /// <returns>The size, in bytes, of the type <typeparamref name="T"/>.
-    /// This value is calculated using <see cref="System.Runtime.InteropServices.Marshal.SizeOf(Type)"/>.
-    /// </returns>
-    private static int SizeOf()
+    /// <returns>The size of <typeparamref name="T"/> in memory, in bytes.</returns>
+    /// <remarks>
+    /// <c>sizeof(T)</c>, not <see cref="System.Runtime.InteropServices.Marshal.SizeOf(Type)"/>: the
+    /// latter reports the <em>marshalling</em> size, which is a different number for several
+    /// unmanaged types. It says 1 for <see cref="char"/>, which would leave the second byte of every
+    /// character in the buffer untouched, and 4 for <see cref="bool"/>, which would write past the
+    /// end of the array. For an enum it throws outright. The buffer to wipe is a managed array, so
+    /// its layout is what <c>sizeof</c> reports.
+    /// </remarks>
+    private static unsafe int SizeOf()
     {
-        return Marshal.SizeOf(typeof(T));
+        return sizeof(T);
     }
 
     /// <summary>
@@ -687,7 +717,10 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// A pointer to the starting address of the memory to be securely cleared.
     /// </param>
     /// <param name="byteLength">
-    /// The length of the memory region, in bytes, to clear.
+    /// The length of the memory region, in bytes, to clear. A <see cref="long"/>, because the
+    /// product of the array length and the element size exceeds <see cref="int"/> for a large
+    /// buffer; as an <see cref="int"/> it could wrap to a negative value and skip the wipe
+    /// altogether.
     /// </param>
     /// <remarks>
     /// <see cref="Volatile.Write{T}(ref T, T)"/> is used for every byte of every pass —
@@ -698,7 +731,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
     /// volatile writes remove any reliance on JIT behaviour.
     /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
-    private static unsafe void LegacySecureClear(IntPtr pointer, int byteLength)
+    private static unsafe void LegacySecureClear(IntPtr pointer, long byteLength)
     {
         byte* bytePointer = (byte*)pointer;
         if (bytePointer != null)
@@ -711,13 +744,13 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
                     1 => 0x00,
                     _ => 0xAA
                 };
-                for (int i = 0; i < byteLength; i++)
+                for (long i = 0; i < byteLength; i++)
                 {
                     Volatile.Write(ref bytePointer[i], pattern);
                 }
             }
 
-            for (int i = 0; i < byteLength; i++)
+            for (long i = 0; i < byteLength; i++)
             {
                 Volatile.Write(ref bytePointer[i], 0);
             }

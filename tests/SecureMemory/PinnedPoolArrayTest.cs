@@ -162,6 +162,96 @@ public class PinnedPoolArrayTest
     }
 
     /// <summary>
+    /// Every byte of a multi-byte element is wiped. The length of the region to clear must follow
+    /// the size the element has in memory, which is what <c>sizeof</c> reports. The legacy wipe path
+    /// used to take the marshalling size instead, and that is a different number: 1 for
+    /// <see cref="char"/>, so exactly the low half of a text buffer was cleared and every second
+    /// byte — a whole character in every pair — stayed in the pooled memory.
+    /// </summary>
+    [Fact]
+    public void SecureClear_OnCharBuffer_ClearsEveryCharacter()
+    {
+        // Arrange
+        using var pinnedArray = new PinnedPoolArray<char>(16);
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            pinnedArray.PoolArray[i] = 'A';
+        }
+
+        // Act
+        pinnedArray.SecureClear();
+
+        // Assert
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            Assert.Equal('\0', pinnedArray.PoolArray[i]);
+        }
+    }
+
+    /// <summary>
+    /// The same for the eight-byte element the <c>SecureBigInteger</c> limbs use.
+    /// </summary>
+    [Fact]
+    public void SecureClear_OnLimbBuffer_ClearsEveryLimb()
+    {
+        // Arrange
+        using var pinnedArray = new PinnedPoolArray<ulong>(8);
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            pinnedArray.PoolArray[i] = ulong.MaxValue;
+        }
+
+        // Act
+        pinnedArray.SecureClear();
+
+        // Assert
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            Assert.Equal(0UL, pinnedArray.PoolArray[i]);
+        }
+    }
+
+    /// <summary>
+    /// An enum is an unmanaged type and therefore a permitted <c>T</c>. The legacy wipe path used to
+    /// ask for its marshalling size, which throws for an enum — and threw from inside
+    /// <c>Dispose</c>, after the disposed flag was set but before the pin was released, so the
+    /// buffer stayed pinned for the rest of the process.
+    /// </summary>
+    [Fact]
+    public void SecureClear_OnEnumBuffer_ClearsAndDoesNotThrow()
+    {
+        // Arrange
+        using var pinnedArray = new PinnedPoolArray<SampleEnum>(4);
+        for (int i = 0; i < pinnedArray.Capacity; i++)
+        {
+            pinnedArray.PoolArray[i] = SampleEnum.Set;
+        }
+
+        // Act
+        var exception = Record.Exception(() =>
+        {
+            pinnedArray.SecureClear();
+            pinnedArray.Dispose();
+        });
+
+        // Assert
+        Assert.Null(exception);
+        Assert.True(pinnedArray.IsDisposed);
+    }
+
+    /// <summary>
+    /// An unmanaged type for the enum cases above.
+    /// </summary>
+    private enum SampleEnum
+    {
+        /// <summary>The default value.</summary>
+        None = 0,
+
+        /// <summary>A value distinguishable from the cleared state.</summary>
+        Set = 0x4141,
+    }
+
+    /// <summary>
     /// Regression guard that a caller setting <see cref="PinnedPoolArray{T}.Length"/> to
     /// zero before disposal cannot bypass the secure-clear pass —
     /// <see cref="PinnedPoolArray{T}.SecureClear"/> must still zero the full capacity.
