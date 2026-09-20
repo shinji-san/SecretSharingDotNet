@@ -208,6 +208,13 @@
       scoped: .NET Framework refuses to pin an enum array at all, so it was reachable only for a
       `netstandard2.0` build on CoreCLR — found by the Windows CI leg, since Mono accepts the array
       and hid the difference locally. Totals refreshed to 974 (769 `[Fact]` + 205 `[Theory]`).
+    - 2026-09-20 — the test run moved to Microsoft.Testing.Platform (xunit.v3 4.0.1 brings MTP
+      2.4.0, which refuses the VSTest target on the .NET 10 SDK). Chapter 8.11 no longer describes
+      single-threaded execution as a property of the twelve command lines: it is configured in
+      `tests/xunit.runner.json`. The distinction is not cosmetic — before this there was no
+      configuration file and no `CollectionBehavior` attribute, so a run that did not repeat the
+      arguments used one thread per CPU thread, measured as `parallel mode = collections
+      [12 threads]` against `parallel mode = none` afterwards.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -1166,11 +1173,17 @@ code state `d920257` across the 56 versioned test files:
   `tests/Cryptography/ShamirsSecretSharing/{BigInteger,SecureBigInteger}/`, and
   `tests/Math/{BigInteger,SecureBigInteger}/`. When one side diverges, that is an early warning of
   API drift between the backends.
-- **Single-threaded execution**: every one of the twelve `dotnet test` invocations in
-  `.github/workflows/dotnetall.yml` and `.github/workflows/publishing.yml` — and likewise the CLI
-  instructions in `README.md` — sets `RunConfiguration.MaxCpuCount=1`, `xUnit.AppDomain=denied`,
-  `xUnit.ParallelizeAssembly=false`, and `xUnit.ParallelizeTestCollections=false`. Required so
-  that timing- and memory-sensitive invariants hold deterministically.
+- **Single-threaded execution**: configured in `tests/xunit.runner.json`
+  (`parallelizeTestCollections: false`, `parallelizeAssembly: false`, `maxParallelThreads: 1`).
+  Required so that timing- and memory-sensitive invariants hold deterministically. Until the move
+  to Microsoft.Testing.Platform it was instead appended as RunSettings to each of the twelve
+  `dotnet test` invocations in `.github/workflows/dotnetall.yml` and
+  `.github/workflows/publishing.yml` and to the CLI instructions in `README.md` — which meant a
+  run that did not repeat them, an IDE run among them, silently got the xUnit default of one
+  thread per CPU thread. As a configuration file the setting belongs to the assembly rather than
+  to the command line. Two of the former arguments had no successor: `xUnit.AppDomain=denied` is
+  obsolete because xUnit.net v3 has no AppDomain support, and `RunConfiguration.TargetPlatform=x64`
+  is redundant because every target framework reports x64 on its own.
 - The **timing harness** (`tests/Timing/`, net8+ only) takes paired measurements and evaluates them
   with Welch's t-test; the significance threshold is the default `pThreshold = 0.001` in
   `tests/Timing/DudectStyleClassifier.cs:58`. It runs as a **negative control**: the only test

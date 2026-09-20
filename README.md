@@ -1329,11 +1329,25 @@ dotnet build -c Release --no-restore SecretSharingDotNet.slnx
 ### 3. Test the solution
 
 ```dotnetcli
-dotnet test -c Debug --no-restore --no-build SecretSharingDotNet.slnx -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+dotnet test -c Debug --no-restore --no-build SecretSharingDotNet.slnx
 ```
 
 or 
 
 ```dotnetcli
-dotnet test -c Release --no-restore --no-build SecretSharingDotNet.slnx -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1  xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+dotnet test -c Release --no-restore --no-build SecretSharingDotNet.slnx
 ```
+
+The tests take no arguments. They must not run concurrently — the security-sensitive tests share
+process-wide state through the pinned pool buffers — and that is configured in
+`tests/xunit.runner.json`, so it holds for a run started from an IDE as well. `dotnet test` goes
+through Microsoft.Testing.Platform natively, which `global.json` selects. The command above starts
+the six target frameworks in parallel; add `--max-parallel-test-modules 1` to run them one after
+another.
+
+> **If you have the old command in a script:** it used to end in
+> `-- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied
+> xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false`. Those settings moved
+> into `tests/xunit.runner.json`. Kept on the command line they are now read as test-platform
+> arguments, match nothing, and the run reports *no tests were run* with exit code 5 — it fails,
+> but it does not look like a syntax error. Drop the whole `--` tail.
