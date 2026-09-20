@@ -543,17 +543,7 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
         }
 
 #if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-        var data = MemoryMarshal.AsBytes(this.poolArray.AsSpan());
-        for (int pass = 0; pass < 3; pass++)
-        {
-            byte pattern = (byte)(pass == 0 ? 0xFF : pass == 1 ? 0x00 : 0xAA);
-            for (int i = 0; i < data.Length; i++)
-            {
-                data[i] = pattern;
-            }
-        }
-
-        CryptographicOperations.ZeroMemory(data);
+        SecureClearChunked(this.poolArray.AsSpan(), MaxElementsPerWipeChunk());
 #else
         // Defense-in-depth: if construction failed between ArrayPool.Rent and
         // GCHandle.Alloc, the handle is default(GCHandle) and AddrOfPinnedObject()
@@ -708,6 +698,79 @@ public sealed class PinnedPoolArray<T> : IStructuralComparable, IStructuralEquat
 
         throw new ObjectDisposedException(nameof(PinnedPoolArray<>));
     }
+
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+    /// <summary>
+    /// Determines how many elements the wipe may hand to
+    /// <see cref="MemoryMarshal.AsBytes{T}(Span{T})"/> in one call.
+    /// </summary>
+    /// <returns>
+    /// The largest element count whose combined byte length still fits an <see cref="int"/>, and
+    /// therefore at least one element for every permitted <typeparamref name="T"/>.
+    /// </returns>
+    /// <remarks>
+    /// <c>AsBytes</c> computes the byte length as a checked multiplication and throws
+    /// <see cref="OverflowException"/> when it leaves <see cref="int"/> range. Slicing the array
+    /// into chunks of this size keeps every call inside that range, so a buffer above two
+    /// gibibytes is wiped rather than refused. <c>internal</c> so that the arithmetic can be
+    /// asserted against element sizes that do not divide <see cref="int.MaxValue"/> evenly.
+    /// </remarks>
+    internal static unsafe int MaxElementsPerWipeChunk()
+    {
+        return int.MaxValue / sizeof(T);
+    }
+
+    /// <summary>
+    /// Overwrites <paramref name="buffer"/> in slices of at most
+    /// <paramref name="maxElementsPerChunk"/> elements.
+    /// </summary>
+    /// <param name="buffer">The elements to overwrite.</param>
+    /// <param name="maxElementsPerChunk">
+    /// The largest number of elements to hand to <see cref="MemoryMarshal.AsBytes{T}(Span{T})"/>
+    /// at once. Production passes <see cref="MaxElementsPerWipeChunk"/>; a test passes a small
+    /// value so that the same loop runs over several chunks on a buffer it can afford to allocate.
+    /// </param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="maxElementsPerChunk"/> is less than one, which would not advance the loop.
+    /// </exception>
+    /// <remarks>
+    /// There is deliberately no size threshold in front of this loop: a buffer below two gibibytes
+    /// takes exactly one chunk and the very same code path, so the path a test exercises is the
+    /// path production runs. Each slice is scrambled and zeroed before the next one begins, so
+    /// every byte still sees 0xFF, 0x00, 0xAA and then the elision-resistant
+    /// <see cref="CryptographicOperations.ZeroMemory"/> — in a different order than one pass over
+    /// the whole buffer would produce, but with the same result. Advancing by re-slicing rather
+    /// than by carrying an offset keeps the loop free of the overflow a maximum-length
+    /// <see cref="byte"/> buffer would otherwise provoke.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+    internal static void SecureClearChunked(Span<T> buffer, int maxElementsPerChunk)
+    {
+        if (maxElementsPerChunk < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxElementsPerChunk),
+                ErrorMessages.MaxLengthMustBePositive);
+        }
+
+        while (!buffer.IsEmpty)
+        {
+            int count = Math.Min(buffer.Length, maxElementsPerChunk);
+            Span<byte> data = MemoryMarshal.AsBytes(buffer.Slice(0, count));
+            for (int pass = 0; pass < 3; pass++)
+            {
+                byte pattern = (byte)(pass == 0 ? 0xFF : pass == 1 ? 0x00 : 0xAA);
+                for (int i = 0; i < data.Length; i++)
+                {
+                    data[i] = pattern;
+                }
+            }
+
+            CryptographicOperations.ZeroMemory(data);
+            buffer = buffer.Slice(count);
+        }
+    }
+#endif
 
 #if NETFRAMEWORK || NETSTANDARD2_0
     /// <summary>

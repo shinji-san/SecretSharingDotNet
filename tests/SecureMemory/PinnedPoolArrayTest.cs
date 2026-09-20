@@ -280,6 +280,187 @@ public class PinnedPoolArrayTest
         Set = 0x4141,
     }
 
+#if NET8_0_OR_GREATER
+    /// <summary>
+    /// An element size that does not divide <see cref="int.MaxValue"/> evenly, so that the chunk
+    /// arithmetic is checked against a remainder as well.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    private struct ThreeBytes
+    {
+        /// <summary>First byte.</summary>
+        public byte First;
+
+        /// <summary>Second byte.</summary>
+        public byte Second;
+
+        /// <summary>Third byte.</summary>
+        public byte Third;
+    }
+
+    /// <summary>
+    /// The wipe slices the buffer so that no single <c>MemoryMarshal.AsBytes</c> call exceeds
+    /// <see cref="int.MaxValue"/> bytes. Production reaches a second slice only above two
+    /// gibibytes; passing the chunk size in runs the same loop over a buffer a test can afford.
+    /// The sizes cover a chunk that divides the length evenly, one that leaves a remainder, one
+    /// equal to the length, and ones larger than the buffer.
+    /// </summary>
+    /// <param name="maxElementsPerChunk">The chunk size handed to the wipe.</param>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(5)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(17)]
+    [InlineData(int.MaxValue)]
+    public void SecureClearChunked_OverAnyChunkSize_ClearsEveryElement(int maxElementsPerChunk)
+    {
+        // Arrange
+        using var charBuffer = new PinnedPoolArray<char>(16);
+        using var limbBuffer = new PinnedPoolArray<ulong>(16);
+        for (int i = 0; i < 16; i++)
+        {
+            charBuffer.PoolArray[i] = '䅁';
+            limbBuffer.PoolArray[i] = ulong.MaxValue;
+        }
+
+        // Act
+        PinnedPoolArray<char>.SecureClearChunked(charBuffer.PoolArray.AsSpan(0, 16), maxElementsPerChunk);
+        PinnedPoolArray<ulong>.SecureClearChunked(limbBuffer.PoolArray.AsSpan(0, 16), maxElementsPerChunk);
+
+        // Assert
+        for (int i = 0; i < 16; i++)
+        {
+            Assert.Equal('\0', charBuffer.PoolArray[i]);
+            Assert.Equal(0UL, limbBuffer.PoolArray[i]);
+        }
+    }
+
+    /// <summary>
+    /// An empty buffer is a no-op rather than an error, whatever the chunk size.
+    /// </summary>
+    [Fact]
+    public void SecureClearChunked_OnAnEmptyBuffer_DoesNothing()
+    {
+        // Arrange & Act
+        // The span is created inside the lambda: a ref struct cannot be captured from outside it.
+        var exception = Record.Exception(() => PinnedPoolArray<ulong>.SecureClearChunked(Span<ulong>.Empty, 1));
+
+        // Assert
+        Assert.Null(exception);
+    }
+
+    /// <summary>
+    /// A chunk size below one would not advance the loop. It cannot occur in production — the
+    /// value comes from <c>MaxElementsPerWipeChunk</c>, which is at least one for every permitted
+    /// element type — so the guard exists for the test seam, where a zero would hang the run
+    /// rather than fail it.
+    /// </summary>
+    /// <param name="maxElementsPerChunk">The rejected chunk size.</param>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MinValue)]
+    public void SecureClearChunked_OnANonPositiveChunkSize_Throws(int maxElementsPerChunk)
+    {
+        // Arrange
+        using var pinnedArray = new PinnedPoolArray<ulong>(4);
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(
+            () => PinnedPoolArray<ulong>.SecureClearChunked(pinnedArray.PoolArray.AsSpan(0, 4), maxElementsPerChunk));
+        Assert.Equal("maxElementsPerChunk", exception.ParamName);
+    }
+
+    /// <summary>
+    /// Name of the environment variable that opts into the large-buffer test below.
+    /// </summary>
+    private const string LargeBufferTestsVariable = "SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS";
+
+    /// <summary>
+    /// The real thing rather than a parameterised stand-in: a buffer past the two-gibibyte mark,
+    /// where <c>MemoryMarshal.AsBytes</c> would throw and the wipe therefore needs its second
+    /// chunk. 2^28 <see cref="ulong"/> elements are exactly 2 GiB — one byte more than
+    /// <see cref="int.MaxValue"/> — and a power of two, so <c>ArrayPool</c> hands out exactly that
+    /// much instead of rounding up to the next one; the remainder chunk is a single element.
+    /// <para>
+    /// Measured at roughly 84 MiB/s for the deliberately unoptimised wipe, so this costs about a
+    /// minute and two gibibytes of memory. It therefore runs only where
+    /// <c>SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS=1</c> asks for it, and skips everywhere else.
+    /// What it adds over the chunk-size theory is the allocation, the pinning and the arithmetic
+    /// at real scale; the loop itself is already covered without it.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void SecureClear_OnABufferPastTwoGibibytes_ClearsEveryElement()
+    {
+        // Arrange
+        if (Environment.GetEnvironmentVariable(LargeBufferTestsVariable) != "1")
+        {
+            Assert.Skip($"Set {LargeBufferTestsVariable}=1 to run this; it allocates 2 GiB and takes about a minute.");
+        }
+
+        const int elements = 1 << 28;
+        Assert.True(
+            (long)elements * sizeof(ulong) > int.MaxValue,
+            "the buffer has to exceed what a single AsBytes call accepts, or the test proves nothing");
+
+        using var pinnedArray = new PinnedPoolArray<ulong>(elements);
+        for (int i = 0; i < elements; i++)
+        {
+            pinnedArray.PoolArray[i] = ulong.MaxValue;
+        }
+
+        // Act
+        pinnedArray.SecureClear();
+
+        // Assert
+        // A plain comparison rather than Assert.Equal per element: 2^28 assertions would dominate
+        // the runtime of the test by a wide margin.
+        for (int i = 0; i < elements; i++)
+        {
+            if (pinnedArray.PoolArray[i] != 0UL)
+            {
+                Assert.Fail($"element {i} of {elements} survived the wipe");
+            }
+        }
+    }
+
+    /// <summary>
+    /// The chunk size is the largest one whose byte length still fits an <see cref="int"/>. Both
+    /// halves matter: one element more would make <c>MemoryMarshal.AsBytes</c> throw, and a value
+    /// far below the limit would mean the two-gibibyte boundary is never actually approached.
+    /// `ThreeBytes` is there because <see cref="int.MaxValue"/> divided by three leaves a
+    /// remainder, which the other element sizes do not.
+    /// </summary>
+    [Fact]
+    public void MaxElementsPerWipeChunk_IsTheLargestCountThatStillFitsAnInt()
+    {
+        // Arrange
+        (long Chunk, int ElementSize)[] cases =
+        [
+            (PinnedPoolArray<byte>.MaxElementsPerWipeChunk(), sizeof(byte)),
+            (PinnedPoolArray<char>.MaxElementsPerWipeChunk(), sizeof(char)),
+            (PinnedPoolArray<int>.MaxElementsPerWipeChunk(), sizeof(int)),
+            (PinnedPoolArray<ulong>.MaxElementsPerWipeChunk(), sizeof(ulong)),
+            (PinnedPoolArray<ThreeBytes>.MaxElementsPerWipeChunk(), 3),
+        ];
+
+        // Act & Assert
+        foreach ((long chunk, int elementSize) in cases)
+        {
+            Assert.True(chunk >= 1, $"element size {elementSize} yielded a chunk of {chunk}");
+            Assert.True(
+                chunk * elementSize <= int.MaxValue,
+                $"element size {elementSize}: {chunk} elements are {chunk * elementSize} bytes");
+            Assert.True(
+                (chunk + 1) * elementSize > int.MaxValue,
+                $"element size {elementSize}: {chunk + 1} elements would still fit, so the chunk is not maximal");
+        }
+    }
+#endif
+
     /// <summary>
     /// Regression guard that a caller setting <see cref="PinnedPoolArray{T}.Length"/> to
     /// zero before disposal cannot bypass the secure-clear pass —
