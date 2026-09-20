@@ -47,12 +47,22 @@ using System.Threading;
 /// Represents a set of shares
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
+/// <remarks>
+/// Deliberately not <c>[Serializable]</c>. It carried the attribute until version 1.0.1 without
+/// ever being serializable in practice: the only serialized field is the share collection, and
+/// <see cref="Share{TNumber}"/> is not marked serializable, so a formatter fails on the first
+/// element and only an empty instance could ever be written. The attribute also invited exactly
+/// the wrong thing — routing secret-bearing objects through formatter-based serialization, which
+/// is obsolete on every modern target (SYSLIB0011, SYSLIB0050) and bypasses the validation this
+/// type performs in its constructor, since deserialization does not run one. Persist shares
+/// through <see cref="ToCharArray(bool, bool, ShareFormat)"/> instead, which is the format this
+/// library defines and validates on the way back in.
+/// </remarks>
 #if DEBUG
 [DebuggerDisplay("{ToString()}")]
 #else
 [DebuggerDisplay("*** Secured Value ***")]
 #endif
-[Serializable]
 public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, IDisposable
 {
     /// <summary>
@@ -63,7 +73,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <summary>
     /// Saves an object that can be used to synchronize access to the <see cref="Shares{TNumber}"/>
     /// </summary>
-    [NonSerialized]
     private object syncRoot;
 
     /// <summary>
@@ -72,7 +81,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <see cref="Interlocked.Exchange(ref int, int)"/> so that concurrent
     /// <see cref="Dispose"/> calls cannot both reach the share-cascade-dispose branch.
     /// </summary>
-    [NonSerialized]
     private int disposed;
 
     /// <summary>

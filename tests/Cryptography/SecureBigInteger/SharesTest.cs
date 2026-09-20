@@ -42,6 +42,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Xunit;
 
 /// <summary>
@@ -1066,5 +1067,30 @@ public class SharesTest
         var error = Assert.Throws<ArgumentException>(() => original.ReissueWithSecurityLevel(7, provider.Object));
         Assert.Equal("securityLevel", error.ParamName);
         Assert.All(original, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// <see cref="Shares{TNumber}"/> must not be marked serializable, and the reason is the second
+    /// assertion: the only serialized field would hold <see cref="Share{TNumber}"/> instances,
+    /// which are not marked either, so a formatter fails on the first element and only an empty
+    /// instance could ever be written. The attribute carried that promise until 1.0.1 anyway, and
+    /// re-adding it would also re-open the deserialization path around the validation this type
+    /// performs in its constructor.
+    /// </summary>
+    /// <remarks>
+    /// The flag is asserted rather than <c>Type.IsSerializable</c>, which says the same thing and
+    /// is obsolete, and rather than <c>GetCustomAttribute</c>, which never reports it: the
+    /// attribute is a type flag, not a stored custom attribute.
+    /// </remarks>
+    [Fact]
+    public void Shares_CarriesNoSerializableFlag()
+    {
+        // Arrange & Act
+        bool sharesIsSerializable = (typeof(Shares<SecureBigInteger>).Attributes & TypeAttributes.Serializable) != 0;
+        bool shareIsSerializable = (typeof(Share<SecureBigInteger>).Attributes & TypeAttributes.Serializable) != 0;
+
+        // Assert
+        Assert.False(sharesIsSerializable);
+        Assert.False(shareIsSerializable);
     }
 }
