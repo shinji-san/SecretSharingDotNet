@@ -8,6 +8,13 @@ name: SecretSharingDotNet - Large Buffer Wipe
 # logic itself is covered there by SecureClearChunked with a small chunk size;
 # what this adds is the real allocation, the pinning and the arithmetic at scale.
 on:
+  # TEMPORARY, REMOVED BEFORE MERGE. A workflow_dispatch trigger is only offered once the
+  # file sits on the default branch, which is main, while this pull request targets develop
+  # - so until a release merge nobody could start this job, and the test it guards would go
+  # in claimed-but-never-executed. This push trigger runs it once from the branch itself.
+  push:
+    branches:
+    - fix-ChunkedSecureClear
   workflow_dispatch:
     inputs:
       framework:
@@ -59,7 +66,8 @@ jobs:
         SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS: '1'
         # Read through an environment variable rather than interpolated into the
         # script, so the input cannot become part of the command itself.
-        TARGET_FRAMEWORK: ${{ inputs.framework }}
+        # The fallback covers the temporary push trigger above, which carries no inputs.
+        TARGET_FRAMEWORK: ${{ inputs.framework || 'net10.0' }}
         # The assertions below read the run summary. Without these two the output
         # is localized to whatever the runner is set to and every line carries ANSI
         # colour escapes, either of which would make the greps silently useless.
