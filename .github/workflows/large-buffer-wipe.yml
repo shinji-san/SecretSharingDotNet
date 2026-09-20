@@ -1,0 +1,108 @@
+name: SecretSharingDotNet - Large Buffer Wipe
+
+# Runs the one test that allocates a buffer past two gibibytes, which is where
+# MemoryMarshal.AsBytes refuses a single span and the wipe has to work in chunks.
+# It is manual on purpose: the buffer costs two gibibytes of memory and is wiped
+# twice, which took 33 seconds of test time on an ubuntu-24.04 runner - times six
+# target frameworks on every push, for a path that changes rarely. The chunking
+# logic itself is covered in the per-push matrix by SecureClearChunked with a
+# small chunk size; what this adds is the real allocation, the pinning and the
+# arithmetic at scale.
+# Note that a workflow_dispatch trigger is only offered once this file sits on the
+# repository's default branch. Until then the job can be started by temporarily adding a
+# push trigger for a branch, which is how runs 35532001626 and 35532325174 were produced
+# while this workflow was still under review.
+on:
+  workflow_dispatch:
+    inputs:
+      framework:
+        description: Target framework to run the large-buffer test on
+        type: choice
+        default: net10.0
+        options:
+        - net8.0
+        - net9.0
+        - net10.0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  large-buffer:
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+    # No later step needs the git token: restore talks to nuget.org and
+    # nothing pushes.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup .NET SDKs
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: |
+          8.0.423
+          9.0.316
+          10.0.302
+
+    - name: Restore
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
+
+    - name: Test the wipe on a buffer past two gibibytes
+      env:
+        SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS: '1'
+        # Read through an environment variable rather than interpolated into the
+        # script, so the input cannot become part of the command itself.
+        # workflow_dispatch supplies the input's default, so the fallback is for the case
+        # above: a trigger added temporarily to run this job before the file reaches the
+        # default branch carries no inputs at all, and would otherwise pass an empty
+        # --framework.
+        TARGET_FRAMEWORK: ${{ inputs.framework || 'net10.0' }}
+        # The assertions below read the run summary, which is otherwise localized to
+        # whatever the runner is set to - this repository is developed on a machine
+        # that prints "gesamt" and "uebersprungen".
+        DOTNET_CLI_UI_LANGUAGE: en
+        # Honoured locally but NOT on the runner, where the summary keeps its colour
+        # escapes regardless. Kept because it costs nothing and helps when running the
+        # same command by hand; the assertions below do not rely on it.
+        NO_COLOR: '1'
+      run: |
+        set -euo pipefail
+        dotnet test --no-restore --no-build --configuration Release \
+          --framework "$TARGET_FRAMEWORK" tests/SecretSharingDotNetTest.csproj \
+          --filter "FullyQualifiedName~SecureClear_OnABufferPastTwoGibibytes" | tee test.log
+        # The test skips itself unless SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS reaches
+        # it, and a skipped test leaves this job green while proving nothing. A filter
+        # that matches nothing exits with code 8, which set -e already turns into a
+        # failure; a skip does not, so both counts are asserted here. Measured: with the
+        # variable unset the summary reads "skipped: 1", with a filter that matches
+        # nothing it reads "total: 0".
+        #
+        # Each summary line arrives as ESC[m followed by the text. The first version of
+        # this step anchored its patterns at the start of the line and failed a run in
+        # which the test had actually passed. Both defences are in place now: the
+        # escapes are stripped, and the patterns anchor at the end of the line, where no
+        # escape sits - so a leading one cannot break the match even if the stripping
+        # ever stops working.
+        sed -e 's/\x1b\[[0-9;]*[a-zA-Z]//g' test.log > summary.log
+        echo "Run summary as asserted against:"
+        grep -E "total:|failed:|succeeded:|skipped:" summary.log || true
+        if ! grep -qE "total: 1$" summary.log; then
+          echo "::error file=.github/workflows/large-buffer-wipe.yml::Expected exactly one test to run. Check whether the test was renamed."
+          exit 1
+        fi
+        if ! grep -qE "skipped: 0$" summary.log; then
+          echo "::error file=.github/workflows/large-buffer-wipe.yml::The large-buffer test skipped itself, so nothing was verified. SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS did not reach it."
+          exit 1
+        fi
