@@ -12,11 +12,15 @@ on:
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+    # Skip pull requests that cannot authenticate. GitHub withholds Actions
+    # secrets from runs triggered by Dependabot and from fork pull requests,
+    # so the job would fail there on an empty CLAUDE_CODE_OAUTH_TOKEN.
+    # The Dependabot half keys on the PR author rather than github.actor on
+    # purpose: a later maintainer or auto-heal push to the same PR runs with
+    # secrets again, and the check should not flip between runs of one PR.
+    if: >-
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
 
     runs-on: ubuntu-24.04
     permissions:
