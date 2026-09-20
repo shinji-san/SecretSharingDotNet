@@ -282,8 +282,10 @@ public class PinnedPoolArrayTest
 
 #if NET8_0_OR_GREATER
     /// <summary>
-    /// An element size that does not divide <see cref="int.MaxValue"/> evenly, so that the chunk
-    /// arithmetic is checked against a remainder as well.
+    /// An element size outside the powers of two, which are the only sizes the library itself
+    /// uses. <see cref="int.MaxValue"/> leaves a remainder for every element size but one — it is
+    /// odd, so 2, 4 and 8 leave 1, 3 and 7 — and what this type adds is therefore not a remainder
+    /// but a divisor the chunk arithmetic is never otherwise exercised with.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     private struct ThreeBytes
@@ -385,8 +387,9 @@ public class PinnedPoolArrayTest
     /// <see cref="int.MaxValue"/> — and a power of two, so <c>ArrayPool</c> hands out exactly that
     /// much instead of rounding up to the next one; the remainder chunk is a single element.
     /// <para>
-    /// Measured at roughly 84 MiB/s for the deliberately unoptimised wipe, so this costs about a
-    /// minute and two gibibytes of memory. It therefore runs only where
+    /// Measured at roughly 84 MiB/s for the deliberately unoptimised wipe, and the buffer is wiped
+    /// twice — once here and once more when the <c>using</c> disposes it — so this costs upwards
+    /// of two minutes and two gibibytes of memory. It therefore runs only where
     /// <c>SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS=1</c> asks for it, and skips everywhere else.
     /// What it adds over the chunk-size theory is the allocation, the pinning and the arithmetic
     /// at real scale; the loop itself is already covered without it.
@@ -398,7 +401,7 @@ public class PinnedPoolArrayTest
         // Arrange
         if (Environment.GetEnvironmentVariable(LargeBufferTestsVariable) != "1")
         {
-            Assert.Skip($"Set {LargeBufferTestsVariable}=1 to run this; it allocates 2 GiB and takes about a minute.");
+            Assert.Skip($"Set {LargeBufferTestsVariable}=1 to run this; it allocates 2 GiB and wipes it twice.");
         }
 
         const int elements = 1 << 28;
@@ -407,9 +410,14 @@ public class PinnedPoolArrayTest
             "the buffer has to exceed what a single AsBytes call accepts, or the test proves nothing");
 
         using var pinnedArray = new PinnedPoolArray<ulong>(elements);
+
+        // Hoisted out of the loops below: the property validates the disposed state on every
+        // access, and at 2^28 elements read twice that check would run more than half a billion
+        // times for nothing.
+        ulong[] buffer = pinnedArray.PoolArray;
         for (int i = 0; i < elements; i++)
         {
-            pinnedArray.PoolArray[i] = ulong.MaxValue;
+            buffer[i] = ulong.MaxValue;
         }
 
         // Act
@@ -420,7 +428,7 @@ public class PinnedPoolArrayTest
         // the runtime of the test by a wide margin.
         for (int i = 0; i < elements; i++)
         {
-            if (pinnedArray.PoolArray[i] != 0UL)
+            if (buffer[i] != 0UL)
             {
                 Assert.Fail($"element {i} of {elements} survived the wipe");
             }
@@ -431,8 +439,9 @@ public class PinnedPoolArrayTest
     /// The chunk size is the largest one whose byte length still fits an <see cref="int"/>. Both
     /// halves matter: one element more would make <c>MemoryMarshal.AsBytes</c> throw, and a value
     /// far below the limit would mean the two-gibibyte boundary is never actually approached.
-    /// `ThreeBytes` is there because <see cref="int.MaxValue"/> divided by three leaves a
-    /// remainder, which the other element sizes do not.
+    /// <see cref="ThreeBytes"/> is there to cover an element size outside the powers of two, not —
+    /// as an earlier version of this comment claimed — because it is the only one leaving a
+    /// remainder: <see cref="int.MaxValue"/> is odd, so 2, 4 and 8 leave 1, 3 and 7.
     /// </summary>
     [Fact]
     public void MaxElementsPerWipeChunk_IsTheLargestCountThatStillFitsAnInt()
