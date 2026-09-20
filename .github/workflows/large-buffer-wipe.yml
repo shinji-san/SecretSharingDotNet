@@ -1,0 +1,86 @@
+name: SecretSharingDotNet - Large Buffer Wipe
+
+# Runs the one test that allocates a buffer past two gibibytes, which is where
+# MemoryMarshal.AsBytes refuses a single span and the wipe has to work in chunks.
+# It is manual on purpose: the buffer costs two gibibytes of memory and the wipe
+# runs at roughly 84 MiB/s because it is deliberately unoptimised, so the test
+# needs about a minute and has no place in the per-push matrix. The chunking
+# logic itself is covered there by SecureClearChunked with a small chunk size;
+# what this adds is the real allocation, the pinning and the arithmetic at scale.
+on:
+  workflow_dispatch:
+    inputs:
+      framework:
+        description: Target framework to run the large-buffer test on
+        type: choice
+        default: net10.0
+        options:
+        - net8.0
+        - net9.0
+        - net10.0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  large-buffer:
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+    # No later step needs the git token: restore talks to nuget.org and
+    # nothing pushes.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup .NET SDKs
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: |
+          8.0.423
+          9.0.316
+          10.0.302
+
+    - name: Restore
+      run: dotnet restore --locked-mode SecretSharingDotNet.slnx
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
+
+    - name: Test the wipe on a buffer past two gibibytes
+      env:
+        SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS: '1'
+        # Read through an environment variable rather than interpolated into the
+        # script, so the input cannot become part of the command itself.
+        TARGET_FRAMEWORK: ${{ inputs.framework }}
+        # The assertions below read the run summary. Without these two the output
+        # is localized to whatever the runner is set to and every line carries ANSI
+        # colour escapes, either of which would make the greps silently useless.
+        DOTNET_CLI_UI_LANGUAGE: en
+        NO_COLOR: '1'
+      run: |
+        set -euo pipefail
+        dotnet test --no-restore --no-build --configuration Release \
+          --framework "$TARGET_FRAMEWORK" tests/SecretSharingDotNetTest.csproj \
+          --filter "FullyQualifiedName~SecureClear_OnABufferPastTwoGibibytes" | tee test.log
+        # The test skips itself unless SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS reaches
+        # it, and a skipped test leaves this job green while proving nothing. A filter
+        # that matches nothing exits with code 8, which set -e already turns into a
+        # failure; a skip does not, so both counts are asserted here. Measured: with the
+        # variable unset the summary reads "skipped: 1", with a filter that matches
+        # nothing it reads "total: 0".
+        if ! grep -qE "^[[:space:]]+total: 1$" test.log; then
+          echo "::error file=.github/workflows/large-buffer-wipe.yml::Expected exactly one test to run. Check whether the test was renamed."
+          exit 1
+        fi
+        if ! grep -qE "^[[:space:]]+skipped: 0$" test.log; then
+          echo "::error file=.github/workflows/large-buffer-wipe.yml::The large-buffer test skipped itself, so nothing was verified. SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS did not reach it."
+          exit 1
+        fi
