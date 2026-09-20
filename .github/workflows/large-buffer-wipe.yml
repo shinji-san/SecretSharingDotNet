@@ -2,11 +2,12 @@ name: SecretSharingDotNet - Large Buffer Wipe
 
 # Runs the one test that allocates a buffer past two gibibytes, which is where
 # MemoryMarshal.AsBytes refuses a single span and the wipe has to work in chunks.
-# It is manual on purpose: the buffer costs two gibibytes of memory and the wipe
-# runs at roughly 84 MiB/s because it is deliberately unoptimised, so the test
-# needs about a minute and has no place in the per-push matrix. The chunking
-# logic itself is covered there by SecureClearChunked with a small chunk size;
-# what this adds is the real allocation, the pinning and the arithmetic at scale.
+# It is manual on purpose: the buffer costs two gibibytes of memory and is wiped
+# twice, which took 33 seconds of test time on an ubuntu-24.04 runner - times six
+# target frameworks on every push, for a path that changes rarely. The chunking
+# logic itself is covered in the per-push matrix by SecureClearChunked with a
+# small chunk size; what this adds is the real allocation, the pinning and the
+# arithmetic at scale.
 on:
   # TEMPORARY, REMOVED BEFORE MERGE. A workflow_dispatch trigger is only offered once the
   # file sits on the default branch, which is main, while this pull request targets develop
@@ -68,10 +69,13 @@ jobs:
         # script, so the input cannot become part of the command itself.
         # The fallback covers the temporary push trigger above, which carries no inputs.
         TARGET_FRAMEWORK: ${{ inputs.framework || 'net10.0' }}
-        # The assertions below read the run summary. Without these two the output
-        # is localized to whatever the runner is set to and every line carries ANSI
-        # colour escapes, either of which would make the greps silently useless.
+        # The assertions below read the run summary, which is otherwise localized to
+        # whatever the runner is set to - this repository is developed on a machine
+        # that prints "gesamt" and "uebersprungen".
         DOTNET_CLI_UI_LANGUAGE: en
+        # Honoured locally but NOT on the runner, where the summary keeps its colour
+        # escapes regardless. Kept because it costs nothing and helps when running the
+        # same command by hand; the assertions below do not rely on it.
         NO_COLOR: '1'
       run: |
         set -euo pipefail
@@ -84,11 +88,21 @@ jobs:
         # failure; a skip does not, so both counts are asserted here. Measured: with the
         # variable unset the summary reads "skipped: 1", with a filter that matches
         # nothing it reads "total: 0".
-        if ! grep -qE "^[[:space:]]+total: 1$" test.log; then
+        #
+        # Each summary line arrives as ESC[m followed by the text. The first version of
+        # this step anchored its patterns at the start of the line and failed a run in
+        # which the test had actually passed. Both defences are in place now: the
+        # escapes are stripped, and the patterns anchor at the end of the line, where no
+        # escape sits - so a leading one cannot break the match even if the stripping
+        # ever stops working.
+        sed -e 's/\x1b\[[0-9;]*[a-zA-Z]//g' test.log > summary.log
+        echo "Run summary as asserted against:"
+        grep -E "total:|failed:|succeeded:|skipped:" summary.log || true
+        if ! grep -qE "total: 1$" summary.log; then
           echo "::error file=.github/workflows/large-buffer-wipe.yml::Expected exactly one test to run. Check whether the test was renamed."
           exit 1
         fi
-        if ! grep -qE "^[[:space:]]+skipped: 0$" test.log; then
+        if ! grep -qE "skipped: 0$" summary.log; then
           echo "::error file=.github/workflows/large-buffer-wipe.yml::The large-buffer test skipped itself, so nothing was verified. SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS did not reach it."
           exit 1
         fi

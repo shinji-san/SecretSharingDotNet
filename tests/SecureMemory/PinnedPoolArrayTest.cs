@@ -387,9 +387,10 @@ public class PinnedPoolArrayTest
     /// <see cref="int.MaxValue"/> — and a power of two, so <c>ArrayPool</c> hands out exactly that
     /// much instead of rounding up to the next one; the remainder chunk is a single element.
     /// <para>
-    /// Measured at roughly 84 MiB/s for the deliberately unoptimised wipe, and the buffer is wiped
-    /// twice — once here and once more when the <c>using</c> disposes it — so this costs upwards
-    /// of two minutes and two gibibytes of memory. It therefore runs only where
+    /// The buffer is wiped twice — once here and once more when the <c>using</c> disposes it — and
+    /// the wipe is deliberately unoptimised, measured at roughly 84 MiB/s on the development
+    /// machine. On an ubuntu-24.04 runner the whole test took 33 seconds; two gibibytes of memory
+    /// either way. It therefore runs only where
     /// <c>SECRETSHARINGDOTNET_LARGE_BUFFER_TESTS=1</c> asks for it, and skips everywhere else.
     /// What it adds over the chunk-size theory is the allocation, the pinning and the arithmetic
     /// at real scale; the loop itself is already covered without it.
