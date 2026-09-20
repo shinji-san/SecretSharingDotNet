@@ -225,6 +225,13 @@
       nur für einen `netstandard2.0`-Build auf CoreCLR erreichbar — gefunden vom Windows-CI-Lauf,
       weil Mono das Array akzeptiert und den Unterschied lokal verdeckt. Testzahlen auf 974
       (769 `[Fact]` + 205 `[Theory]`) aktualisiert.
+    - 2026-09-20 — der Testlauf läuft jetzt über Microsoft.Testing.Platform (xunit.v3 4.0.1 bringt
+      MTP 2.4.0 mit, das auf dem .NET-10-SDK das VSTest-Target verweigert). Kapitel 8.11
+      beschreibt die Einzelthread-Ausführung nicht mehr als Eigenschaft der zwölf Kommandozeilen:
+      Sie ist in `tests/xunit.runner.json` konfiguriert. Der Unterschied ist nicht kosmetisch —
+      vorher gab es weder Konfigurationsdatei noch `CollectionBehavior`-Attribut, ein Lauf ohne
+      die Argumente nutzte also einen Thread je CPU-Thread; gemessen als `parallel mode =
+      collections [12 threads]` gegenüber `parallel mode = none` danach.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -1210,12 +1217,18 @@ am Codestand `d920257` über die 56 versionierten Testdateien gemessen:
   `tests/Cryptography/ShamirsSecretSharing/{BigInteger,SecureBigInteger}/` und
   `tests/Math/{BigInteger,SecureBigInteger}/`. Weicht eine Seite ab, ist das ein Frühwarnsignal
   für API-Drift zwischen den Backends.
-- **Einzelthread-Ausführung**: Jeder der zwölf `dotnet test`-Aufrufe in
-  `.github/workflows/dotnetall.yml` und `.github/workflows/publishing.yml` — und ebenso die
-  CLI-Anleitung der `README.md` — setzt `RunConfiguration.MaxCpuCount=1`,
-  `xUnit.AppDomain=denied`, `xUnit.ParallelizeAssembly=false` und
-  `xUnit.ParallelizeTestCollections=false`. Nötig, damit timing- und speichersensible Invarianten
-  deterministisch greifen.
+- **Einzelthread-Ausführung**: konfiguriert in `tests/xunit.runner.json`
+  (`parallelizeTestCollections: false`, `parallelizeAssembly: false`, `maxParallelThreads: 1`).
+  Nötig, damit timing- und speichersensible Invarianten deterministisch greifen. Bis zum Wechsel
+  auf Microsoft.Testing.Platform hing das stattdessen an RunSettings, die jedem der zwölf
+  `dotnet test`-Aufrufe in `.github/workflows/dotnetall.yml` und
+  `.github/workflows/publishing.yml` sowie der CLI-Anleitung der `README.md` angehängt waren — ein
+  Lauf, der sie nicht wiederholte, ein IDE-Lauf etwa, bekam also still die xUnit-Vorgabe von einem
+  Thread je CPU-Thread. Als Konfigurationsdatei gehört die Einstellung zum Assembly statt zur
+  Kommandozeile. Zwei der früheren Argumente haben keinen Nachfolger: `xUnit.AppDomain=denied` ist
+  gegenstandslos, weil xUnit.net v3 keine AppDomains mehr kennt, und
+  `RunConfiguration.TargetPlatform=x64` ist überflüssig, weil jedes Ziel-Framework von sich aus
+  x64 meldet.
 - Der **Timing-Harness** (`tests/Timing/`, nur net8+) misst gepaarte Laufzeiten und wertet sie mit
   Welchs t-Test aus; die Signifikanzschwelle steht als Vorgabewert `pThreshold = 0.001` in
   `tests/Timing/DudectStyleClassifier.cs:58`. Er läuft als **Negativkontrolle**: Die einzige mit
