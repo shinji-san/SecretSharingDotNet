@@ -1031,13 +1031,12 @@ public class SharesTest
     }
 
     /// <summary>
-    /// <see cref="Shares{TNumber}"/> must not be marked serializable, and the reason is the second
-    /// assertion: its only serialized field holds <see cref="Share{TNumber}"/> instances, which are
-    /// not marked either. A formatter rejects that element type even when the collection is empty —
-    /// the backing list carries a <c>Share&lt;TNumber&gt;[]</c> — so no instance, empty or not, could
-    /// ever be written. The attribute carried that promise until 1.0.1 regardless, and re-adding it
-    /// would re-open the deserialization path around the validation this type performs in its
-    /// constructor.
+    /// <see cref="Shares{TNumber}"/> must not be marked serializable. The second assertion is why
+    /// the attribute was hollow with a formatter's defaults: the only serialized field holds
+    /// <see cref="Share{TNumber}"/> instances, which are not marked either, and a formatter rejects
+    /// that element type even for an empty collection. With a consumer-supplied surrogate for
+    /// <see cref="Share{TNumber}"/> it did work, and that is the reason not to re-add it: the path
+    /// deserializes the collection without running its constructor, which is what S5766 reports.
     /// </summary>
     /// <remarks>
     /// <c>GetCustomAttribute</c> does report <c>[Serializable]</c> — the runtime synthesises it from

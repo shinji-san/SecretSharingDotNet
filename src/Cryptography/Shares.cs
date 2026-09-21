@@ -48,17 +48,18 @@ using System.Threading;
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
 /// <remarks>
-/// Deliberately not <c>[Serializable]</c>. It carried the attribute until version 1.0.1 without
-/// ever being serializable in practice: the only serialized field is the share collection, and
-/// <see cref="Share{TNumber}"/> is not marked serializable. A formatter rejects that element type
-/// even when the collection is empty, because the backing list carries a
-/// <c>Share&lt;TNumber&gt;[]</c> whose element type is checked regardless of its length — so no
-/// instance, empty or not, could ever be written. The attribute also invited exactly
-/// the wrong thing — routing secret-bearing objects through formatter-based serialization, which
-/// is obsolete on every modern target (SYSLIB0011, SYSLIB0050) and bypasses the validation this
-/// type performs in its constructor, since deserialization does not run one. Persist shares
-/// through <see cref="ToCharArray(bool, bool, ShareFormat)"/> instead, which is the format this
-/// library defines and validates on the way back in.
+/// Deliberately not <c>[Serializable]</c>. It carried the attribute until version 1.0.1. With a
+/// formatter's defaults it could not be written at all: the only serialized field is the share
+/// collection, <see cref="Share{TNumber}"/> is not marked serializable, and the formatter rejects
+/// that element type even for an empty collection, since the backing list carries a
+/// <c>Share&lt;TNumber&gt;[]</c>. A consumer who registered an <c>ISerializationSurrogate</c> for
+/// <see cref="Share{TNumber}"/> could round-trip a populated collection, though, and that path is
+/// precisely what S5766 objects to: deserialization does not run the constructor, which copies the
+/// shares and sorts them by index, so the ordering this type otherwise guarantees would rest on
+/// whatever the payload contains. Formatter-based serialization is obsolete on every modern target
+/// (SYSLIB0011, SYSLIB0050) in any case. Persist shares through
+/// <see cref="ToCharArray(bool, bool, ShareFormat)"/>, which is the format this library defines and
+/// validates on the way back in.
 /// </remarks>
 #if DEBUG
 [DebuggerDisplay("{ToString()}")]
