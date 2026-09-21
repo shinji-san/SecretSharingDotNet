@@ -1071,26 +1071,28 @@ public class SharesTest
 
     /// <summary>
     /// <see cref="Shares{TNumber}"/> must not be marked serializable, and the reason is the second
-    /// assertion: the only serialized field would hold <see cref="Share{TNumber}"/> instances,
-    /// which are not marked either, so a formatter fails on the first element and only an empty
-    /// instance could ever be written. The attribute carried that promise until 1.0.1 anyway, and
-    /// re-adding it would also re-open the deserialization path around the validation this type
-    /// performs in its constructor.
+    /// assertion: its only serialized field holds <see cref="Share{TNumber}"/> instances, which are
+    /// not marked either. A formatter rejects that element type even when the collection is empty —
+    /// the backing list carries a <c>Share&lt;TNumber&gt;[]</c> — so no instance, empty or not, could
+    /// ever be written. The attribute carried that promise until 1.0.1 regardless, and re-adding it
+    /// would re-open the deserialization path around the validation this type performs in its
+    /// constructor.
     /// </summary>
     /// <remarks>
-    /// The flag is asserted rather than <c>Type.IsSerializable</c>, which says the same thing and
-    /// is obsolete, and rather than <c>GetCustomAttribute</c>, which never reports it: the
-    /// attribute is a type flag, not a stored custom attribute.
+    /// <c>GetCustomAttribute</c> does report <c>[Serializable]</c> — the runtime synthesises it from
+    /// the type flag — and it does so without a diagnostic. <c>Type.IsSerializable</c> and
+    /// <c>TypeAttributes.Serializable</c> would say the same thing, but both are obsolete under
+    /// SYSLIB0050.
     /// </remarks>
     [Fact]
-    public void Shares_CarriesNoSerializableFlag()
+    public void Shares_IsNotMarkedSerializable()
     {
         // Arrange & Act
-        bool sharesIsSerializable = (typeof(Shares<SecureBigInteger>).Attributes & TypeAttributes.Serializable) != 0;
-        bool shareIsSerializable = (typeof(Share<SecureBigInteger>).Attributes & TypeAttributes.Serializable) != 0;
+        var sharesAttribute = typeof(Shares<SecureBigInteger>).GetCustomAttribute<SerializableAttribute>();
+        var shareAttribute = typeof(Share<SecureBigInteger>).GetCustomAttribute<SerializableAttribute>();
 
         // Assert
-        Assert.False(sharesIsSerializable);
-        Assert.False(shareIsSerializable);
+        Assert.Null(sharesAttribute);
+        Assert.Null(shareAttribute);
     }
 }

@@ -50,8 +50,10 @@ using System.Threading;
 /// <remarks>
 /// Deliberately not <c>[Serializable]</c>. It carried the attribute until version 1.0.1 without
 /// ever being serializable in practice: the only serialized field is the share collection, and
-/// <see cref="Share{TNumber}"/> is not marked serializable, so a formatter fails on the first
-/// element and only an empty instance could ever be written. The attribute also invited exactly
+/// <see cref="Share{TNumber}"/> is not marked serializable. A formatter rejects that element type
+/// even when the collection is empty, because the backing list carries a
+/// <c>Share&lt;TNumber&gt;[]</c> whose element type is checked regardless of its length — so no
+/// instance, empty or not, could ever be written. The attribute also invited exactly
 /// the wrong thing — routing secret-bearing objects through formatter-based serialization, which
 /// is obsolete on every modern target (SYSLIB0011, SYSLIB0050) and bypasses the validation this
 /// type performs in its constructor, since deserialization does not run one. Persist shares
