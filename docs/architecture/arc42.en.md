@@ -224,8 +224,8 @@
 
     - 2026-09-20 — `Shares<TNumber>` lost its `[Serializable]` attribute. It never delivered what
       the attribute promised: measured, `typeof(Shares<T>).IsSerializable` was true while
-      `typeof(Share<T>).IsSerializable` was false, so a formatter fails on the first element and
-      only an empty collection could have been written. What it did deliver was an invitation to
+      `typeof(Share<T>).IsSerializable` was false, and a formatter rejects that element type even
+      for an empty collection, so no instance could ever have been written. What it did deliver was an invitation to
       push secret-bearing objects through formatter-based serialization, past the validation the
       constructor performs — which is what SonarQube reports as `csharpsquid:S5766`. Totals to 981
       (774 `[Fact]` + 207 `[Theory]`).
