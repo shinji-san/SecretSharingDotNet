@@ -47,12 +47,25 @@ using System.Threading;
 /// Represents a set of shares
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
+/// <remarks>
+/// Deliberately not <c>[Serializable]</c>. It carried the attribute until version 1.0.1. With a
+/// formatter's defaults it could not be written at all: the only serialized field is the share
+/// collection, <see cref="Share{TNumber}"/> is not marked serializable, and the formatter rejects
+/// that element type even for an empty collection, since the backing list carries a
+/// <c>Share&lt;TNumber&gt;[]</c>. A consumer who registered an <c>ISerializationSurrogate</c> for
+/// <see cref="Share{TNumber}"/> could round-trip a populated collection, though, and that path is
+/// precisely what S5766 objects to: deserialization does not run the constructor, which copies the
+/// shares and sorts them by index, so the ordering this type otherwise guarantees would rest on
+/// whatever the payload contains. Formatter-based serialization is obsolete on every modern target
+/// (SYSLIB0011, SYSLIB0050) in any case. Persist shares through
+/// <see cref="ToCharArray(bool, bool, ShareFormat)"/>, which is the format this library defines and
+/// validates on the way back in.
+/// </remarks>
 #if DEBUG
 [DebuggerDisplay("{ToString()}")]
 #else
 [DebuggerDisplay("*** Secured Value ***")]
 #endif
-[Serializable]
 public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, IDisposable
 {
     /// <summary>
@@ -63,7 +76,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <summary>
     /// Saves an object that can be used to synchronize access to the <see cref="Shares{TNumber}"/>
     /// </summary>
-    [NonSerialized]
     private object syncRoot;
 
     /// <summary>
@@ -72,7 +84,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <see cref="Interlocked.Exchange(ref int, int)"/> so that concurrent
     /// <see cref="Dispose"/> calls cannot both reach the share-cascade-dispose branch.
     /// </summary>
-    [NonSerialized]
     private int disposed;
 
     /// <summary>

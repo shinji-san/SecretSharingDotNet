@@ -42,6 +42,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Xunit;
 
 /// <summary>
@@ -1066,5 +1067,31 @@ public class SharesTest
         var error = Assert.Throws<ArgumentException>(() => original.ReissueWithSecurityLevel(7, provider.Object));
         Assert.Equal("securityLevel", error.ParamName);
         Assert.All(original, share => Assert.Null(share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// <see cref="Shares{TNumber}"/> must not be marked serializable. The second assertion is why
+    /// the attribute was hollow with a formatter's defaults: the only serialized field holds
+    /// <see cref="Share{TNumber}"/> instances, which are not marked either, and a formatter rejects
+    /// that element type even for an empty collection. With a consumer-supplied surrogate for
+    /// <see cref="Share{TNumber}"/> it did work, and that is the reason not to re-add it: the path
+    /// deserializes the collection without running its constructor, which is what S5766 reports.
+    /// </summary>
+    /// <remarks>
+    /// <c>GetCustomAttribute</c> does report <c>[Serializable]</c> — the runtime synthesises it from
+    /// the type flag — and it does so without a diagnostic. <c>Type.IsSerializable</c> and
+    /// <c>TypeAttributes.Serializable</c> would say the same thing, but both are obsolete under
+    /// SYSLIB0050.
+    /// </remarks>
+    [Fact]
+    public void Shares_IsNotMarkedSerializable()
+    {
+        // Arrange & Act
+        var sharesAttribute = typeof(Shares<SecureBigInteger>).GetCustomAttribute<SerializableAttribute>();
+        var shareAttribute = typeof(Share<SecureBigInteger>).GetCustomAttribute<SerializableAttribute>();
+
+        // Assert
+        Assert.Null(sharesAttribute);
+        Assert.Null(shareAttribute);
     }
 }
