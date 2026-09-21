@@ -239,12 +239,11 @@
       trennen jetzt *deklarierte* Methoden von dem, was in ein einzelnes Ziel-Framework
       hineinkompiliert — die frühere Formulierung warf beides zusammen: Sie zählte nur das
       Enum-Paar und überging die auf net8.0 und neuer beschränkten Suiten.
-
     - 2026-09-20 — `Shares<TNumber>` hat sein `[Serializable]`-Attribut verloren. Die Klasse hat
       nie eingelöst, was das Attribut versprach: Gemessen war `typeof(Shares<T>).IsSerializable`
       wahr, `typeof(Share<T>).IsSerializable` aber falsch — und ein Formatter weist diesen
-      Elementtyp auch bei einer leeren Sammlung ab, es ließ sich also nie eine Instanz schreiben. Eingelöst hat es
-      stattdessen eine Einladung, geheimnistragende Objekte durch formatterbasierte
+      Elementtyp auch bei einer leeren Sammlung ab, es ließ sich also nie eine Instanz schreiben.
+      Eingelöst hat es stattdessen eine Einladung, geheimnistragende Objekte durch formatterbasierte
       Serialisierung zu schicken, vorbei an der Validierung des Konstruktors — genau das meldet
       SonarQube als `csharpsquid:S5766`. Testzahlen auf 981 (774 `[Fact]` + 207 `[Theory]`).
 

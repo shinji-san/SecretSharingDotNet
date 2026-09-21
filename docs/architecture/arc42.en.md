@@ -221,14 +221,13 @@
       it executed before. Q10's totals now separate *declared* methods from what compiles into a
       single target framework, which the previous wording conflated: it counted only the enum
       pair and ignored the suites gated to net8.0 and later.
-
     - 2026-09-20 — `Shares<TNumber>` lost its `[Serializable]` attribute. It never delivered what
       the attribute promised: measured, `typeof(Shares<T>).IsSerializable` was true while
       `typeof(Share<T>).IsSerializable` was false, and a formatter rejects that element type even
-      for an empty collection, so no instance could ever have been written. What it did deliver was an invitation to
-      push secret-bearing objects through formatter-based serialization, past the validation the
-      constructor performs — which is what SonarQube reports as `csharpsquid:S5766`. Totals to 981
-      (774 `[Fact]` + 207 `[Theory]`).
+      for an empty collection, so no instance could ever have been written. What it did deliver was
+      an invitation to push secret-bearing objects through formatter-based serialization, past the
+      validation the constructor performs — which is what SonarQube reports as `csharpsquid:S5766`.
+      Totals to 981 (774 `[Fact]` + 207 `[Theory]`).
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
