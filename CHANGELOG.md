@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-09-26
 
 ### Added
 - `Share<TNumber>.SecurityLevel` records the Mersenne exponent of the finite field a share was created in, as `int?`. `MakeShares` populates it with the level that actually governed the polynomial — the value after any auto-raise, not the one the caller requested. The two coordinate constructors leave it `null`, because a caller supplying coordinates cannot know which field they came from, and so does the text constructor on a two-segment string; a three-segment string sets it from the third segment, which is how a share written in `ShareFormat.Extended` keeps its field across a round trip. `null` means *no exponent present* and nothing more, in particular not that the share came from the legacy text format. The level participates in `Equals` and `GetHashCode`, so a share recording none is not equal to one recording any — observable through `Shares<TNumber>.Contains` and `HashSet` membership, and documented as the price of letting the field take part in identity. `CompareTo` stays index-only, so a default `SortedSet` still does not separate two shares differing only in level.
@@ -377,7 +377,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `LICENSE.md`
 - Added `README.md`
 
-[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1...develop
+[1.1.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc02...v1.0.1
 [1.0.1-rc02]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc01...v1.0.1-rc02
 [1.0.1-rc01]: https://github.com/shinji-san/SecretSharingDotNet/compare/v0.14.0...v1.0.1-rc01
