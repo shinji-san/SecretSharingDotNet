@@ -691,7 +691,7 @@ public class SecureBigIntegerTests
 
         // Act
         using var result = SecureBigInteger.Remainder(num1, num2);
-        
+
         // Assert
         using var pinnedCharArray = result.ToPinnedCharArray();
         var s = new string(pinnedCharArray.PoolArray, 0, pinnedCharArray.Length);
@@ -1471,7 +1471,7 @@ public class SecureBigIntegerTests
         Assert.NotEqual(expected, actual);
 #endif
     }
-    
+
     /// <summary>
     /// Tests that <see cref="SecureBigInteger.ToPinnedCharArray()"/> emits the canonical
     /// decimal representation (with sign for negatives, no wrapper) across the full

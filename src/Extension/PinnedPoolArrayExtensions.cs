@@ -40,6 +40,50 @@ using System.Runtime.CompilerServices;
 internal static class PinnedPoolArrayExtensions
 {
     /// <summary>
+    /// Allocates a pinned buffer and fills it, disposing the buffer if the fill throws.
+    /// </summary>
+    /// <typeparam name="TArray">Element type of the buffer.</typeparam>
+    /// <param name="length">Logical length of the buffer.</param>
+    /// <param name="fill">Writes the content into the new buffer. Must not keep a reference to it.</param>
+    /// <returns>The filled buffer. The caller owns it.</returns>
+    /// <remarks>
+    /// <para>
+    /// The pattern <see cref="Subset{TArray}"/> spells out inline, taken out of line for callers
+    /// whose write step is several statements long. On success ownership passes to the caller
+    /// unchanged. On failure the buffer is disposed — wiped, unpinned and returned to the pool
+    /// — before the exception propagates, rather than lingering pinned and partly filled until
+    /// its finalizer runs.
+    /// </para>
+    /// <para>
+    /// Taking the write step as a delegate is also what makes that path testable: the serializing
+    /// callers validate everything before they allocate, so no public input reaches it
+    /// deterministically. The closure the callers pass is a small allocation on a serialization
+    /// path, not on the arithmetic one, and it captures no secret material.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="fill"/> is <see langword="null"/>.</exception>
+    internal static PinnedPoolArray<TArray> AllocateAndFill<TArray>(int length, Action<PinnedPoolArray<TArray>> fill)
+        where TArray : unmanaged
+    {
+        if (fill is null)
+        {
+            throw new ArgumentNullException(nameof(fill));
+        }
+
+        var result = new PinnedPoolArray<TArray>(length);
+        try
+        {
+            fill(result);
+            return result;
+        }
+        catch
+        {
+            result.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Creates a new array (destination array) which is a subset of the original array (source array).
     /// </summary>
     /// <typeparam name="TArray">Data type of the array</typeparam>

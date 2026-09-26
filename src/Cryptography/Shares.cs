@@ -32,6 +32,7 @@
 namespace SecretSharingDotNet.Cryptography;
 
 using Extension;
+using Math;
 using SecureMemory;
 using System;
 using System.Collections;
@@ -46,12 +47,25 @@ using System.Threading;
 /// Represents a set of shares
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type (An integer type)</typeparam>
+/// <remarks>
+/// Deliberately not <c>[Serializable]</c>. It carried the attribute until version 1.0.1. With a
+/// formatter's defaults it could not be written at all: the only serialized field is the share
+/// collection, <see cref="Share{TNumber}"/> is not marked serializable, and the formatter rejects
+/// that element type even for an empty collection, since the backing list carries a
+/// <c>Share&lt;TNumber&gt;[]</c>. A consumer who registered an <c>ISerializationSurrogate</c> for
+/// <see cref="Share{TNumber}"/> could round-trip a populated collection, though, and that path is
+/// precisely what S5766 objects to: deserialization does not run the constructor, which copies the
+/// shares and sorts them by index, so the ordering this type otherwise guarantees would rest on
+/// whatever the payload contains. Formatter-based serialization is obsolete on every modern target
+/// (SYSLIB0011, SYSLIB0050) in any case. Persist shares through
+/// <see cref="ToCharArray(bool, bool, ShareFormat)"/>, which is the format this library defines and
+/// validates on the way back in.
+/// </remarks>
 #if DEBUG
 [DebuggerDisplay("{ToString()}")]
 #else
 [DebuggerDisplay("*** Secured Value ***")]
 #endif
-[Serializable]
 public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, IDisposable
 {
     /// <summary>
@@ -62,7 +76,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <summary>
     /// Saves an object that can be used to synchronize access to the <see cref="Shares{TNumber}"/>
     /// </summary>
-    [NonSerialized]
     private object syncRoot;
 
     /// <summary>
@@ -71,7 +84,6 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// <see cref="Interlocked.Exchange(ref int, int)"/> so that concurrent
     /// <see cref="Dispose"/> calls cannot both reach the share-cascade-dispose branch.
     /// </summary>
-    [NonSerialized]
     private int disposed;
 
     /// <summary>
@@ -282,6 +294,111 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     public static implicit operator Shares<TNumber>(Share<TNumber>[] shares) => new Shares<TNumber>(shares);
 
     /// <summary>
+    /// Re-issues every share in this collection recording the finite field they were created in,
+    /// for shares that carry no record of one.
+    /// </summary>
+    /// <param name="securityLevel">The Mersenne exponent the split actually used.</param>
+    /// <returns>
+    /// A new collection of new shares. The caller owns it; this collection is untouched and still
+    /// usable, and disposing either leaves the other intact.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The same caller obligation as the single-share form: the exponent must be the one the split
+    /// actually used, <em>after</em> any auto-raise inside <c>MakeShares</c>. For shares that
+    /// record nothing, a supported exponent that is large enough but simply wrong cannot be
+    /// detected, because the coordinates do not say which field produced them. A share that
+    /// already records a level is never overwritten: a contradicting exponent is refused.
+    /// </para>
+    /// <para>
+    /// All or nothing. The level is validated once against every share before anything is cloned,
+    /// so a collection is never half migrated — and if the cloning itself fails partway, the shares
+    /// already produced are disposed rather than leaked.
+    /// </para>
+    /// <para>
+    /// This overload checks the exponent against <see cref="MersennePrimeProvider.Instance"/>, the
+    /// library's own table. With a security level manager built on a different
+    /// <see cref="IMersennePrimeProvider"/>, use
+    /// <see cref="ReissueWithSecurityLevel(int, IMersennePrimeProvider)"/> so migration and
+    /// reconstruction answer to the same table.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is not a supported Mersenne prime exponent.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="securityLevel"/> contradicts a level at least one share already records, or
+    /// names a field too small for at least one share's coordinates.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public Shares<TNumber> ReissueWithSecurityLevel(int securityLevel) =>
+        this.ReissueWithSecurityLevel(securityLevel, MersennePrimeProvider.Instance);
+
+    /// <summary>
+    /// Re-issues every share in this collection recording the finite field they were created in,
+    /// with the given provider deciding which exponents are supported.
+    /// </summary>
+    /// <param name="securityLevel">The Mersenne exponent the split actually used.</param>
+    /// <param name="mersennePrimeProvider">
+    /// The provider whose table decides which exponents are supported — the one the security
+    /// level manager reconstructing these shares uses. Borrowed for this call only: it is neither
+    /// stored on the new shares nor disposed.
+    /// </param>
+    /// <returns>
+    /// A new collection of new shares. The caller owns it; this collection is untouched and still
+    /// usable, and disposing either leaves the other intact.
+    /// </returns>
+    /// <remarks>
+    /// The same operation as <see cref="ReissueWithSecurityLevel(int)"/> — all or nothing, every
+    /// share validated before the first is cloned — except for which table decides. The exponent
+    /// is checked against <paramref name="mersennePrimeProvider"/> exactly, with no rounding up and
+    /// no fallback to the built-in table, before the field for the coordinate check is computed.
+    /// <para>
+    /// The provider is also where an application bounds the exponent. The field check computes
+    /// the prime for any exponent the provider supports, and near the top of the built-in table
+    /// that takes minutes; a provider limited to the exponents in use keeps migration — like
+    /// reconstruction through a security level manager on the same provider — from doing so.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="mersennePrimeProvider"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is not supported by <paramref name="mersennePrimeProvider"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="securityLevel"/> contradicts a level at least one share already records, or
+    /// names a field too small for at least one share's coordinates.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public Shares<TNumber> ReissueWithSecurityLevel(int securityLevel, IMersennePrimeProvider mersennePrimeProvider)
+    {
+        this.ThrowIfDisposed();
+        if (mersennePrimeProvider is null)
+        {
+            throw new ArgumentNullException(nameof(mersennePrimeProvider));
+        }
+
+        Share<TNumber>.EnsureUsableSecurityLevel(this.shareList, securityLevel, mersennePrimeProvider);
+
+        var reissued = new Share<TNumber>[this.shareList.Count];
+        try
+        {
+            for (int i = 0; i < this.shareList.Count; i++)
+            {
+                reissued[i] = this.shareList[i].ReissueCore(securityLevel);
+            }
+
+            return new Shares<TNumber>(reissued);
+        }
+        catch
+        {
+            reissued.DisposeAll();
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Converts the collection to a <see cref="PinnedPoolArray{T}"/> of <see cref="char"/> containing
     /// the uppercase hex-encoded shares without coordinate prefixes, one per line, separated and
     /// terminated by <see cref="Environment.NewLine"/>.
@@ -316,9 +433,45 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
     /// intermediate unpinned <see cref="string"/> or <see cref="System.Text.StringBuilder"/> allocation.
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the collection has been disposed.</exception>
-    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false) =>
+        this.ToCharArray(uppercase, withPrefix, ShareFormat.Legacy);
+
+    /// <summary>
+    /// Converts every share to its hex-encoded form in the given format, one per line.
+    /// </summary>
+    /// <param name="uppercase">
+    /// <see langword="true"/> for uppercase hex digits (0A–0F); <see langword="false"/> for lowercase.
+    /// </param>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to prepend <c>"0x"</c> to every segment, the security level included.
+    /// </param>
+    /// <param name="format">Which serialized form to write.</param>
+    /// <returns>
+    /// A <see cref="PinnedPoolArray{T}"/> with the hex-encoded shares. The caller disposes it. If
+    /// the write fails after the buffer was allocated, the buffer is disposed before the exception
+    /// propagates.
+    /// </returns>
+    /// <remarks>
+    /// All or nothing: <see cref="ShareFormat.Extended"/> throws unless <b>every</b> share records a
+    /// level, because the first one that does not stops the write — after the earlier lines have
+    /// been measured but before anything is handed back. A collection holding a mixture cannot be
+    /// written in the extended form at all, which is the honest outcome: the missing levels cannot
+    /// be invented and a file of mixed lines would be worse than a refusal.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a defined value.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="format"/> is <see cref="ShareFormat.Extended"/> and at least one share
+    /// records no security level.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix, ShareFormat format)
     {
         this.ThrowIfDisposed();
+
+        // Before the emptiness short-circuit, not after: an argument the method cannot honour is
+        // wrong whether or not there is anything to write, and an empty collection quietly
+        // accepting a cast integer would make the contract depend on the data.
+        ShareFormatValidation.EnsureDefined(format, nameof(format));
         if (this.shareList.Count == 0)
         {
             return new PinnedPoolArray<char>(0);
@@ -329,19 +482,21 @@ public sealed class Shares<TNumber> : ICollection<Share<TNumber>>, ICollection, 
         var total = 0;
         for (int i = 0; i < this.shareList.Count; i++)
         {
-            total += this.shareList[i].GetCharCount(withPrefix) + newlineLen;
+            total += this.shareList[i].GetCharCount(withPrefix, format) + newlineLen;
         }
 
-        var result = new PinnedPoolArray<char>(total);
-        var pos = 0;
-        for (int i = 0; i < this.shareList.Count; i++)
-        {
-            pos += this.shareList[i].WriteCharsTo(result.PoolArray, pos, uppercase, withPrefix);
-            newline.CopyTo(0, result.PoolArray, pos, newlineLen);
-            pos += newlineLen;
-        }
-
-        return result;
+        return PinnedPoolArrayExtensions.AllocateAndFill<char>(
+            total,
+            buffer =>
+            {
+                var pos = 0;
+                for (int i = 0; i < this.shareList.Count; i++)
+                {
+                    pos += this.shareList[i].WriteCharsTo(buffer.PoolArray, pos, uppercase, withPrefix, format);
+                    newline.CopyTo(0, buffer.PoolArray, pos, newlineLen);
+                    pos += newlineLen;
+                }
+            });
     }
 
     /// <summary>

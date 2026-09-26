@@ -131,14 +131,6 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
     }
 
     /// <summary>
-    /// Finalizes an instance of the <see cref="SecretSplitter{TNumber}"/> class.
-    /// </summary>
-    ~SecretSplitter()
-    {
-        this.Dispose(false);
-    }
-
-    /// <summary>
     /// Gets or sets the security level (in bits) of the underlying
     /// <see cref="ISecurityLevelManager{TNumber}"/>.
     /// </summary>
@@ -493,7 +485,10 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
                 {
                     x = Calculator.Create<TNumber>(bytes, bytes.Length);
                     y = Polynomial.EvaluateAt(x, polynomial, this.securityLevelManager.SecurityLevel);
-                    shares[i - 1] = new Share<TNumber>(x, y);
+                    // The level the share records is the one that governed the polynomial -- the
+                    // post-auto-raise value read on the line above, not whatever the caller asked
+                    // for before MakeShares raised it to fit the secret.
+                    shares[i - 1] = new Share<TNumber>(x, y, this.securityLevelManager.SecurityLevel);
                     // Ownership transferred to Share -- null out so the catch does not double-dispose.
                     x = null;
                     y = null;
@@ -552,12 +547,11 @@ public sealed class SecretSplitter<TNumber> : IMakeSharesUseCase<TNumber>
         }
 
         this.Dispose(true);
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>
     /// Releases the resources used by the <see cref="SecretSplitter{TNumber}"/> instance.
-    /// Internal helper invoked exactly once by <see cref="Dispose"/> after the disposed
+    /// Internal helper invoked exactly once by <see cref="Dispose()"/> after the disposed
     /// flag has been flipped.
     /// </summary>
     /// <param name="disposing">A boolean value indicating whether to release managed resources (<see langword="true"/>)

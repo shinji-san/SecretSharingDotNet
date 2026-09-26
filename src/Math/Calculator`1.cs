@@ -89,38 +89,38 @@ public abstract class Calculator<TNumber> :
     protected Calculator(TNumber val) => this.Value = val;
 
     /// <summary>
-    /// Adds the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
+    /// Adds the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/>
     /// <see cref="Calculator{TNumber}"/> instance.
     /// </summary>
     /// <param name="right">Right value to add (right summand).</param>
-    /// <returns>The sum of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
+    /// <returns>The sum of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/>
     /// <see cref="Calculator{TNumber}"/> instance.</returns>
     protected abstract Calculator<TNumber> Add(TNumber right);
 
     /// <summary>
-    /// Subtracts the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
+    /// Subtracts the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/>
     /// <see cref="Calculator{TNumber}"/> instance.
     /// </summary>
     /// <param name="right">Right value to subtract (subtrahend).</param>
-    /// <returns>The difference of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
+    /// <returns>The difference of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/>
     /// <see cref="Calculator{TNumber}"/> instance.</returns>
     protected abstract Calculator<TNumber> Subtract(TNumber right);
 
     /// <summary>
-    /// Multiplies the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
+    /// Multiplies the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/>
     /// <see cref="Calculator{TNumber}"/> instance.
     /// </summary>
     /// <param name="right">multiplicand</param>
-    /// <returns>The product of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
+    /// <returns>The product of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/>
     /// <see cref="Calculator{TNumber}"/> instance.</returns>
     protected abstract Calculator<TNumber> Multiply(TNumber right);
 
     /// <summary>
-    /// Divides the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/> 
+    /// Divides the current <see cref="Calculator{TNumber}"/> instance with the <paramref name="right"/>
     /// <see cref="Calculator{TNumber}"/> instance.
     /// </summary>
     /// <param name="right">divisor</param>
-    /// <returns>The quotient of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/> 
+    /// <returns>The quotient of the current <see cref="Calculator{TNumber}"/> instance and the <paramref name="right"/>
     /// <see cref="Calculator{TNumber}"/> instance.</returns>
     protected abstract Calculator<TNumber> Divide(TNumber right);
 

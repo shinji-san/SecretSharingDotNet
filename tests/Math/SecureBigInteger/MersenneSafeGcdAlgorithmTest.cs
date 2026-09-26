@@ -30,10 +30,10 @@
 
 namespace SecretSharingDotNetTest.Math.SecureBigInteger;
 
-using System;
-using System.Numerics;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
+using System;
+using System.Numerics;
 using Xunit;
 
 /// <summary>

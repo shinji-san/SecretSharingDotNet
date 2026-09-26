@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest an idea for this project
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        For open-ended "what if we ..." topics that are not yet a concrete proposal,
+        [Discussions / Ideas](https://github.com/shinji-san/SecretSharingDotNet/discussions/categories/ideas)
+        is the better place to start.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Which problem would this solve?
+      description: What are you trying to do that the library makes hard or impossible today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you would like
+      description: If you have an API shape in mind, sketch it here.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: breaking
+    attributes:
+      label: Compatibility
+      options:
+        - label: This would change existing public API or behaviour (breaking change)
+          required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+    validations:
+      required: false

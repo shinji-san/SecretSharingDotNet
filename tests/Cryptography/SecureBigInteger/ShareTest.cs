@@ -1,10 +1,12 @@
 namespace SecretSharingDotNetTest.Cryptography.SecureBigInteger;
 
+using Moq;
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureInput;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
+using System.Collections.Generic;
 using Xunit;
 
 /// <summary>
@@ -1036,5 +1038,600 @@ public class ShareTest
 
         // Act & Assert — empty `with { }` triggers the protected copy ctor.
         Assert.Throws<NotSupportedException>(() => _ = share with { });
+    }
+    /// <summary>
+    /// The coordinate constructor records no level. A caller handing over two coordinates cannot
+    /// know which field they came from, so there is nothing to record — and <see langword="null"/>
+    /// here means exactly that and nothing more. In particular it does not mark the share as
+    /// coming from the legacy text format; this constructor produces the same state.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void SecurityLevel_FromCoordinateConstructor_IsNull()
+    {
+        // Arrange & Act
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+
+        // Assert
+        Assert.Null(share.SecurityLevel);
+    }
+
+    /// <summary>
+    /// The byte-array constructor records no level, for the same reason as the coordinate one.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void SecurityLevel_FromByteArrayConstructor_IsNull()
+    {
+        // Arrange & Act
+        using var share = new Share<SecureBigInteger>(new byte[] { 5 }, new byte[] { 10 });
+
+        // Assert
+        Assert.Null(share.SecurityLevel);
+    }
+
+    /// <summary>
+    /// A share parsed from the two-segment text form records no level, because that form carries
+    /// none. Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void SecurityLevel_FromLegacyTextConstructor_IsNull()
+    {
+        // Arrange
+        using var pinned = "B-AA".ToPinnedSecure();
+
+        // Act
+        using var share = new Share<SecureBigInteger>(pinned);
+
+        // Assert
+        Assert.Null(share.SecurityLevel);
+    }
+
+    /// <summary>
+    /// Reading the level after disposal throws, like the other public properties of this type.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void PostDispose_SecurityLevel_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), 17);
+        share.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => _ = share.SecurityLevel);
+    }
+
+    /// <summary>
+    /// Equality over the level, for identical coordinates. <see langword="null"/> is a state of its
+    /// own, never a wildcard that matches any exponent — a wildcard would break transitivity.
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="leftLevel">Level recorded on the left share, or <c>0</c> for none.</param>
+    /// <param name="rightLevel">Level recorded on the right share, or <c>0</c> for none.</param>
+    /// <param name="expectedEqual">Whether the two shares are expected to compare equal.</param>
+    [Theory]
+    [InlineData(0, 0, true)]
+    [InlineData(17, 17, true)]
+    [InlineData(0, 17, false)]
+    [InlineData(17, 0, false)]
+    [InlineData(17, 19, false)]
+    public void Equals_BothLive_SameCoordinates_FollowsTheLevel(int leftLevel, int rightLevel, bool expectedEqual)
+    {
+        // Arrange
+        using var left = leftLevel == 0
+            ? new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10))
+            : new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), leftLevel);
+        using var right = rightLevel == 0
+            ? new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10))
+            : new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), rightLevel);
+
+        // Act
+        bool areEqual = left.Equals(right);
+
+        // Assert
+        Assert.Equal(expectedEqual, areEqual);
+    }
+
+    /// <summary>
+    /// Shares that compare equal hash equally, with the level present and with it absent. The
+    /// converse is deliberately not asserted: including the level in the hash guarantees nothing
+    /// about unequal shares, and the contract requires nothing of them either.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void GetHashCode_BothLive_EqualShares_ProduceSameHash()
+    {
+        // Arrange
+        using var levelledLeft = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), 17);
+        using var levelledRight = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), 17);
+        using var legacyLeft = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        using var legacyRight = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+
+        // Act & Assert
+        Assert.Equal(levelledLeft.GetHashCode(), levelledRight.GetHashCode());
+        Assert.Equal(legacyLeft.GetHashCode(), legacyRight.GetHashCode());
+    }
+
+    /// <summary>
+    /// A legacy share and its levelled counterpart are distinct entries in a <see cref="HashSet{T}"/>.
+    /// This is the consequence of letting the level into equality, and it is intended: a set that
+    /// collapsed them would keep whichever arrived first and silently drop the field information.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void HashSet_LegacyAndLevelledShare_AreDistinctEntries()
+    {
+        // Arrange
+        using var legacy = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10));
+        using var levelled = new Share<SecureBigInteger>(new SecureBigIntCalculator(5), new SecureBigIntCalculator(10), 17);
+
+        // Act
+        var set = new HashSet<Share<SecureBigInteger>> { legacy, levelled };
+
+        // Assert
+        Assert.Equal(2, set.Count);
+    }
+    /// <summary>
+    /// The legacy form drops a recorded level, and the parser reading it back records none. That
+    /// loss is not a bug in the writer — it is the whole reason a persisted share cannot be
+    /// reconstructed without being told its field, and it stays the default so existing output is
+    /// byte-for-byte unchanged.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_LegacyFormat_DropsTheSecurityLevel()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42), 17);
+
+        // Act
+        using var serialized = share.ToCharArray(uppercase: true, withPrefix: false, ShareFormat.Legacy);
+        using var reparsed = new Share<SecureBigInteger>(serialized);
+
+        // Assert
+        Assert.Equal("0B-2A", new string(serialized.PoolArray, 0, serialized.Length));
+        Assert.Null(reparsed.SecurityLevel);
+    }
+
+    /// <summary>
+    /// The extended form carries the level through a round trip, with and without the <c>0x</c>
+    /// prefix. The prefix rule is one rule for every segment — the level segment is prefixed like
+    /// the coordinates are — and the parser strips a prefix from each segment independently.
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="withPrefix">Whether each segment carries the <c>0x</c> prefix.</param>
+    /// <param name="expected">The exact expected serialized form.</param>
+    [Theory]
+    [InlineData(false, "0B-2A-11")]
+    [InlineData(true, "0x0B-0x2A-0x11")]
+    public void ToCharArray_ExtendedFormat_RoundTripsTheSecurityLevel(bool withPrefix, string expected)
+    {
+        // Arrange — 0x11 is 17.
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42), 17);
+
+        // Act
+        using var serialized = share.ToCharArray(uppercase: true, withPrefix, ShareFormat.Extended);
+        using var reparsed = new Share<SecureBigInteger>(serialized);
+
+        // Assert
+        Assert.Equal(expected, new string(serialized.PoolArray, 0, serialized.Length));
+        Assert.Equal(17, reparsed.SecurityLevel);
+        Assert.Equal(share, reparsed);
+    }
+
+    /// <summary>
+    /// Asking for the extended form from a share that records no level is an
+    /// <see cref="InvalidOperationException"/> — a valid request the object's state cannot serve.
+    /// Emitting a zero, dropping back to two segments or guessing would each hand back a share
+    /// claiming a field it does not know.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ExtendedFormat_WithoutARecordedLevel_ThrowsInvalidOperation()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        var destination = new char[64];
+
+        // Act & Assert — every entry point on the write path refuses alike.
+        Assert.Throws<InvalidOperationException>(() => share.GetCharCount(false, ShareFormat.Extended));
+        Assert.Throws<InvalidOperationException>(() => share.ToCharArray(true, false, ShareFormat.Extended));
+        Assert.Throws<InvalidOperationException>(
+            () => share.WriteCharsTo(destination, 0, true, false, ShareFormat.Extended));
+    }
+
+    /// <summary>
+    /// The measurer and the writer agree in both formats, with and without the prefix. They derive
+    /// from one shared length rule rather than restating it, which is what keeps them in step when
+    /// a segment is added.
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="withPrefix">Whether each segment carries the <c>0x</c> prefix.</param>
+    /// <param name="extended">Whether to write the security level segment.</param>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void GetCharCount_AgreesWithWriteCharsTo(bool withPrefix, bool extended)
+    {
+        // Arrange — 4931 needs three hex digits, so the level segment is not a fixed width.
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42), 4931);
+        var format = extended ? ShareFormat.Extended : ShareFormat.Legacy;
+        var destination = new char[128];
+
+        // Act
+        int measured = share.GetCharCount(withPrefix, format);
+        int written = share.WriteCharsTo(destination, 0, uppercase: true, withPrefix, format);
+
+        // Assert
+        Assert.Equal(measured, written);
+    }
+
+    /// <summary>
+    /// The property that makes the extension safe for readers that predate it, exercised rather
+    /// than asserted about separators: a parser that takes the first separator and hex-decodes the
+    /// remainder refuses every extended form and accepts every legacy one.
+    /// <para>
+    /// <b>This runs a model of the released parser, not the released parser.</b> The old assembly
+    /// cannot be loaded here, so <see cref="LegacyTwoSegmentParseSucceeds"/> reimplements the two
+    /// decisions that matter — split at the first separator, strip one <c>0x</c> prefix, require
+    /// the remainder to be hexadecimal. It establishes that the extended form fails those
+    /// decisions; it does not establish anything the model got wrong about the original.
+    /// </para>
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="index">Share index.</param>
+    /// <param name="value">Share value.</param>
+    /// <param name="securityLevel">Recorded security level.</param>
+    /// <param name="withPrefix">Whether each segment carries the <c>0x</c> prefix.</param>
+    [Theory]
+    [InlineData(11, 42, 13, false)]
+    [InlineData(11, 42, 13, true)]
+    [InlineData(1, 1, 17, false)]
+    [InlineData(255, 4095, 4931, false)]
+    [InlineData(255, 4095, 4931, true)]
+    public void ExtendedFormat_IsRejectedByATwoSegmentReader(int index, int value, int securityLevel, bool withPrefix)
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(index), new SecureBigIntCalculator(value), securityLevel);
+
+        // Act
+        using var extended = share.ToCharArray(uppercase: true, withPrefix, ShareFormat.Extended);
+        using var legacy = share.ToCharArray(uppercase: true, withPrefix, ShareFormat.Legacy);
+
+        // Assert — the legacy shape still reads; the extended one does not.
+        Assert.True(LegacyTwoSegmentParseSucceeds(new string(legacy.PoolArray, 0, legacy.Length)));
+        Assert.False(LegacyTwoSegmentParseSucceeds(new string(extended.PoolArray, 0, extended.Length)));
+    }
+
+    /// <summary>
+    /// A model of the parse every released version performs: first separator, one optional
+    /// <c>0x</c> prefix per segment, the remainder decoded as hexadecimal.
+    /// </summary>
+    /// <param name="serialized">The serialized share to try.</param>
+    /// <returns><see langword="true"/> when that parse would succeed.</returns>
+    private static bool LegacyTwoSegmentParseSucceeds(string serialized)
+    {
+        int separator = serialized.IndexOf('-');
+        if (separator < 0)
+        {
+            return false;
+        }
+
+        string value = serialized.Substring(separator + 1);
+        if (value.StartsWith("0x", StringComparison.Ordinal))
+        {
+            value = value.Substring(2);
+        }
+
+        if (value.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (char c in value)
+        {
+            bool isHexDigit = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+            if (!isHexDigit)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// A fourth segment is refused by shape rather than by a hex-digit complaint two layers down.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithFourSegments_ThrowsInvalidShare()
+    {
+        // Arrange
+        using var pinned = "B-AA-11-22".ToPinnedSecure();
+
+        // Act & Assert
+        Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(pinned));
+    }
+
+    /// <summary>
+    /// A level segment that is empty, non-hexadecimal or decodes to zero is a malformed share.
+    /// Whether the exponent is one the library <em>supports</em> is a different question, asked
+    /// during reconstruction where a provider is present.
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="serialized">A share string with an unusable third segment.</param>
+    [Theory]
+    [InlineData("B-AA-")]
+    [InlineData("B-AA-ZZ")]
+    [InlineData("B-AA-0")]
+    [InlineData("B-AA-000000000")]
+    public void Constructor_WithAnUnusableLevelSegment_ThrowsInvalidShare(string serialized)
+    {
+        // Arrange
+        using var pinned = serialized.ToPinnedSecure();
+
+        // Act & Assert
+        Assert.Throws<InvalidShareException>(() => new Share<SecureBigInteger>(pinned));
+    }
+    /// <summary>
+    /// Re-issuing produces a new share with the same coordinates and the given level, and leaves
+    /// the original alone.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_RecordsTheLevelAndLeavesTheOriginal()
+    {
+        // Arrange
+        using var original = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+
+        // Act
+        using var reissued = original.ReissueWithSecurityLevel(17);
+
+        // Assert
+        Assert.Null(original.SecurityLevel);
+        Assert.Equal(17, reissued.SecurityLevel);
+        Assert.Equal(original.Index, reissued.Index);
+        Assert.Equal(original.Value, reissued.Value);
+    }
+
+    /// <summary>
+    /// The coordinates are cloned, not shared. The constructor takes ownership of what it is given,
+    /// so handing it the original's instances would leave two shares owning one pair of buffers and
+    /// disposing either would invalidate the other — a use-after-dispose surfacing far from here.
+    /// <para>
+    /// The two halves of this test carry different weight. <see cref="Assert.NotSame"/> on the
+    /// coordinates catches a missing clone on <em>both</em> backends, because reference identity is
+    /// observable everywhere — that is the assertion enforcing the contract. The post-dispose half
+    /// adds the consequence a caller would actually meet, and only bites on the SecureBigInteger
+    /// side: a disposed <c>SecureBigInteger</c> refuses further use, while a disposed
+    /// <c>BigIntCalculator</c> has no observable state, so the shared-buffer mistake would read as
+    /// success there on its own.
+    /// </para>
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_Clones_SoDisposingOneLeavesTheOtherUsable()
+    {
+        // Arrange
+        var original = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        var reissued = original.ReissueWithSecurityLevel(17);
+
+        // Act & Assert — independent instances, which both backends can see.
+        Assert.NotSame(original.Index, reissued.Index);
+        Assert.NotSame(original.Value, reissued.Value);
+
+        // Act — drop the original and keep using the copy.
+        original.Dispose();
+
+        // Assert
+        Assert.Equal(17, reissued.SecurityLevel);
+        Assert.True(reissued.Index.ByteCount > 0);
+        Assert.True(reissued.Value.ByteCount > 0);
+
+        // Act & Assert — and the other way round, on a fresh pair.
+        using var other = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        var copy = other.ReissueWithSecurityLevel(17);
+        copy.Dispose();
+        Assert.True(other.Index.ByteCount > 0);
+
+        reissued.Dispose();
+    }
+
+    /// <summary>
+    /// An exponent the library does not support is refused, naming the parameter it arrived in.
+    /// Mirror of the BigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="securityLevel">An exponent that is not a Mersenne prime exponent.</param>
+    [Theory]
+    [InlineData(18)]
+    [InlineData(12)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ReissueWithSecurityLevel_WithAnUnsupportedLevel_Throws(int securityLevel)
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => share.ReissueWithSecurityLevel(securityLevel));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// A field too small for the coordinates is refused as well. This is the one wrong level the
+    /// coordinates <em>can</em> rule out, and it is an argument error rather than a reconstruction
+    /// failure because the exponent arrived as a parameter of this operation.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAFieldTooSmall_Throws()
+    {
+        // Arrange — 9000 does not fit M13 = 8191.
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(9000));
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => share.ReissueWithSecurityLevel(13));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// <b>The limit, pinned so it does not look like an oversight.</b> A supported exponent that is
+    /// large enough but simply wrong is accepted without complaint. The coordinates do not say
+    /// which field produced them — that absence is the whole defect this change works around — so
+    /// no check here can tell a correct level from a plausible one. The caller's obligation to
+    /// supply the exponent the split actually used is real, and this test is what keeps it from
+    /// being quietly assumed away.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAPlausibleButWrongLevel_IsNotDetected()
+    {
+        // Arrange — coordinates from a level-17 split.
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(3333));
+
+        // Act — 19 is supported and admits these coordinates. It is also not the field they
+        // came from, and nothing available here can say so.
+        using var reissued = share.ReissueWithSecurityLevel(19);
+
+        // Assert
+        Assert.Equal(19, reissued.SecurityLevel);
+    }
+
+    /// <summary>
+    /// The provider overload asks the provider it is given, not the built-in table. 7 is a Mersenne
+    /// prime exponent the built-in table does not carry — it starts at 13 — so the default
+    /// overload refuses it while the provider overload accepts it once the provider does. The
+    /// coordinates stay below <c>M7 = 127</c>, so the field check passes on its own merits.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProviderSupportingAnExtraExponent_AcceptsIt()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        var provider = MersennePrimeProviderStub.Supporting(7);
+
+        // Act
+        using var reissued = share.ReissueWithSecurityLevel(7, provider.Object);
+
+        // Assert
+        Assert.Equal(7, reissued.SecurityLevel);
+        Assert.Equal(share.Index, reissued.Index);
+        Assert.Equal(share.Value, reissued.Value);
+        provider.Verify(p => p.IsValidMersennePrimeExponent(7), Times.Once);
+        var viaDefault = Assert.Throws<ArgumentOutOfRangeException>(() => share.ReissueWithSecurityLevel(7));
+        Assert.Equal("securityLevel", viaDefault.ParamName);
+    }
+
+    /// <summary>
+    /// The other direction: an exponent the built-in table has is refused when the given provider
+    /// does not support it. There is no fallback to the built-in table.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProviderRejectingABuiltInExponent_Throws()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        var provider = MersennePrimeProviderStub.Supporting(13, 19);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => share.ReissueWithSecurityLevel(17, provider.Object));
+        Assert.Equal("securityLevel", error.ParamName);
+        using var viaDefault = share.ReissueWithSecurityLevel(17);
+        Assert.Equal(17, viaDefault.SecurityLevel);
+    }
+
+    /// <summary>
+    /// A missing provider is an argument error naming the provider parameter.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithoutAProvider_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentNullException>(() => share.ReissueWithSecurityLevel(17, null));
+        Assert.Equal("mersennePrimeProvider", error.ParamName);
+    }
+
+    /// <summary>
+    /// Which table decides changes nothing about the other checks: a field too small for the
+    /// coordinates and a level contradicting the one a share records stay argument errors on
+    /// <c>securityLevel</c>, with an exponent the provider does support.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_WithAProvider_KeepsTheFieldAndContradictionChecks()
+    {
+        // Arrange — 200 does not fit M7 = 127; the second share already records 13.
+        using var tooLarge = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(200));
+        using var recorded = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(10), 13);
+        var provider = MersennePrimeProviderStub.Supporting(7, 13);
+
+        // Act & Assert
+        var tooSmall = Assert.Throws<ArgumentException>(() => tooLarge.ReissueWithSecurityLevel(7, provider.Object));
+        Assert.Equal("securityLevel", tooSmall.ParamName);
+        var contradiction = Assert.Throws<ArgumentException>(() => recorded.ReissueWithSecurityLevel(7, provider.Object));
+        Assert.Equal("securityLevel", contradiction.ParamName);
+    }
+
+    /// <summary>
+    /// Re-issuing a disposed share throws rather than cloning freed buffers.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void PostDispose_ReissueWithSecurityLevel_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(11), new SecureBigIntCalculator(42));
+        share.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => share.ReissueWithSecurityLevel(17));
+    }
+    /// <summary>
+    /// A share that already records a level is not talked out of it. Reconstruction refuses the
+    /// same contradiction, and a migration helper that silently won the argument would be a way to
+    /// steer the library into the wrong field — the exact failure this change exists to remove.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_ContradictingARecordedLevel_Throws()
+    {
+        // Arrange — 19 is supported and admits these coordinates, but the share says 17.
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(3333), 17);
+
+        // Act & Assert
+        var error = Assert.Throws<ArgumentException>(() => share.ReissueWithSecurityLevel(19));
+        Assert.Equal("securityLevel", error.ParamName);
+    }
+
+    /// <summary>
+    /// Re-issuing with the level a share already records is allowed. Nothing contradicts anything,
+    /// and refusing it would make the operation depend on whether the caller happened to know the
+    /// share was already migrated.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void ReissueWithSecurityLevel_MatchingARecordedLevel_IsAllowed()
+    {
+        // Arrange
+        using var share = new Share<SecureBigInteger>(new SecureBigIntCalculator(1), new SecureBigIntCalculator(3333), 17);
+
+        // Act
+        using var reissued = share.ReissueWithSecurityLevel(17);
+
+        // Assert
+        Assert.Equal(17, reissued.SecurityLevel);
+        Assert.NotSame(share.Index, reissued.Index);
     }
 }

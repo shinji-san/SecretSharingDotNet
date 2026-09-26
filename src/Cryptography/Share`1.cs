@@ -31,9 +31,11 @@
 
 namespace SecretSharingDotNet.Cryptography;
 
+using Extension;
 using Math;
 using SecureMemory;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -60,8 +62,9 @@ using System.Threading;
 /// </para>
 /// <para>
 /// The type supports parsing from and formatting to the standard share format <c>"INDEX-VALUE"</c>
-/// where <c>INDEX</c> and <c>VALUE</c> are hexadecimal. Value-based equality (via record semantics)
-/// is derived from <see cref="Index"/> and <see cref="Value"/>.
+/// where <c>INDEX</c> and <c>VALUE</c> are hexadecimal. Value-based equality is derived from
+/// <see cref="Index"/>, <see cref="Value"/> and <see cref="SecurityLevel"/> — so a share that
+/// records no level is <em>not</em> equal to one carrying the same coordinates and a level.
 /// </para>
 /// </remarks>
 #if DEBUG
@@ -85,6 +88,12 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// Backing field for <see cref="Value"/>.
     /// </summary>
     private readonly Calculator<TNumber> value;
+
+    /// <summary>
+    /// Backing field for <see cref="SecurityLevel"/>. <see langword="null"/> when this share
+    /// carries no record of the field it was created in.
+    /// </summary>
+    private readonly int? securityLevel;
 
     /// <summary>
     /// Indicates whether the share has been disposed (<c>0</c> = live, <c>1</c> = disposed).
@@ -118,6 +127,40 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         {
             this.ThrowIfDisposed();
             return this.value;
+        }
+    }
+
+    /// <summary>
+    /// The Mersenne exponent of the finite field this share was created in, or
+    /// <see langword="null"/> when the share carries no record of it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null"/> means exactly one thing: <em>no exponent is present</em>. It does
+    /// <b>not</b> establish that the share came from the legacy text format — the public
+    /// <see cref="Share{TNumber}(Calculator{TNumber}, Calculator{TNumber})"/> and
+    /// <see cref="Share{TNumber}(byte[], byte[])"/> constructors produce the same state, because
+    /// a caller supplying coordinates cannot know which field they came from.
+    /// </para>
+    /// <para>
+    /// A share created by <c>MakeShares</c> carries the exponent that actually governed the
+    /// polynomial — the value after any auto-raise, not the one the caller requested.
+    /// </para>
+    /// <para>
+    /// <b>Not authenticated.</b> A level read from the three-segment text form is whatever the
+    /// text says. Reconstruction refuses shares whose levels disagree, which detects
+    /// inconsistency, not manipulation: a level changed alike on every share passes that check
+    /// and can yield a wrong secret without an error. An integrity scheme layered on top has to
+    /// cover the level together with the coordinates.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public int? SecurityLevel
+    {
+        get
+        {
+            this.ThrowIfDisposed();
+            return this.securityLevel;
         }
     }
 
@@ -184,6 +227,33 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="Share{TNumber}"/> record that records the
+    /// finite field it was created in.
+    /// </summary>
+    /// <param name="index">The index (X coordinate). Ownership transfers to this instance.</param>
+    /// <param name="value">The value (Y coordinate). Ownership transfers to this instance.</param>
+    /// <param name="securityLevel">
+    /// The Mersenne exponent governing the polynomial this share lies on.
+    /// </param>
+    /// <remarks>
+    /// <see langword="internal"/> on purpose: the exponent is not validated here, because the only
+    /// caller is <c>SecretSplitter.CreateShares</c> and it passes the value its
+    /// <c>ISecurityLevelManager</c> has already normalised. Every path that takes an exponent from
+    /// outside the library validates it at that boundary instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="index"/> or <paramref name="value"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="index"/> is less than one.
+    /// </exception>
+    internal Share(Calculator<TNumber> index, Calculator<TNumber> value, int securityLevel)
+        : this(index, value)
+    {
+        this.securityLevel = securityLevel;
+    }
+
+    /// <summary>
     /// Blocks the record-synthesised copy constructor. <see cref="Share{TNumber}"/> owns
     /// its <see cref="Index"/> / <see cref="Value"/> <see cref="Calculator{TNumber}"/>
     /// backing fields under a single-owner contract (see the type-level remarks); a
@@ -228,9 +298,10 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </exception>
     public Share(PinnedPoolArray<char> shareString)
     {
-        var (parsedIndex, parsedValue) = ParseCore(shareString);
+        var (parsedIndex, parsedValue, parsedSecurityLevel) = ParseCore(shareString);
         this.index = parsedIndex;
         this.value = parsedValue;
+        this.securityLevel = parsedSecurityLevel;
     }
 
     /// <summary>
@@ -288,7 +359,8 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
     /// <summary>
     /// Determines whether this share is equal to <paramref name="other"/>. Value-based
-    /// equality derived from <see cref="Index"/> and <see cref="Value"/>; the per-Calculator
+    /// equality derived from <see cref="Index"/>, <see cref="Value"/> and
+    /// <see cref="SecurityLevel"/>; the per-Calculator
     /// comparisons delegate to the underlying <typeparamref name="TNumber"/> backend
     /// (constant-time on operand value for the
     /// <see cref="SecretSharingDotNet.Math.Numerics.SecureBigInteger"/> backend via its
@@ -296,22 +368,33 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// </summary>
     /// <param name="other">The other share to compare to. May be <see langword="null"/>.</param>
     /// <returns>
-    /// <see langword="true"/> when both shares carry the same <see cref="Index"/> and
-    /// <see cref="Value"/>; otherwise <see langword="false"/>. Returns <see langword="false"/>
-    /// when <paramref name="other"/> is <see langword="null"/>.
+    /// <see langword="true"/> when both shares carry the same <see cref="Index"/>,
+    /// <see cref="Value"/> and <see cref="SecurityLevel"/>; otherwise <see langword="false"/>.
+    /// Returns <see langword="false"/> when <paramref name="other"/> is <see langword="null"/>.
     /// </returns>
     /// <remarks>
+    /// <para>
     /// Replaces the compiler-synthesised record equality, which would (a) compare the internal
     /// <c>disposed</c> flag and therefore disagree on equality between a live and a just-disposed
     /// share with otherwise-identical content (contradicting the value-based contract documented
     /// on the class), and (b) route through the SecureBigInteger backend's <c>Equals</c> on a
     /// disposed operand and surface <see cref="ObjectDisposedException"/>.
-    ///
-    /// The two Calculator-level comparison results are pre-computed into local <see cref="bool"/>s
-    /// and folded with a non-short-circuit <c>&amp;</c>; this mirrors the constant-time pattern
-    /// of <c>SecureBigInteger.Equals</c> (see the matching S2178 suppression there) and remains
-    /// resilient against later refactors that might inline either side of the equality fold
-    /// into a short-circuit-sensitive expression.
+    /// </para>
+    /// <para>
+    /// <see cref="SecurityLevel"/> is compared as a nullable value, not as a wildcard: two shares
+    /// that both record no level are equal, and a share recording none differs from one recording
+    /// any. Treating <see langword="null"/> as "matches any level" would break transitivity. The
+    /// practical consequence is that a share parsed from the legacy two-segment text form is not
+    /// equal to its migrated counterpart, which is observable through
+    /// <see cref="Shares{TNumber}.Contains"/> and through <c>HashSet</c> membership.
+    /// </para>
+    /// <para>
+    /// The three comparison results — two at the Calculator level, one on the nullable level —
+    /// are pre-computed into local <see cref="bool"/>s and folded with a non-short-circuit
+    /// <c>&amp;</c>; this mirrors the constant-time pattern of <c>SecureBigInteger.Equals</c> (see
+    /// the matching S2178 suppression there) and remains resilient against later refactors that
+    /// might inline one side of the fold into a short-circuit-sensitive expression.
+    /// </para>
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
     [SuppressMessage("SonarQube", "S2178",
@@ -337,12 +420,17 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
 
         bool indexEqual = this.index.Equals(other.index);
         bool valueEqual = this.value.Equals(other.value);
-        return indexEqual & valueEqual;
+        // Nullable int equality, not a wildcard: null equals null and differs from every
+        // exponent. Treating null as "matches any level" would break transitivity.
+        bool levelEqual = this.securityLevel == other.securityLevel;
+        return indexEqual & valueEqual & levelEqual;
     }
 
     /// <summary>
     /// Returns a hash code consistent with <see cref="Equals(Share{TNumber})"/>, derived from
-    /// <see cref="Index"/> and <see cref="Value"/>. The internal <c>disposed</c> flag is
+    /// <see cref="Index"/>, <see cref="Value"/> and <see cref="SecurityLevel"/>. Equal shares
+    /// therefore hash equally; the converse is not promised, and the contract does not ask for
+    /// it. The internal <c>disposed</c> flag is
     /// intentionally excluded from the hash so that an otherwise-identical live and disposed
     /// share would produce the same hash — matching the equality contract.
     /// </summary>
@@ -359,6 +447,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         var hash = new HashCode();
         hash.Add(this.index);
         hash.Add(this.value);
+        hash.Add(this.securityLevel);
         return hash.ToHashCode();
 #else
         unchecked
@@ -366,6 +455,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             int h = 17;
             h = h * 31 + this.index.GetHashCode();
             h = h * 31 + this.value.GetHashCode();
+            h = h * 31 + this.securityLevel.GetHashCode();
             return h;
         }
 #endif
@@ -424,13 +514,37 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// The caller is responsible for disposing of the returned instance.
     /// </returns>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
-    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false)
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix = false) =>
+        this.ToCharArray(uppercase, withPrefix, ShareFormat.Legacy);
+
+    /// <summary>
+    /// Converts the share to a pinned character buffer in the given serialized form.
+    /// </summary>
+    /// <param name="uppercase">
+    /// <see langword="true"/> for uppercase hex digits (0A–0F); <see langword="false"/> for lowercase.
+    /// </param>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to prepend <c>"0x"</c> to every segment, the security level included.
+    /// </param>
+    /// <param name="format">Which serialized form to write.</param>
+    /// <returns>
+    /// A <see cref="PinnedPoolArray{T}"/> with the hex-encoded share. The caller disposes it. If the
+    /// write fails after the buffer was allocated, the buffer is disposed before the exception
+    /// propagates.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a defined value.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="format"/> is <see cref="ShareFormat.Extended"/> and this share records no
+    /// <see cref="SecurityLevel"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public PinnedPoolArray<char> ToCharArray(bool uppercase, bool withPrefix, ShareFormat format)
     {
         this.ThrowIfDisposed();
-        var total = this.GetCharCount(withPrefix);
-        var result = new PinnedPoolArray<char>(total);
-        this.WriteCharsTo(result.PoolArray, 0, uppercase, withPrefix);
-        return result;
+        var total = this.GetCharCount(withPrefix, format);
+        return PinnedPoolArrayExtensions.AllocateAndFill<char>(
+            total,
+            buffer => this.WriteCharsTo(buffer.PoolArray, 0, uppercase, withPrefix, format));
     }
 
     /// <summary>
@@ -452,11 +566,333 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// asserted in unit tests.
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
-    public int GetCharCount(bool withPrefix)
+    public int GetCharCount(bool withPrefix) => this.GetCharCount(withPrefix, ShareFormat.Legacy);
+
+    /// <summary>
+    /// Returns the number of characters <see cref="WriteCharsTo(char[], int, bool, bool, ShareFormat)"/>
+    /// writes for the given options.
+    /// </summary>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to count a <c>"0x"</c> prefix on every segment.
+    /// </param>
+    /// <param name="format">Which serialized form to measure.</param>
+    /// <returns>The number of characters required.</returns>
+    /// <remarks>
+    /// Shares its arithmetic with the writer through <see cref="MeasureChars"/> rather than
+    /// restating it. The two used to carry the same expression twice, which is the shape that
+    /// quietly disagrees the moment a segment is added.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a defined value.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="format"/> is <see cref="ShareFormat.Extended"/> and this share records no
+    /// <see cref="SecurityLevel"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public int GetCharCount(bool withPrefix, ShareFormat format)
     {
         this.ThrowIfDisposed();
-        var prefixLength = withPrefix ? 2 : 0;
-        return 2 * prefixLength + this.Index.ByteCount * 2 + 1 + this.Value.ByteCount * 2;
+        return MeasureChars(this.Index.ByteCount, this.Value.ByteCount, this.SecurityLevelDigits(format), withPrefix);
+    }
+
+    /// <summary>
+    /// The number of hexadecimal digits the security level occupies in the given format, or zero
+    /// when the format does not carry one.
+    /// </summary>
+    /// <param name="format">The serialized form.</param>
+    /// <returns>Zero for <see cref="ShareFormat.Legacy"/>; otherwise the digit count.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> is not a defined value.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The extended form was requested and this share records no level. Emitting a zero, dropping
+    /// back to two segments or guessing would each hand back a share claiming a field it does not
+    /// know; the caller has to learn that the information was never there.
+    /// </exception>
+    private int SecurityLevelDigits(ShareFormat format)
+    {
+        ShareFormatValidation.EnsureDefined(format, nameof(format));
+        if (format == ShareFormat.Legacy)
+        {
+            return 0;
+        }
+
+        if (this.securityLevel is null)
+        {
+            throw new InvalidOperationException(ErrorMessages.ShareHasNoSecurityLevelToSerialize);
+        }
+
+        return HexDigitCount(this.securityLevel.Value);
+    }
+
+    /// <summary>
+    /// Re-issues this share recording the finite field it was created in, for a share that carries
+    /// no record of one.
+    /// </summary>
+    /// <param name="securityLevel">The Mersenne exponent the split actually used.</param>
+    /// <returns>
+    /// A new share with the same coordinates and the given level. The caller owns it; this share is
+    /// untouched and still usable.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// <b>The caller has to supply the exponent the split actually used, after any auto-raise.</b>
+    /// <c>MakeShares</c> lifts the level to fit the secret including its mark byte, so a one-byte
+    /// secret split without an explicit level lands on 17 — rarely the number a caller remembers
+    /// asking for.
+    /// </para>
+    /// <para>
+    /// <b>What this validates, and what it cannot.</b> An exponent the library does not support is
+    /// refused; so is one naming a field too small for these coordinates; and so is one that
+    /// contradicts a level this share already records — re-issuing with the same exponent is fine,
+    /// and a share recording none may be given one, but the helper does not overwrite what the
+    /// share already knows.
+    /// </para>
+    /// <para>
+    /// For a share that records <em>nothing</em>, a <em>plausible but wrong</em> exponent —
+    /// supported, large enough — cannot be detected: the coordinates do not say which field
+    /// produced them, which is the very absence this whole change exists to remedy. Such a share
+    /// can silently reconstruct a different secret, and no check in this method can prevent that.
+    /// </para>
+    /// <para>
+    /// The coordinates are cloned rather than shared. The constructor takes ownership of what it is
+    /// given, so handing it these instances would leave two shares owning one pair of buffers and
+    /// disposing either would invalidate the other.
+    /// </para>
+    /// <para>
+    /// This overload checks the exponent against <see cref="MersennePrimeProvider.Instance"/>, the
+    /// library's own table. A consumer whose security level manager uses a different
+    /// <see cref="IMersennePrimeProvider"/> passes that provider to
+    /// <see cref="ReissueWithSecurityLevel(int, IMersennePrimeProvider)"/> instead, so migration and
+    /// reconstruction answer to the same table. Checking the exponent against that provider before
+    /// calling this overload does not help: an exponent the built-in table lacks is refused here
+    /// regardless.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is not a supported Mersenne prime exponent.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="securityLevel"/> contradicts a level this share already records, or names a
+    /// field too small for its coordinates.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public Share<TNumber> ReissueWithSecurityLevel(int securityLevel) =>
+        this.ReissueWithSecurityLevel(securityLevel, MersennePrimeProvider.Instance);
+
+    /// <summary>
+    /// Re-issues this share recording the finite field it was created in, with the given provider
+    /// deciding which exponents are supported.
+    /// </summary>
+    /// <param name="securityLevel">The Mersenne exponent the split actually used.</param>
+    /// <param name="mersennePrimeProvider">
+    /// The provider whose table decides which exponents are supported — the one the security
+    /// level manager reconstructing these shares uses. Borrowed for this call only: it is neither
+    /// stored on the new share nor disposed.
+    /// </param>
+    /// <returns>
+    /// A new share with the same coordinates and the given level. The caller owns it; this share is
+    /// untouched and still usable.
+    /// </returns>
+    /// <remarks>
+    /// The same operation as <see cref="ReissueWithSecurityLevel(int)"/>, with the same caller
+    /// obligation and the same checks, except for which table decides. The exponent is checked
+    /// against <paramref name="mersennePrimeProvider"/> exactly — no rounding up and no fallback
+    /// to the built-in table — so an exponent this provider supports is accepted where the
+    /// built-in table lacks it, and one it does not support is refused where the built-in table has
+    /// it. That check comes first, before the field for the coordinate check is computed and before
+    /// anything is cloned.
+    /// <para>
+    /// The provider is also where an application bounds the exponent. The field check computes
+    /// the prime for any exponent the provider supports, and near the top of the built-in table
+    /// that takes minutes; a provider limited to the exponents in use keeps migration — like
+    /// reconstruction through a security level manager on the same provider — from doing so.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="mersennePrimeProvider"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="securityLevel"/> is not supported by <paramref name="mersennePrimeProvider"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="securityLevel"/> contradicts a level this share already records, or names a
+    /// field too small for its coordinates.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public Share<TNumber> ReissueWithSecurityLevel(int securityLevel, IMersennePrimeProvider mersennePrimeProvider)
+    {
+        this.ThrowIfDisposed();
+        if (mersennePrimeProvider is null)
+        {
+            throw new ArgumentNullException(nameof(mersennePrimeProvider));
+        }
+
+        EnsureUsableSecurityLevel(new[] { this }, securityLevel, mersennePrimeProvider);
+        return this.ReissueCore(securityLevel);
+    }
+
+    /// <summary>
+    /// Clones the coordinates into a new share carrying the given level, without validating it.
+    /// </summary>
+    /// <param name="securityLevel">The exponent to record. Already validated by the caller.</param>
+    /// <returns>The new share.</returns>
+    /// <remarks>
+    /// Split from the public entry point so a collection can validate once for all its shares
+    /// instead of recomputing the field prime per element.
+    /// </remarks>
+    internal Share<TNumber> ReissueCore(int securityLevel)
+    {
+        Calculator<TNumber> clonedIndex = null;
+        Calculator<TNumber> clonedValue = null;
+        try
+        {
+            clonedIndex = this.index.Clone();
+            clonedValue = this.value.Clone();
+            var reissued = new Share<TNumber>(clonedIndex, clonedValue, securityLevel);
+
+            // Ownership transferred to the new share -- null out so the finally does not dispose
+            // buffers it now owns.
+            clonedIndex = null;
+            clonedValue = null;
+            return reissued;
+        }
+        finally
+        {
+            clonedIndex?.Dispose();
+            clonedValue?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Rejects a security level that cannot serve the given shares.
+    /// </summary>
+    /// <param name="shares">The shares the level is meant to describe.</param>
+    /// <param name="securityLevel">The exponent to check.</param>
+    /// <param name="mersennePrimeProvider">
+    /// The table that decides whether <paramref name="securityLevel"/> is supported, consulted
+    /// exactly and first, before the field prime is computed.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// All three failures are argument errors: the exponent came in as a parameter of the operation
+    /// being performed, unlike one read off a share during reconstruction, which is a reconstruction
+    /// failure. Same questions, different boundary.
+    /// </para>
+    /// <para>
+    /// A share that already records a level is not overwritten. Re-issuing it with the same
+    /// exponent is fine and a share recording none may be given one, but a contradiction is
+    /// refused — reconstruction refuses the same contradiction, and a migration helper that
+    /// silently won the argument would be a way to talk the library into the wrong field.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The exponent is not supported.</exception>
+    /// <exception cref="ArgumentException">
+    /// The exponent contradicts a level a share already records, or the field is too small for the
+    /// coordinates.
+    /// </exception>
+    internal static void EnsureUsableSecurityLevel(
+        IReadOnlyList<Share<TNumber>> shares,
+        int securityLevel,
+        IMersennePrimeProvider mersennePrimeProvider)
+    {
+        if (!mersennePrimeProvider.IsValidMersennePrimeExponent(securityLevel))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(securityLevel),
+                securityLevel,
+                string.Format(ErrorMessages.SecurityLevelNotSupported, securityLevel));
+        }
+
+        for (int i = 0; i < shares.Count; i++)
+        {
+            int? recorded = shares[i].SecurityLevel;
+            if (recorded.HasValue && recorded.Value != securityLevel)
+            {
+                throw new ArgumentException(
+                    string.Format(ErrorMessages.ExplicitSecurityLevelContradictsShares, securityLevel),
+                    nameof(securityLevel));
+            }
+        }
+
+        if (!AllFitField(shares, securityLevel))
+        {
+            throw new ArgumentException(
+                string.Format(ErrorMessages.SecurityLevelTooSmallForShareCoordinates, securityLevel),
+                nameof(securityLevel));
+        }
+    }
+
+    /// <summary>
+    /// Reports whether every share lies inside the field of the given Mersenne exponent:
+    /// <c>0 &lt; x &lt; p</c> and <c>0 &lt;= y &lt; p</c>.
+    /// </summary>
+    /// <param name="shares">The shares to check.</param>
+    /// <param name="securityLevel">The exponent naming the field.</param>
+    /// <returns><see langword="true"/> when every coordinate fits.</returns>
+    /// <remarks>
+    /// The rule lives here, once, and the boundaries decide what a violation means: reconstruction
+    /// reports <see cref="ReconstructionException"/>, while a caller handing an exponent to a
+    /// migration helper gets an argument error. Stating the bounds at each site instead is how two
+    /// entry points come to disagree about the same question.
+    /// </remarks>
+    internal static bool AllFitField(IReadOnlyList<Share<TNumber>> shares, int securityLevel)
+    {
+        using var zero = Calculator<TNumber>.Zero;
+        using var one = Calculator<TNumber>.One;
+        using var two = Calculator<TNumber>.Two;
+        using var power = two.Pow(securityLevel);
+        using var prime = power - one;
+
+        for (int i = 0; i < shares.Count; i++)
+        {
+            var index = shares[i].Index;
+            var value = shares[i].Value;
+            if (index < one || index >= prime || value < zero || value >= prime)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The number of hexadecimal digits needed for a positive <see cref="int"/>, at least one.
+    /// </summary>
+    /// <param name="value">The value to measure. Security levels are always positive.</param>
+    /// <returns>The digit count.</returns>
+    private static int HexDigitCount(int value)
+    {
+        int digits = 1;
+        for (int remaining = value >> 4; remaining != 0; remaining >>= 4)
+        {
+            digits++;
+        }
+
+        return digits;
+    }
+
+    /// <summary>
+    /// The single length rule for the serialized form, shared by the measurer and the writer.
+    /// </summary>
+    /// <param name="indexByteCount">Byte length of the index coordinate.</param>
+    /// <param name="valueByteCount">Byte length of the value coordinate.</param>
+    /// <param name="securityLevelDigits">Hex digits of the security level, or zero for none.</param>
+    /// <param name="withPrefix">Whether each segment carries a <c>"0x"</c> prefix.</param>
+    /// <returns>The total character count.</returns>
+    /// <remarks>
+    /// The prefix count follows the segment count, so adding a segment does not mean remembering
+    /// to change a hard-coded multiplier in two places.
+    /// </remarks>
+    private static int MeasureChars(int indexByteCount, int valueByteCount, int securityLevelDigits, bool withPrefix)
+    {
+        int segments = securityLevelDigits > 0 ? 3 : 2;
+        int prefixLength = withPrefix ? 2 : 0;
+        int total = (segments * prefixLength) + (indexByteCount * 2) + 1 + (valueByteCount * 2);
+        if (securityLevelDigits > 0)
+        {
+            total += 1 + securityLevelDigits;
+        }
+
+        return total;
     }
 
     /// <summary>
@@ -478,7 +914,34 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="offset"/> is negative or greater than <c>dest.Length</c>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="dest"/> has insufficient remaining space.</exception>
     /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
-    public int WriteCharsTo(char[] dest, int offset, bool uppercase, bool withPrefix)
+    public int WriteCharsTo(char[] dest, int offset, bool uppercase, bool withPrefix) =>
+        this.WriteCharsTo(dest, offset, uppercase, withPrefix, ShareFormat.Legacy);
+
+    /// <summary>
+    /// Writes the hex-encoded share characters into <paramref name="dest"/> in the given format.
+    /// </summary>
+    /// <param name="dest">The destination character buffer. The caller owns its lifetime and pinning.</param>
+    /// <param name="offset">The zero-based index into <paramref name="dest"/> where writing starts.</param>
+    /// <param name="uppercase">
+    /// <see langword="true"/> for uppercase hex digits (0A–0F); <see langword="false"/> for lowercase.
+    /// </param>
+    /// <param name="withPrefix">
+    /// <see langword="true"/> to prepend <c>"0x"</c> to every segment, the security level included.
+    /// </param>
+    /// <param name="format">Which serialized form to write.</param>
+    /// <returns>The number of characters written.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="dest"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="offset"/> is negative or greater than <c>dest.Length</c>, or
+    /// <paramref name="format"/> is not a defined value.
+    /// </exception>
+    /// <exception cref="ArgumentException"><paramref name="dest"/> has insufficient remaining space.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="format"/> is <see cref="ShareFormat.Extended"/> and this share records no
+    /// <see cref="SecurityLevel"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the share has been disposed.</exception>
+    public int WriteCharsTo(char[] dest, int offset, bool uppercase, bool withPrefix, ShareFormat format)
     {
         this.ThrowIfDisposed();
         if (dest is null)
@@ -491,10 +954,10 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             throw new ArgumentOutOfRangeException(nameof(offset));
         }
 
+        int securityLevelDigits = this.SecurityLevelDigits(format);
         using var indexBytes = this.Index.ByteRepresentation;
         using var valueBytes = this.Value.ByteRepresentation;
-        var prefixLength = withPrefix ? 2 : 0;
-        var total = 2 * prefixLength + indexBytes.Length * 2 + 1 + valueBytes.Length * 2;
+        var total = MeasureChars(indexBytes.Length, valueBytes.Length, securityLevelDigits, withPrefix);
         if (dest.Length - offset < total)
         {
             throw new ArgumentException(ErrorMessages.DestinationArrayHasFewerElements, nameof(dest));
@@ -508,7 +971,39 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
         pos = WritePrefix(dest, pos, withPrefix);
         WriteHexChars(valueBytes, dest, pos, uppercase);
         pos += valueBytes.Length * 2;
+        if (securityLevelDigits > 0)
+        {
+            dest[pos++] = CoordinateSeparator;
+            pos = WritePrefix(dest, pos, withPrefix);
+            WriteHexInt32(this.securityLevel.Value, securityLevelDigits, dest, pos, uppercase);
+            pos += securityLevelDigits;
+        }
+
         return pos - offset;
+    }
+
+    /// <summary>
+    /// Writes a positive <see cref="int"/> as <paramref name="digits"/> hexadecimal characters.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="digits">The digit count, from <see cref="HexDigitCount"/>.</param>
+    /// <param name="dest">The destination buffer.</param>
+    /// <param name="offset">Where to start writing.</param>
+    /// <param name="uppercase">Whether to use uppercase digits.</param>
+    /// <remarks>
+    /// The security level is public metadata, so this needs none of the fixed-time care the
+    /// coordinate encoding is held to.
+    /// </remarks>
+    private static void WriteHexInt32(int value, int digits, char[] dest, int offset, bool uppercase)
+    {
+        char letterBase = uppercase ? 'A' : 'a';
+        for (int i = 0; i < digits; i++)
+        {
+            int nibble = (value >> (4 * i)) & 0xF;
+            dest[offset + digits - 1 - i] = nibble < 10
+                ? (char)('0' + nibble)
+                : (char)(letterBase + nibble - 10);
+        }
     }
 
     /// <summary>
@@ -598,7 +1093,8 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
     /// position of the first invalid character), has an empty coordinate, or decodes to an index that
     /// is not positive.
     /// </exception>
-    private static (Calculator<TNumber> Index, Calculator<TNumber> Value) ParseCore(PinnedPoolArray<char> serialized)
+    private static (Calculator<TNumber> Index, Calculator<TNumber> Value, int? SecurityLevel) ParseCore(
+        PinnedPoolArray<char> serialized)
     {
         if (serialized is null)
         {
@@ -614,14 +1110,32 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             throw new InvalidShareException(string.Format(ErrorMessages.InvalidShareFormat, CoordinateSeparator));
         }
 
+        // Two segments or three. A fourth has never been written by this library, and reading it
+        // as "the value happens to contain a separator" is how the older parser failed anyway —
+        // just with a message about a hex digit rather than about the shape.
+        var levelSeparatorIndex = IndexOf(buf, separatorIndex + 1, end, CoordinateSeparator);
+        if (levelSeparatorIndex >= 0
+            && IndexOf(buf, levelSeparatorIndex + 1, end, CoordinateSeparator) >= 0)
+        {
+            throw new InvalidShareException(string.Format(ErrorMessages.ShareHasTooManySegments, CoordinateSeparator));
+        }
+
+        var valueEnd = levelSeparatorIndex >= 0 ? levelSeparatorIndex : end;
         var indexStart = StripHexPrefix(buf, start, separatorIndex);
-        var valueStart = StripHexPrefix(buf, separatorIndex + 1, end);
+        var valueStart = StripHexPrefix(buf, separatorIndex + 1, valueEnd);
         var indexLen = separatorIndex - indexStart;
-        var valueLen = end - valueStart;
+        var valueLen = valueEnd - valueStart;
 
         if (indexLen == 0 || valueLen == 0)
         {
             throw new InvalidShareException(ErrorMessages.ShareIndexAndValueMustBeNonEmpty);
+        }
+
+        int? securityLevel = null;
+        if (levelSeparatorIndex >= 0)
+        {
+            var levelStart = StripHexPrefix(buf, levelSeparatorIndex + 1, end);
+            securityLevel = DecodeHexToInt32(buf, levelStart, end - levelStart);
         }
 
         Calculator<TNumber> index = null;
@@ -636,7 +1150,7 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
                 throw new InvalidShareException(ErrorMessages.ShareIndexMustBePositive);
             }
 
-            var result = (index, value);
+            var result = (index, value, securityLevel);
             index = null;
             value = null;
 
@@ -691,6 +1205,52 @@ public sealed record Share<TNumber> : IComparable<Share<TNumber>>, IDisposable
             index?.Dispose();
             value?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Decodes the security level segment: hexadecimal characters to a positive <see cref="int"/>.
+    /// </summary>
+    /// <param name="buf">The character buffer.</param>
+    /// <param name="offset">Start of the segment, after any <c>"0x"</c> prefix.</param>
+    /// <param name="length">Length of the segment.</param>
+    /// <returns>The decoded exponent.</returns>
+    /// <remarks>
+    /// Decoded to <see cref="int"/> directly rather than through a <see cref="Calculator{TNumber}"/>:
+    /// the level is a small public integer, and the round trip would need a conversion back that
+    /// this library deliberately removed. Whether the exponent is one the library <em>supports</em>
+    /// is a different question and is not asked here — a share carries no provider to ask. That
+    /// check belongs to reconstruction, where a manager is present.
+    /// </remarks>
+    /// <exception cref="InvalidShareException">
+    /// The segment is empty, too long, contains a non-hexadecimal character, or decodes to a
+    /// non-positive value.
+    /// </exception>
+    private static int DecodeHexToInt32(char[] buf, int offset, int length)
+    {
+        if (length <= 0 || length > 8)
+        {
+            throw new InvalidShareException(ErrorMessages.ShareSecurityLevelSegmentInvalid);
+        }
+
+        int decoded = 0;
+        for (int i = 0; i < length; i++)
+        {
+            var digit = GetHexValue(buf[offset + i]);
+            if (digit < 0)
+            {
+                throw new InvalidShareException(
+                    string.Format(ErrorMessages.InvalidHexCharacter, offset + i));
+            }
+
+            decoded = (decoded << 4) | digit;
+        }
+
+        if (decoded <= 0)
+        {
+            throw new InvalidShareException(ErrorMessages.ShareSecurityLevelSegmentInvalid);
+        }
+
+        return decoded;
     }
 
     /// <summary>

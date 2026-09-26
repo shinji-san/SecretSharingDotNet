@@ -1,0 +1,11 @@
+# The blank-issue entry is disabled so that questions reach Discussions instead of
+# the issue tracker. Set this back to true if a report ever needs a shape that
+# neither form covers.
+blank_issues_enabled: false
+contact_links:
+  - name: Question about using the library
+    url: https://github.com/shinji-san/SecretSharingDotNet/discussions/categories/q-a
+    about: How do I split, reconstruct, choose a security level, pick a backend? Ask here.
+  - name: Idea or open-ended proposal
+    url: https://github.com/shinji-san/SecretSharingDotNet/discussions/categories/ideas
+    about: Discuss a direction before it becomes a concrete feature request.

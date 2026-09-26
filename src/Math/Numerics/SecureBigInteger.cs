@@ -2103,6 +2103,7 @@ public sealed class SecureBigInteger : IDisposable, IEquatable<SecureBigInteger>
     /// non-zero limb encountered determines the result — exactly the lexicographic
     /// MSB-first ordering required.
     /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     private static int CompareUnsigned(SecureBigInteger left, SecureBigInteger right)
     {
         int leftCount = left.LimbCount;

@@ -126,8 +126,12 @@ using System;
 ///   <see cref="SecureBigInteger"/>'s division, whose bit-loop count tracks
 ///   the limb count of the intermediate working values — which decreases
 ///   over the loop and is therefore observable through per-iter timing.
-///   The branch selector itself reads the LSB of secret <c>g</c> plus
-///   the public sign of <c>delta</c>. The <c>2^{-n} mod M_p</c> correction
+///   The branch selector reads the parity of <c>g</c> and the sign of
+///   <c>delta</c>, both derived from the denominator handed to
+///   <see cref="Compute"/>. In this library's reconstruction path that
+///   denominator is built from the public share indices, so at a fixed
+///   field the branch sequence is public; it is secret-dependent only
+///   for a caller passing a secret operand to <see cref="Compute"/>. The <c>2^{-n} mod M_p</c> correction
 ///   is computed via <see cref="SecureBigInteger.Pow"/>, whose iteration
 ///   count depends only on the public correction exponent.
 ///   This is the configuration the threat-model guarantees of this library

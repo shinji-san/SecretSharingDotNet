@@ -31,11 +31,11 @@
 
 namespace SecretSharingDotNetTest.Cryptography.SecureInput;
 
+using SecretSharingDotNet.Cryptography.SecureInput;
+using SecretSharingDotNet.SecureMemory;
 using System;
 using System.Linq;
 using System.Numerics;
-using SecretSharingDotNet.SecureMemory;
-using SecretSharingDotNet.Cryptography.SecureInput;
 using Xunit;
 
 /// <summary>

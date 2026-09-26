@@ -59,9 +59,6 @@
     <data name="DataTypeNotSupported" xml:space="preserve">
         <value>Der Datentyp '{0}' wird nicht unterstützt!</value>
     </data>
-    <data name="NoMaximumY" xml:space="preserve">
-        <value>Unerwarteter Fehler. Die größte Y-Koordinate konnte nicht ermittelt werden. Bitte prüfe die Teilgeheimnisse.</value>
-    </data>
     <data name="NoValidMersennePrimeExponentAvailable" xml:space="preserve">
         <value>Kein gültiger Mersenne-Primzahl-Exponent &gt;= {0} verfügbar.</value>
     </data>
@@ -176,5 +173,38 @@
     </data>
     <data name="PinnedBufferLengthMismatch" xml:space="preserve">
         <value>Erwartet wurde ein pinned Buffer mit Länge {0}, war jedoch {1}.</value>
+    </data>
+    <data name="ReconstructionYieldedNoDecodableSecret" xml:space="preserve">
+        <value>Die Rekonstruktion hat kein dekodierbares Geheimnis ergeben. Verwendeter Mersenne-Exponent: {0}.</value>
+    </data>
+    <data name="SecurityLevelNotSupported" xml:space="preserve">
+        <value>Sicherheitsstufe {0} ist kein unterstützter Mersenne-Primzahlexponent. Sie wird unverändert verwendet und nie aufgerundet.</value>
+    </data>
+    <data name="ExplicitSecurityLevelContradictsShares" xml:space="preserve">
+        <value>Die übergebene Sicherheitsstufe {0} widerspricht der Stufe, die mindestens ein Share festhält.</value>
+    </data>
+    <data name="SharesCarryDifferentSecurityLevels" xml:space="preserve">
+        <value>Die Shares halten unterschiedliche Sicherheitsstufen fest. Sie können nicht aus derselben Aufteilung stammen; eine explizit übergebene Stufe löst das nicht, da sie mindestens einer davon widerspräche.</value>
+    </data>
+    <data name="SharesCarryMixedSecurityLevelMetadata" xml:space="preserve">
+        <value>Ein Teil der Shares hält eine Sicherheitsstufe fest, der andere nicht. Übergeben Sie die Stufe explizit, um den Körper zu benennen.</value>
+    </data>
+    <data name="ShareCoordinateOutsideField" xml:space="preserve">
+        <value>Eine Share-Koordinate passt nicht in den Körper des Mersenne-Exponenten {0}.</value>
+    </data>
+    <data name="SecurityLevelNotAppliedByManager" xml:space="preserve">
+        <value>Der Sicherheitsstufen-Manager hat die Stufe {0} nicht übernommen; er meldet {1}.</value>
+    </data>
+    <data name="ShareHasNoSecurityLevelToSerialize" xml:space="preserve">
+        <value>Dieses Share hält keine Sicherheitsstufe fest und kann daher nicht im erweiterten Format geschrieben werden.</value>
+    </data>
+    <data name="ShareHasTooManySegments" xml:space="preserve">
+        <value>Ein serialisiertes Share hat höchstens drei durch '{0}' getrennte Segmente.</value>
+    </data>
+    <data name="ShareSecurityLevelSegmentInvalid" xml:space="preserve">
+        <value>Das Sicherheitsstufen-Segment des serialisierten Shares ist leer oder keine positive Hexadezimalzahl.</value>
+    </data>
+    <data name="SecurityLevelTooSmallForShareCoordinates" xml:space="preserve">
+        <value>Sicherheitsstufe {0} benennt einen Körper, der für die Share-Koordinaten zu klein ist.</value>
     </data>
 </root>

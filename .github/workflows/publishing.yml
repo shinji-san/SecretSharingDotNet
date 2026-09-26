@@ -78,13 +78,13 @@ jobs:
       run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
 
     - name: Test (net472)
-      run: dotnet test --no-restore --no-build --configuration Release --framework net472 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+      run: dotnet test --no-restore --no-build --configuration Release --framework net472 tests/SecretSharingDotNetTest.csproj
 
     - name: Test (net48)
-      run: dotnet test --no-restore --no-build --configuration Release --framework net48 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+      run: dotnet test --no-restore --no-build --configuration Release --framework net48 tests/SecretSharingDotNetTest.csproj
 
     - name: Test (net481)
-      run: dotnet test --no-restore --no-build --configuration Release --framework net481 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+      run: dotnet test --no-restore --no-build --configuration Release --framework net481 tests/SecretSharingDotNetTest.csproj
 
   build:
 
@@ -93,6 +93,12 @@ jobs:
     timeout-minutes: 30
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
+      # Overrides the repository public key that Directory.Build.props supplies by default.
+      # This job signs with the publisher key decrypted below, so the InternalsVisibleTo
+      # entry in the library has to name the publisher's public key - otherwise the test
+      # project stops compiling against it. MSBuild reads environment variables as global
+      # properties, so nothing has to rewrite a file on disk.
+      SecretSharingDotNetPublicKey: ${{ secrets.PUBLISHER_PUB_KEY }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -114,7 +120,10 @@ jobs:
         tag_version="${GITHUB_REF_NAME#v}"
         csproj_version="$(dotnet msbuild src/SecretSharingDotNet.csproj -getProperty:Version)"
         release_notes="$(dotnet msbuild src/SecretSharingDotNet.csproj -getProperty:PackageReleaseNotes)"
-        informational_version="$(sed -n 's/.*AssemblyInformationalVersion("\([^"]*\)").*/\1/p' src/Properties/AssemblyInfo.cs)"
+        # InformationalVersion is set by the GetAssemblyVersion target, not during
+        # evaluation, so -getProperty alone returns an empty string here. The -t: is what
+        # makes this read the value the build will actually stamp into the assembly.
+        informational_version="$(dotnet msbuild src/SecretSharingDotNet.csproj -t:GetAssemblyVersion -getProperty:InformationalVersion -p:TargetFramework=net8.0)"
 
         mismatch=0
         if [ "$csproj_version" != "$tag_version" ]; then
@@ -122,7 +131,7 @@ jobs:
           mismatch=1
         fi
         if [ "$informational_version" != "$tag_version" ]; then
-          echo "::error file=src/Properties/AssemblyInfo.cs::AssemblyInformationalVersion is '$informational_version', but tag ${GITHUB_REF_NAME} implies '$tag_version'"
+          echo "::error file=src/SecretSharingDotNet.csproj::AssemblyInformationalVersion is '$informational_version', but tag ${GITHUB_REF_NAME} implies '$tag_version'"
           mismatch=1
         fi
         case "$release_notes" in
@@ -156,13 +165,13 @@ jobs:
     # here. The .NET Framework suites already ran in the test-windows job,
     # which gates this job through 'needs'.
     - name: Test (net8.0)
-      run: dotnet test --no-restore --no-build --configuration Release --framework net8.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+      run: dotnet test --no-restore --no-build --configuration Release --framework net8.0 tests/SecretSharingDotNetTest.csproj
 
     - name: Test (net9.0)
-      run: dotnet test --no-restore --no-build --configuration Release --framework net9.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+      run: dotnet test --no-restore --no-build --configuration Release --framework net9.0 tests/SecretSharingDotNetTest.csproj
 
     - name: Test (net10.0)
-      run: dotnet test --no-restore --no-build --configuration Release --framework net10.0 tests/SecretSharingDotNetTest.csproj -- RunConfiguration.TargetPlatform=x64 RunConfiguration.MaxCpuCount=1 xUnit.AppDomain=denied xUnit.ParallelizeAssembly=false xUnit.ParallelizeTestCollections=false
+      run: dotnet test --no-restore --no-build --configuration Release --framework net10.0 tests/SecretSharingDotNetTest.csproj
 
     - name: Remove obsolete NuGet packages
       run: rm -f src/bin/Release/SecretSharingDotNet*.nupkg

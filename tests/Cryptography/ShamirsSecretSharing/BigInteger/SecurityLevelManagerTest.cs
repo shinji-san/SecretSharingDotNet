@@ -32,13 +32,15 @@
 
 namespace SecretSharingDotNetTest.Cryptography.ShamirsSecretSharing.BigInteger;
 
+using Moq;
 using SecretSharingDotNet.Cryptography.ShamirsSecretSharing;
 using SecretSharingDotNet.Math;
+using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
-using Moq;
-using SecretSharingDotNet.Math.Numerics;
 
 /// <summary>
 /// Tests for <see cref="SecurityLevelManager{TNumber}"/> on the <see cref="BigInteger"/>
@@ -129,7 +131,7 @@ public class SecurityLevelManagerTest
         const int initialSecurityLevel = 10;
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => 
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
             securityLevelManager.SecurityLevel = initialSecurityLevel);
         Assert.Equal("value", exception.ParamName);
         Assert.Equal(initialSecurityLevel, exception.ActualValue);
@@ -147,7 +149,7 @@ public class SecurityLevelManagerTest
         const int initialSecurityLevel = 50000000;
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => 
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
             securityLevelManager.SecurityLevel = initialSecurityLevel);
         Assert.Equal("value", exception.ParamName);
         Assert.Equal(initialSecurityLevel, exception.ActualValue);
@@ -190,7 +192,7 @@ public class SecurityLevelManagerTest
         // Arrange
         using var securityLevelManager = new SecurityLevelManager<BigInteger>();
         const int initialSecurityLevel = 17;
-        
+
         // Act
         securityLevelManager.SecurityLevel = initialSecurityLevel;
 
@@ -369,5 +371,143 @@ public class SecurityLevelManagerTest
         // Assert
         Assert.NotNull(mersennePrime);
         Assert.Equal(BigInteger.Pow(2, initialSecurityLevel) - 1, mersennePrime.Value);
+    }
+    /// <summary>
+    /// <see cref="SecurityLevelManager{TNumber}.IsValidSecurityLevel"/> answers exactly, without
+    /// the upward normalisation the <see cref="SecurityLevelManager{TNumber}.SecurityLevel"/>
+    /// setter performs. That difference is the point: rounding is right for splitting, where the
+    /// level is derived from the secret's size, and wrong for a level a caller named or a share
+    /// recorded, where quietly using a different field is the defect being prevented.
+    /// Mirror of the SecureBigInteger-side theory of the same name.
+    /// </summary>
+    /// <param name="securityLevel">The exponent to test.</param>
+    /// <param name="expectedValid">Whether the exponent is a supported Mersenne prime exponent.</param>
+    [Theory]
+    [InlineData(13, true)]
+    [InlineData(17, true)]
+    [InlineData(19, true)]
+    [InlineData(31, true)]
+    [InlineData(12, false)]
+    [InlineData(18, false)]
+    [InlineData(0, false)]
+    [InlineData(-1, false)]
+    [InlineData(int.MaxValue, false)]
+    public void IsValidSecurityLevel_AnswersExactlyWithoutRounding(int securityLevel, bool expectedValid)
+    {
+        // Arrange
+        using var manager = new SecurityLevelManager<BigInteger>();
+
+        // Act
+        bool actualValid = manager.IsValidSecurityLevel(securityLevel);
+
+        // Assert
+        Assert.Equal(expectedValid, actualValid);
+    }
+
+    /// <summary>
+    /// <see cref="SecurityLevelManager{TNumber}.DetermineSecurityLevel"/> returns the exponent
+    /// <see cref="SecurityLevelManager{TNumber}.AdjustSecurityLevel"/> would commit, and commits
+    /// nothing itself. Returning the answer instead of applying it is what lets a caller validate
+    /// its inputs against the resulting field before anything moves.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void DetermineSecurityLevel_ReturnsTheSelectionWithoutCommittingIt()
+    {
+        // Arrange
+        using var manager = new SecurityLevelManager<BigInteger>();
+        manager.SecurityLevel = 31;
+        // Two bytes: the selection starts from ByteCount * 8, and a single-byte value would land
+        // below the smallest supported exponent and be rejected before any walk begins.
+        using var maximumY = new BigIntCalculator(300);
+
+        // Act
+        int determined = manager.DetermineSecurityLevel(maximumY);
+
+        // Assert — the answer is the one AdjustSecurityLevel would apply, and nothing moved.
+        Assert.Equal(13, determined);
+        Assert.Equal(31, manager.SecurityLevel);
+        manager.AdjustSecurityLevel(maximumY);
+        Assert.Equal(determined, manager.SecurityLevel);
+    }
+
+    /// <summary>
+    /// The capability members reject use after disposal like the rest of the type.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void PostDispose_CapabilityMembers_ThrowObjectDisposedException()
+    {
+        // Arrange
+        var manager = new SecurityLevelManager<BigInteger>();
+        using var maximumY = new BigIntCalculator(100);
+        manager.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => manager.IsValidSecurityLevel(17));
+        Assert.Throws<ObjectDisposedException>(() => manager.DetermineSecurityLevel(maximumY));
+    }
+
+    /// <summary>
+    /// Tests that calling <see cref="SecurityLevelManager{TNumber}.Dispose"/> repeatedly is
+    /// idempotent — second and third calls do not throw.
+    /// </summary>
+    [Fact]
+    public void Dispose_CalledMultipleTimes_IsIdempotent()
+    {
+        // Arrange
+        var securityLevelManager = new SecurityLevelManager<BigInteger>();
+
+        // Act
+        var ex = Record.Exception(() =>
+        {
+            securityLevelManager.Dispose();
+            securityLevelManager.Dispose();
+            securityLevelManager.Dispose();
+        });
+
+        // Assert
+        Assert.Null(ex);
+    }
+
+    /// <summary>
+    /// The idempotency guard in the non-virtual <c>Dispose()</c> covers the whole override chain: a
+    /// derived manager that cleans up in its override and then calls <c>base.Dispose(disposing)</c>
+    /// sees the override run once — after two sequential calls, and after a hundred concurrent
+    /// ones. With the guard in <c>Dispose(bool)</c>, as the dispose pattern suggests, only the base
+    /// body would be protected and the override would run on every call.
+    /// Mirror of the SecureBigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Dispose_OnADerivedType_RunsTheOverrideOnce()
+    {
+        // Arrange
+        var sequential = new CountingManager();
+        var concurrent = new CountingManager();
+
+        // Act
+        sequential.Dispose();
+        sequential.Dispose();
+        Parallel.For(0, 100, _ => concurrent.Dispose());
+
+        // Assert
+        Assert.Equal(1, sequential.OverrideRuns);
+        Assert.Equal(1, concurrent.OverrideRuns);
+    }
+
+    /// <summary>
+    /// A derived security level manager that counts how often its <c>Dispose(bool)</c> override runs.
+    /// </summary>
+    private sealed class CountingManager : SecurityLevelManager<BigInteger>
+    {
+        private int overrideRuns;
+
+        public int OverrideRuns => Volatile.Read(ref this.overrideRuns);
+
+        protected override void Dispose(bool disposing)
+        {
+            Interlocked.Increment(ref this.overrideRuns);
+            base.Dispose(disposing);
+        }
     }
 }

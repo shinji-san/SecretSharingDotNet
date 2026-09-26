@@ -39,7 +39,7 @@ using System.Threading;
 /// Default implementation of <see cref="ISecurityLevelManager{TNumber}"/>.
 /// </summary>
 /// <typeparam name="TNumber">Numeric data type</typeparam>
-public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
+public class SecurityLevelManager<TNumber> : IInspectableSecurityLevelManager<TNumber>
 {
     /// <summary>
     /// Provides access to a Mersenne prime provider implementation, enabling retrieval and validation
@@ -151,7 +151,19 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     private Calculator<TNumber> mersennePrime;
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Determination and commitment are split: the selection lives in
+    /// <see cref="DetermineSecurityLevel"/>, which touches no state, and this method is the one
+    /// line that commits its answer. Callers that need to validate their inputs against the
+    /// resulting field <em>before</em> anything moves use the determination directly.
+    /// </remarks>
     public void AdjustSecurityLevel(Calculator<TNumber> maximumY)
+    {
+        this.SecurityLevel = this.DetermineSecurityLevel(maximumY);
+    }
+
+    /// <inheritdoc/>
+    public int DetermineSecurityLevel(Calculator<TNumber> maximumY)
     {
         this.ThrowIfDisposed();
         if (maximumY is null)
@@ -174,7 +186,14 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
 
         // index is now either -1 (maximumY fits even the smallest prime) or the highest
         // exponent for which maximumY does NOT fit. The smallest fitting exponent is at index+1.
-        this.SecurityLevel = this.mersennePrimeProvider.GetMersennePrimeExponentByIndex(index + 1);
+        return this.mersennePrimeProvider.GetMersennePrimeExponentByIndex(index + 1);
+    }
+
+    /// <inheritdoc/>
+    public bool IsValidSecurityLevel(int securityLevel)
+    {
+        this.ThrowIfDisposed();
+        return this.mersennePrimeProvider.IsValidMersennePrimeExponent(securityLevel);
     }
 
     /// <summary>
@@ -234,8 +253,19 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     /// Releases all resources used by the current instance of the <see cref="SecurityLevelManager{TNumber}"/> class.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Idempotent and safe to call from multiple threads concurrently. The owned
     /// <see cref="MersennePrime"/> Calculator is disposed exactly once.
+    /// </para>
+    /// <para>
+    /// The idempotency guard sits here, in the non-virtual method, and not in <c>Dispose(bool)</c>
+    /// where the dispose pattern puts it. That placement is deliberate: it makes the whole override
+    /// chain run once, so an override of <c>Dispose(bool)</c> in a derived type is also called
+    /// exactly once, however often and from however many threads disposal is requested. With the
+    /// guard in <c>Dispose(bool)</c> only the base body would be protected, and an override that
+    /// cleans up and then calls <c>base.Dispose(disposing)</c> would run on every call — including
+    /// concurrently.
+    /// </para>
     /// </remarks>
     public void Dispose()
     {
@@ -253,6 +283,12 @@ public class SecurityLevelManager<TNumber> : ISecurityLevelManager<TNumber>
     /// </summary>
     /// <param name="disposing">A boolean value indicating whether to release managed resources
     /// (<see langword="true"/>) or only unmanaged resources (<see langword="false"/>).</param>
+    /// <remarks>
+    /// Called exactly once through <see cref="Dispose()"/>, which holds the idempotency guard so that
+    /// an override runs once as well. This type declares no finalizer, so
+    /// <paramref name="disposing"/> is <see langword="false"/> only if a derived type with a
+    /// finalizer of its own passes it on.
+    /// </remarks>
     protected virtual void Dispose(bool disposing)
     {
         if (!disposing)

@@ -30,9 +30,9 @@
 
 namespace SecretSharingDotNetTest;
 
-using System;
 using SecretSharingDotNet.Cryptography;
 using SecretSharingDotNet.Cryptography.SecureInput;
+using System;
 using Xunit;
 
 /// <summary>

@@ -383,4 +383,45 @@ public class SecretSplitterTest
         secretA.Dispose();
         secretB.Dispose();
     }
+    /// <summary>
+    /// Every share created by <c>MakeShares</c> records the exponent that actually governed the
+    /// polynomial. Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void MakeShares_RecordsTheSecurityLevelOnEveryShare()
+    {
+        // Arrange
+        using var splitter = new SecretSplitter<SecureBigInteger>();
+        splitter.SecurityLevel = 31;
+        using var secret = new Secret<SecureBigInteger>(new byte[] { 0x2A });
+
+        // Act
+        using var shares = splitter.MakeShares(2, 5, secret);
+
+        // Assert
+        Assert.All(shares, share => Assert.Equal(splitter.SecurityLevel, share.SecurityLevel));
+    }
+
+    /// <summary>
+    /// The recorded level is the one after the auto-raise, not the one the caller asked for.
+    /// <c>MakeShares</c> lifts the level to fit the secret including its mark byte and never lowers
+    /// it, so a request for 13 with a one-byte secret is served at 17 — and 17 is what the shares
+    /// have to carry, because that is the field they lie in.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void MakeShares_AfterAutoRaise_RecordsTheEffectiveLevelNotTheRequestedOne()
+    {
+        // Arrange — 13 requested; a one-byte secret plus its mark byte needs 16 bits, so 17.
+        using var splitter = new SecretSplitter<SecureBigInteger>();
+        splitter.SecurityLevel = 13;
+        using var secret = new Secret<SecureBigInteger>(new byte[] { 0xFF });
+
+        // Act
+        using var shares = splitter.MakeShares(2, 3, secret);
+
+        // Assert
+        Assert.Equal(17, splitter.SecurityLevel);
+        Assert.All(shares, share => Assert.Equal(17, share.SecurityLevel));
+    }
 }

@@ -31,9 +31,9 @@
 
 namespace SecretSharingDotNetTest.Math.SecureBigInteger;
 
-using System.Numerics;
 using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
+using System.Numerics;
 using Xunit;
 
 /// <summary>
@@ -55,7 +55,7 @@ public class ExtendedEuclideanAlgorithmTest
     {
         // Arrange
         using Calculator<SecureBigInteger> expected = (SecureBigInteger)3;
-        using Calculator<SecureBigInteger> a = (SecureBigInteger)6; 
+        using Calculator<SecureBigInteger> a = (SecureBigInteger)6;
         using Calculator<SecureBigInteger> b = (SecureBigInteger)9;
 
         // Act

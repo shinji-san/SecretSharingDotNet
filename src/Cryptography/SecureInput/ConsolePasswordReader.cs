@@ -31,8 +31,8 @@
 
 namespace SecretSharingDotNet.Cryptography.SecureInput;
 
-using System;
 using SecureMemory;
+using System;
 
 /// <summary>
 /// Provides interactive console-based password input that lands directly in pinned,

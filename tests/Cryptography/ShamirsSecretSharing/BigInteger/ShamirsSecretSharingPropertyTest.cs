@@ -71,6 +71,11 @@ public class ShamirsSecretSharingPropertyTest
     /// Any qualifying subset — exactly <c>threshold</c> of the <c>numberOfShares</c> generated shares —
     /// reconstructs the original secret.
     /// </summary>
+    /// <remarks>
+    /// "Any" is meant literally: the generated rank names one of the <c>C(n, k)</c> subsets, so a
+    /// combination with interior gaps is as likely as a contiguous run. An earlier version drew a
+    /// wrap-around window instead, which could only ever produce the <c>n</c> contiguous runs.
+    /// </remarks>
     [Fact]
     public void Reconstruction_FromAnyThresholdSubset_RecoversSecret()
     {
@@ -78,16 +83,19 @@ public class ShamirsSecretSharingPropertyTest
         var generator = ShamirsSecretSharingGenerators.SubsetReconstruction(MaxSecretLength, MaxShares);
 
         // Act & Assert
-        generator.Sample((secretBytes, threshold, numberOfShares, subsetOffset) =>
+        generator.Sample((secretBytes, threshold, numberOfShares, subsetRank) =>
         {
             using var secret = new Secret<BigInteger>(secretBytes);
             using var secretSplitter = new SecretSplitter<BigInteger>();
             using var secretReconstructor = new SecretReconstructor<BigInteger>(new ExtendedEuclideanAlgorithm<BigInteger>());
             using var shares = secretSplitter.MakeShares(threshold, numberOfShares, secret);
 
-            // A wrap-around window of length threshold over the (index-sorted) shares is an
-            // arbitrary qualifying subset; length ≤ numberOfShares guarantees distinct shares.
-            var subset = shares.Concat(shares).Skip(subsetOffset).Take(threshold).ToArray();
+            // The rank names one of the C(numberOfShares, threshold) qualifying subsets, so any
+            // combination can turn up here — not only the contiguous runs a window could name.
+            var byIndex = shares.ToArray();
+            var subset = ShamirsSecretSharingGenerators.Combination(numberOfShares, threshold, subsetRank)
+                .Select(position => byIndex[position])
+                .ToArray();
             using var recovered = secretReconstructor.Reconstruction(subset);
 
             Assert.Equal(secret, recovered);
