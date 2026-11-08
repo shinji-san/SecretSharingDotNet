@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `README.md`, which is also the package README on nuget.org, is now a short entry page: an overview, installation, one example, and links. The usage examples and the upgrade notes moved to `docs/usage.md`, the *Security & Threat Model* section to `docs/threat-model.md`, both largely unchanged. The package now carries the whole `README.md` instead of a section cut out of it, and the README links to the moved documents with absolute GitHub URLs so that they resolve on nuget.org as well.
+
+### Fixed
+- Three documentation statements contradicted the code or the threat model. The upgrade notes said `FinitePoint<TNumber>` was made internal; it was removed in 1.0.1-rc01. Two usage passages called the `SecureBigInteger` arithmetic and `MersenneSafeGcdAlgorithm` constant-time without the *partial* qualification the threat model states: the arithmetic is constant-time only in its per-limb loops, and the inverse has a fixed outer iteration count, not uniform per-iteration timing. And the threat model said its recommended floor of security level 127 was in line with the README examples, several of which select a lower level automatically; the README example now sets 127.
+
 ## [1.1.0] - 2026-09-26
 
 ### Added
