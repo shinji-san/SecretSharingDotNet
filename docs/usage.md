@@ -3,7 +3,7 @@
 Detailed examples for SecretSharingDotNet. The [README](../README.md) has the short version.
 
 > [!TIP]
-> A runnable end-to-end example lives in [`samples/SecretSharingDotNet.Demo.Console`](../samples/SecretSharingDotNet.Demo.Console). It wires the `SecureBigInteger` backend via `FixedIterationSecretReconstructor` (fixed-iteration `MersenneSafeGcdAlgorithm` inverse) through `Microsoft.Extensions.DependencyInjection`, reads the secret via `ConsolePasswordReader` (no `string` materialisation), splits it, and reconstructs it from a user-selected K-of-N subset of the generated shares.
+> A runnable end-to-end example lives in [`samples/SecretSharingDotNet.Demo.Console`](../samples/SecretSharingDotNet.Demo.Console). It wires the `SecureBigInteger` backend via `FixedIterationSecretReconstructor` (fixed-iteration `MersenneSafeGcdAlgorithm` inverse) through `Microsoft.Extensions.DependencyInjection`, reads the secret via `ConsolePasswordReader` (no `string` materialization), splits it, and reconstructs it from a user-selected K-of-N subset of the generated shares.
 
 ## Upgrading to 1.x
 
@@ -47,7 +47,7 @@ The library is generic in the numeric backend: `BigInteger` (used in the example
 | `BigInteger` | `SecretReconstructor` + `ExtendedEuclideanAlgorithm` | no | no | no | performance matters and timing side channels are out of scope |
 | `SecureBigInteger` | `FixedIterationSecretReconstructor` (wires `MersenneSafeGcdAlgorithm`) | yes | partial † | yes | secrets where passive timing analysis is in scope |
 
-† Both constant-time properties are best-effort against passive timing analysis — managed .NET cannot guarantee constant time (see the [threat model](threat-model.md)). *Constant-time arithmetic* is **partial**: the per-limb work of the core primitives is fixed by the operand limb counts and branchless — by `max(l, r)` for subtraction, `max(l, r) + 1` for addition, `left × right` for multiplication and squaring, and `dividend × 64` outer iterations for division and remainder — but every result is normalised by a leading-zero trim whose iteration count depends on the result's magnitude, and that trimmed length then sizes the next operation — so the limb count of an intermediate value is itself secret-derived rather than public. It covers the core primitives (add / subtract / multiply / square / divide / remainder) on the public bit length; it does not cover `Pow` (variable-time on its exponent), ordering (`CompareTo`), or the hex / Base64 decoders. *Fixed-iteration inverse* means that at a fixed security level the GCD iteration count depends only on that (public) level, not on the secret operand values — removing the iteration-count side channel of a plain extended-Euclidean GCD. Reconstruction runs at the level the shares record or the caller names, and derives one from the shares' maximum value only for shares recording neither, so the iteration count still reflects that level — which is public either way, recorded in the share or revealed by its size; it is not per-operation constant-time (`MersenneSafeGcdAlgorithm`'s per-iteration timing is not uniform). Together these two properties **reduce but do not eliminate** reconstruction timing side channels — they do not make the whole reconstruction constant-time.
+† Both constant-time properties are best-effort against passive timing analysis — managed .NET cannot guarantee constant time (see the [threat model](threat-model.md)). *Constant-time arithmetic* is **partial**: the per-limb work of the core primitives is fixed by the operand limb counts and branchless — by `max(l, r)` for subtraction, `max(l, r) + 1` for addition, `left × right` for multiplication and squaring, and `dividend × 64` outer iterations for division and remainder — but every result is normalized by a leading-zero trim whose iteration count depends on the result's magnitude, and that trimmed length then sizes the next operation — so the limb count of an intermediate value is itself secret-derived rather than public. It covers the core primitives (add / subtract / multiply / square / divide / remainder) on the public bit length; it does not cover `Pow` (variable-time on its exponent), ordering (`CompareTo`), or the hex / Base64 decoders. *Fixed-iteration inverse* means that at a fixed security level the GCD iteration count depends only on that (public) level, not on the secret operand values — removing the iteration-count side channel of a plain extended-Euclidean GCD. Reconstruction runs at the level the shares record or the caller names, and derives one from the shares' maximum value only for shares recording neither, so the iteration count still reflects that level — which is public either way, recorded in the share or revealed by its size; it is not per-operation constant-time (`MersenneSafeGcdAlgorithm`'s per-iteration timing is not uniform). Together these two properties **reduce but do not eliminate** reconstruction timing side channels — they do not make the whole reconstruction constant-time.
 
 > [!WARNING]
 > Do not pair `SecureBigInteger` with `ExtendedEuclideanAlgorithm`: you keep the pinned memory but reintroduce an operand-value-dependent iteration count — the side channel `FixedIterationSecretReconstructor` removes. `FixedIterationSecretReconstructor<SecureBigInteger>` accepts only fixed-iteration GCD strategies, so this mispairing is a compile-time error rather than a silent side channel. See the [threat model](threat-model.md) for the exact scope.
@@ -71,7 +71,7 @@ using System.Linq;
 using System.Numerics;
 ```
 
-The output sites below use the pinned `ToCharArray()` accessors on `Shares<TNumber>` and `Secret<TNumber>` and write them directly via `Console.Out.Write(char[], int, int)`. These accessors are not redaction-gated — they return the actual content in both DEBUG and Release builds — and avoid materialising a managed `string` between the pinned buffer and the writer.
+The output sites below use the pinned `ToCharArray()` accessors on `Shares<TNumber>` and `Secret<TNumber>` and write them directly via `Console.Out.Write(char[], int, int)`. These accessors are not redaction-gated — they return the actual content in both DEBUG and Release builds — and avoid materializing a managed `string` between the pinned buffer and the writer.
 
 > [!WARNING]
 > The Splitter and Reconstructor hold a mutable `ISecurityLevelManager` that each
@@ -192,7 +192,7 @@ public class Program
       using var recoveredSecret1 = combiner.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
       using var recoveredSecret2 = combiner.Reconstruction(shares.Where(p => p.IsIndexOdd).ToArray());
 
-      //// All shares serialised as hex lines (pinned char buffer, not redaction-gated)
+      //// All shares serialized as hex lines (pinned char buffer, not redaction-gated)
       using var sharesChars = shares.ToCharArray();
       Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
 
@@ -252,7 +252,7 @@ public class Program
     using var recoveredSecret1 = combiner.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
     using var recoveredSecret2 = combiner.Reconstruction(shares.Where(p => p.IsIndexOdd).ToArray());
 
-    //// All shares serialised as hex lines (pinned char buffer, not redaction-gated)
+    //// All shares serialized as hex lines (pinned char buffer, not redaction-gated)
     using var sharesChars = shares.ToCharArray();
     Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
 
@@ -305,7 +305,7 @@ public class Program
     using var recoveredSecret1 = combiner.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
     using var recoveredSecret2 = combiner.Reconstruction(shares.Where(p => p.IsIndexOdd).ToArray());
 
-    //// All shares serialised as hex lines (pinned char buffer, not redaction-gated)
+    //// All shares serialized as hex lines (pinned char buffer, not redaction-gated)
     using var sharesChars = shares.ToCharArray();
     Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
 
@@ -352,7 +352,7 @@ public class Program
     using var recovered = combiner.Reconstruction(shares.Where(p => p.IsIndexEven).ToArray());
     using var recoveredBytes = recovered.ToByteArray();
 
-    //// All shares serialised as hex lines (pinned char buffer, not redaction-gated)
+    //// All shares serialized as hex lines (pinned char buffer, not redaction-gated)
     using var sharesChars = shares.ToCharArray();
     Console.Out.Write(sharesChars.PoolArray, 0, sharesChars.Length);
 
@@ -363,7 +363,7 @@ public class Program
 ```
 
 ## Secret
-The `Secret<TNumber>` type is the unified envelope for the secrets that flow through `SecretSplitter` and `SecretReconstructor`. The four sub-examples below cover every public construction, inspection, and serialisation path on the `BigInteger` backend, plus a fixed-iteration round-trip on the `SecureBigInteger` backend. Sub-examples 5a–5c share the same payload — UTF-8 text `"Hello World!!"` — so each path can be traced end-to-end with the same expected output.
+The `Secret<TNumber>` type is the unified envelope for the secrets that flow through `SecretSplitter` and `SecretReconstructor`. The four sub-examples below cover every public construction, inspection, and serialization path on the `BigInteger` backend, plus a fixed-iteration round-trip on the `SecureBigInteger` backend. Sub-examples 5a–5c share the same payload — UTF-8 text `"Hello World!!"` — so each path can be traced end-to-end with the same expected output.
 
 ### Secret<T> — construct
 ```csharp
@@ -463,7 +463,7 @@ public class Program
 }
 ```
 
-### Secret<T> — serialise
+### Secret<T> — serialize
 ```csharp
 using System;
 using System.Numerics;
@@ -501,7 +501,7 @@ public class Program
 
     //// (e) Base64 as a string — convenient for interop APIs that take
     //// string. Note: the returned string lives on the managed heap and is
-    //// NOT pinned or securely cleared; treat it as ephemeral and minimise
+    //// NOT pinned or securely cleared; treat it as ephemeral and minimize
     //// its scope.
     string base64 = secret.ToBase64String();
     Console.WriteLine($"base64 string       : {base64}");
@@ -575,7 +575,7 @@ public class Program
 ```
 
 ## Shares
-The library exposes wire-format I/O on two surfaces: individual `Share<TNumber>` points and `Shares<TNumber>` collections. The three sub-examples below cover every public construction and serialisation path for both surfaces, plus a round-trip through `SecretReconstructor`. The example values reconstruct to `52199147989510990914370102003412153`.
+The library exposes wire-format I/O on two surfaces: individual `Share<TNumber>` points and `Shares<TNumber>` collections. The three sub-examples below cover every public construction and serialization path for both surfaces, plus a round-trip through `SecretReconstructor`. The example values reconstruct to `52199147989510990914370102003412153`.
 
 ### Single Share<T> — construct, inspect, serialize
 ```csharp
@@ -616,7 +616,7 @@ public class Program
     Console.WriteLine($"IsIndexEven: {shareFromText.IsIndexEven}");
     Console.WriteLine($"IsIndexOdd: {shareFromText.IsIndexOdd}");
 
-    //// Serialise back to hex (pinned char buffer, not redaction-gated).
+    //// Serialize back to hex (pinned char buffer, not redaction-gated).
     //// Default: uppercase, no "0x" prefix.
     using var hexDefault = shareFromText.ToCharArray();
     Console.Out.Write(hexDefault.PoolArray, 0, hexDefault.Length);
@@ -646,9 +646,9 @@ public class Program
 {
   public static void Main(string[] args)
   {
-    //// === Three deserialisation paths ===
+    //// === Three deserialization paths ===
     //// (A fourth path is SecretSplitter.MakeShares(...) — see the earlier
-    //// examples. The methods below cover deserialisation from wire formats.)
+    //// examples. The methods below cover deserialization from wire formats.)
 
     //// (a) From a Share<T>[] via implicit operator. The Shares<T> adopts the
     //// array and disposes each contained Share in cascade.
@@ -676,7 +676,7 @@ public class Program
     using var line3 = "07-54A83E34AB0310A7F5D80F2A68FD4F33".ToPinnedSecure();
     using var sharesFromLines = Shares<BigInteger>.FromTextLines(new[] { line1, line2, line3 });
 
-    //// === Serialise a Shares<T> back to multi-line text (pinned, not redacted) ===
+    //// === Serialize a Shares<T> back to multi-line text (pinned, not redacted) ===
     //// Default: uppercase, no "0x" prefix.
     using var sharesUpperNoPrefix = sharesFromBlob.ToCharArray();
     Console.Out.Write(sharesUpperNoPrefix.PoolArray, 0, sharesUpperNoPrefix.Length);
@@ -824,15 +824,15 @@ naming the exponent the interpolation ran under, rather than an `ArgumentExcepti
 down. It still cannot name a cause: a tampered share produces exactly the same picture.
 
 ## Secure console input
-`ConsolePasswordReader` reads keyboard input one keystroke at a time directly into a pinned `PinnedPoolArray<char>` — no `string`, no `StringBuilder`, no intermediate heap copy. The pinned buffer is the same shape that `Secret<TNumber>.FromText(...)`, `Share<TNumber>(...)`, and `Shares<TNumber>.FromText(...)` / `Shares<TNumber>.FromTextLines(...)` accept directly, so secrets and shares can flow end-to-end without ever materialising as a `string`. The two sub-examples below cover both directions: reading a secret to split, and reading shares to reconstruct.
+`ConsolePasswordReader` reads keyboard input one keystroke at a time directly into a pinned `PinnedPoolArray<char>` — no `string`, no `StringBuilder`, no intermediate heap copy. The pinned buffer is the same shape that `Secret<TNumber>.FromText(...)`, `Share<TNumber>(...)`, and `Shares<TNumber>.FromText(...)` / `Shares<TNumber>.FromTextLines(...)` accept directly, so secrets and shares can flow end-to-end without ever materializing as a `string`. The two sub-examples below cover both directions: reading a secret to split, and reading shares to reconstruct.
 
-Editing behaviour of `ConsolePasswordReader.ReadPassword(int maxLength, char? echoChar = null)`:
+Editing behavior of `ConsolePasswordReader.ReadPassword(int maxLength, char? echoChar = null)`:
 
 - Pressing **Enter** ends the input and returns the pinned buffer; the buffer's `Length` reflects the number of characters actually entered.
 - Pressing **Backspace** deletes the most recently accepted character and erases the echo on the console if `echoChar` is set.
 - Once `maxLength` characters have been entered, additional printable keystrokes are silently ignored until the user presses **Enter** or **Backspace**.
 - Non-printable control keys other than **Enter** and **Backspace** are ignored.
-- **Ctrl+C** is not intercepted — the default console behaviour (process termination) applies.
+- **Ctrl+C** is not intercepted — the default console behavior (process termination) applies.
 - `ReadPassword` throws `InvalidOperationException` when standard input is redirected (`Console.IsInputRedirected == true`); the API is interactive-only and cannot read from a pipe or a redirected file.
 
 ### Read a secret, then split

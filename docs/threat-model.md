@@ -231,6 +231,6 @@ That currently covers, among others,
 - `ToHexadecimal` and `FromHexadecimal`,
 - `Abs` and `Negate`,
 - the conversion operators, and
-- the limb/byte marshalling helpers.
+- the limb/byte marshaling helpers.
 
 Several are reveal paths by design, where constant time is not a goal; the point of saying so is that you can tell an unexamined surface from an examined one.
