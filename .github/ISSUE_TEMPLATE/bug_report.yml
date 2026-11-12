@@ -73,6 +73,7 @@ body:
         derive that. Select every framework on which you observed the problem.
       multiple: true
       options:
+        - net11.0
         - net10.0
         - net9.0
         - net8.0

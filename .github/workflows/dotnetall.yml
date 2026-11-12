@@ -62,6 +62,7 @@ jobs:
           8.0.423
           9.0.316
           10.0.302
+          11.0.100
 
     - name: Restore
       run: dotnet restore --locked-mode SecretSharingDotNet.slnx
@@ -82,6 +83,9 @@ jobs:
 
     - name: Test (net10.0)
       run: dotnet test --no-restore --no-build --configuration Release --framework net10.0 tests/SecretSharingDotNetTest.csproj
+
+    - name: Test (net11.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net11.0 tests/SecretSharingDotNetTest.csproj
 
     - name: Create Package
       run: dotnet pack --no-restore --no-build --configuration Release SecretSharingDotNet.slnx
@@ -106,6 +110,7 @@ jobs:
           8.0.423
           9.0.316
           10.0.302
+          11.0.100
 
     - name: Restore
       run: dotnet restore --locked-mode SecretSharingDotNet.slnx

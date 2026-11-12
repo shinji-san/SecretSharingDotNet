@@ -6,11 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added .NET 11.0 support: the package now ships a `net11.0` asset.
+
 ### Changed
 - `README.md`, which is also the package README on nuget.org, is now a short entry page: an overview, installation, one example, and links. The usage examples and the upgrade notes moved to `docs/usage.md`, the *Security & Threat Model* section to `docs/threat-model.md`, both largely unchanged. The package now carries the whole `README.md` instead of a section cut out of it, and the README links to the moved documents with absolute GitHub URLs so that they resolve on nuget.org as well.
 
 ### Fixed
-- Five documentation statements contradicted the code or the threat model. The upgrade notes said `FinitePoint<TNumber>` was made internal; it was removed in 1.0.1-rc01. Two usage passages called the `SecureBigInteger` arithmetic and `MersenneSafeGcdAlgorithm` constant-time without the *partial* qualification the threat model states: the arithmetic is constant-time only in its per-limb loops, and the inverse has a fixed outer iteration count, not uniform per-iteration timing. The threat model said its recommended floor of security level 127 was in line with the README examples, several of which select a lower level automatically; the README example now sets 127. It described the `SecureBigInteger` storage as a byte buffer wiped with `CryptographicOperations.ZeroMemory`; the storage is a `PinnedPoolArray<ulong>` of limbs, and only net8/9/10 and netstandard2.1 finish the wipe with `ZeroMemory`, while the legacy targets use per-byte volatile writes. And it said reconstruction selects the security level from the share values, which since 1.1.0 applies only to shares that record no level and receive none from the caller; the level is public either way, so the timing conclusion stands.
+- Five documentation statements contradicted the code or the threat model. The upgrade notes said `FinitePoint<TNumber>` was made internal; it was removed in 1.0.1-rc01. Two usage passages called the `SecureBigInteger` arithmetic and `MersenneSafeGcdAlgorithm` constant-time without the *partial* qualification the threat model states: the arithmetic is constant-time only in its per-limb loops, and the inverse has a fixed outer iteration count, not uniform per-iteration timing. The threat model said its recommended floor of security level 127 was in line with the README examples, several of which select a lower level automatically; the README example now sets 127. It described the `SecureBigInteger` storage as a byte buffer wiped with `CryptographicOperations.ZeroMemory`; the storage is a `PinnedPoolArray<ulong>` of limbs, and only net8/9/10/11 and netstandard2.1 finish the wipe with `ZeroMemory`, while the legacy targets use per-byte volatile writes. And it said reconstruction selects the security level from the share values, which since 1.1.0 applies only to shares that record no level and receive none from the caller; the level is public either way, so the timing conclusion stands.
 
 ## [1.1.0] - 2026-09-26
 

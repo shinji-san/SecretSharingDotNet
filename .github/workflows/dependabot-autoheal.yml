@@ -62,6 +62,7 @@ jobs:
           8.0.423
           9.0.316
           10.0.302
+          11.0.100
 
     - name: Regenerate the lock files
       run: dotnet restore --force-evaluate SecretSharingDotNet.slnx
