@@ -3,7 +3,7 @@ name: SecretSharingDotNet - Large Buffer Wipe
 # Runs the one test that allocates a buffer past two gibibytes, which is where
 # MemoryMarshal.AsBytes refuses a single span and the wipe has to work in chunks.
 # It is manual on purpose: the buffer costs two gibibytes of memory and is wiped
-# twice, which took 33 seconds of test time on an ubuntu-24.04 runner - times six
+# twice, which took 33 seconds of test time on an ubuntu-24.04 runner - times seven
 # target frameworks on every push, for a path that changes rarely. The chunking
 # logic itself is covered in the per-push matrix by SecureClearChunked with a
 # small chunk size; what this adds is the real allocation, the pinning and the
@@ -23,6 +23,7 @@ on:
         - net8.0
         - net9.0
         - net10.0
+        - net11.0
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -52,6 +53,7 @@ jobs:
           8.0.423
           9.0.316
           10.0.302
+          11.0.100
 
     - name: Restore
       run: dotnet restore --locked-mode SecretSharingDotNet.slnx

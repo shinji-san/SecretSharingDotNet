@@ -40,6 +40,7 @@ jobs:
           8.0.423
           9.0.316
           10.0.302
+          11.0.100
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3

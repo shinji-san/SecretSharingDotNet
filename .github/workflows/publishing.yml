@@ -70,6 +70,7 @@ jobs:
           8.0.423
           9.0.316
           10.0.302
+          11.0.100
 
     - name: Restore
       run: dotnet restore --locked-mode SecretSharingDotNet.slnx
@@ -109,6 +110,7 @@ jobs:
           8.0.423
           9.0.316
           10.0.302
+          11.0.100
 
     # Guard against a tag that does not match the version being packed. Without it a
     # tag pushed without bumping the version builds the previous release, and the push
@@ -172,6 +174,9 @@ jobs:
 
     - name: Test (net10.0)
       run: dotnet test --no-restore --no-build --configuration Release --framework net10.0 tests/SecretSharingDotNetTest.csproj
+
+    - name: Test (net11.0)
+      run: dotnet test --no-restore --no-build --configuration Release --framework net11.0 tests/SecretSharingDotNetTest.csproj
 
     - name: Remove obsolete NuGet packages
       run: rm -f src/bin/Release/SecretSharingDotNet*.nupkg
