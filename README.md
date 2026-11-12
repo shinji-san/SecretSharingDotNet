@@ -27,7 +27,7 @@ The [threat model](https://github.com/shinji-san/SecretSharingDotNet/blob/main/d
 
 ## ⬇️ Installation
 
-The package targets .NET Standard 2.0 and 2.1, .NET Framework 4.7.2, 4.8, and 4.8.1, and .NET 8, 9, and 10.
+The package targets .NET Standard 2.0 and 2.1, .NET Framework 4.7.2, 4.8, and 4.8.1, and .NET 8, 9, 10, and 11.
 
 Install SecretSharingDotNet with:
 
@@ -80,7 +80,7 @@ The [usage guide](https://github.com/shinji-san/SecretSharingDotNet/blob/main/do
 
 ## 🛠️ Development
 
-Requires the [.NET 8, 9, and 10 SDKs](https://dotnet.microsoft.com/download/dotnet).
+Requires the [.NET 8, 9, 10, and 11 SDKs](https://dotnet.microsoft.com/download/dotnet).
 The .NET Framework test targets need Windows or Mono; CI runs them on Windows, and Mono can behave differently.
 Build and test the solution with:
 

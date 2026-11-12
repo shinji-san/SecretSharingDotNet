@@ -37,14 +37,14 @@ The latter is positioned as the security-conscious option, but its protection is
 
 ### Passive memory disclosure
 
-The internal limb buffer, a `PinnedPoolArray<ulong>`, is GC-pinned and overwritten on dispose with a 3-pass scramble and a final zeroing pass: `CryptographicOperations.ZeroMemory` on net8/9/10 and netstandard2.1, per-byte volatile writes on the legacy TFMs.
+The internal limb buffer, a `PinnedPoolArray<ulong>`, is GC-pinned and overwritten on dispose with a 3-pass scramble and a final zeroing pass: `CryptographicOperations.ZeroMemory` on net8/9/10/11 and netstandard2.1, per-byte volatile writes on the legacy TFMs.
 Heap snapshots, swap files, and reuse-after-free of the same physical pages cannot recover plaintext.
 
 ### No string materialization in Base64 encoding
 
 `Secret<TNumber>.ToBase64CharArray()` encodes directly into the pinned destination buffer on every supported TFM —
 
-- net8/9/10 and netstandard2.1 via `Convert.TryToBase64Chars`,
+- net8/9/10/11 and netstandard2.1 via `Convert.TryToBase64Chars`,
 - legacy TFMs (netstandard2.0 / net4.7.2 / net4.8 / net4.8.1) via an inline 24-bit-window encoder mirroring the existing pinned Base64 decoder.
 
 No intermediate, GC-relocatable, possibly-interned managed `string` is created on any TFM.

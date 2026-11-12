@@ -259,6 +259,14 @@
       Inhalt an den neuen Ort. Die CI extrahiert den Paket-README nicht mehr zwischen zwei
       Überschriften, sondern packt `README.md` unverändert; Kapitel 7 verliert deshalb die
       Überschriftenprüfung.
+    - 2026-11-13 — .NET 11 ist als neuntes Ziel-Framework (`net11.0`) und siebtes Test-Ziel
+      hinzugekommen. Die Kapitel 1, 2, 5, 7, 8, 9, 10 und 11 zählen neun Bibliotheks- und sieben
+      Test-Frameworks. Kapitel 7 nennt SDK 11.0.100, das als neuestes SDK auf dem Runner jetzt
+      jedes Ziel baut, und hält fest, dass das Testprojekt die .NET-Framework-Suiten selbst über
+      Mono startet, weil das .NET-11-SDK das außerhalb von Windows nicht mehr tut. Die Demo bleibt
+      auf .NET 10. Q4 zählt keine Frameworks mehr: Ihre „sechs“ war die Zahl der Test-Ziele,
+      nicht der Bibliotheks-Ziele, und ihre Aussage ist, dass `Equals` keinen
+      frameworkspezifischen Pfad hat.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -301,7 +309,7 @@ Konsumenten (Quelle: `README.md`, `src/SecretSharingDotNet.csproj`).
 | 1 | **Vertraulichkeit des Geheimnisses im Prozessspeicher** | Der gesamte Nutzen der Bibliothek entfällt, wenn das Geheimnis aus Heap-Snapshots, Swap-Dateien oder wiederverwendeten Pool-Puffern rekonstruierbar bleibt. Umgesetzt über GC-gepinnte, dreifach überschriebene Puffer (`PinnedPoolArray<T>`) und eine durchgehende `IDisposable`-Disziplin. |
 | 2 | **Funktionale Korrektheit des Schemas** | Ein falsch rekonstruiertes Geheimnis ist unbemerkt fatal: plain Shamir hat keine Integritätsprüfung (`docs/threat-model.md`). Abgesichert über 981 Testmethoden, property-basierte Round-Trip-Tests (CsCheck) und zwei parallele Testhierarchien für beide numerischen Backends. |
 | 3 | **Resistenz gegen passive Timing-Analyse (best effort)** | Zweites, bewusst nachrangiges Sicherheitsziel: Das `SecureBigInteger`-Backend liefert Kernarithmetik, deren Limb-Schleifen konstantzeitig über die Limb-Anzahl laufen, plus einen Fixed-Iteration-Modularinversen. Die Zusage endet bei diesen Schleifen — Ergebnisnormalisierung, `ByteCount`, Ordnung und die übrigen Flächen aus 8.2 sind wertabhängig. Der Anspruch ist explizit *best effort in managed .NET*, nicht auditierte Härtung (`docs/threat-model.md`). |
-| 4 | **Portabilität über acht Ziel-Frameworks** | Die Bibliothek soll in Legacy-.NET-Framework-Anwendungen ebenso einsetzbar sein wie in .NET 10. Kosten: umfangreiche `#if`-Konditionalisierung (siehe Risiko R1). |
+| 4 | **Portabilität über neun Ziel-Frameworks** | Die Bibliothek soll in Legacy-.NET-Framework-Anwendungen ebenso einsetzbar sein wie in .NET 11. Kosten: umfangreiche `#if`-Konditionalisierung (siehe Risiko R1). |
 | 5 | **Stabilität der öffentlichen API** | Nach dem v1.0-GA sollen Consumer nicht bei jedem internen Refactoring brechen. Umgesetzt über bewusste `internal`-Grenzen und SemVer-Disziplin im `CHANGELOG.md`. |
 
 Priorität 1–3 steuern Kapitel 8 (Querschnittliche Konzepte) und Kapitel 10
@@ -312,7 +320,7 @@ Priorität 1–3 steuern Kapitel 8 (Querschnittliche Konzepte) und Kapitel 10
 | Rolle | Erwartung |
 |---|---|
 | **Anwendungsentwickler (Consumer)** | Eine API, die sich nicht versehentlich unsicher benutzen lässt; verständliche Migrationshinweise bei Breaking Changes; lauffähige Beispiele (`samples/`, `docs/usage.md`). |
-| **Maintainer** (Sebastian Walther, Einzelmaintainer) | Wartbarkeit bei begrenzter Zeit; grüne CI über alle acht TFMs als Freigabekriterium; nachvollziehbare Architekturentscheidungen. |
+| **Maintainer** (Sebastian Walther, Einzelmaintainer) | Wartbarkeit bei begrenzter Zeit; grüne CI über alle neun TFMs als Freigabekriterium; nachvollziehbare Architekturentscheidungen. |
 | **Sicherheitsreviewer / Auditor** | Ein ehrlich abgegrenztes Bedrohungsmodell — was geschützt ist, was ausdrücklich *nicht* (`docs/threat-model.md`). |
 | **Share-Inhaber (Domänenrolle)** | Verwahrt genau einen Anteil, `INDEX-VALUE` oder `INDEX-VALUE-LEVEL` (hexadezimal). Interagiert nie direkt mit der Bibliothek — nur über die konsumierende Anwendung. |
 | **CI/Release-Pipeline** | Deterministische, reproduzierbare Builds (Lock-Files, `--locked-mode`, `Deterministic=true`) und ein Publishing-Pfad ohne langlebige Secrets (OIDC). |
@@ -325,7 +333,7 @@ Priorität 1–3 steuern Kapitel 8 (Querschnittliche Konzepte) und Kapitel 10
 
 | Randbedingung | Konsequenz |
 |---|---|
-| Ziel-Frameworks `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net481`, `net8.0`, `net9.0`, `net10.0` | Jede Sprach- oder BCL-Neuerung muss per `#if` konditionalisiert werden (z. B. `Span<T>`, `CryptographicOperations.FixedTimeEquals`, `Convert.TryToBase64Chars`). |
+| Ziel-Frameworks `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net481`, `net8.0`, `net9.0`, `net10.0`, `net11.0` | Jede Sprach- oder BCL-Neuerung muss per `#if` konditionalisiert werden (z. B. `Span<T>`, `CryptographicOperations.FixedTimeEquals`, `Convert.TryToBase64Chars`). |
 | **Rein managed .NET** — kein natives Interop, keine P/Invoke-Abhängigkeit | Konstantzeit ist prinzipiell nur näherungsweise erreichbar (RyuJIT, GC, ArrayPool). Wird im Bedrohungsmodell offen benannt. |
 | Laufzeit-Abhängigkeiten: nur `System.Buffers` auf `netstandard2.0` / `net4.7.2` / `net4.8` / `net4.8.1` | Keine transitive Krypto-Drittbibliothek; alles Weitere kommt aus der BCL. |
 | Strong-Name-Signierung (`SecretSharingDotNet.snk`), `ComVisible(false)`, `CLSCompliant(true)` | Öffentliche Signaturen müssen CLS-konform bleiben; Tests erreichen `internal`-Typen nur über `InternalsVisibleTo` mit Public Key. |
@@ -424,8 +432,8 @@ C4Container
   title Bausteine der Projektmappe SecretSharingDotNet
   Person(appDev, "Anwendungsentwickler", "Programmiert gegen die Bibliotheks-API")
   System_Boundary(sln, "SecretSharingDotNet.slnx") {
-    Container(lib, "SecretSharingDotNet", "C# Klassenbibliothek, 8 TFMs, strong-named", "Die ausgelieferte Bibliothek: Shamir-Algorithmus, numerische Backends, gepinnter Speicher")
-    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "981 Testmethoden ueber 6 TFMs, inkl. Timing-Harness und Stress-Traits")
+    Container(lib, "SecretSharingDotNet", "C# Klassenbibliothek, 9 TFMs, strong-named", "Die ausgelieferte Bibliothek: Shamir-Algorithmus, numerische Backends, gepinnter Speicher")
+    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "981 Testmethoden ueber 7 TFMs, inkl. Timing-Harness und Stress-Traits")
     Container(demo, "SecretSharingDotNet.Demo.Console", ".NET 10 Konsolen-App, Microsoft.Extensions.DependencyInjection", "Lauffaehiges End-to-End-Beispiel mit DI-Komposition und Konsoleneingabe")
   }
   System_Ext(nuget, "nuget.org", "Verteilkanal")
@@ -441,8 +449,8 @@ C4Container
 
 | Baustein | Verantwortung | Technologie |
 |---|---|---|
-| **SecretSharingDotNet** | Die gesamte fachliche und kryptografische Logik. Einziges Artefakt mit öffentlicher API. | C#, `LangVersion=latest`, 8 TFMs, `AllowUnsafeBlocks`, `GenerateDocumentationFile` |
-| **SecretSharingDotNetTest** | Verifikation über 6 TFMs (`netstandard`-Ziele werden über die konkreten Frameworks mitgetestet). Enthält zwei gespiegelte Testhierarchien — eine je numerischem Backend. | xUnit v3, Moq, CsCheck (nur net8+) |
+| **SecretSharingDotNet** | Die gesamte fachliche und kryptografische Logik. Einziges Artefakt mit öffentlicher API. | C#, `LangVersion=latest`, 9 TFMs, `AllowUnsafeBlocks`, `GenerateDocumentationFile` |
+| **SecretSharingDotNetTest** | Verifikation über 7 TFMs (`netstandard`-Ziele werden über die konkreten Frameworks mitgetestet). Enthält zwei gespiegelte Testhierarchien — eine je numerischem Backend. | xUnit v3, Moq, CsCheck (nur net8+) |
 | **SecretSharingDotNet.Demo.Console** | Referenz-Komposition: `SecureBigInteger` + `FixedIterationSecretReconstructor` + `ConsolePasswordReader`, verdrahtet über `Microsoft.Extensions.DependencyInjection` mit `ValidateOnBuild`/`ValidateScopes`. Nicht paketiert (`IsPackable=false`). | .NET 10, MS.DI |
 
 ### 5.2 Whitebox der Bibliothek (Ebene 2)
@@ -922,7 +930,7 @@ flowchart TD
 
     subgraph gh["GitHub Actions"]
         subgraph ci["dotnetall.yml - Build und Test"]
-            ubuntu["ubuntu-24.04<br/>SDK 8.0.423 / 9.0.316 / 10.0.302<br/>Tests: net8.0, net9.0, net10.0<br/>dotnet pack"]
+            ubuntu["ubuntu-24.04<br/>SDK 8.0.423 / 9.0.316 / 10.0.302 / 11.0.100<br/>Tests: net8.0, net9.0, net10.0, net11.0<br/>dotnet pack"]
             windows["windows-2025<br/>Tests: net472, net48, net481<br/>echtes .NET Framework"]
         end
         codeql["codeql-analysis.yml<br/>csharp + actions, woechentlich"]
@@ -938,7 +946,7 @@ flowchart TD
     end
 
     subgraph runtime["Laufzeit beim Consumer"]
-        netcore["CoreCLR<br/>net8.0 / net9.0 / net10.0"]
+        netcore["CoreCLR<br/>net8.0 / net9.0 / net10.0 / net11.0"]
         netfx[".NET Framework<br/>4.7.2 / 4.8 / 4.8.1"]
         netstd["netstandard2.0 / 2.1<br/>Bruecke fuer weitere Hosts"]
     end
@@ -981,7 +989,9 @@ bricht der Build des Testprojekts mit CS0281 ab, statt still ein Paket mit falsc
 Friend-Eintrag zu erzeugen.
 
 **Lokale Entwicklung** weicht in einem Punkt ab: Auf Linux/macOS brauchen die
-Framework-TFMs `mono-complete`. Mono 6.8 schreibt dabei gelegentlich
+Framework-TFMs `mono-complete`. Das .NET-11-SDK startet sie nicht mehr von sich aus über Mono;
+das Testprojekt stellt diesen Start deshalb selbst her (Target
+`UseMonoForNetFrameworkOffWindows`). Mono 6.8 schreibt dabei gelegentlich
 `mono_crash.*.json`-Dateien nach `tests/` — Artefakte des Runner-Shutdowns *nach* der
 Assertion-Auswertung, keine Bibliotheksfehler; per `.gitignore` ausgeblendet
 (`README.md`, *Development*).
@@ -1199,7 +1209,7 @@ die Ursache weg — und zwar nur für Shares, die auch so geschrieben werden.
 
 ### 8.8 Mehrfachziel-Kompilierung
 
-Ein einziger Quellbaum bedient acht TFMs. Konditionalisiert wird über
+Ein einziger Quellbaum bedient neun TFMs. Konditionalisiert wird über
 `#if NET8_0_OR_GREATER`, `#if NETSTANDARD2_1_OR_GREATER` und `#if DEBUG`. Typische Fälle:
 `Span<T>`-Überladungen, `CryptographicOperations.ZeroMemory` gegen eine
 `Volatile.Write`-basierte Ersatzimplementierung, `Convert.TryToBase64Chars` gegen einen inline
@@ -1303,7 +1313,7 @@ am Codestand `d920257` über die 56 versionierten Testdateien gemessen:
 | 5 | UTF-8 statt UTF-16 als Textkodierung (Breaking Change v0.14.0) | `CHANGELOG.md` `[0.14.0]`, `docs/usage.md` | Bricht alle mit älteren Versionen erzeugten Text-Shares. |
 | 6 | `IRandomSource` bleibt `internal` statt öffentlich injizierbar | `src/Cryptography/IRandomSource.cs`, PR #334 | Bewusster Verzicht auf Testbarkeitskomfort nach außen aus Sicherheitsgründen. |
 | 7 | Mutationstests (Stryker.NET) geparkt statt repariert | GitHub-Issue #343 | Eine Qualitätsmaßnahme wurde aktiv zurückgebaut — der Grund (Stryker misst xUnit v3 nicht) gehört festgehalten. |
-| 8 | Acht Ziel-Frameworks beibehalten trotz `#if`-Aufwand | `src/SecretSharingDotNet.csproj:8` | Die Gegenposition (nur netstandard2.0 + net8/9/10) steht bereits im Raum; die Beibehaltung ist die aktive Entscheidung. |
+| 8 | Neun Ziel-Frameworks beibehalten trotz `#if`-Aufwand | `src/SecretSharingDotNet.csproj:8` | Die Gegenposition (nur netstandard2.0 + net8/9/10/11) steht bereits im Raum; die Beibehaltung ist die aktive Entscheidung. |
 | 9 | Das Sicherheitslevel reist am Share mit (`int?`), nimmt an der Gleichheit teil, und `ShareFormat.Legacy` bleibt die Vorgabe der Serialisierung | `CHANGELOG.md` `[Unreleased]`, Issue #403 | Vier bindende Entscheidungen in einer Änderung: `int?` statt eines Sentinel-Werts; das Level in `Equals`/`GetHashCode`, ein Share ohne Vermerk ist also keinem mit Vermerk gleich; eine neue erbende Schnittstelle statt eines verbreiterten `IReconstructionUseCase<TNumber>`; und die alte zweisegmentige Form als Vorgabe beibehalten — Letzteres lässt den Fehler für Shares, die über den Standardpfad geschrieben werden, bewusst offen, und eine Umkehr wäre breaking. |
 
 ---
@@ -1337,14 +1347,14 @@ Qualität von SecretSharingDotNet
 | **Q1** | Ein Angreifer erlangt nach dem `Dispose` eines `Secret` einen Heap-Dump des Prozesses. | Im **bibliothekseigenen** Puffer sind die Secret-Bytes nicht mehr auffindbar: Er wurde dreifach überschrieben und genullt, **bevor** er an den `ArrayPool` zurückging — über `CryptographicOperations.ZeroMemory` auf net8+/netstandard2.1, über `LegacySecureClear` auf den vier Alt-Zielen. Nachweis: `PinnedPoolArrayTest`, Dispose-Reihenfolge in `PinnedPoolArray.DisposeCore`. Auf diesen vier Zielen galt die Aussage bis zum 2026-09-19 nur für Elementtypen, deren *Marshalling*-Größe zufällig ihrer Größe im Speicher entspricht: Die Löschlänge kam aus `Marshal.SizeOf`, für `char` also 1 statt 2. Die Durchläufe schreiben zusammenhängend ab der Basisadresse, ein Textpuffer bekam demnach seine vordere Hälfte der Zeichen gelöscht und behielt die hintere Hälfte vollständig im Klartext; wie viel das war, entschied die gemietete Kapazität — eine Zweierpotenz von mindestens 16. Die Länge kommt jetzt aus `sizeof(T)`; `SecureClear_OnCharBuffer_ClearsEveryCharacter` und `SecureClear_OnLimbBuffer_ClearsEveryLimb` nageln die Elementgröße fest, mit einem Füllwert, dessen beide Bytes gesetzt sind, damit keine Hälfte unbemerkt durchgeht. Ein Enum-Puffer traf die andere Fehlerart — `Marshal.SizeOf` wirft, statt eine Größe zu liefern —, erreichbar nur für einen `netstandard2.0`-Build auf CoreCLR, denn .NET Framework pinnt ein Enum-Array überhaupt nicht (`Constructor_OnEnumBuffer_IsRefusedByNetFramework`). Die Garantie endet an der Besitzgrenze: Ein vom Aufrufer behaltenes `byte[]`, aus dem das `Secret` konstruiert wurde, ist eine fremde Allokation und wird nie überschrieben — der Konstruktor kopiert. In DEBUG-Builds erzeugt `ToString()` zusätzlich einen Klartext-`string` auf dem GC-Heap, den kein `Dispose` erreicht (Release redigiert). **Die Swap-Datei ist ausdrücklich nicht abgedeckt** (Risiko R22). |
 | **Q2** | Der GC führt während einer Split-Operation eine kompaktierende Sammlung durch. | Mit dem `SecureBigInteger`-Backend wird kein Secret-Byte kopiert und bleibt kein Klartext an der alten Adresse zurück, weil jeder beteiligte Puffer über `GCHandle.Alloc(Pinned)` unbeweglich ist. Mit dem `BigInteger`-Backend gilt das **nicht**: Dessen interne Magnitude und das Zwischenarray aus `Value.ToByteArray()` sind verschiebbar (siehe Kapitel 8.1). |
 | **Q3** | Ein Prüfer verlangt den Nachweis, dass keine schwache Zufallsquelle im Spiel ist. | Es gibt genau eine Zufallsquelle: `RandomNumberGenerator` hinter `SecureRandom`/`IRandomSource`. Ein `grep` nach `System.Random` in `src/` liefert null Treffer. |
-| **Q4** | Ein passiver Beobachter misst die Laufzeit von `SecureBigInteger.Equals` für zwei Geheimnisse mit langem gemeinsamem Präfix gegen zwei mit sofort abweichendem Byte. | **Nicht gemessen** — die Suite enthält keinen positiven Timing-Test (8.11), also darf hier kein empirisches Ergebnis stehen. Strukturell begründet: `Equals` füllt vorab auf `max(l, r)` auf und faltet die volle Länge per XOR-OR ohne Kurzschluss, einheitlich über alle sechs TFMs — es gibt also keinen eingabeabhängigen Ausstieg, den ein Beobachter finden könnte. |
+| **Q4** | Ein passiver Beobachter misst die Laufzeit von `SecureBigInteger.Equals` für zwei Geheimnisse mit langem gemeinsamem Präfix gegen zwei mit sofort abweichendem Byte. | **Nicht gemessen** — die Suite enthält keinen positiven Timing-Test (8.11), also darf hier kein empirisches Ergebnis stehen. Strukturell begründet: `Equals` füllt vorab auf `max(l, r)` auf und faltet die volle Länge per XOR-OR ohne Kurzschluss, einheitlich über alle Ziel-Frameworks — es gibt also keinen eingabeabhängigen Ausstieg, den ein Beobachter finden könnte. |
 | **Q5** | Derselbe Beobachter misst `SecureBigInteger.Multiply` mit kleinen gegen 512-Bit-Operanden. | Der Timing-Harness **muss** hier einen Unterschied melden (`HarnessSelfTest`, Welch-t bei p < 0,001). Schlägt diese Negativkontrolle fehl, misst der Harness nichts Reales und ist als Werkzeug ungültig. |
 | **Q6** | Ein Geheimnis wird mit beliebigem `2 ≤ k ≤ n` aufgeteilt; anschließend wird eine **beliebige** k-elementige Teilmenge der n Shares zur Rekonstruktion verwendet. | **Gewünscht:** Das rekonstruierte Geheimnis ist bitgleich zum Original; das leistet die Lagrange-Interpolation für *jede* qualifizierende Teilmenge. **Geliefert: für Shares, die ihren Körper mitführen.** Ein von `MakeShares` erzeugtes Share trägt sein Sicherheitslevel, und `Reconstruction` interpoliert in diesem Körper, statt einen aus den Share-Werten abzuleiten — festgenagelt durch `Reconstruction_WhenAShareValueWrappedInTheOriginalField_RestoresTheSecret` in beiden Backend-Testhierarchien, also genau dem Vektor, der das Geheimnis früher verlor. Shares, die nichts mitführen — aus der alten `INDEX-VALUE`-Form geparst oder aus blanken Koordinaten gebaut —, laufen weiterhin durch die wertbasierte Auswahl und können weiterhin in einem kleineren Körper landen als der Split: Entweder kommt kein dekodierbares Geheimnis heraus (Exception) oder ein anderes Geheimnis ohne jede Exception. Beide Restausgänge bleiben durch `Reconstruction_WhenSharesCarryNoLevel_StillRefitsDownward` und `Reconstruction_WhenSharesCarryNoLevelAndTheCoefficientCollapses_ThrowsNamingTheExponent` festgenagelt. Der Ausweg dafür heißt `Reconstruction(shares, securityLevel)` oder `Shares<TNumber>.ReissueWithSecurityLevel`. Behoben unter **Issue #403**; den verbleibenden Umfang trägt R27. Nicht die Teilmengen-Eigenschaft hat je versagt, sondern die Körperwahl. Die property-basierten CsCheck-Tests (250 Iterationen für `BigInteger`, 50 für `SecureBigInteger`, über beide Backends gespiegelt) ziehen die Teilmenge über einen Kombinationsrang: Jede der `C(n, k)` Teilmengen ist damit erreichbar, und Kombinationen mit Lücken kommen vor — nicht nur die `n` zusammenhängenden Läufe, die das frühere zyklische Fenster benennen konnte. Dass die Abbildung von Rang auf Teilmenge eine Bijektion ist, wird geprüft statt angenommen, durch `Combination_OverTheGeneratedParameterSpace_IsABijectionOntoTheSubsets`. |
 | **Q7** | Zwei Shares mit identischem Index werden zur Rekonstruktion gereicht. | `ReconstructionException` statt einer generischen `ArgumentException`. Sie fällt beim ersten Duplikat, das die Prüfung findet, und `EnsureDistinctIndices` läuft in der Validierungsphase von `ReconstructionCore` — **bevor** das Sicherheitslevel übernommen wird. Ein doppelter Index macht den Lagrange-Nenner in jedem Körper zu null, die Prüfung braucht also gar kein Level, und eine abgewiesene Eingabe lässt den Manager dort stehen, wo er war. Ein Pfad ist die Ausnahme davon: Tragen die Shares kein Level und ist der `ISecurityLevelManager<TNumber>` kein `IInspectableSecurityLevelManager<TNumber>`, gibt es keinen Weg zu einem Kandidaten außer `AdjustSecurityLevel`, und dieser Aufruf liegt vor der Distinktheitsprüfung — dort ist der Manager beim Auftauchen des Duplikats also bereits bewegt. |
 | **Q8** | Ein Verhalten wird in der `BigInteger`-Testhierarchie geändert, in der `SecureBigInteger`-Hierarchie aber nicht. | Die Abweichung fällt **im Review** auf, weil die gespiegelte Datei der naheliegende Ort zum Nachsehen ist — nicht durch einen fehlschlagenden Test. Die beiden Suiten sind unabhängig, und die Spiegelung wird nirgends erzwungen (siehe den offenen Punkt in 8.11). Rot wird ein Test nur, wenn die zugrunde liegende Produktivänderung auch das andere Backend bricht. |
-| **Q9** | Ein Commit erreicht `develop` **und passt auf die Pfadfilter von `dotnetall.yml`** (also alles außer reinen Markdown-Änderungen; `README.md` ist wieder eingeschlossen, weil sie Pack-Eingabe ist). | Build und Tests laufen über **alle** sechs Test-TFMs grün: `net8.0`/`net9.0`/`net10.0` auf `ubuntu-24.04`, `net472`/`net48`/`net481` auf `windows-2025`. Ein roter TFM blockiert den Merge. Für ausgeschlossene Änderungen — etwa diese Architekturdateien — läuft **keine** Testmatrix; dort trägt das Szenario nichts bei. |
+| **Q9** | Ein Commit erreicht `develop` **und passt auf die Pfadfilter von `dotnetall.yml`** (also alles außer reinen Markdown-Änderungen; `README.md` ist wieder eingeschlossen, weil sie Pack-Eingabe ist). | Build und Tests laufen über **alle** sieben Test-TFMs grün: `net8.0`/`net9.0`/`net10.0`/`net11.0` auf `ubuntu-24.04`, `net472`/`net48`/`net481` auf `windows-2025`. Ein roter TFM blockiert den Merge. Für ausgeschlossene Änderungen — etwa diese Architekturdateien — läuft **keine** Testmatrix; dort trägt das Szenario nichts bei. |
 | **Q10** | Ein neuer Test wird geschrieben. | Er trägt AAA-Marker, bindet jede Allokation per `using` und existiert in beiden Backend-Hierarchien (Kapitel 8.11). Durchgesetzt wird das im Review, nicht durch ein Werkzeug — siehe den offenen Punkt in 8.11. Aktueller Stand: 981 deklarierte Testmethoden (774 `[Fact]`, 207 `[Theory]`) über 46 Testklassen. In ein einzelnes Ziel-Framework kompiliert weniger davon hinein: Die property-basierten, die Timing-, die Stress- und die Chunk-Wipe-Suiten sind auf net8.0 und neuer beschränkt, und der Enum-Puffer hat je einen Test für .NET Framework und einen für alle anderen Ziele. |
-| **Q11** | Ein Release wird zweimal aus demselben Tag gebaut. | Identische Artefakte: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode`-Restore gegen `packages.lock.json`, SDK-Versionen exakt gepinnt (8.0.423 / 9.0.316 / 10.0.302). |
+| **Q11** | Ein Release wird zweimal aus demselben Tag gebaut. | Identische Artefakte: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode`-Restore gegen `packages.lock.json`, SDK-Versionen exakt gepinnt (8.0.423 / 9.0.316 / 10.0.302 / 11.0.100). |
 | **Q12** | Ein Consumer kombiniert das `SecureBigInteger`-Backend versehentlich mit der variabelzeitigen `ExtendedEuclideanAlgorithm`. | Wenn er `FixedIterationSecretReconstructor<TNumber>` verwendet: **Compile-Fehler** (der Konstruktor nimmt nur `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Über den Basistyp `SecretReconstructor<TNumber>` bleibt die Kombination möglich — das ist ein dokumentiertes Opt-out, kein Versehen. |
 
 > **Offen:** Für nichtfunktionale *Performance*-Ziele existiert keine Vorgabe — weder ein
@@ -1370,8 +1380,8 @@ Trade-offs.
 
 | # | Risiko / Schuld | Schweregrad | Auswirkung | Gegenmaßnahme | Beleg |
 |---|---|---|---|---|---|
-| **R1** | **Acht-TFM-Spreizung.** `net472`/`net48`/`net481` sind außerhalb des Mainstream-Supports und erzwingen `#if`-Zweige in fast jeder Datei. | Hoch (Wartung) | Jede neue Funktion kostet doppelte Implementierung und doppelte Verifikation; Mono ist als zusätzliche Testlaufzeit nötig. | Legacy-TFMs im nächsten Major entfernen; nur `netstandard2.0` als Brücke plus `net8/9/10`. | `SecretSharingDotNet.csproj:8`; 51 `#if`-Zweige in `src/` |
-| **R2** | **`SecureBigInteger.cs` mit 2.753 LOC** in einer einzigen, nicht partiellen Klasse mit sechs vermischten Verantwortlichkeiten. | Hoch (Wartung) | Blockiert die geplante Migration der Kernarithmetik auf Limb-Ebene; Reviews sind teuer. | Zweistufig: zuerst rein mechanischer `partial class`-Split entlang der sechs Cluster (öffentliche API-Delta null), danach optional echte interne Hilfstypen. Abgesichert durch die bestehende Testsuite × 6 TFMs. | `src/Math/Numerics/SecureBigInteger.cs`, 2.753 Zeilen |
+| **R1** | **Neun-TFM-Spreizung.** `net472`/`net48`/`net481` sind außerhalb des Mainstream-Supports und erzwingen `#if`-Zweige in fast jeder Datei. | Hoch (Wartung) | Jede neue Funktion kostet doppelte Implementierung und doppelte Verifikation; Mono ist als zusätzliche Testlaufzeit nötig. | Legacy-TFMs im nächsten Major entfernen; nur `netstandard2.0` als Brücke plus `net8/9/10/11`. | `SecretSharingDotNet.csproj:8`; 51 `#if`-Zweige in `src/` |
+| **R2** | **`SecureBigInteger.cs` mit 2.753 LOC** in einer einzigen, nicht partiellen Klasse mit sechs vermischten Verantwortlichkeiten. | Hoch (Wartung) | Blockiert die geplante Migration der Kernarithmetik auf Limb-Ebene; Reviews sind teuer. | Zweistufig: zuerst rein mechanischer `partial class`-Split entlang der sechs Cluster (öffentliche API-Delta null), danach optional echte interne Hilfstypen. Abgesichert durch die bestehende Testsuite × 7 TFMs. | `src/Math/Numerics/SecureBigInteger.cs`, 2.753 Zeilen |
 | **R3** | **Gemischte Thread-Sicherheit ohne Vertrag am Typ.** Splitter und Reconstructor mutieren ihre Sicherheitsstufe; die Einzelthread-Testausführung verbirgt Races. | Hoch (Korrektheit bei Fehlbedienung) | Ein als Singleton registrierter Splitter liefert unter Last falsche Shares — ohne Fehlermeldung. | Warnung in `docs/usage.md` und Demo vorhanden; Stress-Tests decken das *unterstützte* Muster ab. Offen: `<remarks>`-Thread-Safety-Vertrag an jeder Klasse. | `SecretSplitter<TNumber>`, Zeile 166; Warnung in `docs/usage.md` |
 | **R4** | **Keine Generic-Constraint auf `TNumber`.** `Calculator<string>` übersetzt. | Mittel (geringe Praxiswirkung) | Fehlbedienung fällt erst zur Laufzeit auf (`NotSupportedException` aus `Calculator.Create`). | Kein sauberer gemeinsamer Constraint verfügbar: `INumber<T>` ist net7+ und `SecureBigInteger` implementiert es nicht. Bewusst belassen und dokumentiert. | `src/Math/Calculator.cs:74` — keine Constraint-Klausel |
 | **R5** | **Keine DI-Registrierungserweiterung.** Consumer verdrahten von Hand; die Lebensdauer-Falle (Transient/Scoped statt Singleton) ist nur in `docs/usage.md` erklärt. | Mittel | Erhöht die Wahrscheinlichkeit, in R3 zu laufen. | `AddShamirsSecretSharing()`-Erweiterung; setzt die geschlossene Backend-Registry (PR #374) und die interne RNG-Fassade (PR #334) voraus — beide vorhanden. | `src/` enthält keine `IServiceCollection`-Erweiterung |
