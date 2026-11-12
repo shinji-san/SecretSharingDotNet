@@ -33,11 +33,11 @@ The latter is positioned as the security-conscious option, but its protection is
 | [Silent reconstruction on tampered shares](#silent-reconstruction-on-tampered-shares) | Not protected |
 | [Not classified](#not-classified) | Not examined |
 
-## `SecureBigInteger` protects against
+## Protected when using `SecureBigInteger`
 
 ### Passive memory disclosure
 
-The internal byte buffer is GC-pinned and overwritten with a 3-pass scramble plus `CryptographicOperations.ZeroMemory` on dispose.
+The internal limb buffer, a `PinnedPoolArray<ulong>`, is GC-pinned and overwritten on dispose with a 3-pass scramble and a final zeroing pass: `CryptographicOperations.ZeroMemory` on net8/9/10 and netstandard2.1, per-byte volatile writes on the legacy TFMs.
 Heap snapshots, swap files, and reuse-after-free of the same physical pages cannot recover plaintext.
 
 ### No string materialisation in Base64 encoding
@@ -106,7 +106,7 @@ new FixedIterationSecretReconstructor<SecureBigInteger>(new MersenneSafeGcdAlgor
 ```
 
 **Scope:** the fixed iteration count is relative to the security level.
-`Reconstruction` auto-selects that level from the shares (via `AdjustSecurityLevel` on the maximum share value), so the iteration count reflects the selected level — which the share sizes already reveal.
+`Reconstruction` runs at the level the shares record or the caller names, and derives one from the shares' maximum value only for shares recording neither, so the iteration count reflects that level — which is public either way, recorded in the share or revealed by its size.
 What this removes versus `ExtendedEuclideanAlgorithm` is the operand-value dependence *within* a level, not the level-selection dependence (observable only to a pure-timing attacker with no share access).
 
 ## Public-input dependence (treated as public, not secret)
@@ -140,10 +140,10 @@ These branches are real, but inside this library they do not run on the secret.
 `Compute` has exactly one call site, `SecretReconstructor.DivMod`, which passes the normalised *denominator* and the field prime.
 Both `DivMod` call sites in `LagrangeInterpolate` build that denominator purely from differences of share indices, `x_i - x_j`; the secret share values enter the *numerator*, which never reaches `Compute`.
 At a fixed security level the divstep history, and therefore every sign it produces, is a function of the public share indices.
-What remains share-dependent is the level selection itself, already [documented above](#timing-leaks-in-modular-inversion-when-the-consumer-opts-in) as revealed by the share sizes.
+What remains share-dependent is the level selection itself, already [documented above](#timing-leaks-in-modular-inversion-when-the-consumer-opts-in) as public, recorded in the share or revealed by its size.
 The warning binds callers who use `SecureBigInteger` or `MersenneSafeGcdAlgorithm` directly on signed secret operands: they must treat the sign as public, or normalise to magnitudes before the operation.
 
-## `SecureBigInteger` does *not* protect against
+## Not protected, even with `SecureBigInteger`
 
 ### `ByteCount` leaking the value's byte length
 
