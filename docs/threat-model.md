@@ -13,7 +13,7 @@ The latter is positioned as the security-conscious option, but its protection is
 | Topic | Classification |
 |---|---|
 | [Passive memory disclosure](#passive-memory-disclosure) | Protected |
-| [No string materialisation in Base64 encoding](#no-string-materialisation-in-base64-encoding) | Protected |
+| [No string materialization in Base64 encoding](#no-string-materialization-in-base64-encoding) | Protected |
 | [Length-vs-content equality leaks](#length-vs-content-equality-leaks) | Protected |
 | [Insecure RNG](#insecure-rng) | Protected |
 | [Digit-value timing leaks in the per-limb arithmetic](#digit-value-timing-leaks-in-the-per-limb-arithmetic) | Protected |
@@ -22,9 +22,9 @@ The latter is positioned as the security-conscious option, but its protection is
 | [`Pow(int exponent)`](#powint-exponent) | Public input |
 | [The sign of `Add` / `Subtract` operands, and the magnitude ordering of `Subtract`](#the-sign-of-add--subtract-operands-and-the-magnitude-ordering-of-subtract) | Public input |
 | [`ByteCount` leaking the value's byte length](#bytecount-leaking-the-values-byte-length) | Not protected |
-| [Ordering and serialisation of `SecureBigInteger`](#ordering-and-serialisation-of-securebiginteger) | Not protected |
+| [Ordering and serialization of `SecureBigInteger`](#ordering-and-serialization-of-securebiginteger) | Not protected |
 | [Post-arithmetic zero branches](#post-arithmetic-zero-branches) | Not protected |
-| [Result normalisation leaking the result's magnitude](#result-normalisation-leaking-the-results-magnitude) | Not protected |
+| [Result normalization leaking the result's magnitude](#result-normalization-leaking-the-results-magnitude) | Not protected |
 | [Variable-time modular inverse when a variable-time GCD is chosen](#variable-time-modular-inverse-when-a-variable-time-gcd-is-chosen) | Not protected |
 | [Hex- and Base64-decoder input-character timing](#hex--and-base64-decoder-input-character-timing) | Not protected |
 | [Ordering of `Secret<TNumber>`](#ordering-of-secrettnumber) | Not protected |
@@ -40,7 +40,7 @@ The latter is positioned as the security-conscious option, but its protection is
 The internal limb buffer, a `PinnedPoolArray<ulong>`, is GC-pinned and overwritten on dispose with a 3-pass scramble and a final zeroing pass: `CryptographicOperations.ZeroMemory` on net8/9/10 and netstandard2.1, per-byte volatile writes on the legacy TFMs.
 Heap snapshots, swap files, and reuse-after-free of the same physical pages cannot recover plaintext.
 
-### No string materialisation in Base64 encoding
+### No string materialization in Base64 encoding
 
 `Secret<TNumber>.ToBase64CharArray()` encodes directly into the pinned destination buffer on every supported TFM —
 
@@ -71,8 +71,8 @@ The bound differs per operation and is not the same one for all six:
 
 Each bound is derived from the limb counts alone, not from the digit values.
 
-`MersenneModulo` folds branchlessly and finishes with a mask-driven conditional subtract; its iteration count is derived from the public Mersenne exponent and the operand limb count — which, per the [normalisation note](#result-normalisation-leaking-the-results-magnitude) below, is itself secret-derived for intermediate values.
-This is a guarantee about the **per-limb loop only** — see [*result normalisation*](#result-normalisation-leaking-the-results-magnitude) and [the sign of `Add` / `Subtract` operands](#the-sign-of-add--subtract-operands-and-the-magnitude-ordering-of-subtract) below, both of which remain value-dependent.
+`MersenneModulo` folds branchlessly and finishes with a mask-driven conditional subtract; its iteration count is derived from the public Mersenne exponent and the operand limb count — which, per the [normalization note](#result-normalization-leaking-the-results-magnitude) below, is itself secret-derived for intermediate values.
+This is a guarantee about the **per-limb loop only** — see [*result normalization*](#result-normalization-leaking-the-results-magnitude) and [the sign of `Add` / `Subtract` operands](#the-sign-of-add--subtract-operands-and-the-magnitude-ordering-of-subtract) below, both of which remain value-dependent.
 
 ### No variable-time number-theoretic surface
 
@@ -127,7 +127,7 @@ Both selections call the same `SubtractUnsigned` over the same limb count, so ma
 
 Within this library the *mixed-sign* path is not reached on the Shamir values themselves — the mark byte keeps secrets, coefficients and share values positive and `MersenneModulo` reduces into `[0, M_p)` — so `Subtract` on them always takes the equal-sign compare path above, ordering branch included.
 The mixed-sign path *is* taken inside the modular inverse.
-`MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` operates on the signed Bézout coefficients: `newUG = uG - uF` turns negative at the first branch-1 iteration, which is the first divstep when the normalised denominator is odd and a later one when it is even, since the even-`g` branch carries `uG` through unchanged.
+`MersenneSafeGcdAlgorithm.ApplyExtendedDivstep` operates on the signed Bézout coefficients: `newUG = uG - uF` turns negative at the first branch-1 iteration, which is the first divstep when the normalized denominator is odd and a later one when it is even, since the even-`g` branch carries `uG` through unchanged.
 
 `MersenneModulo` carries its own sign branch, whose negative path runs three additional limb loops, a `SubtractInPlace` and one more pinned allocation that the positive path skips entirely.
 `MersenneSafeGcdAlgorithm.Compute` reduces two signed intermediates per call — `beta * inv2n` and `alpha * inv2n`, both sign-corrected Bézout coefficients — and the negative path runs for whichever of them is negative.
@@ -137,20 +137,20 @@ It is *not* reached from `SecretReconstructor.DivMod`: `Compute` returns the coe
 #### What this does and does not say about reconstruction
 
 These branches are real, but inside this library they do not run on the secret.
-`Compute` has exactly one call site, `SecretReconstructor.DivMod`, which passes the normalised *denominator* and the field prime.
+`Compute` has exactly one call site, `SecretReconstructor.DivMod`, which passes the normalized *denominator* and the field prime.
 Both `DivMod` call sites in `LagrangeInterpolate` build that denominator purely from differences of share indices, `x_i - x_j`; the secret share values enter the *numerator*, which never reaches `Compute`.
 At a fixed security level the divstep history, and therefore every sign it produces, is a function of the public share indices.
 What remains share-dependent is the level selection itself, already [documented above](#timing-leaks-in-modular-inversion-when-the-consumer-opts-in) as public, recorded in the share or revealed by its size.
-The warning binds callers who use `SecureBigInteger` or `MersenneSafeGcdAlgorithm` directly on signed secret operands: they must treat the sign as public, or normalise to magnitudes before the operation.
+The warning binds callers who use `SecureBigInteger` or `MersenneSafeGcdAlgorithm` directly on signed secret operands: they must treat the sign as public, or normalize to magnitudes before the operation.
 
 ## Not protected, even with `SecureBigInteger`
 
 ### `ByteCount` leaking the value's byte length
 
 The property returns early when the high limb is zero and otherwise calls `BytesInLimb`, which counts significant bytes by shifting until the limb reaches zero — one to eight iterations depending on the value.
-This is finer than the limb granularity of the [normalisation note](#result-normalisation-leaking-the-results-magnitude) below, and it sits on the secret path: `SecurityLevelManager.AdjustSecurityLevel` evaluates `maximumY.ByteCount` on a share value, and `Secret<TNumber>` uses it on the secret and on polynomial coefficients.
+This is finer than the limb granularity of the [normalization note](#result-normalization-leaking-the-results-magnitude) below, and it sits on the secret path: `SecurityLevelManager.AdjustSecurityLevel` evaluates `maximumY.ByteCount` on a share value, and `Secret<TNumber>` uses it on the secret and on polynomial coefficients.
 
-### Ordering and serialisation of `SecureBigInteger`
+### Ordering and serialization of `SecureBigInteger`
 
 `CompareTo` returns early when the operand signs differ, before the fixed-count `CompareUnsigned` runs.
 `ToByteArray` and its `IsExactByteBoundaryPowerOfTwo` helper take several value-dependent early returns.
@@ -161,10 +161,10 @@ Both are treated as boundary operations, like the [hex and Base64 decoders](#hex
 `Add`, `Subtract`, `Multiply`, `Divide`, and `Remainder` branch on `IsZeroInternal()` after the limb work, before assigning the result sign.
 The guarded work is a single field write, so the timing difference is minimal, but the predicate is the secret-derived zero status of the result.
 
-In `Add` and `Subtract` that branch also undoes a leak the code closes deliberately a few lines earlier: `Subtract` folds the `comparison == 0` case into the `>= 0` branch so timing cannot separate `|minuend| == |subtrahend|` from `|minuend| ≠ |subtrahend|`, and the zero normalisation then branches on exactly that case.
+In `Add` and `Subtract` that branch also undoes a leak the code closes deliberately a few lines earlier: `Subtract` folds the `comparison == 0` case into the `>= 0` branch so timing cannot separate `|minuend| == |subtrahend|` from `|minuend| ≠ |subtrahend|`, and the zero normalization then branches on exactly that case.
 None of the five takes a zero short-circuit *before* the arithmetic — `Multiply` carries a source comment explaining that branching there would leak — and the remaining zero check is the divide-by-zero contract, evaluated on the divisor.
 
-### Result normalisation leaking the result's magnitude
+### Result normalization leaking the result's magnitude
 
 Every unsigned helper returns through `new SecureBigInteger(limbs, count, isNegative)`, whose constructor calls `TrimLeadingZerosInPlace`.
 That trim scans the limbs downward and stops at the first non-zero one, so its iteration count depends on how many leading zero limbs the result has — a value-dependent quantity, even when both operands had the same limb count.
@@ -181,7 +181,7 @@ The variable-time pairing remains available for the `BigInteger` backend and oth
 
 ### Hex- and Base64-decoder input-character timing
 
-`Share<TNumber>`'s hex-deserialisation pipeline (`DecodeHexToCalculator` → `GetHexValue`) and `Secret<TNumber>`'s Base64 decode (`DecodeBase64Char`) are not constant-time on input characters — both compile to branchy range-pattern switches whose wall-clock time varies by which character class the input belongs to.
+`Share<TNumber>`'s hex-deserialization pipeline (`DecodeHexToCalculator` → `GetHexValue`) and `Secret<TNumber>`'s Base64 decode (`DecodeBase64Char`) are not constant-time on input characters — both compile to branchy range-pattern switches whose wall-clock time varies by which character class the input belongs to.
 Both decoders are treated as boundary parsers: only the resulting `Calculator<TNumber>` value / decoded secret bytes flow through the CT primitives.
 
 ### Ordering of `Secret<TNumber>`
@@ -209,7 +209,7 @@ Because shares can record their level, the cost no longer scales with the size o
 
 Applications that reconstruct shares from untrusted sources should build their `SecurityLevelManager` on an `IMersennePrimeProvider` that supports only the exponents they use; reconstruction then refuses any other before computing a prime.
 Pass the same provider to `ReissueWithSecurityLevel` when migrating.
-The library sets no ceiling of its own, and such a provider is an allowlist, not a general denial-of-service defence.
+The library sets no ceiling of its own, and such a provider is an allowlist, not a general denial-of-service defense.
 
 ### Silent reconstruction on tampered shares
 
