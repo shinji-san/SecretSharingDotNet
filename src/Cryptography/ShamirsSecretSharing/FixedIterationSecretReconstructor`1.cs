@@ -77,7 +77,7 @@ using Math;
 /// part of the share, by the share itself — so this leaks nothing to anyone who holds or has seen
 /// the shares; only a pure-timing observer with no share access could infer the (coarse, usually
 /// deployment-fixed) level from it. What this type removes is the operand-value dependence
-/// <em>within</em> a level; the level-selection dependence is inherent to <c>Reconstruction</c>. See the Security &amp; Threat Model section of the README
+/// <em>within</em> a level; the level-selection dependence is inherent to <c>Reconstruction</c>. See <c>docs/threat-model.md</c> in the repository
 /// and the strategy's own documentation for the exact scope.
 /// </para>
 /// </remarks>
