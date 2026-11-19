@@ -490,9 +490,14 @@ public class Program
     Console.Out.Write(chars.PoolArray, 0, chars.Length);
     Console.WriteLine();
 
-    //// (c) Custom encoding — same payload, different bytes-on-the-wire.
-    using var utf16Chars = secret.ToCharArray(Encoding.Unicode);
-    Console.WriteLine($"utf-16 chars length : {utf16Chars.Length}");
+    //// (c) Another encoding — pinned, not redaction-gated. Neither the
+    //// secret nor its shares record the encoding, so decode with the one
+    //// the secret was created with. Decoding the UTF-8 secret above with
+    //// Encoding.Unicode would return wrong characters without an error.
+    using var utf16Secret = Secret<BigInteger>.FromText(pinnedText, Encoding.Unicode);
+    using var utf16Chars = utf16Secret.ToCharArray(Encoding.Unicode);
+    Console.Out.Write(utf16Chars.PoolArray, 0, utf16Chars.Length);
+    Console.WriteLine();
 
     //// (d) Base64 as a pinned char buffer — pinned, not redaction-gated.
     using var base64Chars = secret.ToBase64CharArray();
