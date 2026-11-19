@@ -622,29 +622,57 @@ public class SecretTest
     }
 
     /// <summary>
-    /// Regression for PR #296 codex review comment <c>r3293128648</c>: when the underlying
-    /// secret bytes are not a valid sequence for the supplied <see cref="Encoding"/> and
-    /// that encoding uses a strict <see cref="DecoderExceptionFallback"/>, the pinned
-    /// output buffer that <see cref="Secret{TNumber}.ToCharArray(Encoding)"/> allocates
-    /// before <c>GetChars</c> must be disposed before the
-    /// <see cref="DecoderFallbackException"/> escapes — callers cannot dispose a return
-    /// value they never received.
+    /// Regression for PR #296 codex review comment <c>r3293128648</c>: a secret whose bytes are
+    /// invalid for an encoding with a strict <see cref="DecoderExceptionFallback"/> makes
+    /// <see cref="Secret{TNumber}.ToCharArray(Encoding)"/> throw
+    /// <see cref="DecoderFallbackException"/>. The strict decoder already fails in
+    /// <c>GetCharCount</c>, before the pinned output buffer exists, so this test does not reach
+    /// the <c>catch</c> that disposes it;
+    /// <see cref="ToCharArray_WhenGetCharsFailsAfterGetCharCount_RethrowsTheSameException"/> does.
     /// </summary>
     [Fact]
     public void ToCharArray_WithStrictEncodingAndInvalidBytes_ThrowsAndDoesNotLeak()
     {
-        // Arrange — UTF-8 with strict decoder fallback so an invalid byte sequence
-        // (a lone 0xFF continuation byte) triggers a DecoderFallbackException inside
-        // encoding.GetChars(...) after the pinned char buffer has been allocated.
+        // Arrange — UTF-8 with a strict decoder fallback; 0xFF never occurs in UTF-8.
         var strictUtf8 = Encoding.GetEncoding(
             "UTF-8",
             EncoderFallback.ExceptionFallback,
             DecoderFallback.ExceptionFallback);
-        using var secret = new Secret<BigInteger>([0xFF]);
+        byte[] invalidUtf8 = [0xFF];
+        using var secret = new Secret<BigInteger>(invalidUtf8);
 
-        // Act & Assert — exception must escape; the internal pinned buffer is wiped
-        // by the catch block before the throw propagates.
+        // Act & Assert
         Assert.Throws<DecoderFallbackException>(() => secret.ToCharArray(strictUtf8));
+
+        // Assert — the premise of the summary: counting already fails, so ToCharArray throws
+        // before it allocates its output buffer.
+        Assert.Throws<DecoderFallbackException>(() => strictUtf8.GetCharCount(invalidUtf8));
+    }
+
+    /// <summary>
+    /// Covers the <c>catch</c> in <see cref="Secret{TNumber}.ToCharArray(Encoding)"/> that disposes
+    /// the pinned output buffer: <c>GetCharCount</c> succeeds, <c>GetChars</c> fails, and the
+    /// exception must escape unchanged. On .NET Framework <c>GetChars</c> receives that buffer
+    /// itself, so the test also checks that it is zeroed once the exception has escaped. On .NET 8
+    /// and later the base class hands <c>GetChars</c> a temporary array, and the wipe is not
+    /// observable.
+    /// </summary>
+    [Fact]
+    public void ToCharArray_WhenGetCharsFailsAfterGetCharCount_RethrowsTheSameException()
+    {
+        // Arrange
+        var encoding = new GetCharsFailingEncoding();
+        using var secret = new Secret<BigInteger>(Encoding.UTF8.GetBytes("Hello World!!"));
+
+        // Act
+        var exception = Record.Exception(() => secret.ToCharArray(encoding));
+
+        // Assert
+        Assert.True(encoding.GetCharsCalled);
+        Assert.Same(encoding.ThrownException, exception);
+#if NETFRAMEWORK
+        Assert.All(encoding.Destination, character => Assert.Equal('\0', character));
+#endif
     }
 
     /// <summary>
