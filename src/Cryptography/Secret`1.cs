@@ -257,9 +257,11 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// <param name="encoding">The <see cref="Encoding"/> used to convert characters to bytes.</param>
     /// <returns>A new <see cref="Secret{TNumber}"/> whose byte content is the encoding of <paramref name="text"/>.</returns>
     /// <remarks>
-    /// The character data is encoded directly into a pinned byte buffer; no intermediate
-    /// unpinned heap allocation is created. The intermediate pinned byte buffer is securely
-    /// cleared on dispose before this method returns.
+    /// The character data is encoded directly into a pinned byte buffer, which is securely cleared
+    /// before this method returns; no unpinned heap allocation is created. Neither the secret nor its
+    /// shares record <paramref name="encoding"/>. Decode the reconstructed secret with the same encoding
+    /// through <see cref="ToCharArray(Encoding)"/>; another encoding can return wrong characters
+    /// without raising an error.
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="text"/> or <paramref name="encoding"/> is <see langword="null"/>.
@@ -269,6 +271,10 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </exception>
     /// <exception cref="ObjectDisposedException">
     /// Thrown when <paramref name="text"/> has already been disposed.
+    /// </exception>
+    /// <exception cref="System.Text.EncoderFallbackException">
+    /// Thrown when <paramref name="text"/> contains characters that <paramref name="encoding"/> cannot
+    /// encode and <paramref name="encoding"/> uses an <see cref="System.Text.EncoderExceptionFallback"/>.
     /// </exception>
     public static Secret<TNumber> FromText(PinnedPoolArray<char> text, Encoding encoding)
     {
@@ -851,14 +857,22 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     }
 
     /// <summary>
-    /// Converts the value of <see cref="Secret{TNumber}"/> structure to its equivalent <see cref="string"/> representation
-    /// that is Unicode encoded.
+    /// Returns the secret bytes decoded as UTF-8 text in Debug builds, and a fixed placeholder in Release builds.
     /// </summary>
     /// <returns>
-    /// In Debug builds: the UTF-8 decoded <see cref="string"/> representation of the secret.
+    /// In Debug builds: the UTF-8 decoded <see cref="string"/> representation of the secret, or
+    /// <see cref="string.Empty"/> if the secret is empty or uninitialized.
     /// In Release builds: always returns <c>"*** Secured Value ***"</c> to prevent accidental exposure
     /// in logs, exception messages or other output.
     /// </returns>
+    /// <remarks>
+    /// The decoding always uses UTF-8, even for a secret created with
+    /// <see cref="FromText(PinnedPoolArray{char}, Encoding)"/> and another encoding. Use
+    /// <see cref="ToCharArray(Encoding)"/> to decode such a secret.
+    /// </remarks>
+    /// <exception cref="ObjectDisposedException">
+    /// Thrown in Debug builds when the underlying buffer has been disposed.
+    /// </exception>
     public override string ToString()
     {
 #if DEBUG
@@ -932,12 +946,9 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// </returns>
     /// <remarks>
     /// This overload is the inverse of <see cref="FromText(PinnedPoolArray{char})"/> and uses the
-    /// same UTF-8 default. For any other encoding use the
-    /// <see cref="ToCharArray(Encoding)"/> overload.
+    /// same UTF-8 default. Bytes that are not valid UTF-8 decode to the replacement character U+FFFD.
+    /// For any other encoding use the <see cref="ToCharArray(Encoding)"/> overload.
     /// </remarks>
-    /// <exception cref="System.Text.DecoderFallbackException">
-    /// Thrown when the secret bytes are not a valid UTF-8 sequence.
-    /// </exception>
     /// <exception cref="ObjectDisposedException">
     /// Thrown when the underlying buffer has been disposed.
     /// </exception>
@@ -955,15 +966,17 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
     /// or uninitialized.
     /// </returns>
     /// <remarks>
-    /// Inverse of <see cref="FromText(PinnedPoolArray{char}, Encoding)"/>. The decoded characters
-    /// are written directly into a pinned buffer; no intermediate <see cref="string"/> or other
-    /// unpinned heap allocation is created.
+    /// Inverse of <see cref="FromText(PinnedPoolArray{char}, Encoding)"/>; pass the encoding the secret
+    /// was created with. Neither the secret nor its shares record it, and another encoding can return
+    /// wrong characters without raising an error. The decoded characters are written directly into a
+    /// pinned buffer; no intermediate <see cref="string"/> or other unpinned heap allocation is created.
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="encoding"/> is <see langword="null"/>.
     /// </exception>
     /// <exception cref="System.Text.DecoderFallbackException">
-    /// Thrown when the secret bytes are not a valid sequence in <paramref name="encoding"/>.
+    /// Thrown when the secret bytes are not a valid sequence in <paramref name="encoding"/> and
+    /// <paramref name="encoding"/> uses a <see cref="System.Text.DecoderExceptionFallback"/>.
     /// </exception>
     /// <exception cref="ObjectDisposedException">
     /// Thrown when the underlying buffer has been disposed.
