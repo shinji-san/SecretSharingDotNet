@@ -64,7 +64,7 @@ namespace SecretSharingDotNet.Math;
 /// is best-effort against passive timing analysis and has not been audited against active
 /// co-located attackers, and it is only meaningful when the underlying
 /// <see cref="Calculator{TNumber}"/> arithmetic is itself constant-time (the
-/// <c>SecureBigInteger</c> backend). See the Security &amp; Threat Model section of the README.
+/// <c>SecureBigInteger</c> backend). See <c>docs/threat-model.md</c> in the repository.
 /// </para>
 /// </remarks>
 public interface IFixedIterationExtendedGcdAlgorithm<TNumber> : IExtendedGcdAlgorithm<TNumber>;

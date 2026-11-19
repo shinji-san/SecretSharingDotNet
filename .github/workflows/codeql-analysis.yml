@@ -34,15 +34,16 @@ jobs:
     # CodeQL language, so its matrix leg skips setup / restore / build.
     - name: Setup .NET SDKs
       if: matrix.language == 'csharp'
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         dotnet-version: |
-          8.0.423
-          9.0.316
-          10.0.302
+          8.0.428
+          9.0.321
+          10.0.404
+          11.0.100
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+      uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
       with:
         languages: ${{ matrix.language }}
 
@@ -55,4 +56,4 @@ jobs:
       run: dotnet build --configuration Release --no-restore SecretSharingDotNet.slnx
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+      uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
