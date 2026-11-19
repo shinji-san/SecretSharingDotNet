@@ -277,6 +277,11 @@
       Kodierung, statt ein UTF-8-Secret als UTF-16 zu dekodieren. R16 nennt die aktuellen Zeilen
       der vier Reveal-Konvertierungen in `Secret<TNumber>`; die alten Angaben zeigten schon vorher
       fünf Zeilen zu früh.
+    - 2026-11-19 — Das erste ADR liegt vor: `docs/architecture/decisions/0001` hält fest, dass
+      `net8.0` und `net9.0` trotz Supportende in 1.2.0 bleiben und in 2.0.0 entfallen. Kapitel 9
+      verlinkt es, und der „Offen“-Block dort zählt keine fehlenden ADR-Verzeichnisse mehr. Die
+      Maßnahme zu R1 behält nach dem Entfernen der Legacy-TFMs nur noch `net10/11` neben
+      `netstandard2.0`.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -1303,14 +1308,13 @@ am Codestand `d920257` über die 56 versionierten Testdateien gemessen:
 
 | ADR | Titel | Status | Link |
 |---|---|---|---|
-| — | — | — | — |
+| 0001 | `net8.0` und `net9.0` bis 2.0.0 ausliefern | akzeptiert | [`docs/architecture/decisions/0001-net8-und-net9-bis-2-0-0-ausliefern.de.md`](decisions/0001-net8-und-net9-bis-2-0-0-ausliefern.de.md) |
 
-> **Offen:** Das Repository enthält **keine ADRs**. Es gibt weder ein `docs/decisions/`- noch
-> ein `docs/adr/`-Verzeichnis. Die Entscheidungen sind heute über `CHANGELOG.md`,
-> XML-Kommentare, `docs/threat-model.md` und interne Arbeitsnotizen
-> verstreut — nachvollziehbar, aber nicht als Entscheidung mit Kontext, Optionen und Konsequenzen
-> dokumentiert. Benötigt: je ein ADR (MADR-Format, DE/EN-Paar) für die unten gelisteten
-> Kandidaten.
+> **Offen:** Bisher ist nur eine Entscheidung als ADR erfasst, in `docs/architecture/decisions/`.
+> Die übrigen sind über `CHANGELOG.md`, XML-Kommentare, `docs/threat-model.md` und interne
+> Arbeitsnotizen verstreut — nachvollziehbar, aber nicht als Entscheidung mit Kontext, Optionen
+> und Konsequenzen dokumentiert. Benötigt: je ein ADR (MADR-Format, DE/EN-Paar) für die unten
+> gelisteten Kandidaten.
 
 **Kandidaten für nachzudokumentierende Entscheidungen** (belegt, aber nicht als ADR erfasst):
 
@@ -1390,7 +1394,7 @@ Trade-offs.
 
 | # | Risiko / Schuld | Schweregrad | Auswirkung | Gegenmaßnahme | Beleg |
 |---|---|---|---|---|---|
-| **R1** | **Neun-TFM-Spreizung.** `net472`/`net48`/`net481` sind außerhalb des Mainstream-Supports und erzwingen `#if`-Zweige in fast jeder Datei. | Hoch (Wartung) | Jede neue Funktion kostet doppelte Implementierung und doppelte Verifikation; Mono ist als zusätzliche Testlaufzeit nötig. | Legacy-TFMs im nächsten Major entfernen; nur `netstandard2.0` als Brücke plus `net8/9/10/11`. | `SecretSharingDotNet.csproj:8`; 51 `#if`-Zweige in `src/` |
+| **R1** | **Neun-TFM-Spreizung.** `net472`/`net48`/`net481` sind außerhalb des Mainstream-Supports und erzwingen `#if`-Zweige in fast jeder Datei. | Hoch (Wartung) | Jede neue Funktion kostet doppelte Implementierung und doppelte Verifikation; Mono ist als zusätzliche Testlaufzeit nötig. | Legacy-TFMs im nächsten Major entfernen; nur `netstandard2.0` als Brücke plus `net10/11` — `net8.0` und `net9.0` entfallen in 2.0.0 ohnehin (ADR 0001). | `SecretSharingDotNet.csproj:8`; 51 `#if`-Zweige in `src/` |
 | **R2** | **`SecureBigInteger.cs` mit 2.753 LOC** in einer einzigen, nicht partiellen Klasse mit sechs vermischten Verantwortlichkeiten. | Hoch (Wartung) | Blockiert die geplante Migration der Kernarithmetik auf Limb-Ebene; Reviews sind teuer. | Zweistufig: zuerst rein mechanischer `partial class`-Split entlang der sechs Cluster (öffentliche API-Delta null), danach optional echte interne Hilfstypen. Abgesichert durch die bestehende Testsuite × 7 TFMs. | `src/Math/Numerics/SecureBigInteger.cs`, 2.753 Zeilen |
 | **R3** | **Gemischte Thread-Sicherheit ohne Vertrag am Typ.** Splitter und Reconstructor mutieren ihre Sicherheitsstufe; die Einzelthread-Testausführung verbirgt Races. | Hoch (Korrektheit bei Fehlbedienung) | Ein als Singleton registrierter Splitter liefert unter Last falsche Shares — ohne Fehlermeldung. | Warnung in `docs/usage.md` und Demo vorhanden; Stress-Tests decken das *unterstützte* Muster ab. Offen: `<remarks>`-Thread-Safety-Vertrag an jeder Klasse. | `SecretSplitter<TNumber>`, Zeile 166; Warnung in `docs/usage.md` |
 | **R4** | **Keine Generic-Constraint auf `TNumber`.** `Calculator<string>` übersetzt. | Mittel (geringe Praxiswirkung) | Fehlbedienung fällt erst zur Laufzeit auf (`NotSupportedException` aus `Calculator.Create`). | Kein sauberer gemeinsamer Constraint verfügbar: `INumber<T>` ist net7+ und `SecureBigInteger` implementiert es nicht. Bewusst belassen und dokumentiert. | `src/Math/Calculator.cs:74` — keine Constraint-Klausel |
