@@ -998,10 +998,10 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
 #if (NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
         ReadOnlySpan<byte> sourceSpan = this.secretNumber.PoolArray.AsSpan(0, byteCount);
         int charCount = encoding.GetCharCount(sourceSpan);
-        // GetCharCount succeeded but GetChars may still throw on a strict
-        // DecoderFallback. Hold the pinned buffer in a temporary that the catch wipes
-        // before the exception escapes — the caller cannot dispose a return value
-        // it never received.
+        // A strict built-in decoder already throws in GetCharCount, before anything is
+        // allocated. An encoding can still fail only in GetChars, so hold the pinned
+        // buffer in a temporary that the catch wipes before the exception escapes —
+        // the caller cannot dispose a return value it never received.
         var result = new PinnedPoolArray<char>(charCount);
         try
         {
@@ -1016,10 +1016,10 @@ public readonly struct Secret<TNumber> : IEquatable<Secret<TNumber>>, IComparabl
         return result;
 #else
         int charCount = encoding.GetCharCount(this.secretNumber.PoolArray, 0, byteCount);
-        // GetCharCount succeeded but GetChars may still throw on a strict
-        // DecoderFallback. Hold the pinned buffer in a temporary that the catch wipes
-        // before the exception escapes — the caller cannot dispose a return value
-        // it never received.
+        // A strict built-in decoder already throws in GetCharCount, before anything is
+        // allocated. An encoding can still fail only in GetChars, so hold the pinned
+        // buffer in a temporary that the catch wipes before the exception escapes —
+        // the caller cannot dispose a return value it never received.
         var result = new PinnedPoolArray<char>(charCount);
         try
         {
