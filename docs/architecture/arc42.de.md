@@ -267,6 +267,10 @@
       auf .NET 10. Q4 zählt keine Frameworks mehr: Ihre „sechs“ war die Zahl der Test-Ziele,
       nicht der Bibliotheks-Ziele, und ihre Aussage ist, dass `Equals` keinen
       frameworkspezifischen Pfad hat.
+    - 2026-11-19 — Die CI pinnt die SDKs 8.0.428, 9.0.321 und 10.0.404, die Patches vom
+      2026-11-10; vorher standen dort 8.0.423, 9.0.316 und 10.0.302 vom Juli. Für .NET 10
+      wechselt das Feature-Band von 3xx auf 4xx: Das letzte 3xx-SDK war 10.0.303 im August,
+      seitdem erscheinen nur noch 1xx und 4xx. Kapitel 7 und Q11 nennen die neuen Versionen.
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -930,7 +934,7 @@ flowchart TD
 
     subgraph gh["GitHub Actions"]
         subgraph ci["dotnetall.yml - Build und Test"]
-            ubuntu["ubuntu-24.04<br/>SDK 8.0.423 / 9.0.316 / 10.0.302 / 11.0.100<br/>Tests: net8.0, net9.0, net10.0, net11.0<br/>dotnet pack"]
+            ubuntu["ubuntu-24.04<br/>SDK 8.0.428 / 9.0.321 / 10.0.404 / 11.0.100<br/>Tests: net8.0, net9.0, net10.0, net11.0<br/>dotnet pack"]
             windows["windows-2025<br/>Tests: net472, net48, net481<br/>echtes .NET Framework"]
         end
         codeql["codeql-analysis.yml<br/>csharp + actions, woechentlich"]
@@ -1354,7 +1358,7 @@ Qualität von SecretSharingDotNet
 | **Q8** | Ein Verhalten wird in der `BigInteger`-Testhierarchie geändert, in der `SecureBigInteger`-Hierarchie aber nicht. | Die Abweichung fällt **im Review** auf, weil die gespiegelte Datei der naheliegende Ort zum Nachsehen ist — nicht durch einen fehlschlagenden Test. Die beiden Suiten sind unabhängig, und die Spiegelung wird nirgends erzwungen (siehe den offenen Punkt in 8.11). Rot wird ein Test nur, wenn die zugrunde liegende Produktivänderung auch das andere Backend bricht. |
 | **Q9** | Ein Commit erreicht `develop` **und passt auf die Pfadfilter von `dotnetall.yml`** (also alles außer reinen Markdown-Änderungen; `README.md` ist wieder eingeschlossen, weil sie Pack-Eingabe ist). | Build und Tests laufen über **alle** sieben Test-TFMs grün: `net8.0`/`net9.0`/`net10.0`/`net11.0` auf `ubuntu-24.04`, `net472`/`net48`/`net481` auf `windows-2025`. Ein roter TFM blockiert den Merge. Für ausgeschlossene Änderungen — etwa diese Architekturdateien — läuft **keine** Testmatrix; dort trägt das Szenario nichts bei. |
 | **Q10** | Ein neuer Test wird geschrieben. | Er trägt AAA-Marker, bindet jede Allokation per `using` und existiert in beiden Backend-Hierarchien (Kapitel 8.11). Durchgesetzt wird das im Review, nicht durch ein Werkzeug — siehe den offenen Punkt in 8.11. Aktueller Stand: 981 deklarierte Testmethoden (774 `[Fact]`, 207 `[Theory]`) über 46 Testklassen. In ein einzelnes Ziel-Framework kompiliert weniger davon hinein: Die property-basierten, die Timing-, die Stress- und die Chunk-Wipe-Suiten sind auf net8.0 und neuer beschränkt, und der Enum-Puffer hat je einen Test für .NET Framework und einen für alle anderen Ziele. |
-| **Q11** | Ein Release wird zweimal aus demselben Tag gebaut. | Identische Artefakte: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode`-Restore gegen `packages.lock.json`, SDK-Versionen exakt gepinnt (8.0.423 / 9.0.316 / 10.0.302 / 11.0.100). |
+| **Q11** | Ein Release wird zweimal aus demselben Tag gebaut. | Identische Artefakte: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode`-Restore gegen `packages.lock.json`, SDK-Versionen exakt gepinnt (8.0.428 / 9.0.321 / 10.0.404 / 11.0.100). |
 | **Q12** | Ein Consumer kombiniert das `SecureBigInteger`-Backend versehentlich mit der variabelzeitigen `ExtendedEuclideanAlgorithm`. | Wenn er `FixedIterationSecretReconstructor<TNumber>` verwendet: **Compile-Fehler** (der Konstruktor nimmt nur `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Über den Basistyp `SecretReconstructor<TNumber>` bleibt die Kombination möglich — das ist ein dokumentiertes Opt-out, kein Versehen. |
 
 > **Offen:** Für nichtfunktionale *Performance*-Ziele existiert keine Vorgabe — weder ein

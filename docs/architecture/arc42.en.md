@@ -246,6 +246,10 @@
       because the .NET 11 SDK no longer does so off Windows. The demo stays on .NET 10. Q4 no
       longer counts frameworks at all: its "six" was the number of test targets, not of library
       targets, and the point it makes is that `Equals` has no framework-specific path.
+    - 2026-11-19 — CI pins SDKs 8.0.428, 9.0.321, and 10.0.404, the patches of 2026-11-10;
+      before, it pinned 8.0.423, 9.0.316, and 10.0.302 from July. .NET 10 moves from feature
+      band 3xx to 4xx: the last 3xx SDK was 10.0.303 in August, and only 1xx and 4xx have
+      shipped since. Chapter 7 and Q11 list the new versions.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -895,7 +899,7 @@ flowchart TD
 
     subgraph gh["GitHub Actions"]
         subgraph ci["dotnetall.yml - build and test"]
-            ubuntu["ubuntu-24.04<br/>SDK 8.0.423 / 9.0.316 / 10.0.302 / 11.0.100<br/>Tests: net8.0, net9.0, net10.0, net11.0<br/>dotnet pack"]
+            ubuntu["ubuntu-24.04<br/>SDK 8.0.428 / 9.0.321 / 10.0.404 / 11.0.100<br/>Tests: net8.0, net9.0, net10.0, net11.0<br/>dotnet pack"]
             windows["windows-2025<br/>Tests: net472, net48, net481<br/>real .NET Framework"]
         end
         codeql["codeql-analysis.yml<br/>csharp + actions, weekly"]
@@ -1303,7 +1307,7 @@ Quality of SecretSharingDotNet
 | **Q8** | A behavior is changed in the `BigInteger` test hierarchy but not in the `SecureBigInteger` one. | The divergence is caught **in review**, by the mirrored file being the obvious place to look — not by a failing test. The two suites are independent, and nothing enforces the mirroring (see the open item in 8.11). A red test follows only where the underlying production change also breaks the other backend. |
 | **Q9** | A commit reaches `develop` **and matches the path filters of `dotnetall.yml`** (that is, anything but pure Markdown changes; `README.md` is re-included because it is pack input). | Build and tests pass on **all** seven test TFMs: `net8.0`/`net9.0`/`net10.0`/`net11.0` on `ubuntu-24.04`, `net472`/`net48`/`net481` on `windows-2025`. A red TFM blocks the merge. For excluded changes — these architecture files among them — **no** test matrix runs at all, and the scenario contributes nothing there. |
 | **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 981 declared test methods (774 `[Fact]`, 207 `[Theory]`) across 46 test classes. Fewer than that compile into any single target framework: the property-based, timing, stress and chunked-wipe suites are gated to net8.0 and later, and the enum buffer is covered by one test for .NET Framework and a different one everywhere else. |
-| **Q11** | A release is built twice from the same tag. | Identical artifacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (8.0.423 / 9.0.316 / 10.0.302 / 11.0.100). |
+| **Q11** | A release is built twice from the same tag. | Identical artifacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (8.0.428 / 9.0.321 / 10.0.404 / 11.0.100). |
 | **Q12** | A consumer accidentally combines the `SecureBigInteger` backend with the variable-time `ExtendedEuclideanAlgorithm`. | If they use `FixedIterationSecretReconstructor<TNumber>`: a **compile error** (the constructor takes only `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Through the base type `SecretReconstructor<TNumber>` the combination stays possible — that is a documented opt-out, not an accident. |
 
 > **Open:** There is no non-functional *performance* target — no throughput or latency budget, no
