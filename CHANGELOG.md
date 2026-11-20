@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-11-20
 
 ### Added
 - Added .NET 11.0 support: the package now ships a `net11.0` asset.
@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Five documentation statements contradicted the code or the threat model. The upgrade notes said `FinitePoint<TNumber>` was made internal; it was removed in 1.0.1-rc01. Two usage passages called the `SecureBigInteger` arithmetic and `MersenneSafeGcdAlgorithm` constant-time without the *partial* qualification the threat model states: the arithmetic is constant-time only in its per-limb loops, and the inverse has a fixed outer iteration count, not uniform per-iteration timing. The threat model said its recommended floor of security level 127 was in line with the README examples, several of which select a lower level automatically; the README example now sets 127. It described the `SecureBigInteger` storage as a byte buffer wiped with `CryptographicOperations.ZeroMemory`; the storage is a `PinnedPoolArray<ulong>` of limbs, and only net8/9/10/11 and netstandard2.1 finish the wipe with `ZeroMemory`, while the legacy targets use per-byte volatile writes. And it said reconstruction selects the security level from the share values, which since 1.1.0 applies only to shares that record no level and receive none from the caller; the level is public either way, so the timing conclusion stands.
+- The XML documentation of `Secret<TNumber>`, which ships with the package, now matches the code. `ToCharArray()` listed a `DecoderFallbackException` that it never throws: `Encoding.UTF8` replaces invalid bytes with U+FFFD. `FromText(PinnedPoolArray<char>, Encoding)` did not list the `EncoderFallbackException` that an encoding with an exception fallback raises for characters it cannot encode. The `ToString()` summary called its text Unicode encoded; the Debug path decodes UTF-8. The `Encoding` overloads of `FromText` and `ToCharArray` now state that neither the secret nor its shares record the encoding, so text must be decoded with the encoding it was created with. Usage example 5c, which decoded a UTF-8 secret as UTF-16, now creates and reads its secret with the same encoding.
 
 ## [1.1.0] - 2026-09-26
 
@@ -391,7 +392,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `LICENSE.md`
 - Added `README.md`
 
-[Unreleased]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.1.0...develop
+[1.2.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc02...v1.0.1
 [1.0.1-rc02]: https://github.com/shinji-san/SecretSharingDotNet/compare/v1.0.1-rc01...v1.0.1-rc02
