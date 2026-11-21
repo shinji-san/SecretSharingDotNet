@@ -244,7 +244,7 @@ csharp_prefer_simple_default_expression = true:suggestion
 # NOTE: all of the following are opposite to the current Roslyn defaults.
 #
 # The library multi-targets netstandard2.0 / net472 / net48 / net481 alongside
-# net8.0+. Index/range operators and UTF-8 string literals are unavailable or
+# net10.0+. Index/range operators and UTF-8 string literals are unavailable or
 # behave differently on the legacy targets, so they must not be suggested.
 csharp_style_prefer_index_operator = false:silent
 csharp_style_prefer_range_operator = false:silent
