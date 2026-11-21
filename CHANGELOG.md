@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - The `net8.0` and `net9.0` assets, deprecated in 1.2.0: .NET 8 and .NET 9 reached end of support on 2026-11-10 ([ADR 0001](docs/architecture/decisions/0001-ship-net8-and-net9-until-2-0-0.en.md)). Applications on .NET 8 or .NET 9 now resolve the `netstandard2.1` asset, which lacks the `ReadOnlySpan<byte>` members of `Secret<TNumber>`: both constructors, both implicit conversions, and `AsReadOnlySpan()`. Moving to .NET 10 or later keeps them.
+- The finalizer of `SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult>`, deprecated in 1.1.0. It released nothing of the base type's own; its effects were to put every reconstructor on the finalization queue and, for a derived type with a finalizer of its own, to run the `Dispose(bool)` override a second time. A derived type that has to clean up an instance nobody disposes declares its own finalizer that calls `Dispose(false)`, or better, keeps the unmanaged resource in a `SafeHandle`. `Dispose()` still suppresses finalization, so such a finalizer runs only for an instance that was never disposed.
 
 ## [1.2.0] - 2026-11-20
 

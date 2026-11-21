@@ -293,6 +293,12 @@
       und R16 verorten die implizite Konvertierung nach `ReadOnlySpan<byte>` ab net10 statt ab
       net8: Eine Anwendung auf .NET 8 oder .NET 9 erhält jetzt das `netstandard2.1`-Asset, dem sie
       fehlt.
+    - 2026-11-21 — Der Finalizer von `SecretReconstructor` ist entfernt, wie der *Deprecated*-Eintrag
+      von 1.1.0 es für 2.0.0 angekündigt hat; kein Kapitel beschrieb ihn. `SecretReconstructorTest`
+      hält jetzt auf beiden Backends fest, dass kein Reconstructor-Typ einen Finalizer deklariert
+      und dass eine Ableitung mit eigenem Finalizer ihren `Dispose(bool)`-Override einmal statt
+      zweimal erreicht. Die Testzahlen in den Kapiteln 1, 5 und 8.11 sowie in Q10 stehen auf 985
+      deklarierten Testmethoden (778 `[Fact]`, 207 `[Theory]`).
 
 Nach [arc42](https://arc42.org). Nicht belegbare Inhalte sind als **Offen:**-Blöcke markiert —
 sie benennen die fehlende Information.
@@ -333,7 +339,7 @@ Konsumenten (Quelle: `README.md`, `src/SecretSharingDotNet.csproj`).
 | Priorität | Qualitätsziel | Motivation |
 |---|---|---|
 | 1 | **Vertraulichkeit des Geheimnisses im Prozessspeicher** | Der gesamte Nutzen der Bibliothek entfällt, wenn das Geheimnis aus Heap-Snapshots, Swap-Dateien oder wiederverwendeten Pool-Puffern rekonstruierbar bleibt. Umgesetzt über GC-gepinnte, dreifach überschriebene Puffer (`PinnedPoolArray<T>`) und eine durchgehende `IDisposable`-Disziplin. |
-| 2 | **Funktionale Korrektheit des Schemas** | Ein falsch rekonstruiertes Geheimnis ist unbemerkt fatal: plain Shamir hat keine Integritätsprüfung (`docs/threat-model.md`). Abgesichert über 983 Testmethoden, property-basierte Round-Trip-Tests (CsCheck) und zwei parallele Testhierarchien für beide numerischen Backends. |
+| 2 | **Funktionale Korrektheit des Schemas** | Ein falsch rekonstruiertes Geheimnis ist unbemerkt fatal: plain Shamir hat keine Integritätsprüfung (`docs/threat-model.md`). Abgesichert über 985 Testmethoden, property-basierte Round-Trip-Tests (CsCheck) und zwei parallele Testhierarchien für beide numerischen Backends. |
 | 3 | **Resistenz gegen passive Timing-Analyse (best effort)** | Zweites, bewusst nachrangiges Sicherheitsziel: Das `SecureBigInteger`-Backend liefert Kernarithmetik, deren Limb-Schleifen konstantzeitig über die Limb-Anzahl laufen, plus einen Fixed-Iteration-Modularinversen. Die Zusage endet bei diesen Schleifen — Ergebnisnormalisierung, `ByteCount`, Ordnung und die übrigen Flächen aus 8.2 sind wertabhängig. Der Anspruch ist explizit *best effort in managed .NET*, nicht auditierte Härtung (`docs/threat-model.md`). |
 | 4 | **Portabilität über sieben Ziel-Frameworks** | Die Bibliothek soll in Legacy-.NET-Framework-Anwendungen ebenso einsetzbar sein wie in .NET 11. Kosten: umfangreiche `#if`-Konditionalisierung (siehe Risiko R1). |
 | 5 | **Stabilität der öffentlichen API** | Nach dem v1.0-GA sollen Consumer nicht bei jedem internen Refactoring brechen. Umgesetzt über bewusste `internal`-Grenzen und SemVer-Disziplin im `CHANGELOG.md`. |
@@ -459,7 +465,7 @@ C4Container
   Person(appDev, "Anwendungsentwickler", "Programmiert gegen die Bibliotheks-API")
   System_Boundary(sln, "SecretSharingDotNet.slnx") {
     Container(lib, "SecretSharingDotNet", "C# Klassenbibliothek, 7 TFMs, strong-named", "Die ausgelieferte Bibliothek: Shamir-Algorithmus, numerische Backends, gepinnter Speicher")
-    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "983 Testmethoden ueber 5 TFMs, inkl. Timing-Harness und Stress-Traits")
+    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "985 Testmethoden ueber 5 TFMs, inkl. Timing-Harness und Stress-Traits")
     Container(demo, "SecretSharingDotNet.Demo.Console", ".NET 10 Konsolen-App, Microsoft.Extensions.DependencyInjection", "Lauffaehiges End-to-End-Beispiel mit DI-Komposition und Konsoleneingabe")
   }
   System_Ext(nuget, "nuget.org", "Verteilkanal")
@@ -1277,7 +1283,7 @@ am Codestand `d920257` über die 56 versionierten Testdateien gemessen:
   aus; wo Aktion und Prüfung untrennbar sind, steht ein zusammengezogenes `// Act & Assert`.
 - **Jede Allokation bindet per `using`** — auch Operator-Ergebnisse (`+`, `-`, `*`, `/`, `%`),
   `Calculator<T>.Zero/One/Two`, Inline-Erwartungswerte und Schleifen-Zwischenwerte; 1.626
-  `using var`-Deklarationen auf 983 Testmethoden. Ein vergessenes `using` hält einen gepinnten
+  `using var`-Deklarationen auf 985 Testmethoden. Ein vergessenes `using` hält einen gepinnten
   Puffer bis zum AppDomain-Ende am Leben.
 - **Zwei gespiegelte Testhierarchien**, je eine für `BigInteger` und `SecureBigInteger` — sichtbar
   an den Geschwisterverzeichnissen `tests/Cryptography/{BigInteger,SecureBigInteger}/`,
@@ -1378,7 +1384,7 @@ Qualität von SecretSharingDotNet
 | **Q7** | Zwei Shares mit identischem Index werden zur Rekonstruktion gereicht. | `ReconstructionException` statt einer generischen `ArgumentException`. Sie fällt beim ersten Duplikat, das die Prüfung findet, und `EnsureDistinctIndices` läuft in der Validierungsphase von `ReconstructionCore` — **bevor** das Sicherheitslevel übernommen wird. Ein doppelter Index macht den Lagrange-Nenner in jedem Körper zu null, die Prüfung braucht also gar kein Level, und eine abgewiesene Eingabe lässt den Manager dort stehen, wo er war. Ein Pfad ist die Ausnahme davon: Tragen die Shares kein Level und ist der `ISecurityLevelManager<TNumber>` kein `IInspectableSecurityLevelManager<TNumber>`, gibt es keinen Weg zu einem Kandidaten außer `AdjustSecurityLevel`, und dieser Aufruf liegt vor der Distinktheitsprüfung — dort ist der Manager beim Auftauchen des Duplikats also bereits bewegt. |
 | **Q8** | Ein Verhalten wird in der `BigInteger`-Testhierarchie geändert, in der `SecureBigInteger`-Hierarchie aber nicht. | Die Abweichung fällt **im Review** auf, weil die gespiegelte Datei der naheliegende Ort zum Nachsehen ist — nicht durch einen fehlschlagenden Test. Die beiden Suiten sind unabhängig, und die Spiegelung wird nirgends erzwungen (siehe den offenen Punkt in 8.11). Rot wird ein Test nur, wenn die zugrunde liegende Produktivänderung auch das andere Backend bricht. |
 | **Q9** | Ein Commit erreicht `develop` **und passt auf die Pfadfilter von `dotnetall.yml`** (also alles außer reinen Markdown-Änderungen; `README.md` ist wieder eingeschlossen, weil sie Pack-Eingabe ist). | Build und Tests laufen über **alle** fünf Test-TFMs grün: `net10.0`/`net11.0` auf `ubuntu-24.04`, `net472`/`net48`/`net481` auf `windows-2025`. Ein roter TFM blockiert den Merge. Für ausgeschlossene Änderungen — etwa diese Architekturdateien — läuft **keine** Testmatrix; dort trägt das Szenario nichts bei. |
-| **Q10** | Ein neuer Test wird geschrieben. | Er trägt AAA-Marker, bindet jede Allokation per `using` und existiert in beiden Backend-Hierarchien (Kapitel 8.11). Durchgesetzt wird das im Review, nicht durch ein Werkzeug — siehe den offenen Punkt in 8.11. Aktueller Stand: 983 deklarierte Testmethoden (776 `[Fact]`, 207 `[Theory]`) über 46 Testklassen. In ein einzelnes Ziel-Framework kompiliert weniger davon hinein: Die property-basierten, die Timing-, die Stress- und die Chunk-Wipe-Suiten sind auf net8.0 und neuer beschränkt, und der Enum-Puffer hat je einen Test für .NET Framework und einen für alle anderen Ziele. |
+| **Q10** | Ein neuer Test wird geschrieben. | Er trägt AAA-Marker, bindet jede Allokation per `using` und existiert in beiden Backend-Hierarchien (Kapitel 8.11). Durchgesetzt wird das im Review, nicht durch ein Werkzeug — siehe den offenen Punkt in 8.11. Aktueller Stand: 985 deklarierte Testmethoden (778 `[Fact]`, 207 `[Theory]`) über 46 Testklassen. In ein einzelnes Ziel-Framework kompiliert weniger davon hinein: Die property-basierten, die Timing-, die Stress- und die Chunk-Wipe-Suiten sind auf net8.0 und neuer beschränkt, und der Enum-Puffer hat je einen Test für .NET Framework und einen für alle anderen Ziele. |
 | **Q11** | Ein Release wird zweimal aus demselben Tag gebaut. | Identische Artefakte: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode`-Restore gegen `packages.lock.json`, SDK-Versionen exakt gepinnt (10.0.404 / 11.0.100). |
 | **Q12** | Ein Consumer kombiniert das `SecureBigInteger`-Backend versehentlich mit der variabelzeitigen `ExtendedEuclideanAlgorithm`. | Wenn er `FixedIterationSecretReconstructor<TNumber>` verwendet: **Compile-Fehler** (der Konstruktor nimmt nur `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Über den Basistyp `SecretReconstructor<TNumber>` bleibt die Kombination möglich — das ist ein dokumentiertes Opt-out, kein Versehen. |
 

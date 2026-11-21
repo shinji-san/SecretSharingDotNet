@@ -104,28 +104,6 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     }
 
     /// <summary>
-    /// Finalizes an instance of the <see cref="SecretReconstructor{TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult}"/> class.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// This type owns no unmanaged resource, and <c>Dispose(false)</c> releases nothing of its own.
-    /// The finalizer is kept for derived types: the class is public and not sealed, and an existing
-    /// derivation may rely on it to reach its own <c>Dispose(bool)</c> override when an instance is
-    /// never disposed. Removing it would drop that cleanup silently, so it is reserved for the next
-    /// major version, together with a migration note for derived types.
-    /// </para>
-    /// <para>
-    /// When adding a derived finalizer before 2.0.0, ensure that cleanup safely handles repeated
-    /// calls to <c>Dispose(false)</c>, because both finalizers may invoke the override: a derived
-    /// finalizer chains to this one, and both call the virtual <c>Dispose(false)</c>.
-    /// </para>
-    /// </remarks>
-    ~SecretReconstructor()
-    {
-        this.Dispose(false);
-    }
-
-    /// <summary>
     /// Gets the security level (in bits) of the underlying
     /// <see cref="ISecurityLevelManager{TNumber}"/>.
     /// </summary>
@@ -797,6 +775,8 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
         }
 
         this.Dispose(true);
+
+        // This type declares no finalizer; the call is for a derived type that does.
         GC.SuppressFinalize(this);
     }
 
@@ -813,9 +793,9 @@ public class SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdRes
     /// </para>
     /// <para>
     /// Called exactly once through <see cref="Dispose()"/>, which holds the idempotency guard so that
-    /// an override runs once as well, or by the finalizer with <paramref name="disposing"/> set to
-    /// <see langword="false"/> when an instance was never disposed. The base body then releases
-    /// nothing; the finalizer exists for derived types that clean up in their override.
+    /// an override runs once as well. This type declares no finalizer, so
+    /// <paramref name="disposing"/> is <see langword="false"/> only if a derived type with a
+    /// finalizer of its own passes it on; the base body then releases nothing.
     /// </para>
     /// </remarks>
     protected virtual void Dispose(bool disposing)
