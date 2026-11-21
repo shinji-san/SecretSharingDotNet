@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- The `net8.0` and `net9.0` assets, deprecated in 1.2.0: .NET 8 and .NET 9 reached end of support on 2026-11-10 ([ADR 0001](docs/architecture/decisions/0001-ship-net8-and-net9-until-2-0-0.en.md)). Applications on .NET 8 or .NET 9 now resolve the `netstandard2.1` asset, which lacks the `ReadOnlySpan<byte>` members of `Secret<TNumber>`: both constructors, both implicit conversions, and `AsReadOnlySpan()`. Moving to .NET 10 or later keeps them.
+
 ## [1.2.0] - 2026-11-20
 
 ### Added
