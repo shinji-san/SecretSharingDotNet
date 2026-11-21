@@ -59,8 +59,6 @@ jobs:
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         dotnet-version: |
-          8.0.428
-          9.0.321
           10.0.404
           11.0.100
 
@@ -75,12 +73,6 @@ jobs:
     # Framework instead. Each modern TFM is invoked with an explicit
     # --framework against the test project so the runner never tries to
     # launch a net4x executable.
-    - name: Test (net8.0)
-      run: dotnet test --no-restore --no-build --configuration Release --framework net8.0 tests/SecretSharingDotNetTest.csproj
-
-    - name: Test (net9.0)
-      run: dotnet test --no-restore --no-build --configuration Release --framework net9.0 tests/SecretSharingDotNetTest.csproj
-
     - name: Test (net10.0)
       run: dotnet test --no-restore --no-build --configuration Release --framework net10.0 tests/SecretSharingDotNetTest.csproj
 
@@ -107,8 +99,6 @@ jobs:
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         dotnet-version: |
-          8.0.428
-          9.0.321
           10.0.404
           11.0.100
 
