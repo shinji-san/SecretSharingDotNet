@@ -264,6 +264,11 @@
       measured anew: 1,626 occurrences of `using var` in the tracked `.cs` files under `tests/`.
       The former 1,209 could not be reproduced by any of the counting methods tried, not even at
       the commit that introduced it.
+    - 2026-11-21 — `net8.0` and `net9.0` are removed, as ADR 0001 decided for 2.0.0. Chapters 1,
+      2, 5, 7, 8, 9, 10, and 11 count seven library and five test frameworks; chapter 7 and Q11
+      list only SDKs 10.0.404 and 11.0.100. Chapter 4, section 8.6, and R16 place the implicit
+      conversion to `ReadOnlySpan<byte>` on net10+ instead of net8+: an application on .NET 8 or
+      .NET 9 now resolves the `netstandard2.1` asset, which lacks it.
 
 Following [arc42](https://arc42.org). Content that cannot be sourced is marked as **Open:**
 blocks naming the missing information.
@@ -304,7 +309,7 @@ package and runs in-process inside the consumer's application (source: `README.m
 | 1 | **Confidentiality of the secret in process memory** | The library's whole value collapses if the secret stays recoverable from heap snapshots, swap files, or reused pool buffers. Realized via GC-pinned, triple-overwritten buffers (`PinnedPoolArray<T>`) and a pervasive `IDisposable` discipline. |
 | 2 | **Functional correctness of the scheme** | A wrongly reconstructed secret is silently fatal: plain Shamir carries no integrity check (`docs/threat-model.md`). Backed by 983 test methods, property-based round-trip tests (CsCheck), and two parallel test hierarchies — one per numeric backend. |
 | 3 | **Resistance to passive timing analysis (best effort)** | A deliberate second-rank security goal: the `SecureBigInteger` backend provides core arithmetic whose per-limb loops are constant-time on the limb count, plus a fixed-iteration modular inverse. The guarantee stops at those loops — result normalization, `ByteCount`, ordering and the other surfaces in 8.2 are value-dependent. The claim is explicitly *best effort in managed .NET*, not audited hardening (`docs/threat-model.md`). |
-| 4 | **Portability across nine target frameworks** | The library should be usable in legacy .NET Framework applications as well as on .NET 11. Cost: extensive `#if` conditionalization (see risk R1). |
+| 4 | **Portability across seven target frameworks** | The library should be usable in legacy .NET Framework applications as well as on .NET 11. Cost: extensive `#if` conditionalization (see risk R1). |
 | 5 | **Public API stability** | After the v1.0 GA, consumers should not break on every internal refactoring. Realized through deliberate `internal` boundaries and SemVer discipline in `CHANGELOG.md`. |
 
 Priorities 1–3 drive chapter 8 (cross-cutting concepts) and chapter 10 (quality requirements);
@@ -315,7 +320,7 @@ priorities 4–5 drive chapters 2 and 7.
 | Role | Expectation |
 |---|---|
 | **Application developer (consumer)** | An API that is hard to use insecurely by accident; clear migration guidance on breaking changes; runnable examples (`samples/`, `docs/usage.md`). |
-| **Maintainer** (Sebastian Walther, sole maintainer) | Maintainability under limited time; green CI across all nine TFMs as the release gate; traceable architecture decisions. |
+| **Maintainer** (Sebastian Walther, sole maintainer) | Maintainability under limited time; green CI across all seven TFMs as the release gate; traceable architecture decisions. |
 | **Security reviewer / auditor** | An honestly scoped threat model — what is protected, and what explicitly is *not* (`docs/threat-model.md`). |
 | **Share holder (domain role)** | Keeps exactly one share, `INDEX-VALUE` or `INDEX-VALUE-LEVEL` (hexadecimal). Never interacts with the library directly — only through the consuming application. |
 | **CI/release pipeline** | Deterministic, reproducible builds (lock files, `--locked-mode`, `Deterministic=true`) and a publishing path without long-lived secrets (OIDC). |
@@ -328,7 +333,7 @@ priorities 4–5 drive chapters 2 and 7.
 
 | Constraint | Consequence |
 |---|---|
-| Target frameworks `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net481`, `net8.0`, `net9.0`, `net10.0`, `net11.0` | Every language or BCL advance must be conditionalized via `#if` (e.g. `Span<T>`, `CryptographicOperations.FixedTimeEquals`, `Convert.TryToBase64Chars`). |
+| Target frameworks `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net481`, `net10.0`, `net11.0` | Every language or BCL advance must be conditionalized via `#if` (e.g. `Span<T>`, `CryptographicOperations.FixedTimeEquals`, `Convert.TryToBase64Chars`). |
 | **Pure managed .NET** — no native interop, no P/Invoke dependency | Constant time is only approximately reachable in principle (RyuJIT, GC, ArrayPool). Stated openly in the threat model. |
 | Runtime dependencies: only `System.Buffers` on `netstandard2.0` / `net4.7.2` / `net4.8` / `net4.8.1` | No transitive third-party crypto library; everything else comes from the BCL. |
 | Strong-name signing (`SecretSharingDotNet.snk`), `ComVisible(false)`, `CLSCompliant(true)` | Public signatures must stay CLS-compliant; tests reach `internal` types only via `InternalsVisibleTo` with public key. |
@@ -407,7 +412,7 @@ integrity (no VSS, no MACs — see risk R9), and any form of key management.
 | 3 | **Pinned, securely wiped memory as the default carrier of every secret** | `PinnedPoolArray<T>` is the only store for secret bytes, share characters, console input, and `SecureBigInteger` limbs. It forces the `IDisposable` discipline across the whole API (quality goal 1). |
 | 4 | **Two reconstructor variants instead of one switch** | `SecretReconstructor<TNumber>` accepts any GCD strategy (including the variable-time `ExtendedEuclideanAlgorithm`). `FixedIterationSecretReconstructor<TNumber>` accepts only `IFixedIterationExtendedGcdAlgorithm<TNumber>` — so the dangerous "SecureBigInteger + Euclid" pairing is a **compile error**, not a silent weakness. |
 | 5 | **Use-case interfaces as the public entry points** | `IMakeSharesUseCase<TNumber>` and `IReconstructionUseCase<TNumber>` extend `IDisposable` and are DI-friendly. Composition rather than inheritance is the intended extension direction, but only partly enforced: `SecretSplitter<TNumber>` and `FixedIterationSecretReconstructor<TNumber>` are `sealed`, while `SecretReconstructor<TNumber>`, its 3-generic base and `SecurityLevelManager<TNumber>` are not — and `FixedIterationSecretReconstructor` itself derives from `SecretReconstructor<TNumber>`. Inheritance is available at those points and is used internally. |
-| 6 | **Redaction by default** | `ToString()` on `Secret`, `Share`, and `Shares` returns the sentinel `"*** Secured Value ***"` in Release builds. Prevents leaks through logs, exception messages, and debugger displays. **The guarantee covers `ToString()` only.** Real content also leaves through the explicit `ToCharArray()` / `ToBase64CharArray()` paths *and* through public implicit conversions that look like nothing of the sort: `Secret<TNumber>` to `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` and, on net8+, `ReadOnlySpan<byte>`; `Shares<TNumber>` to `PinnedPoolArray<char>`, which calls `ToCharArray()` behind the operator. |
+| 6 | **Redaction by default** | `ToString()` on `Secret`, `Share`, and `Shares` returns the sentinel `"*** Secured Value ***"` in Release builds. Prevents leaks through logs, exception messages, and debugger displays. **The guarantee covers `ToString()` only.** Real content also leaves through the explicit `ToCharArray()` / `ToBase64CharArray()` paths *and* through public implicit conversions that look like nothing of the sort: `Secret<TNumber>` to `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` and, on net10+, `ReadOnlySpan<byte>`; `Shares<TNumber>` to `PinnedPoolArray<char>`, which calls `ToCharArray()` behind the operator. |
 | 7 | **UTF-8 as the text encoding** (since v0.14.0, breaking change) | A platform-neutral standard; the previous UTF-16 was a .NET artifact. Overloads taking an explicit `Encoding` exist, but the encoding is **not** persisted in the share (see risk R11). |
 | 8 | **Closed backend registry instead of reflection** | `Calculator.Create<TNumber>()` resolves through an explicit `IReadOnlyDictionary<Type, BackendRegistration>`. Trimming- and NativeAOT-safe, free of static-initialization-order coupling (ADR candidate 1 in chapter 9). |
 
@@ -424,8 +429,8 @@ C4Container
   title Building blocks of the SecretSharingDotNet solution
   Person(appDev, "Application developer", "Programs against the library API")
   System_Boundary(sln, "SecretSharingDotNet.slnx") {
-    Container(lib, "SecretSharingDotNet", "C# class library, 9 TFMs, strong-named", "The shipped library: Shamir algorithm, numeric backends, pinned memory")
-    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "983 test methods across 7 TFMs, including the timing harness and stress traits")
+    Container(lib, "SecretSharingDotNet", "C# class library, 7 TFMs, strong-named", "The shipped library: Shamir algorithm, numeric backends, pinned memory")
+    Container(tests, "SecretSharingDotNetTest", "xUnit v3, Moq, CsCheck", "983 test methods across 5 TFMs, including the timing harness and stress traits")
     Container(demo, "SecretSharingDotNet.Demo.Console", ".NET 10 console app, Microsoft.Extensions.DependencyInjection", "Runnable end-to-end example with DI composition and console input")
   }
   System_Ext(nuget, "nuget.org", "Distribution channel")
@@ -441,8 +446,8 @@ C4Container
 
 | Building block | Responsibility | Technology |
 |---|---|---|
-| **SecretSharingDotNet** | All domain and cryptographic logic. The only artifact with a public API. | C#, `LangVersion=latest`, 9 TFMs, `AllowUnsafeBlocks`, `GenerateDocumentationFile` |
-| **SecretSharingDotNetTest** | Verification across 7 TFMs (the `netstandard` targets are covered through the concrete frameworks). Contains two mirrored test hierarchies — one per numeric backend. | xUnit v3, Moq, CsCheck (net8+ only) |
+| **SecretSharingDotNet** | All domain and cryptographic logic. The only artifact with a public API. | C#, `LangVersion=latest`, 7 TFMs, `AllowUnsafeBlocks`, `GenerateDocumentationFile` |
+| **SecretSharingDotNetTest** | Verification across 5 TFMs (the `netstandard` targets are covered through the concrete frameworks). Contains two mirrored test hierarchies — one per numeric backend. | xUnit v3, Moq, CsCheck (net8+ only) |
 | **SecretSharingDotNet.Demo.Console** | Reference composition: `SecureBigInteger` + `FixedIterationSecretReconstructor` + `ConsolePasswordReader`, wired through `Microsoft.Extensions.DependencyInjection` with `ValidateOnBuild`/`ValidateScopes`. Not packaged (`IsPackable=false`). | .NET 10, MS.DI |
 
 ### 5.2 Whitebox of the Library (level 2)
@@ -913,7 +918,7 @@ flowchart TD
 
     subgraph gh["GitHub Actions"]
         subgraph ci["dotnetall.yml - build and test"]
-            ubuntu["ubuntu-24.04<br/>SDK 8.0.428 / 9.0.321 / 10.0.404 / 11.0.100<br/>Tests: net8.0, net9.0, net10.0, net11.0<br/>dotnet pack"]
+            ubuntu["ubuntu-24.04<br/>SDK 10.0.404 / 11.0.100<br/>Tests: net10.0, net11.0<br/>dotnet pack"]
             windows["windows-2025<br/>Tests: net472, net48, net481<br/>real .NET Framework"]
         end
         codeql["codeql-analysis.yml<br/>csharp + actions, weekly"]
@@ -929,7 +934,7 @@ flowchart TD
     end
 
     subgraph runtime["Consumer runtime"]
-        netcore["CoreCLR<br/>net8.0 / net9.0 / net10.0 / net11.0"]
+        netcore["CoreCLR<br/>net10.0 / net11.0"]
         netfx[".NET Framework<br/>4.7.2 / 4.8 / 4.8.1"]
         netstd["netstandard2.0 / 2.1<br/>bridge for further hosts"]
     end
@@ -1146,7 +1151,7 @@ pinned memory the caller disposes.
 
 Redaction is a property of `ToString()`, not of the types. Public **implicit conversions** hand
 out real content in both build modes and at no syntactic cost to the caller: `Secret<TNumber>` to
-`TNumber` (line 604), `Calculator<TNumber>` (619), `PinnedPoolArray<byte>` (691) and, on net8+,
+`TNumber` (line 604), `Calculator<TNumber>` (619), `PinnedPoolArray<byte>` (691) and, on net10+,
 `ReadOnlySpan<byte>` (697); `Shares<TNumber>` to `PinnedPoolArray<char>` (`Shares.cs:122`), which
 routes through `ToCharArray()`. An assignment or an overload resolution is enough to trigger one,
 so "only the explicit paths disclose content" would be wrong — the explicit paths are the ones a
@@ -1180,7 +1185,7 @@ carry it is what removes the cause, and only for shares actually written that wa
 
 ### 8.8 Multi-targeting
 
-A single source tree serves nine TFMs. Conditionalization goes through
+A single source tree serves seven TFMs. Conditionalization goes through
 `#if NET8_0_OR_GREATER`, `#if NETSTANDARD2_1_OR_GREATER`, and `#if DEBUG`. Typical cases:
 `Span<T>` overloads, `CryptographicOperations.ZeroMemory` versus a `Volatile.Write`-based
 replacement, `Convert.TryToBase64Chars` versus an inline 24-bit-window encoder, `[Serializable]`
@@ -1279,7 +1284,7 @@ code state `d920257` across the 56 versioned test files:
 | 5 | UTF-8 instead of UTF-16 as the text encoding (breaking change v0.14.0) | `CHANGELOG.md` `[0.14.0]`, `docs/usage.md` | Breaks every text share produced by older versions. |
 | 6 | `IRandomSource` stays `internal` rather than publicly injectable | `src/Cryptography/IRandomSource.cs`, PR #334 | A deliberate forfeit of external testability convenience for security reasons. |
 | 7 | Mutation testing (Stryker.NET) parked instead of repaired | GitHub issue #343 | A quality measure was actively rolled back — the reason (Stryker cannot measure xUnit v3) deserves recording. |
-| 8 | Nine target frameworks retained despite the `#if` cost | `src/SecretSharingDotNet.csproj:8` | The counter-position (netstandard2.0 + net8/9/10/11 only) is already on the table; retention is the active decision. |
+| 8 | Seven target frameworks retained despite the `#if` cost | `src/SecretSharingDotNet.csproj:8` | The counter-position (netstandard2.0 + net10/11 only) is already on the table; retention is the active decision. |
 | 9 | The security level travels on the share (`int?`), takes part in equality, and `ShareFormat.Legacy` stays the serialization default | `CHANGELOG.md` `[Unreleased]`, issue #403 | Four bound decisions in one change: `int?` over a sentinel value; the level in `Equals`/`GetHashCode`, so a share recording none is not equal to one recording any; a new inheriting interface rather than a widened `IReconstructionUseCase<TNumber>`; and the legacy two-segment form kept as the default — the last one deliberately leaves the defect open for shares written through the default path, and reversing it is breaking. |
 
 ---
@@ -1318,9 +1323,9 @@ Quality of SecretSharingDotNet
 | **Q6** | A secret is split with an arbitrary `2 ≤ k ≤ n`; then an **arbitrary** k-element subset of the n shares is used for reconstruction. | **Intended:** the reconstructed secret is bit-identical to the original; Lagrange interpolation gives that for *every* qualifying subset. **Delivered: for shares that record their field.** A share produced by `MakeShares` carries its security level, and `Reconstruction` interpolates in that field instead of deriving one from the share values — pinned by `Reconstruction_WhenAShareValueWrappedInTheOriginalField_RestoresTheSecret` in both backend test hierarchies, which is the very vector that used to lose the secret. Shares recording nothing — parsed from the legacy `INDEX-VALUE` form, or rebuilt from bare coordinates — still go through the value-derived selection and can still land in a smaller field than the split used, returning either no decodable secret (an exception) or a different secret with no exception at all; both residual outcomes stay pinned by `Reconstruction_WhenSharesCarryNoLevel_StillRefitsDownward` and `Reconstruction_WhenSharesCarryNoLevelAndTheCoefficientCollapses_ThrowsNamingTheExponent`. The way out for those is `Reconstruction(shares, securityLevel)` or `Shares<TNumber>.ReissueWithSecurityLevel`. Fixed under **issue #403**; R27 carries the residual scope. The subset property itself never failed — the field selection did. The property-based CsCheck tests (250 iterations for `BigInteger`, 50 for `SecureBigInteger`, mirrored across both backends) draw the subset by combination rank, so every one of the `C(n, k)` subsets is reachable and combinations with interior gaps are exercised — not only the `n` contiguous runs the earlier cyclic window could name. That the rank-to-subset map is a bijection is checked rather than assumed, by `Combination_OverTheGeneratedParameterSpace_IsABijectionOntoTheSubsets`. |
 | **Q7** | Two shares with an identical index are handed to reconstruction. | `ReconstructionException` rather than a generic `ArgumentException`. It is raised on the first duplicate the check encounters, and `EnsureDistinctIndices` runs in the validation phase of `ReconstructionCore` — **before** the security level is committed. A duplicate index makes the Lagrange denominator zero in every field, so the check needs no level at all, and a rejected input leaves the manager where it was. One path is the exception to that: shares recording no level combined with an `ISecurityLevelManager<TNumber>` that is not `IInspectableSecurityLevelManager<TNumber>` offer no way to obtain a candidate other than calling `AdjustSecurityLevel`, and that call precedes the distinctness check, so there the manager has already moved when the duplicate surfaces. |
 | **Q8** | A behavior is changed in the `BigInteger` test hierarchy but not in the `SecureBigInteger` one. | The divergence is caught **in review**, by the mirrored file being the obvious place to look — not by a failing test. The two suites are independent, and nothing enforces the mirroring (see the open item in 8.11). A red test follows only where the underlying production change also breaks the other backend. |
-| **Q9** | A commit reaches `develop` **and matches the path filters of `dotnetall.yml`** (that is, anything but pure Markdown changes; `README.md` is re-included because it is pack input). | Build and tests pass on **all** seven test TFMs: `net8.0`/`net9.0`/`net10.0`/`net11.0` on `ubuntu-24.04`, `net472`/`net48`/`net481` on `windows-2025`. A red TFM blocks the merge. For excluded changes — these architecture files among them — **no** test matrix runs at all, and the scenario contributes nothing there. |
+| **Q9** | A commit reaches `develop` **and matches the path filters of `dotnetall.yml`** (that is, anything but pure Markdown changes; `README.md` is re-included because it is pack input). | Build and tests pass on **all** five test TFMs: `net10.0`/`net11.0` on `ubuntu-24.04`, `net472`/`net48`/`net481` on `windows-2025`. A red TFM blocks the merge. For excluded changes — these architecture files among them — **no** test matrix runs at all, and the scenario contributes nothing there. |
 | **Q10** | A new test is written. | It carries AAA markers, binds every allocation with `using`, and exists in both backend hierarchies (chapter 8.11). Enforcement is by review, not by tooling — see the open item in 8.11. Current state: 983 declared test methods (776 `[Fact]`, 207 `[Theory]`) across 46 test classes. Fewer than that compile into any single target framework: the property-based, timing, stress and chunked-wipe suites are gated to net8.0 and later, and the enum buffer is covered by one test for .NET Framework and a different one everywhere else. |
-| **Q11** | A release is built twice from the same tag. | Identical artifacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (8.0.428 / 9.0.321 / 10.0.404 / 11.0.100). |
+| **Q11** | A release is built twice from the same tag. | Identical artifacts: `Deterministic=true`, `ContinuousIntegrationBuild` in CI, `--locked-mode` restore against `packages.lock.json`, SDK versions pinned exactly (10.0.404 / 11.0.100). |
 | **Q12** | A consumer accidentally combines the `SecureBigInteger` backend with the variable-time `ExtendedEuclideanAlgorithm`. | If they use `FixedIterationSecretReconstructor<TNumber>`: a **compile error** (the constructor takes only `IFixedIterationExtendedGcdAlgorithm<TNumber>`). Through the base type `SecretReconstructor<TNumber>` the combination stays possible — that is a documented opt-out, not an accident. |
 
 > **Open:** There is no non-functional *performance* target — no throughput or latency budget, no
@@ -1343,7 +1348,7 @@ shares that do not. What remains is maintenance load, misuse risk, and documente
 
 | # | Risk / debt | Severity | Impact | Mitigation | Evidence |
 |---|---|---|---|---|---|
-| **R1** | **Nine-TFM sprawl.** `net472`/`net48`/`net481` are outside mainstream support and force `#if` branches in almost every file. | High (maintenance) | Every new feature costs double implementation and double verification; Mono is required as an extra test runtime. | Drop the legacy TFMs in the next major; keep only `netstandard2.0` as a bridge plus `net10/11` — `net8.0` and `net9.0` leave in 2.0.0 regardless (ADR 0001). | `SecretSharingDotNet.csproj:8`; 51 `#if` branches under `src/` |
+| **R1** | **Seven-TFM sprawl.** `net472`/`net48`/`net481` are outside mainstream support and force `#if` branches in almost every file. | High (maintenance) | Every new feature costs double implementation and double verification; Mono is required as an extra test runtime. | Drop the legacy TFMs in the next major; keep only `netstandard2.0` as a bridge plus `net10/11` — `net8.0` and `net9.0` are already removed for 2.0.0 (ADR 0001). | `SecretSharingDotNet.csproj:8`; 51 `#if` branches under `src/` |
 | **R2** | **`SecureBigInteger.cs` at 2,753 LOC** in a single, non-partial class mixing six responsibilities. | High (maintenance) | Blocks the planned migration of the core arithmetic to limb level; reviews are expensive. | Two stages: first a purely mechanical `partial class` split along the six clusters (public API delta zero), then optionally genuine internal helper types. Guarded by the existing test suite × 7 TFMs. | `src/Math/Numerics/SecureBigInteger.cs`, 2,753 lines |
 | **R3** | **Mixed thread safety with no contract on the type.** Splitter and reconstructor mutate their security level; single-threaded test execution hides races. | High (correctness under misuse) | A splitter registered as a singleton returns wrong shares under load — with no error. | Warnings exist in `docs/usage.md` and the demo; stress tests cover the *supported* pattern. Open: a `<remarks>` thread-safety contract on every class. | `SecretSplitter<TNumber>`, line 166; warning in `docs/usage.md` |
 | **R4** | **No generic constraint on `TNumber`.** `Calculator<string>` compiles. | Medium (low practical impact) | Misuse only surfaces at runtime (`NotSupportedException` from `Calculator.Create`). | No clean common constraint is available: `INumber<T>` is net7+ and `SecureBigInteger` does not implement it. Deliberately left as is and documented. | `src/Math/Calculator.cs:74` — no constraint clause |
@@ -1357,7 +1362,7 @@ shares that do not. What remains is maintenance load, misuse risk, and documente
 | **R13** | **Mutation testing measures nothing.** Stryker.NET could not instrument the xUnit v3/MTP suite as of 4.16.0; the first green CI run was a **false green** (0.00 %, 1248/1248 survived). The manifest now pins 5.0.0, which fixes MTP coverage and adds `perTest` coverage analysis for MTP — the mode the kept configuration requests — but whether that makes this suite measurable is unverified. | Low (externally blocked) | There is no solid statement about test sharpness beyond coverage. | Workflow parked, configuration kept as a revival aid; tracked in GitHub issue #343. The upstream issues stryker-net #3117 (xUnit v3) and #3094 (Testing Platform support) are still open. | `.config/dotnet-tools.json` (Stryker 5.0.0); GitHub issue #343 |
 | **R14** | **Deferred: constant time for the hex/Base64 decoders and `Secret.CompareTo`.** The former are branchy boundary parsers; the latter short-circuits at the first differing byte and leaks the common prefix length. | Low (named in the threat model) | Sorting or comparing secret material is observable in time; only equality is CT. | Branchless variants are designed and parked for a dedicated PR cycle; `[Obsolete]` markers on the relational operators are an option. | `docs/threat-model.md` |
 | **R15** | **`Secret.CreateRandom` is entropy-suboptimal for small security levels** (level 13/17 ≈ 8 bits, level 31 ≈ 24 bits; measured over 3000 draws). | Low | Affects only the small levels that are discouraged anyway; from level 127 upwards ≈ p−8 bits remain. | A localized fix (uniform rejection sampling) was implemented and **rejected**: it breaks the round trip, because the mark byte is coupled to the prime at the representation level. A real fix is architectural. | `Secret<TNumber>.CreateRandom`, from line 1133 |
-| **R16** | **Further low/info footguns:** `PinnedPoolArray.PoolArray` hands out the raw buffer; `Secret` has implicit reveal conversions to `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` and, on net8+, `ReadOnlySpan<byte>` — the `byte[]` operator goes the other way, into a `Secret`; `Shares` silently takes ownership of a supplied share array; `(length + 7) / 8` can overflow on ~2 GB input; the reduction loop in `Secret.CreateRandom` is data-dependent. | Low | Each is a misuse risk, not an active hole. | Documented trade-offs; each can be hardened individually. | `PinnedPoolArray<T>.PoolArray` (l. 225), `Secret<TNumber>` (ll. 610, 625, 697, 703), `Shares<TNumber>` (l. 82), `SecureBigInteger` (l. 268), `Secret<TNumber>.CreateRandom` |
+| **R16** | **Further low/info footguns:** `PinnedPoolArray.PoolArray` hands out the raw buffer; `Secret` has implicit reveal conversions to `TNumber`, `Calculator<TNumber>`, `PinnedPoolArray<byte>` and, on net10+, `ReadOnlySpan<byte>` — the `byte[]` operator goes the other way, into a `Secret`; `Shares` silently takes ownership of a supplied share array; `(length + 7) / 8` can overflow on ~2 GB input; the reduction loop in `Secret.CreateRandom` is data-dependent. | Low | Each is a misuse risk, not an active hole. | Documented trade-offs; each can be hardened individually. | `PinnedPoolArray<T>.PoolArray` (l. 225), `Secret<TNumber>` (ll. 610, 625, 697, 703), `Shares<TNumber>` (l. 82), `SecureBigInteger` (l. 268), `Secret<TNumber>.CreateRandom` |
 | **R17** | **No `MIGRATION.md`, no public v1.0 roadmap.** The API-freeze criteria exist only as an internal note. | Low | Consumers cannot judge the maturity level. | Add `MIGRATION.md` and a public roadmap. | repository contains no `MIGRATION.md` |
 | **R18** | **Broad `InternalsVisibleTo` coupling.** The test suite reaches every `internal` type; refactoring resistance grows. | Low | Internal restructuring breaks tests even when the public API is unchanged. | Minimize the test surface where public-API tests suffice; document the remaining `internal` needs. | `src/SecretSharingDotNet.csproj` (`InternalsVisibleTo` items) |
 | **R19** | **Single maintainer (bus factor 1).** | Medium (organizational) | A break stops security fixes and release capability. | This documentation is one contribution: it makes the architecture and the open items accessible without person-bound knowledge. | Chapter 2 (this document) |
