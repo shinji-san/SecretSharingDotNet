@@ -42,6 +42,7 @@ using SecretSharingDotNet.Math;
 using SecretSharingDotNet.Math.Numerics;
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -148,21 +149,51 @@ public class SecretReconstructorTest
     }
 
     /// <summary>
-    /// A derived reconstructor that is never disposed still reaches its <c>Dispose(bool)</c>
-    /// override — with <c>disposing</c> set to <see langword="false"/> — through the finalizer
-    /// of <c>SecretReconstructor</c>. The finalizer releases nothing of the base type's own; it is
-    /// kept because an existing derivation may rely on it to clean up, and removing it is reserved
-    /// for the next major version. This test is what makes that removal a deliberate step.
+    /// None of the reconstructor types declares a finalizer. The one <c>SecretReconstructor</c>
+    /// carried until 2.0.0 released nothing of the base type's own; a derived type that has to clean
+    /// up an instance nobody disposes declares a finalizer of its own.
+    /// Mirror of the BigInteger-side fact of the same name.
+    /// </summary>
+    [Fact]
+    public void Finalizer_OfTheReconstructorTypes_IsNotDeclared()
+    {
+        // Arrange
+        const BindingFlags declaredNonPublicInstance =
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+        var reconstructorTypes = new[]
+        {
+            typeof(FixedIterationSecretReconstructor<SecureBigInteger>),
+            typeof(SecretReconstructor<SecureBigInteger>),
+            // SecretReconstructor<TNumber, TExtendedGcdAlgorithm, TExtendedGcdResult>
+            typeof(SecretReconstructor<SecureBigInteger>).BaseType,
+        };
+
+        // Act
+        string[] typesDeclaringAFinalizer = reconstructorTypes
+            .Where(type => type.GetMethod("Finalize", declaredNonPublicInstance) != null)
+            .Select(type => type.Name)
+            .ToArray();
+
+        // Assert
+        Assert.Empty(typesDeclaringAFinalizer);
+    }
+
+    /// <summary>
+    /// A derived reconstructor that declares a finalizer of its own and is never disposed reaches
+    /// its <c>Dispose(bool)</c> override exactly once, with <c>disposing</c> set to
+    /// <see langword="false"/>. While <c>SecretReconstructor</c> had a finalizer, the derived one
+    /// chained to it and the override ran twice.
     /// <para>
     /// The instance is created on a thread of its own, which has ended by the time the test
     /// collects: Mono scans stacks conservatively, and a stale slot on the test thread's stack could
     /// otherwise keep the instance alive through every retry. The retries only cover a collector
-    /// that has not finished on the first pass.
+    /// that has not finished on the first pass; a second call would come from the same finalizer
+    /// run as the first.
     /// </para>
     /// Mirror of the BigInteger-side fact of the same name.
     /// </summary>
     [Fact]
-    public void Finalizer_OfAnUndisposedDerivedType_CallsDisposeWithDisposingFalse()
+    public void Finalizer_OfAnUndisposedDerivedType_CallsDisposeWithDisposingFalseOnce()
     {
         // Arrange
         var recorder = new FinalizationRecorder();
@@ -171,22 +202,22 @@ public class SecretReconstructorTest
         var creator = new Thread(() => AbandonFinalizingReconstructor(recorder));
         creator.Start();
         creator.Join();
-        for (int attempt = 0; attempt < 10 && !recorder.Called; attempt++)
+        for (int attempt = 0; attempt < 10 && recorder.Calls == 0; attempt++)
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
 
         // Assert
-        Assert.True(recorder.Called);
+        Assert.Equal(1, recorder.Calls);
         Assert.False(recorder.Disposing);
     }
 
     /// <summary>
     /// Creates a <see cref="FinalizingReconstructor"/> and drops it without disposing it, which is
-    /// the point: only the finalizer can reach it afterwards.
+    /// the point: only its finalizer can reach it afterwards.
     /// </summary>
-    /// <param name="recorder">Receives the call the finalizer makes.</param>
+    /// <param name="recorder">Receives the calls the finalizer makes.</param>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void AbandonFinalizingReconstructor(FinalizationRecorder recorder)
     {
@@ -194,27 +225,28 @@ public class SecretReconstructorTest
     }
 
     /// <summary>
-    /// Records whether <c>Dispose(bool)</c> was reached and with which argument. Holds no reference
-    /// to the reconstructor, so it does not keep it alive.
+    /// Counts how often <c>Dispose(bool)</c> was reached and records the last argument. Holds no
+    /// reference to the reconstructor, so it does not keep it alive.
     /// </summary>
     private sealed class FinalizationRecorder
     {
-        private int called;
+        private int calls;
         private int disposing;
 
-        public bool Called => Volatile.Read(ref this.called) == 1;
+        public int Calls => Volatile.Read(ref this.calls);
 
         public bool Disposing => Volatile.Read(ref this.disposing) == 1;
 
         public void Record(bool value)
         {
             Volatile.Write(ref this.disposing, value ? 1 : 0);
-            Volatile.Write(ref this.called, 1);
+            Interlocked.Increment(ref this.calls);
         }
     }
 
     /// <summary>
-    /// A derived reconstructor whose <c>Dispose(bool)</c> override reports to a recorder.
+    /// A derived reconstructor with a finalizer of its own, the way a derivation that cleans up an
+    /// undisposed instance declares one; its <c>Dispose(bool)</c> override reports to a recorder.
     /// </summary>
     private sealed class FinalizingReconstructor : SecretReconstructor<SecureBigInteger>
     {
@@ -224,6 +256,11 @@ public class SecretReconstructorTest
             : base(new MersenneSafeGcdAlgorithm<SecureBigInteger>())
         {
             this.recorder = recorder;
+        }
+
+        ~FinalizingReconstructor()
+        {
+            this.Dispose(false);
         }
 
         protected override void Dispose(bool disposing)
